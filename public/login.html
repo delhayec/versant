@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion - Versant</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛰️</text></svg>">
+</head>
+<body>
+  <div class="hero-bg" style="position: fixed; inset: 0; z-index: -1;"></div>
+  
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-logo">⛰️</div>
+      <h1 class="login-title">Connexion</h1>
+      <p class="login-subtitle">Accédez à votre espace personnel</p>
+      
+      <div class="login-error" id="loginError">
+        Code d'accès incorrect
+      </div>
+      
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label" for="participantSelect">Sélectionnez votre profil</label>
+          <select class="form-select" id="participantSelect" required>
+            <option value="">-- Choisir un participant --</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="accessCode">Code d'accès</label>
+          <input 
+            type="password" 
+            class="form-input" 
+            id="accessCode" 
+            placeholder="Entrez le code d'accès"
+            required
+          >
+        </div>
+        
+        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" id="rememberMe" style="width: auto;">
+          <label for="rememberMe" style="font-size: 0.9rem; color: var(--text-secondary); cursor: pointer;">
+            Rester connecté
+          </label>
+        </div>
+        
+        <button type="submit" class="btn-primary" id="loginButton">
+          Se connecter
+        </button>
+      </form>
+      
+      <p style="margin-top: 24px; text-align: center;">
+        <a href="index.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem;">
+          ← Retour à l'accueil
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { PARTICIPANTS, AUTH_CONFIG } from './js/config.js';
+    
+    const STORAGE_PREFIX = 'versant_';
+    const saveToStorage = (key, val) => { try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val)); return true; } catch(e) { return false; } };
+    const getFromStorage = (key) => { try { const v = localStorage.getItem(STORAGE_PREFIX + key); return v ? JSON.parse(v) : null; } catch(e) { return null; } };
+    
+    // Remplir le select avec les participants
+    const select = document.getElementById('participantSelect');
+    PARTICIPANTS.forEach(participant => {
+      const option = document.createElement('option');
+      option.value = participant.id;
+      option.textContent = participant.name;
+      select.appendChild(option);
+    });
+    
+    // Vérifier si déjà connecté
+    const session = getFromStorage('session');
+    if (session && session.expiresAt > Date.now()) {
+      window.location.href = 'dashboard.html';
+    }
+    
+    // Gestion du formulaire
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const participantId = document.getElementById('participantSelect').value;
+      const accessCode = document.getElementById('accessCode').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
+      const errorEl = document.getElementById('loginError');
+      
+      // Vérifier le code d'accès
+      if (accessCode !== AUTH_CONFIG.accessCode) {
+        errorEl.classList.add('visible');
+        return;
+      }
+      
+      errorEl.classList.remove('visible');
+      
+      // Créer la session
+      const sessionDuration = rememberMe 
+        ? AUTH_CONFIG.rememberMeDays * 24 * 60 * 60 * 1000
+        : AUTH_CONFIG.sessionDurationHours * 60 * 60 * 1000;
+      
+      const newSession = {
+        participantId: participantId,
+        loggedInAt: Date.now(),
+        expiresAt: Date.now() + sessionDuration
+      };
+      
+      saveToStorage('session', newSession);
+      
+      // Rediriger vers le dashboard
+      window.location.href = 'dashboard.html';
+    });
+  </script>
+</body>
+</html>

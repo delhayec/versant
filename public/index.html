@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Versant - Challenge à Élimination</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛰️</text></svg>">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-content">
+      <div class="loading-icon">⛰️</div>
+      <div class="loading-title">Versant</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Chargement des données...</div>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero" style="min-height: 60vh;">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <span class="hero-eyebrow">Challenge 2025</span>
+      <h1 class="hero-title">
+        <span class="title-line">Challenge</span>
+        <span class="title-line accent">Versant</span>
+      </h1>
+      <p class="hero-subtitle">Course à élimination par saisons • Dénivelé positif</p>
+      <p class="hero-description">
+        Chaque round de 5 jours, les 2 derniers au classement D+ sont éliminés.
+        À la fin de chaque saison, les points sont attribués et tout le monde repart !
+      </p>
+    </div>
+    <div class="scroll-indicator">
+      <span>Découvrir</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- Navigation -->
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <span class="brand-icon">⛰️</span>
+        <span class="brand-text">Versant</span>
+      </a>
+      <div class="nav-links">
+        <a href="#ranking" class="nav-link active">Classement</a>
+        <a href="#eliminated" class="nav-link">Éliminés</a>
+        <a href="#standings" class="nav-link">Points</a>
+        <a href="#participants" class="nav-link">Participants</a>
+        <a href="login.html" class="btn-login" id="loginBtn">Connexion</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Season Banner -->
+  <section style="padding: 24px var(--container-padding);">
+    <div class="season-banner" id="seasonBanner"></div>
+  </section>
+
+  <!-- Round Banner -->
+  <section style="padding: 0 var(--container-padding);">
+    <div class="round-banner" id="roundBanner"></div>
+  </section>
+
+  <!-- Classement du Round -->
+  <section class="ranking-section" id="ranking">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <h2 class="section-title">Classement du Round</h2>
+      <p class="section-desc">Survolez un athlète pour voir ses activités • Les derniers seront éliminés</p>
+    </div>
+    <div class="ranking-container" id="rankingContainer"></div>
+  </section>
+
+  <!-- Challenge des Éliminés -->
+  <section class="ranking-section" id="eliminated">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <h2 class="section-title">Challenge des Éliminés</h2>
+      <p class="section-desc">D+ cumulé depuis l'élimination - Points attribués en fin de saison</p>
+    </div>
+    <div class="ranking-container" id="eliminatedChallengeContainer"></div>
+  </section>
+
+  <!-- Classement Général (Points) -->
+  <section class="ranking-section" id="standings">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <h2 class="section-title">Classement Général</h2>
+      <p class="section-desc">Points totaux = Challenge Principal + Challenge Éliminés</p>
+    </div>
+    <div class="standings-container" id="finalStandingsContainer"></div>
+  </section>
+
+  <!-- Participants -->
+  <section class="participants-section" id="participants">
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <h2 class="section-title">Participants</h2>
+      <p class="section-desc">Tous les athlètes de la saison</p>
+    </div>
+    <div class="participants-grid" id="participantsGrid"></div>
+  </section>
+
+  <!-- Historique -->
+  <section class="history-section" id="history">
+    <div class="section-header">
+      <span class="section-number">05</span>
+      <h2 class="section-title">Historique des Saisons</h2>
+      <p class="section-desc">Détails et résumés des saisons passées</p>
+    </div>
+    <div class="history-timeline" id="historyTimeline"></div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">⛰️ Versant</div>
+      <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
+    </div>
+  </footer>
+
+  <!-- Date Slider (Debug) - EN BAS -->
+  <div class="date-slider-container bottom" id="dateSliderContainer"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

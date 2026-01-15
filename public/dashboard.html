@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Espace - Versant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛰️</text></svg>">
+  <style>
+    .activities-list { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; }
+    .activity-row { display: grid; grid-template-columns: 80px 1fr 100px 80px; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-color); align-items: center; }
+    .activity-row:last-child { border-bottom: none; }
+    .activity-date { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); }
+    .activity-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .activity-sport { font-size: 0.8rem; color: var(--accent-secondary); }
+    .activity-elevation { font-family: var(--font-mono); color: var(--accent-primary); text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-content">
+      <div class="loading-icon">⛰️</div>
+      <div class="loading-title">Versant</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Chargement...</div>
+    </div>
+  </div>
+
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand"><span class="brand-icon">⛰️</span><span class="brand-text">Versant</span></a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Accueil</a>
+        <a href="#stats" class="nav-link">Mes Stats</a>
+        <a href="#jokers" class="nav-link">Jokers</a>
+        <button class="btn-login" id="logoutBtn" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);">Déconnexion</button>
+      </div>
+    </div>
+  </nav>
+
+  <header class="dashboard-header">
+    <div class="dashboard-header-content">
+      <div class="user-welcome">
+        <div class="user-avatar-large" id="userAvatar">--</div>
+        <div class="user-info">
+          <h1 id="userName">Chargement...</h1>
+          <p class="user-status" id="userStatus">En course</p>
+        </div>
+      </div>
+      <div class="user-position">
+        <div class="position-value" id="userPosition">-</div>
+        <div class="position-label">Position actuelle</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="dashboard-stats" id="stats">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-card-icon">⛰️</div><div class="stat-card-value" id="statElevation">0</div><div class="stat-card-label">D+ ce round</div></div>
+      <div class="stat-card"><div class="stat-card-icon">🏃</div><div class="stat-card-value" id="statActivities">0</div><div class="stat-card-label">Activités</div></div>
+      <div class="stat-card"><div class="stat-card-icon">📏</div><div class="stat-card-value" id="statDistance">0</div><div class="stat-card-label">Kilomètres</div></div>
+      <div class="stat-card"><div class="stat-card-icon">🏆</div><div class="stat-card-value" id="statPoints">0</div><div class="stat-card-label">Points année</div></div>
+    </div>
+  </section>
+
+  <section class="jokers-section" id="jokers">
+    <div class="section-header"><span class="section-number">01</span><h2 class="section-title">Mes Jokers</h2><p class="section-desc">Utilisez-les stratégiquement (actifs au round suivant)</p></div>
+    <div class="jokers-grid" id="jokersGrid"></div>
+  </section>
+
+  <section class="round-history-section" id="history">
+    <div class="section-header"><span class="section-number">02</span><h2 class="section-title">Mes Activités du Round</h2><p class="section-desc">Détail de vos sorties</p></div>
+    <div id="activitiesList" class="activities-list"></div>
+  </section>
+
+  <div class="modal-overlay" id="jokerModal">
+    <div class="modal-content">
+      <div class="modal-header"><h3 class="modal-title">Activer un joker</h3><button class="modal-close" id="modalClose">&times;</button></div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer"><button class="btn-secondary" id="modalCancel">Annuler</button><button class="btn-danger" id="modalConfirm">Confirmer</button></div>
+    </div>
+  </div>
+
+  <footer class="footer"><div class="footer-content"><div class="footer-brand">⛰️ Versant</div></div></footer>
+
+  <script type="module">
+    import { PARTICIPANTS, JOKER_TYPES, getParticipantById, getRoundDates, getGlobalRoundNumber, isValidSport } from './js/config.js';
+    
+    const STORAGE_PREFIX = 'versant_';
+    const saveToStorage = (k, v) => { try { localStorage.setItem(STORAGE_PREFIX + k, JSON.stringify(v)); } catch(e) {} };
+    const getFromStorage = (k) => { try { const v = localStorage.getItem(STORAGE_PREFIX + k); return v ? JSON.parse(v) : null; } catch(e) { return null; } };
+    const removeFromStorage = (k) => localStorage.removeItem(STORAGE_PREFIX + k);
+    
+    const formatElevation = (v) => Math.round(v).toLocaleString('fr-FR');
+    const formatDistance = (m) => (m / 1000).toFixed(1);
+    const formatPosition = (p) => `${p}${p === 1 ? 'er' : 'e'}`;
+    const formatDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    
+    const COLORS = ['#f97316', '#22d3ee', '#a855f7', '#10b981', '#f43f5e', '#eab308', '#3b82f6', '#ec4899'];
+    const colorMap = {};
+    const getAthleteColor = (id) => colorMap[id] || (colorMap[id] = COLORS[Object.keys(colorMap).length % COLORS.length]);
+    const getAthleteInitials = (id) => { const p = getParticipantById(id); if (!p) return '?'; const n = p.name.split(' '); return n.length >= 2 ? n[0][0] + n[1][0] : p.name.substring(0, 2).toUpperCase(); };
+    
+    let currentUser = null;
+    let allActivities = [];
+    let selectedJoker = null;
+    
+    async function loadActivities() {
+      const cached = sessionStorage.getItem('versant_activities');
+      if (cached) try { return JSON.parse(cached); } catch(e) {}
+      for (const path of ['data/all_activities_2025.json', './data/all_activities_2025.json']) {
+        try {
+          const res = await fetch(path);
+          if (res.ok) {
+            const raw = await res.json();
+            let data = Array.isArray(raw) ? raw : (raw.activities || []);
+            data = data.filter(a => isValidSport(a.sport_type)).map(a => ({...a, athlete_id: String(a.athlete?.id || a.athlete_id), date: a.start_date?.split('T')[0]}));
+            try { sessionStorage.setItem('versant_activities', JSON.stringify(data)); } catch(e) {}
+            return data;
+          }
+        } catch(e) {}
+      }
+      return [];
+    }
+    
+    const filterByParticipant = (acts, id) => acts.filter(a => a.athlete_id === String(id));
+    const filterByPeriod = (acts, start, end) => { const s = new Date(start), e = new Date(end); e.setHours(23,59,59); return acts.filter(a => { const d = new Date(a.start_date); return d >= s && d <= e; }); };
+    
+    function calculateRanking(acts, participants) {
+      const ranking = participants.map(p => {
+        const pActs = filterByParticipant(acts, p.id);
+        return { participant: p, totalElevation: pActs.reduce((s, a) => s + (a.total_elevation_gain || 0), 0) };
+      });
+      ranking.sort((a, b) => b.totalElevation - a.totalElevation);
+      ranking.forEach((e, i) => e.position = i + 1);
+      return ranking;
+    }
+    
+    function checkSession() {
+      const session = getFromStorage('session');
+      if (!session || session.expiresAt < Date.now()) { window.location.href = 'login.html'; return null; }
+      return getParticipantById(session.participantId);
+    }
+    
+    async function init() {
+      currentUser = checkSession();
+      if (!currentUser) return;
+      allActivities = await loadActivities();
+      renderAll();
+      document.getElementById('loadingScreen').classList.add('hidden');
+    }
+    
+    function renderAll() {
+      document.getElementById('userAvatar').textContent = getAthleteInitials(currentUser.id);
+      document.getElementById('userAvatar').style.background = `linear-gradient(135deg,${getAthleteColor(currentUser.id)},${getAthleteColor(currentUser.id)}88)`;
+      document.getElementById('userName').textContent = `Bonjour, ${currentUser.name} !`;
+      
+      const now = new Date();
+      const roundNum = getGlobalRoundNumber(now);
+      const roundDates = getRoundDates(roundNum);
+      const roundActs = filterByPeriod(allActivities, roundDates.start, roundDates.end);
+      const ranking = calculateRanking(roundActs, PARTICIPANTS);
+      const userRank = ranking.find(r => r.participant.id === currentUser.id);
+      document.getElementById('userPosition').textContent = userRank ? formatPosition(userRank.position) : '-';
+      
+      const userActs = filterByParticipant(roundActs, currentUser.id);
+      document.getElementById('statElevation').textContent = formatElevation(userActs.reduce((s, a) => s + (a.total_elevation_gain || 0), 0));
+      document.getElementById('statActivities').textContent = userActs.length;
+      document.getElementById('statDistance').textContent = formatDistance(userActs.reduce((s, a) => s + (a.distance || 0), 0));
+      
+      // Jokers
+      const jokersGrid = document.getElementById('jokersGrid');
+      const usedJokers = getFromStorage(`jokers_used_${currentUser.id}`) || [];
+      let jokersHtml = '';
+      Object.values(JOKER_TYPES).forEach(j => {
+        const has = (currentUser.jokers || []).includes(j.id);
+        const used = usedJokers.some(u => u.jokerId === j.id);
+        if (!has && !used) return;
+        jokersHtml += `<div class="joker-card ${used ? 'used' : 'available'}"><div class="joker-header"><span class="joker-icon">${j.icon}</span><span class="joker-name">${j.name}</span><span class="joker-status ${used ? 'used' : 'available'}">${used ? 'Utilisé' : 'Dispo'}</span></div><p class="joker-description">${j.description}</p>${used ? '' : `<button class="btn-use-joker" data-joker="${j.id}">Utiliser</button>`}</div>`;
+      });
+      jokersGrid.innerHTML = jokersHtml || '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucun joker</p>';
+      jokersGrid.querySelectorAll('.btn-use-joker').forEach(btn => btn.addEventListener('click', () => openJokerModal(btn.dataset.joker)));
+      
+      // Activities
+      const actList = document.getElementById('activitiesList');
+      const sorted = userActs.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+      actList.innerHTML = sorted.length ? sorted.map(a => `<div class="activity-row"><span class="activity-date">${formatDate(a.start_date)}</span><span class="activity-name">${a.name || 'Activité'}</span><span class="activity-sport">${a.sport_type}</span><span class="activity-elevation">+${Math.round(a.total_elevation_gain || 0)}m</span></div>`).join('') : '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucune activité</p>';
+    }
+    
+    function openJokerModal(id) {
+      selectedJoker = JOKER_TYPES[id];
+      if (!selectedJoker) return;
+      document.getElementById('modalBody').innerHTML = `<p>Activer <strong>${selectedJoker.icon} ${selectedJoker.name}</strong> ?</p><p>${selectedJoker.effect}</p><p style="color:var(--accent-warning)">⚠️ Irréversible</p>`;
+      document.getElementById('jokerModal').classList.add('visible');
+    }
+    
+    function closeJokerModal() { document.getElementById('jokerModal').classList.remove('visible'); selectedJoker = null; }
+    
+    function confirmJoker() {
+      if (!selectedJoker) return;
+      const used = getFromStorage(`jokers_used_${currentUser.id}`) || [];
+      used.push({ jokerId: selectedJoker.id, round: getGlobalRoundNumber(new Date()), usedAt: Date.now() });
+      saveToStorage(`jokers_used_${currentUser.id}`, used);
+      closeJokerModal();
+      renderAll();
+      alert(`✅ ${selectedJoker.name} activé !`);
+    }
+    
+    document.getElementById('logoutBtn').addEventListener('click', () => { removeFromStorage('session'); window.location.href = 'index.html'; });
+    document.getElementById('modalClose').addEventListener('click', closeJokerModal);
+    document.getElementById('modalCancel').addEventListener('click', closeJokerModal);
+    document.getElementById('modalConfirm').addEventListener('click', confirmJoker);
+    document.getElementById('jokerModal').addEventListener('click', (e) => { if (e.target.id === 'jokerModal') closeJokerModal(); });
+    
+    init();
+  </script>
+</body>
+</html>
