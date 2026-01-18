@@ -3,125 +3,311 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connexion - Versant</title>
+  <title>Connexion - Challenge Versant 2026</title>
   
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Styles -->
   <link rel="stylesheet" href="css/style.css">
-  
-  <!-- Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛰️</text></svg>">
 </head>
 <body>
-  <div class="hero-bg" style="position: fixed; inset: 0; z-index: -1;"></div>
-  
-  <div class="login-container">
-    <div class="login-card">
-      <div class="login-logo">◭️</div>
-      <h1 class="login-title">Connexion</h1>
-      <p class="login-subtitle">Accédez à votre espace personnel</p>
-      
-      <div class="login-error" id="loginError">
-        Code d'accès incorrect
+  <!-- Navigation -->
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <span class="brand-icon">◭️</span>
+        <span class="brand-text">Versant</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Classement</a>
+        <a href="inscription.html" class="nav-link">S'inscrire</a>
       </div>
-      
-      <form id="loginForm">
-        <div class="form-group">
-          <label class="form-label" for="participantSelect">Sélectionnez votre profil</label>
-          <select class="form-select" id="participantSelect" required>
-            <option value="">-- Choisir un participant --</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label" for="accessCode">Code d'accès</label>
-          <input 
-            type="password" 
-            class="form-input" 
-            id="accessCode" 
-            placeholder="Entrez le code d'accès"
-            required
-          >
-        </div>
-        
-        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
-          <input type="checkbox" id="rememberMe" style="width: auto;">
-          <label for="rememberMe" style="font-size: 0.9rem; color: var(--text-secondary); cursor: pointer;">
-            Rester connecté
-          </label>
-        </div>
-        
-        <button type="submit" class="btn-primary" id="loginButton">
-          Se connecter
-        </button>
-      </form>
-      
-      <p style="margin-top: 24px; text-align: center;">
-        <a href="index.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem;">
-          ← Retour à l'accueil
-        </a>
-      </p>
     </div>
-  </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" style="min-height: 30vh; padding-top: 100px;">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <span class="hero-eyebrow">Espace Personnel</span>
+      <h1 class="hero-title">
+        <span class="title-line">Connexion</span>
+      </h1>
+    </div>
+  </section>
+
+  <!-- Login Form Section -->
+  <section class="ranking-section" style="padding-top: 40px;">
+    <div style="max-width: 480px; margin: 0 auto; padding: 0 24px;">
+      
+      <!-- Error Message -->
+      <div class="error-message" id="errorMessage" style="display: none;"></div>
+      
+      <!-- Success Message -->
+      <div class="success-message" id="successMessage" style="display: none;"></div>
+
+      <!-- Login Form -->
+      <div class="info-box" style="padding: 40px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+          <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 8px;">
+            Accéder à mon compte
+          </h2>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px;">
+            Entrez vos identifiants pour accéder à votre dashboard
+          </p>
+        </div>
+
+        <form id="loginForm">
+          <div class="form-group" style="margin-bottom: 24px;">
+            <label class="form-label" for="email" style="display: block; margin-bottom: 8px; font-weight: 500; color: rgba(255,255,255,0.9);">
+              Adresse e-mail
+            </label>
+            <input 
+              type="email" 
+              id="email" 
+              class="form-input" 
+              placeholder="votre@email.com"
+              required
+              autocomplete="email"
+              style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; font-family: inherit; transition: all 0.3s ease;"
+            >
+          </div>
+
+          <div class="form-group" style="margin-bottom: 32px;">
+            <label class="form-label" for="password" style="display: block; margin-bottom: 8px; font-weight: 500; color: rgba(255,255,255,0.9);">
+              Mot de passe
+            </label>
+            <input 
+              type="password" 
+              id="password" 
+              class="form-input" 
+              placeholder="Votre mot de passe"
+              required
+              autocomplete="current-password"
+              style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; font-family: inherit; transition: all 0.3s ease;"
+            >
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitBtn" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-family: inherit;">
+            Se connecter
+          </button>
+        </form>
+
+        <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
+          <p style="color: rgba(255,255,255,0.6); margin-bottom: 12px; font-size: 14px;">
+            Pas encore de compte ?
+          </p>
+          <a href="inscription.html" style="color: #f97316; text-decoration: none; font-weight: 600; transition: color 0.3s ease;">
+            Rejoindre la ligue →
+          </a>
+        </div>
+      </div>
+
+      <!-- Admin Login -->
+      <div class="info-box" style="margin-top: 24px; padding: 24px;">
+        <details>
+          <summary style="cursor: pointer; color: rgba(255,255,255,0.5); font-size: 14px; outline: none;">
+            🔧 Accès Administrateur
+          </summary>
+          <div style="margin-top: 16px;">
+            <form id="adminLoginForm">
+              <div class="form-group" style="margin-bottom: 16px;">
+                <input 
+                  type="password" 
+                  id="adminPassword" 
+                  class="form-input" 
+                  placeholder="Mot de passe admin"
+                  style="width: 100%; padding: 12px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px; font-family: inherit;"
+                >
+              </div>
+              <button type="submit" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.3s ease;">
+                Connexion Admin
+              </button>
+            </form>
+          </div>
+        </details>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" style="margin-top: 80px;">
+    <div class="footer-content">
+      <div class="footer-brand">◭️ Versant</div>
+      <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
+    </div>
+  </footer>
 
   <script type="module">
-    import { PARTICIPANTS, AUTH_CONFIG } from './js/config.js';
+    const API_BASE = '/api';
+
+    const form = document.getElementById('loginForm');
+    const adminForm = document.getElementById('adminLoginForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const errorMsg = document.getElementById('errorMessage');
+    const successMsg = document.getElementById('successMessage');
+
+    // Styles pour les messages
+    const errorStyle = `
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #ef4444;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    `;
     
-    const STORAGE_PREFIX = 'versant_';
-    const saveToStorage = (key, val) => { try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val)); return true; } catch(e) { return false; } };
-    const getFromStorage = (key) => { try { const v = localStorage.getItem(STORAGE_PREFIX + key); return v ? JSON.parse(v) : null; } catch(e) { return null; } };
-    
-    // Remplir le select avec les participants
-    const select = document.getElementById('participantSelect');
-    PARTICIPANTS.forEach(participant => {
-      const option = document.createElement('option');
-      option.value = participant.id;
-      option.textContent = participant.name;
-      select.appendChild(option);
-    });
-    
-    // Vérifier si déjà connecté
-    const session = getFromStorage('session');
-    if (session && session.expiresAt > Date.now()) {
-      window.location.href = 'dashboard.html';
+    const successStyle = `
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: #10b981;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    `;
+
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.style.cssText = errorStyle;
+      errorMsg.style.display = 'block';
+      successMsg.style.display = 'none';
     }
-    
-    // Gestion du formulaire
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
+
+    function showSuccess(message) {
+      successMsg.textContent = message;
+      successMsg.style.cssText = successStyle;
+      successMsg.style.display = 'block';
+      errorMsg.style.display = 'none';
+    }
+
+    // Login utilisateur (par email)
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
-      const participantId = document.getElementById('participantSelect').value;
-      const accessCode = document.getElementById('accessCode').value;
-      const rememberMe = document.getElementById('rememberMe').checked;
-      const errorEl = document.getElementById('loginError');
-      
-      // Vérifier le code d'accès
-      if (accessCode !== AUTH_CONFIG.accessCode) {
-        errorEl.classList.add('visible');
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        showError('Veuillez remplir tous les champs');
         return;
       }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Connexion...';
+      submitBtn.style.opacity = '0.7';
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            password: password
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erreur de connexion');
+        }
+
+        // Sauvegarder le token
+        localStorage.setItem('versant_token', data.token);
+        localStorage.setItem('versant_athlete_id', data.athlete.id);
+
+        showSuccess('Connexion réussie ! Redirection...');
+
+        // Rediriger vers le dashboard
+        setTimeout(() => {
+          window.location.href = 'dashboard.html';
+        }, 1000);
+
+      } catch (error) {
+        console.error('Erreur login:', error);
+        showError(error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Se connecter';
+        submitBtn.style.opacity = '1';
+      }
+    });
+
+    // Login admin
+    adminForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
       
-      errorEl.classList.remove('visible');
+      const password = document.getElementById('adminPassword').value;
       
-      // Créer la session
-      const sessionDuration = rememberMe 
-        ? AUTH_CONFIG.rememberMeDays * 24 * 60 * 60 * 1000
-        : AUTH_CONFIG.sessionDurationHours * 60 * 60 * 1000;
+      if (!password) {
+        showError('Entrez le mot de passe admin');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Mot de passe incorrect');
+        }
+
+        // Sauvegarder le token admin
+        localStorage.setItem('versant_admin_token', data.token);
+        localStorage.setItem('versant_admin_password', password);
+
+        showSuccess('Accès admin accordé ! Redirection...');
+        
+        // Rediriger vers la page admin
+        setTimeout(() => {
+          window.location.href = 'admin.html';
+        }, 1000);
+
+      } catch (error) {
+        showError(error.message);
+      }
+    });
+
+    // Vérifier si déjà connecté
+    window.addEventListener('DOMContentLoaded', async () => {
+      const token = localStorage.getItem('versant_token');
       
-      const newSession = {
-        participantId: participantId,
-        loggedInAt: Date.now(),
-        expiresAt: Date.now() + sessionDuration
-      };
-      
-      saveToStorage('session', newSession);
-      
-      // Rediriger vers le dashboard
-      window.location.href = 'dashboard.html';
+      if (token) {
+        try {
+          const response = await fetch(`${API_BASE}/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (response.ok) {
+            // Déjà connecté, rediriger
+            window.location.href = 'dashboard.html';
+          }
+        } catch (error) {
+          // Token invalide, rester sur la page de login
+          localStorage.removeItem('versant_token');
+        }
+      }
+    });
+
+    // Focus styles
+    document.querySelectorAll('.form-input').forEach(input => {
+      input.addEventListener('focus', function() {
+        this.style.borderColor = '#f97316';
+        this.style.background = 'rgba(0,0,0,0.4)';
+      });
+      input.addEventListener('blur', function() {
+        this.style.borderColor = 'rgba(255,255,255,0.2)';
+        this.style.background = 'rgba(0,0,0,0.3)';
+      });
     });
   </script>
 </body>

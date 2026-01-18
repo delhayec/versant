@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administration - Versant 2026</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <span class="brand-icon">◭️</span>
+        <span class="brand-text">Versant • Admin</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Retour au site</a>
+        <a href="#" class="nav-link" id="logoutBtn" style="color: #ef4444;">Déconnexion</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Login Section (shown if not authenticated) -->
+  <section class="ranking-section" id="loginSection" style="padding-top: 120px;">
+    <div style="max-width: 400px; margin: 0 auto; padding: 0 24px;">
+      <div class="info-box" style="padding: 40px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+        <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 24px;">
+          Accès Administration
+        </h2>
+        
+        <div id="loginError" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
+        
+        <form id="adminLoginForm">
+          <input 
+            type="password" 
+            id="adminPassword" 
+            placeholder="Mot de passe admin"
+            required
+            style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 16px;"
+          >
+          <button type="submit" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+            Connexion
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Admin Dashboard (shown after authentication) -->
+  <section class="ranking-section" id="adminDashboard" style="display: none; padding-top: 120px;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 24px;">
+      
+      <div class="section-header" style="margin-bottom: 40px;">
+        <span class="section-number">🔧</span>
+        <h2 class="section-title">Panneau d'Administration</h2>
+        <p class="section-desc">Gérer la ligue Versant 2026</p>
+      </div>
+
+      <!-- Stats rapides -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px;">
+        <div class="info-box" style="text-align: center; padding: 24px;">
+          <div style="font-size: 36px; font-weight: 700; color: #f97316;" id="statAthletes">-</div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Athlètes inscrits</div>
+        </div>
+        <div class="info-box" style="text-align: center; padding: 24px;">
+          <div style="font-size: 36px; font-weight: 700; color: #22d3ee;" id="statActivities">-</div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Activités</div>
+        </div>
+        <div class="info-box" style="text-align: center; padding: 24px;">
+          <div style="font-size: 36px; font-weight: 700; color: #10b981;" id="statSessions">-</div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Sessions actives</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px;">
+        
+        <!-- Synchronisation -->
+        <div class="info-box">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            🔄 Synchronisation Strava
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
+            Synchroniser les activités de tous les athlètes depuis Strava
+          </p>
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <input type="date" id="syncStartDate" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+            <input type="date" id="syncEndDate" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+          </div>
+          <button id="syncBtn" style="width: 100%; padding: 12px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+            Lancer la synchronisation
+          </button>
+          <div id="syncResult" style="margin-top: 12px; font-size: 14px;"></div>
+        </div>
+
+        <!-- Téléchargements -->
+        <div class="info-box">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            📥 Télécharger les données
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
+            Exporter les fichiers JSON de la base de données
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button class="download-btn" data-file="athletes" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
+              📋 athletes.json - Liste des inscrits
+            </button>
+            <button class="download-btn" data-file="activities" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
+              🏃 activities.json - Toutes les activités
+            </button>
+            <button class="download-btn" data-file="jokers" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
+              🃏 jokers_usage.json - Utilisation des jokers
+            </button>
+          </div>
+        </div>
+
+        <!-- Liste des athlètes -->
+        <div class="info-box" style="grid-column: 1 / -1;">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            👥 Athlètes inscrits
+          </h3>
+          <div id="athletesList" style="max-height: 400px; overflow-y: auto;">
+            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
+          </div>
+        </div>
+
+        <!-- Logs / Actions récentes -->
+        <div class="info-box" style="grid-column: 1 / -1;">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            📜 Journal des actions
+          </h3>
+          <div id="logsContainer" style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; font-family: 'Space Mono', monospace; font-size: 13px; max-height: 200px; overflow-y: auto;">
+            <div style="color: rgba(255,255,255,0.5);">En attente d'actions...</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" style="margin-top: 80px;">
+    <div class="footer-content">
+      <div class="footer-brand">◭️ Versant</div>
+      <p class="footer-text">Panneau d'administration</p>
+    </div>
+  </footer>
+
+  <script>
+    const API_BASE = '/api';
+    const LEAGUE_ID = 'versant-2026';
+    let adminPassword = null;
+
+    // ============================================
+    // AUTHENTIFICATION
+    // ============================================
+    function checkAuth() {
+      adminPassword = localStorage.getItem('versant_admin_password');
+      if (adminPassword) {
+        showDashboard();
+      } else {
+        showLogin();
+      }
+    }
+
+    function showLogin() {
+      document.getElementById('loginSection').style.display = 'block';
+      document.getElementById('adminDashboard').style.display = 'none';
+    }
+
+    function showDashboard() {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+      loadDashboardData();
+    }
+
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('adminPassword').value;
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        if (!response.ok) {
+          throw new Error('Mot de passe incorrect');
+        }
+
+        adminPassword = password;
+        localStorage.setItem('versant_admin_password', password);
+        showDashboard();
+        addLog('✅ Connexion admin réussie');
+
+      } catch (error) {
+        document.getElementById('loginError').textContent = error.message;
+        document.getElementById('loginError').style.display = 'block';
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('versant_admin_password');
+      adminPassword = null;
+      showLogin();
+    });
+
+    // ============================================
+    // CHARGEMENT DES DONNÉES
+    // ============================================
+    async function loadDashboardData() {
+      try {
+        // Charger la liste des fichiers
+        const filesRes = await fetch(`${API_BASE}/admin/files`, {
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        
+        if (!filesRes.ok) {
+          throw new Error('Session expirée');
+        }
+
+        const files = await filesRes.json();
+        
+        // Charger les athlètes
+        const athletesRes = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
+        const athletes = await athletesRes.json();
+        
+        // Charger les activités
+        const activitiesRes = await fetch(`${API_BASE}/activities/${LEAGUE_ID}`);
+        const activities = await activitiesRes.json();
+
+        // Mettre à jour les stats
+        document.getElementById('statAthletes').textContent = athletes.length;
+        document.getElementById('statActivities').textContent = activities.length;
+        document.getElementById('statSessions').textContent = '-';
+
+        // Afficher la liste des athlètes
+        renderAthletesList(athletes);
+
+        // Définir les dates par défaut pour la sync
+        const today = new Date();
+        const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
+        document.getElementById('syncEndDate').value = today.toISOString().split('T')[0];
+        document.getElementById('syncStartDate').value = weekAgo.toISOString().split('T')[0];
+
+        addLog(`📊 Données chargées: ${athletes.length} athlètes, ${activities.length} activités`);
+
+      } catch (error) {
+        console.error('Erreur chargement:', error);
+        if (error.message === 'Session expirée') {
+          localStorage.removeItem('versant_admin_password');
+          showLogin();
+        }
+      }
+    }
+
+    function renderAthletesList(athletes) {
+      const container = document.getElementById('athletesList');
+      
+      if (athletes.length === 0) {
+        container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun athlète inscrit</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Nom</th>
+              <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Email</th>
+              <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">ID Strava</th>
+              <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Inscrit le</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${athletes.map(a => `
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <td style="padding: 12px 8px; font-weight: 500;">${a.name}</td>
+                <td style="padding: 12px 8px; color: rgba(255,255,255,0.7);">${a.email || '-'}</td>
+                <td style="padding: 12px 8px; font-family: 'Space Mono', monospace; font-size: 13px;">${a.id}</td>
+                <td style="padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">${new Date(a.registered_at).toLocaleDateString('fr-FR')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // ============================================
+    // SYNCHRONISATION
+    // ============================================
+    document.getElementById('syncBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('syncBtn');
+      const result = document.getElementById('syncResult');
+      const startDate = document.getElementById('syncStartDate').value;
+      const endDate = document.getElementById('syncEndDate').value;
+
+      btn.disabled = true;
+      btn.textContent = 'Synchronisation en cours...';
+      result.innerHTML = '<span style="color: #fbbf24;">⏳ Synchronisation en cours...</span>';
+
+      addLog(`🔄 Lancement sync: ${startDate} → ${endDate}`);
+
+      try {
+        const response = await fetch(`${API_BASE}/sync/${LEAGUE_ID}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify({ startDate, endDate })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erreur de synchronisation');
+        }
+
+        result.innerHTML = `<span style="color: #10b981;">✅ ${data.totalActivities} activités synchronisées pour ${data.athletesCount} athlètes</span>`;
+        addLog(`✅ Sync terminée: ${data.totalActivities} activités`);
+
+        if (data.errors && data.errors.length > 0) {
+          result.innerHTML += `<br><span style="color: #fbbf24;">⚠️ ${data.errors.length} erreurs</span>`;
+          data.errors.forEach(err => addLog(`⚠️ ${err.athlete}: ${err.error}`));
+        }
+
+        // Recharger les données
+        loadDashboardData();
+
+      } catch (error) {
+        result.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
+        addLog(`❌ Erreur sync: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Lancer la synchronisation';
+      }
+    });
+
+    // ============================================
+    // TÉLÉCHARGEMENTS
+    // ============================================
+    document.querySelectorAll('.download-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const fileType = btn.dataset.file;
+        
+        try {
+          let url;
+          let filename;
+
+          if (fileType === 'athletes') {
+            url = `${API_BASE}/admin/athletes/download`;
+            filename = 'athletes.json';
+          } else if (fileType === 'activities') {
+            url = `${API_BASE}/admin/activities/${LEAGUE_ID}/download`;
+            filename = `${LEAGUE_ID}_activities.json`;
+          } else if (fileType === 'jokers') {
+            url = `${API_BASE}/admin/jokers/download`;
+            filename = 'jokers_usage.json';
+          }
+
+          const response = await fetch(url, {
+            headers: { 'X-Admin-Password': adminPassword }
+          });
+
+          if (!response.ok) {
+            throw new Error('Erreur de téléchargement');
+          }
+
+          const blob = await response.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(downloadUrl);
+
+          addLog(`📥 Téléchargement: ${filename}`);
+
+        } catch (error) {
+          addLog(`❌ Erreur téléchargement: ${error.message}`);
+          alert('Erreur: ' + error.message);
+        }
+      });
+    });
+
+    // ============================================
+    // LOGS
+    // ============================================
+    function addLog(message) {
+      const container = document.getElementById('logsContainer');
+      const time = new Date().toLocaleTimeString('fr-FR');
+      const logEntry = document.createElement('div');
+      logEntry.style.marginBottom = '8px';
+      logEntry.innerHTML = `<span style="color: rgba(255,255,255,0.4);">[${time}]</span> ${message}`;
+      
+      // Retirer le message par défaut
+      if (container.children.length === 1 && container.children[0].textContent.includes('En attente')) {
+        container.innerHTML = '';
+      }
+      
+      container.insertBefore(logEntry, container.firstChild);
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    checkAuth();
+  </script>
+</body>
+</html>

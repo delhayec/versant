@@ -1,18 +1,14 @@
 /**
  * ============================================
- * VERSANT - SERVEUR BACKEND
+ * VERSANT - SERVEUR BACKEND v2.0
  * ============================================
- * Gestion des inscriptions, authentification Strava,
- * synchronisation des activités et support multi-ligues
+ * Features:
+ * - Login avec mot de passe
+ * - Gestion des jokers
+ * - Interface admin
+ * - Règles avancées (activités, saisons, horaires)
  */
 require('dotenv').config();
-
-// TEST - À enlever après debug
-console.log('=== TEST DOTENV ===');
-console.log('STRAVA_CLIENT_ID:', process.env.STRAVA_CLIENT_ID);
-console.log('STRAVA_CLIENT_SECRET:', process.env.STRAVA_CLIENT_SECRET ? 'Défini ✓' : 'MANQUANT ✗');
-console.log('PORT:', process.env.PORT);
-console.log('===================');
 
 const express = require('express');
 const cors = require('cors');
@@ -20,6 +16,7 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const cron = require('node-cron');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,59 +26,150 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Configuration Strava
+// Configuration
 const STRAVA_CONFIG = {
   clientId: process.env.STRAVA_CLIENT_ID,
   clientSecret: process.env.STRAVA_CLIENT_SECRET,
   redirectUri: process.env.STRAVA_REDIRECT_URI || 'http://localhost:3000/inscription.html'
 };
 
-// Chemins des données
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // À changer !
+
+// Chemins
 const DATA_DIR = path.join(__dirname, 'data');
 const LEAGUES_DIR = path.join(DATA_DIR, 'leagues');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
+const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+
+// ============================================
+// UTILITAIRES - HASH MOT DE PASSE
+// ============================================
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+function verifyPassword(password, hash) {
+  return hashPassword(password) === hash;
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// ============================================
+// UTILITAIRES - GESTION HORAIRES
+// ============================================
+/**
+ * Obtenir la date/heure de fin de round (20h)
+ * Si activité après 20h, elle compte pour le round suivant
+ */
+function getRoundEndTime(roundEndDate) {
+  const endDate = new Date(roundEndDate);
+  endDate.setHours(20, 0, 0, 0); // 20h00
+  return endDate;
+}
+
+/**
+ * Vérifier si une activité compte pour un round
+ * Règle : Si l'activité se termine après 20h, elle compte pour le round suivant
+ */
+function activityCountsForRound(activity, roundStartDate, roundEndDate) {
+  const activityEnd = new Date(activity.start_date);
+  if (activity.elapsed_time) {
+    activityEnd.setSeconds(activityEnd.getSeconds() + activity.elapsed_time);
+  }
+  
+  const roundStart = new Date(roundStartDate);
+  roundStart.setHours(0, 0, 0, 0);
+  
+  const roundEnd = getRoundEndTime(roundEndDate);
+  
+  // L'activité doit se terminer avant 20h le dernier jour
+  return activityEnd >= roundStart && activityEnd < roundEnd;
+}
 
 // ============================================
 // INITIALISATION
 // ============================================
 async function initializeServer() {
-  // Créer les répertoires nécessaires
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.mkdir(LEAGUES_DIR, { recursive: true });
 
-  // Initialiser le fichier athletes si nécessaire
-  try {
-    await fs.access(ATHLETES_FILE);
-  } catch {
-    await fs.writeFile(ATHLETES_FILE, JSON.stringify([], null, 2));
+  // Initialiser les fichiers
+  for (const file of [ATHLETES_FILE, JOKERS_FILE, SESSIONS_FILE]) {
+    try {
+      await fs.access(file);
+    } catch {
+      await fs.writeFile(file, JSON.stringify([], null, 2));
+    }
   }
 
   console.log('✅ Serveur initialisé');
 }
 
 // ============================================
-// ROUTES - AUTHENTIFICATION STRAVA
+// SESSIONS
+// ============================================
+async function createSession(athleteId) {
+  const token = generateToken();
+  const sessions = JSON.parse(await fs.readFile(SESSIONS_FILE, 'utf8'));
+  
+  sessions.push({
+    token,
+    athlete_id: athleteId,
+    created_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 jours
+  });
+  
+  await fs.writeFile(SESSIONS_FILE, JSON.stringify(sessions, null, 2));
+  return token;
+}
+
+async function validateSession(token) {
+  if (!token) return null;
+  
+  const sessions = JSON.parse(await fs.readFile(SESSIONS_FILE, 'utf8'));
+  const session = sessions.find(s => s.token === token);
+  
+  if (!session) return null;
+  
+  // Vérifier l'expiration
+  if (new Date(session.expires_at) < new Date()) {
+    return null;
+  }
+  
+  return session.athlete_id;
+}
+
+// Middleware d'authentification
+async function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const athleteId = await validateSession(token);
+  
+  if (!athleteId) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  req.athleteId = athleteId;
+  next();
+}
+
+// ============================================
+// ROUTES - AUTHENTIFICATION
 // ============================================
 
 /**
- * Échange le code d'autorisation contre un token d'accès
+ * Échange Strava code → token
  */
 app.post('/api/auth/strava/exchange', async (req, res) => {
   try {
     const { code } = req.body;
 
-        // DEBUG - À ENLEVER APRÈS
-    console.log('=== DEBUG STRAVA ===');
-    console.log('Client ID:', STRAVA_CONFIG.clientId);
-    console.log('Client Secret:', STRAVA_CONFIG.clientSecret ? 'Défini ✓' : 'MANQUANT ✗');
-    console.log('Code reçu:', code);
-    console.log('===================');
-
     if (!code) {
       return res.status(400).json({ error: 'Code manquant' });
     }
 
-    // Échange avec Strava
     const response = await axios.post('https://www.strava.com/oauth/token', {
       client_id: STRAVA_CONFIG.clientId,
       client_secret: STRAVA_CONFIG.clientSecret,
@@ -108,8 +196,584 @@ app.post('/api/auth/strava/exchange', async (req, res) => {
 });
 
 /**
- * Rafraîchir un token d'accès expiré
+ * LOGIN - Connexion avec email + mot de passe
  */
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe requis' });
+    }
+
+    // Charger les athlètes
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    
+    // Chercher par email (insensible à la casse)
+    const athlete = athletes.find(a => 
+      a.email && a.email.toLowerCase() === email.toLowerCase()
+    );
+
+    if (!athlete) {
+      return res.status(401).json({ error: 'Aucun compte trouvé avec cet email' });
+    }
+
+    if (!athlete.password_hash) {
+      return res.status(401).json({ error: 'Mot de passe non défini pour ce compte' });
+    }
+
+    // Vérifier le mot de passe
+    if (!verifyPassword(password, athlete.password_hash)) {
+      return res.status(401).json({ error: 'Mot de passe incorrect' });
+    }
+
+    // Créer une session
+    const token = await createSession(athlete.id);
+
+    res.json({
+      success: true,
+      token,
+      athlete: {
+        id: athlete.id,
+        name: athlete.name,
+        email: athlete.email,
+        league_id: athlete.league_id
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur login:', error);
+    res.status(500).json({ error: 'Erreur lors de la connexion' });
+  }
+});
+
+/**
+ * LOGOUT
+ */
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (token) {
+      const sessions = JSON.parse(await fs.readFile(SESSIONS_FILE, 'utf8'));
+      const filtered = sessions.filter(s => s.token !== token);
+      await fs.writeFile(SESSIONS_FILE, JSON.stringify(filtered, null, 2));
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur logout' });
+  }
+});
+
+/**
+ * Vérifier si connecté
+ */
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const athleteId = await validateSession(token);
+
+    if (!athleteId) {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
+
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const athlete = athletes.find(a => a.id === athleteId);
+
+    if (!athlete) {
+      return res.status(404).json({ error: 'Athlète non trouvé' });
+    }
+
+    res.json({
+      id: athlete.id,
+      name: athlete.name,
+      email: athlete.email,
+      league_id: athlete.league_id,
+      jokers: athlete.jokers || []
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ============================================
+// ROUTES - INSCRIPTION
+// ============================================
+
+/**
+ * Inscrire un nouvel athlète AVEC mot de passe
+ */
+app.post('/api/athletes/register', async (req, res) => {
+  try {
+    const { 
+      athlete_id, 
+      name, 
+      email, 
+      password,  // NOUVEAU
+      strava_data, 
+      access_token, 
+      refresh_token,
+      expires_at,
+      league_id 
+    } = req.body;
+
+    if (!athlete_id || !name || !league_id || !password || !email) {
+      return res.status(400).json({ error: 'Données manquantes (ID, nom, email, ligue, mot de passe requis)' });
+    }
+
+    // Vérifier le format de l'email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Format d\'email invalide' });
+    }
+
+    // Vérifier si l'email est déjà utilisé
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const emailExists = athletes.find(a => 
+      a.email && a.email.toLowerCase() === email.toLowerCase()
+    );
+    
+    if (emailExists) {
+      return res.status(400).json({ error: 'Cet email est déjà utilisé par un autre compte' });
+    }
+
+    // Vérifier la force du mot de passe (minimum 6 caractères)
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
+    }
+
+    // Vérifier si déjà inscrit dans cette ligue
+    const existingIndex = athletes.findIndex(a => a.id === athlete_id && a.league_id === league_id);
+    
+    if (existingIndex >= 0) {
+      return res.status(400).json({ error: 'Déjà inscrit dans cette ligue' });
+    }
+
+    // Charger la config de la ligue pour vérifier la saison
+    const leagueConfigPath = path.join(LEAGUES_DIR, `${league_id}_config.json`);
+    let currentSeason = 1;
+    let canJoinNow = true;
+    
+    try {
+      const configData = await fs.readFile(leagueConfigPath, 'utf8');
+      const config = JSON.parse(configData);
+      currentSeason = config.current_season || 1;
+      
+      // Règle : Si saison en cours, inscription valable pour la prochaine saison
+      const now = new Date();
+      const seasonStart = new Date(config.season_start_date);
+      
+      if (now > seasonStart) {
+        canJoinNow = false;
+        currentSeason += 1;
+      }
+    } catch {
+      // Pas de config = première saison
+    }
+
+    const athleteRecord = {
+      id: athlete_id,
+      name: name,
+      email: email || null,
+      password_hash: hashPassword(password), // HASH du mot de passe
+      league_id: league_id,
+      strava_profile: strava_data,
+      registered_at: new Date().toISOString(),
+      active_from_season: currentSeason, // NOUVELLE RÈGLE
+      tokens: {
+        access_token: access_token,
+        refresh_token: refresh_token,
+        expires_at: expires_at
+      },
+      jokers: ["duel", "multiplicateur", "bouclier", "sabotage"],
+      jokers_used: [], // Historique des jokers utilisés
+      active: canJoinNow
+    };
+
+    athletes.push(athleteRecord);
+
+    // Sauvegarder
+    await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
+
+    // Créer une session
+    const token = await createSession(athlete_id);
+
+    console.log(`✅ Athlète inscrit: ${name} (${athlete_id}) - Ligue: ${league_id} - Saison: ${currentSeason}`);
+
+    res.json({ 
+      success: true, 
+      athlete_id,
+      token, // Retourner le token pour connexion auto
+      active_from_season: currentSeason,
+      message: canJoinNow 
+        ? 'Inscription réussie' 
+        : `Inscription réussie - Vous rejoindrez la ligue à la saison ${currentSeason}`
+    });
+
+  } catch (error) {
+    console.error('Erreur inscription:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'inscription' });
+  }
+});
+
+/**
+ * Liste des athlètes d'une ligue
+ */
+app.get('/api/athletes/:leagueId', async (req, res) => {
+  try {
+    const { leagueId } = req.params;
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    
+    // Filtrer par ligue et retirer les données sensibles
+    const leagueAthletes = athletes
+      .filter(a => a.league_id === leagueId && a.active)
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        registered_at: a.registered_at,
+        active_from_season: a.active_from_season
+      }));
+
+    res.json(leagueAthletes);
+  } catch (error) {
+    console.error('Erreur récupération athlètes:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ============================================
+// ROUTES - JOKERS
+// ============================================
+
+/**
+ * Utiliser un joker
+ */
+app.post('/api/jokers/use', requireAuth, async (req, res) => {
+  try {
+    const { joker_id, target_athlete_id, round_number } = req.body;
+    const athleteId = req.athleteId;
+
+    if (!joker_id || !round_number) {
+      return res.status(400).json({ error: 'Données manquantes' });
+    }
+
+    // Charger l'athlète
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const athleteIndex = athletes.findIndex(a => a.id === athleteId);
+
+    if (athleteIndex < 0) {
+      return res.status(404).json({ error: 'Athlète non trouvé' });
+    }
+
+    const athlete = athletes[athleteIndex];
+
+    // Vérifier que le joker est disponible
+    if (!athlete.jokers || !athlete.jokers.includes(joker_id)) {
+      return res.status(400).json({ error: 'Joker non disponible' });
+    }
+
+    // Vérifier qu'il n'a pas déjà été utilisé ce round
+    const jokerUsage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+    const alreadyUsed = jokerUsage.find(
+      j => j.athlete_id === athleteId && 
+           j.joker_id === joker_id && 
+           j.round_number === round_number
+    );
+
+    if (alreadyUsed) {
+      return res.status(400).json({ error: 'Joker déjà utilisé ce round' });
+    }
+
+    // Enregistrer l'utilisation
+    const usage = {
+      athlete_id: athleteId,
+      joker_id: joker_id,
+      target_athlete_id: target_athlete_id || null,
+      round_number: round_number,
+      used_at: new Date().toISOString(),
+      status: 'active'
+    };
+
+    jokerUsage.push(usage);
+    await fs.writeFile(JOKERS_FILE, JSON.stringify(jokerUsage, null, 2));
+
+    // Retirer le joker de la liste disponible
+    athlete.jokers = athlete.jokers.filter(j => j !== joker_id);
+    athlete.jokers_used = athlete.jokers_used || [];
+    athlete.jokers_used.push(usage);
+
+    athletes[athleteIndex] = athlete;
+    await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
+
+    console.log(`🃏 Joker utilisé: ${joker_id} par ${athlete.name} (Round ${round_number})`);
+
+    res.json({ 
+      success: true, 
+      message: 'Joker activé avec succès',
+      usage
+    });
+
+  } catch (error) {
+    console.error('Erreur utilisation joker:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Récupérer les jokers d'un athlète
+ */
+app.get('/api/jokers/my', requireAuth, async (req, res) => {
+  try {
+    const athleteId = req.athleteId;
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const athlete = athletes.find(a => a.id === athleteId);
+
+    if (!athlete) {
+      return res.status(404).json({ error: 'Athlète non trouvé' });
+    }
+
+    res.json({
+      available: athlete.jokers || [],
+      used: athlete.jokers_used || []
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Récupérer tous les jokers actifs d'un round
+ */
+app.get('/api/jokers/round/:roundNumber', async (req, res) => {
+  try {
+    const { roundNumber } = req.params;
+    const jokerUsage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+    
+    const roundJokers = jokerUsage.filter(
+      j => j.round_number === parseInt(roundNumber) && j.status === 'active'
+    );
+
+    res.json(roundJokers);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ============================================
+// ROUTES - ACTIVITÉS
+// ============================================
+
+/**
+ * Récupérer les activités d'une ligue
+ * Applique la règle des 20h
+ */
+app.get('/api/activities/:leagueId', async (req, res) => {
+  try {
+    const { leagueId } = req.params;
+    const { round_number, start_date, end_date } = req.query;
+    
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    
+    try {
+      const data = await fs.readFile(activitiesFile, 'utf8');
+      let activities = JSON.parse(data);
+
+      // Filtrer par round si spécifié (avec règle 20h)
+      if (round_number && start_date && end_date) {
+        activities = activities.filter(a => 
+          activityCountsForRound(a, start_date, end_date)
+        );
+      }
+
+      res.json(activities);
+    } catch {
+      res.json([]);
+    }
+
+  } catch (error) {
+    console.error('Erreur récupération activités:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ============================================
+// ROUTES - ADMIN
+// ============================================
+
+/**
+ * Login admin
+ */
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (password === ADMIN_PASSWORD) {
+      const token = generateToken();
+      res.json({ success: true, token, role: 'admin' });
+    } else {
+      res.status(401).json({ error: 'Mot de passe incorrect' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Télécharger le fichier athletes.json
+ */
+app.get('/api/admin/athletes/download', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const data = await fs.readFile(ATHLETES_FILE, 'utf8');
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=athletes.json');
+    res.send(data);
+
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Télécharger les activités d'une ligue
+ */
+app.get('/api/admin/activities/:leagueId/download', async (req, res) => {
+  try {
+    const { leagueId } = req.params;
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const data = await fs.readFile(activitiesFile, 'utf8');
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=${leagueId}_activities.json`);
+    res.send(data);
+
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Télécharger le fichier jokers_usage.json
+ */
+app.get('/api/admin/jokers/download', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const data = await fs.readFile(JOKERS_FILE, 'utf8');
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=jokers_usage.json');
+    res.send(data);
+
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Lister tous les fichiers disponibles
+ */
+app.get('/api/admin/files', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const leagueFiles = await fs.readdir(LEAGUES_DIR);
+    
+    res.json({
+      athletes: 'athletes.json',
+      jokers: 'jokers_usage.json',
+      sessions: 'sessions.json',
+      leagues: leagueFiles
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ============================================
+// WEBHOOK GITHUB - DÉPLOIEMENT AUTOMATIQUE
+// ============================================
+
+/**
+ * Webhook GitHub pour auto-déploiement
+ * Configurez sur GitHub: Settings > Webhooks > Add webhook
+ * Payload URL: https://votre-domaine.com/api/webhook/github
+ * Content type: application/json
+ * Secret: (optionnel, à configurer dans .env comme GITHUB_WEBHOOK_SECRET)
+ */
+app.post('/api/webhook/github', async (req, res) => {
+  try {
+    const event = req.headers['x-github-event'];
+    const payload = req.body;
+
+    console.log(`📥 Webhook GitHub reçu: ${event}`);
+
+    // Vérifier que c'est un push sur master/main
+    if (event === 'push') {
+      const branch = payload.ref?.replace('refs/heads/', '');
+      
+      if (branch === 'master' || branch === 'main') {
+        console.log(`🔄 Push détecté sur ${branch}, lancement du déploiement...`);
+        
+        // Exécuter git pull
+        const { exec } = require('child_process');
+        const projectDir = path.join(__dirname, '..');
+        
+        exec(`cd ${projectDir} && git pull origin ${branch}`, (error, stdout, stderr) => {
+          if (error) {
+            console.error(`❌ Erreur git pull: ${error.message}`);
+            return;
+          }
+          console.log(`✅ Git pull réussi:\n${stdout}`);
+          
+          // Optionnel: redémarrer le serveur (si vous utilisez PM2)
+          // exec('pm2 restart versant', (err) => {
+          //   if (err) console.error('Erreur restart PM2:', err);
+          //   else console.log('✅ Serveur redémarré');
+          // });
+        });
+
+        res.json({ success: true, message: 'Déploiement lancé' });
+      } else {
+        res.json({ success: true, message: `Push ignoré (branche: ${branch})` });
+      }
+    } else {
+      res.json({ success: true, message: `Événement ignoré: ${event}` });
+    }
+
+  } catch (error) {
+    console.error('Erreur webhook:', error);
+    res.status(500).json({ error: 'Erreur webhook' });
+  }
+});
+
+// ============================================
+// SYNCHRONISATION (Inchangée)
+// ============================================
+
 async function refreshStravaToken(refreshToken) {
   try {
     const response = await axios.post('https://www.strava.com/oauth/token', {
@@ -130,211 +794,59 @@ async function refreshStravaToken(refreshToken) {
   }
 }
 
-// ============================================
-// ROUTES - INSCRIPTION ATHLÈTES
-// ============================================
-
-/**
- * Inscrire un nouvel athlète
- */
-app.post('/api/athletes/register', async (req, res) => {
-  try {
-    const { athlete_id, name, email, strava_data, access_token, league_id } = req.body;
-
-    if (!athlete_id || !name || !league_id) {
-      return res.status(400).json({ error: 'Données manquantes' });
-    }
-
-    // Charger les athlètes existants
-    const athletesData = await fs.readFile(ATHLETES_FILE, 'utf8');
-    const athletes = JSON.parse(athletesData);
-
-    // Vérifier si l'athlète est déjà inscrit
-    const existingIndex = athletes.findIndex(a => a.id === athlete_id && a.league_id === league_id);
-    
-    const athleteRecord = {
-      id: athlete_id,
-      name: name,
-      email: email || null,
-      league_id: league_id,
-      strava_profile: strava_data,
-      registered_at: new Date().toISOString(),
-      tokens: {
-        access_token: access_token,
-        // Le refresh_token devrait être stocké de manière sécurisée
-        // et n'est pas retourné au client
-      },
-      jokers: ["duel", "multiplicateur", "bouclier", "sabotage"], // Jokers initiaux
-      active: true
-    };
-
-    if (existingIndex >= 0) {
-      // Mise à jour
-      athletes[existingIndex] = { ...athletes[existingIndex], ...athleteRecord };
-    } else {
-      // Nouvel athlète
-      athletes.push(athleteRecord);
-    }
-
-    // Sauvegarder
-    await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
-
-    console.log(`✅ Athlète inscrit: ${name} (${athlete_id}) - Ligue: ${league_id}`);
-
-    res.json({ 
-      success: true, 
-      athlete_id,
-      message: 'Inscription réussie' 
-    });
-
-  } catch (error) {
-    console.error('Erreur inscription:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'inscription' });
-  }
-});
-
-/**
- * Récupérer la liste des athlètes d'une ligue
- */
-app.get('/api/athletes/:leagueId', async (req, res) => {
-  try {
-    const { leagueId } = req.params;
-    
-    const athletesData = await fs.readFile(ATHLETES_FILE, 'utf8');
-    const athletes = JSON.parse(athletesData);
-    
-    // Filtrer par ligue et ne retourner que les données publiques
-    const leagueAthletes = athletes
-      .filter(a => a.league_id === leagueId && a.active)
-      .map(a => ({
-        id: a.id,
-        name: a.name,
-        strava_profile: {
-          firstname: a.strava_profile.firstname,
-          lastname: a.strava_profile.lastname,
-          profile: a.strava_profile.profile
-        },
-        jokers: a.jokers,
-        registered_at: a.registered_at
-      }));
-
-    res.json(leagueAthletes);
-
-  } catch (error) {
-    console.error('Erreur récupération athlètes:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des athlètes' });
-  }
-});
-
-// ============================================
-// ROUTES - SYNCHRONISATION ACTIVITÉS
-// ============================================
-
-/**
- * Récupérer les activités d'un athlète depuis Strava
- */
-async function fetchAthleteActivities(athleteId, accessToken, after = null, before = null) {
-  try {
-    const params = {
-      per_page: 200,
-      page: 1
-    };
-
-    if (after) params.after = Math.floor(new Date(after).getTime() / 1000);
-    if (before) params.before = Math.floor(new Date(before).getTime() / 1000);
-
-    const response = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      },
-      params
-    });
-
-    return response.data;
-
-  } catch (error) {
-    console.error(`Erreur fetch activités ${athleteId}:`, error.response?.data || error.message);
-    throw error;
-  }
-}
-
-/**
- * Récupérer le stream (GPX) d'une activité
- */
-async function fetchActivityStream(activityId, accessToken) {
-  try {
-    const response = await axios.get(
-      `https://www.strava.com/api/v3/activities/${activityId}/streams`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        },
-        params: {
-          keys: 'latlng,altitude,distance,grade_smooth',
-          key_by_type: true
-        }
-      }
-    );
-
-    return response.data;
-
-  } catch (error) {
-    console.error(`Erreur fetch stream ${activityId}:`, error.response?.data || error.message);
-    return null;
-  }
-}
-
-/**
- * Synchroniser les activités pour une ligue
- */
 app.post('/api/sync/:leagueId', async (req, res) => {
   try {
     const { leagueId } = req.params;
     const { startDate, endDate } = req.body;
 
-    console.log(`🔄 Début synchronisation ligue: ${leagueId}`);
+    const start = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = endDate || new Date().toISOString().split('T')[0];
 
-    // Charger les athlètes de la ligue
-    const athletesData = await fs.readFile(ATHLETES_FILE, 'utf8');
-    const allAthletes = JSON.parse(athletesData);
-    const leagueAthletes = allAthletes.filter(a => a.league_id === leagueId && a.active);
+    console.log(`🔄 Synchronisation de la ligue: ${leagueId}`);
+    console.log(`📅 Période: ${start} → ${end}`);
 
-    if (leagueAthletes.length === 0) {
-      return res.status(404).json({ error: 'Aucun athlète dans cette ligue' });
-    }
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
 
-    const allActivities = [];
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    let existingActivities = [];
+    
+    try {
+      existingActivities = JSON.parse(await fs.readFile(activitiesFile, 'utf8'));
+    } catch {}
+
+    let totalActivities = 0;
     const errors = [];
 
-    // Synchroniser chaque athlète
     for (const athlete of leagueAthletes) {
       try {
         console.log(`  📥 ${athlete.name}...`);
         
         let accessToken = athlete.tokens.access_token;
         
-        // Vérifier si le token doit être rafraîchi
+        // Refresh si expiré
         if (athlete.tokens.expires_at && athlete.tokens.expires_at < Date.now() / 1000) {
           const newTokens = await refreshStravaToken(athlete.tokens.refresh_token);
           accessToken = newTokens.access_token;
           
-          // Mettre à jour les tokens
-          athlete.tokens = newTokens;
+          // Sauvegarder
+          const athleteIndex = athletes.findIndex(a => a.id === athlete.id);
+          athletes[athleteIndex].tokens = newTokens;
+          await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
         }
 
         // Récupérer les activités
-        const activities = await fetchAthleteActivities(
-          athlete.id,
-          accessToken,
-          startDate,
-          endDate
-        );
+        const response = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          params: {
+            after: Math.floor(new Date(start).getTime() / 1000),
+            before: Math.floor(new Date(end).getTime() / 1000),
+            per_page: 200
+          }
+        });
 
-        // Ajouter l'ID de l'athlète et filtrer par type de sport
-        const validSports = ['Run', 'TrailRun', 'Hike', 'Ride', 'MountainBikeRide', 
-                            'GravelRide', 'BackcountrySki', 'NordicSki', 'AlpineSki'];
-        
-        const filteredActivities = activities
+        const validSports = ['Run', 'TrailRun', 'Hike', 'Ride', 'MountainBikeRide', 'GravelRide', 'BackcountrySki', 'NordicSki', 'AlpineSki'];
+        const activities = response.data
           .filter(a => validSports.includes(a.sport_type))
           .map(a => ({
             ...a,
@@ -342,28 +854,36 @@ app.post('/api/sync/:leagueId', async (req, res) => {
             date: a.start_date.split('T')[0]
           }));
 
-        allActivities.push(...filteredActivities);
-        console.log(`    ✓ ${filteredActivities.length} activités`);
+        // Fusionner
+        for (const activity of activities) {
+          const existingIndex = existingActivities.findIndex(e => e.id === activity.id);
+          if (existingIndex >= 0) {
+            existingActivities[existingIndex] = activity;
+          } else {
+            existingActivities.push(activity);
+          }
+        }
+
+        totalActivities += activities.length;
+        console.log(`    ✓ ${activities.length} activités`);
 
       } catch (error) {
-        console.error(`    ✗ Erreur ${athlete.name}:`, error.message);
-        errors.push({ athlete_id: athlete.id, error: error.message });
+        console.error(`    ✗ Erreur: ${error.message}`);
+        errors.push({ athlete: athlete.name, error: error.message });
       }
     }
 
-    // Sauvegarder les tokens mis à jour
-    await fs.writeFile(ATHLETES_FILE, JSON.stringify(allAthletes, null, 2));
+    // Sauvegarder
+    await fs.writeFile(activitiesFile, JSON.stringify(existingActivities, null, 2));
 
-    // Sauvegarder les activités
-    const leagueDataFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
-    await fs.writeFile(leagueDataFile, JSON.stringify(allActivities, null, 2));
-
-    console.log(`✅ Synchronisation terminée: ${allActivities.length} activités`);
+    console.log(`✅ Synchronisation réussie!`);
+    console.log(`   📊 ${totalActivities} activités`);
+    console.log(`   👥 ${leagueAthletes.length} athlètes`);
 
     res.json({
       success: true,
-      activities_count: allActivities.length,
-      athletes_count: leagueAthletes.length,
+      totalActivities,
+      athletesCount: leagueAthletes.length,
       errors: errors.length > 0 ? errors : undefined
     });
 
@@ -373,166 +893,33 @@ app.post('/api/sync/:leagueId', async (req, res) => {
   }
 });
 
-/**
- * Récupérer les activités d'une ligue
- */
-app.get('/api/activities/:leagueId', async (req, res) => {
-  try {
-    const { leagueId } = req.params;
-    const leagueDataFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
-
-    try {
-      const data = await fs.readFile(leagueDataFile, 'utf8');
-      const activities = JSON.parse(data);
-      res.json(activities);
-    } catch (error) {
-      // Fichier n'existe pas encore
-      res.json([]);
-    }
-
-  } catch (error) {
-    console.error('Erreur récupération activités:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des activités' });
-  }
-});
-
 // ============================================
-// ROUTES - CHALLENGES SPÉCIAUX
+// CRON - Sync automatique à 20h
 // ============================================
-
-/**
- * Analyser une activité pour les challenges spéciaux
- * (pente > X%, hors sentier)
- */
-app.post('/api/analyze/activity/:activityId', async (req, res) => {
-  try {
-    const { activityId } = req.params;
-    const { athlete_id, challenge_type, threshold } = req.body;
-
-    // Récupérer l'athlète pour avoir son token
-    const athletesData = await fs.readFile(ATHLETES_FILE, 'utf8');
-    const athletes = JSON.parse(athletesData);
-    const athlete = athletes.find(a => a.id === athlete_id);
-
-    if (!athlete) {
-      return res.status(404).json({ error: 'Athlète non trouvé' });
-    }
-
-    // Récupérer le stream de l'activité
-    const stream = await fetchActivityStream(activityId, athlete.tokens.access_token);
-
-    if (!stream || !stream.grade_smooth || !stream.altitude) {
-      return res.status(400).json({ error: 'Données de stream insuffisantes' });
-    }
-
-    let result = {};
-
-    // Analyse selon le type de challenge
-    if (challenge_type === 'steep_slope') {
-      // Challenge pente > threshold%
-      result = analyzeSteepSlope(stream, threshold || 15);
-    } else if (challenge_type === 'off_trail') {
-      // Challenge hors sentier (nécessite données supplémentaires)
-      result = analyzeOffTrail(stream);
-    }
-
-    res.json(result);
-
-  } catch (error) {
-    console.error('Erreur analyse activité:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'analyse' });
-  }
-});
-
-/**
- * Analyser le D+ sur pentes raides
- */
-function analyzeSteepSlope(stream, threshold) {
-  const grades = stream.grade_smooth.data;
-  const altitudes = stream.altitude.data;
-  const distances = stream.distance?.data || [];
-
-  let elevationOnSteep = 0;
-  let previousAlt = altitudes[0];
-
-  for (let i = 1; i < grades.length; i++) {
-    const grade = grades[i];
-    const currentAlt = altitudes[i];
-    
-    if (grade >= threshold && currentAlt > previousAlt) {
-      elevationOnSteep += currentAlt - previousAlt;
-    }
-    
-    previousAlt = currentAlt;
-  }
-
-  return {
-    elevation_on_steep: Math.round(elevationOnSteep),
-    threshold_percentage: threshold,
-    total_points: altitudes.length
-  };
-}
-
-/**
- * Analyser le D+ hors sentier
- * Note: Nécessiterait des données de type de surface ou comparaison avec OSM
- */
-function analyzeOffTrail(stream) {
-  // Implémentation simplifiée
-  // En réalité, il faudrait comparer les coordonnées GPS avec une carte
-  // des routes goudronnées (via Overpass API ou données OSM locales)
-  
-  return {
-    elevation_off_trail: 0,
-    note: 'Analyse hors-sentier nécessite intégration OSM'
-  };
-}
-
-// ============================================
-// TÂCHES AUTOMATIQUES
-// ============================================
-
-/**
- * Synchronisation quotidienne automatique
- * Chaque jour à 6h du matin
- */
-cron.schedule('0 6 * * *', async () => {
-  console.log('🕐 Synchronisation automatique...');
+cron.schedule('0 20 * * *', async () => {
+  console.log('🕐 Synchronisation automatique (20h)...');
   
   try {
-    const athletesData = await fs.readFile(ATHLETES_FILE, 'utf8');
-    const athletes = JSON.parse(athletesData);
-    
-    // Grouper par ligue
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
     const leagues = [...new Set(athletes.map(a => a.league_id))];
-    
+
     for (const leagueId of leagues) {
-      console.log(`  📊 Synchronisation ${leagueId}...`);
-      
-      // Synchroniser les 7 derniers jours pour être sûr
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
-      // Utiliser la même logique que la route /api/sync
-      // (code simplifié ici)
+      console.log(`  🔄 Sync: ${leagueId}`);
+      // Appeler la fonction de sync
     }
-    
-    console.log('✅ Synchronisation automatique terminée');
   } catch (error) {
-    console.error('❌ Erreur synchronisation automatique:', error);
+    console.error('Erreur sync auto:', error);
   }
 });
 
 // ============================================
-// DÉMARRAGE DU SERVEUR
+// DÉMARRAGE
 // ============================================
-
 initializeServer().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Serveur Versant démarré sur le port ${PORT}`);
     console.log(`📍 Interface: http://localhost:${PORT}`);
     console.log(`📍 API: http://localhost:${PORT}/api`);
+    console.log(`🔐 Admin password: ${ADMIN_PASSWORD}`);
   });
 });
-
-module.exports = app;

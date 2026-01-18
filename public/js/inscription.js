@@ -1,6 +1,6 @@
 /**
  * ============================================
- * VERSANT - GESTION DES INSCRIPTIONS
+ * VERSANT - INSCRIPTION AVEC MOT DE PASSE
  * ============================================
  */
 
@@ -8,14 +8,14 @@ const API_BASE_URL = '/api';
 
 // Configuration Strava OAuth
 const STRAVA_CONFIG = {
-  clientId: '195975', //
+  clientId: '195975', // ← Remplacer par votre Client ID
   redirectUri: window.location.origin + '/inscription.html',
   scope: 'read,activity:read_all'
 };
 
 // État de l'inscription
 let athleteData = null;
-let accessToken = null;
+let stravaTokens = null;
 
 // ============================================
 // INITIALISATION
@@ -39,7 +39,6 @@ function checkStravaCallback() {
   }
 
   if (code) {
-    // Code d'autorisation reçu, échanger contre un token
     exchangeTokenAndLoadAthlete(code);
   }
 }
@@ -67,7 +66,6 @@ async function exchangeTokenAndLoadAthlete(code) {
     btn.disabled = true;
     btn.textContent = 'Connexion en cours...';
 
-    // Appel API backend pour échanger le code
     const response = await fetch(`${API_BASE_URL}/auth/strava/exchange`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,10 +77,13 @@ async function exchangeTokenAndLoadAthlete(code) {
     }
 
     const data = await response.json();
-    accessToken = data.access_token;
+    stravaTokens = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: data.expires_at
+    };
     athleteData = data.athlete;
 
-    // Afficher le formulaire d'inscription
     displayRegistrationForm();
 
   } catch (error) {
@@ -104,14 +105,11 @@ async function exchangeTokenAndLoadAthlete(code) {
 // AFFICHAGE DU FORMULAIRE
 // ============================================
 function displayRegistrationForm() {
-  // Masquer la section de connexion
   document.querySelector('.strava-connect-section').style.display = 'none';
   
-  // Afficher le formulaire
   const form = document.getElementById('registrationForm');
   form.classList.add('active');
 
-  // Remplir les données de l'athlète
   const preview = document.getElementById('athletePreview');
   preview.innerHTML = `
     <img src="${athleteData.profile}" alt="${athleteData.firstname} ${athleteData.lastname}" class="athlete-avatar">
@@ -121,7 +119,6 @@ function displayRegistrationForm() {
     </div>
   `;
 
-  // Pré-remplir le nom
   document.getElementById('athleteName').value = `${athleteData.firstname} ${athleteData.lastname.charAt(0)}`;
 }
 
@@ -131,13 +128,24 @@ function displayRegistrationForm() {
 function setupEventListeners() {
   const submitBtn = document.getElementById('submitBtn');
   const acceptTerms = document.getElementById('acceptTerms');
+  const password = document.getElementById('athletePassword');
+  const passwordConfirm = document.getElementById('athletePasswordConfirm');
 
-  // Activation du bouton selon la checkbox
+  // Activation du bouton
   acceptTerms?.addEventListener('change', (e) => {
     submitBtn.disabled = !e.target.checked;
   });
 
-  // Soumission du formulaire
+  // Validation du mot de passe
+  passwordConfirm?.addEventListener('input', () => {
+    if (password.value !== passwordConfirm.value) {
+      passwordConfirm.setCustomValidity('Les mots de passe ne correspondent pas');
+    } else {
+      passwordConfirm.setCustomValidity('');
+    }
+  });
+
+  // Soumission
   submitBtn?.addEventListener('click', handleSubmit);
 }
 
@@ -147,10 +155,35 @@ function setupEventListeners() {
 async function handleSubmit() {
   const athleteName = document.getElementById('athleteName').value.trim();
   const athleteEmail = document.getElementById('athleteEmail').value.trim();
+  const password = document.getElementById('athletePassword').value;
+  const passwordConfirm = document.getElementById('athletePasswordConfirm').value;
   const acceptTerms = document.getElementById('acceptTerms').checked;
 
+  // Validations
   if (!athleteName) {
     showError('Veuillez entrer votre nom d\'affichage');
+    return;
+  }
+
+  if (!athleteEmail) {
+    showError('L\'adresse e-mail est obligatoire');
+    return;
+  }
+
+  // Validation format email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(athleteEmail)) {
+    showError('Format d\'email invalide');
+    return;
+  }
+
+  if (!password || password.length < 6) {
+    showError('Le mot de passe doit contenir au moins 6 caractères');
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    showError('Les mots de passe ne correspondent pas');
     return;
   }
 
@@ -159,37 +192,48 @@ async function handleSubmit() {
     return;
   }
 
+  if (!athleteData || !stravaTokens) {
+    showError('Erreur: données Strava manquantes. Veuillez vous reconnecter à Strava.');
+    return;
+  }
+
   try {
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Inscription en cours...';
 
-    // Envoyer les données au backend
+    // Envoyer au backend
     const response = await fetch(`${API_BASE_URL}/athletes/register`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        athlete_id: athleteData.id,
+        athlete_id: String(athleteData.id),
         name: athleteName,
         email: athleteEmail,
+        password: password,
         strava_data: athleteData,
-        access_token: accessToken,
-        league_id: 'versant-2026' // ID de la ligue
+        access_token: stravaTokens.access_token,
+        refresh_token: stravaTokens.refresh_token,
+        expires_at: stravaTokens.expires_at,
+        league_id: 'versant-2026'
       })
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Erreur lors de l\'inscription');
+      throw new Error(error.error || 'Erreur lors de l\'inscription');
     }
 
     const result = await response.json();
     
-    // Afficher le message de succès
-    showSuccess();
+    // Sauvegarder le token de session
+    if (result.token) {
+      localStorage.setItem('versant_token', result.token);
+      localStorage.setItem('versant_athlete_id', result.athlete_id);
+    }
+    
+    // Afficher succès
+    showSuccess(result.message, result.active_from_season);
 
   } catch (error) {
     console.error('Erreur d\'inscription:', error);
@@ -214,14 +258,34 @@ function showError(message) {
   }, 5000);
 }
 
-function showSuccess() {
-  // Masquer le formulaire
+function showSuccess(message, seasonNumber) {
   document.getElementById('registrationForm').style.display = 'none';
   
-  // Afficher le message de succès
   const successDiv = document.getElementById('successMessage');
+  
+  let html = `
+    <h3>🎉 Inscription réussie !</h3>
+    <p>${message}</p>
+  `;
+  
+  if (seasonNumber > 1) {
+    html += `
+      <p style="margin-top: 16px; padding: 12px; background: rgba(249,115,22,0.1); border-radius: 8px; border: 1px solid rgba(249,115,22,0.3);">
+        ℹ️ La saison est déjà en cours. Vous rejoindrez la ligue à la <strong>Saison ${seasonNumber}</strong>
+      </p>
+    `;
+  }
+  
+  html += `
+    <p style="margin-top: 24px;">
+      <a href="dashboard.html" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+        Accéder à mon dashboard
+      </a>
+    </p>
+  `;
+  
+  successDiv.innerHTML = html;
   successDiv.classList.add('active');
   
-  // Nettoyer l'URL
   window.history.replaceState({}, document.title, window.location.pathname);
 }

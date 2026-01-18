@@ -352,11 +352,21 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="athleteEmail">Email (optionnel)</label>
-        <input type="email" id="athleteEmail" class="form-input" placeholder="votre@email.com">
+        <label class="form-label" for="athleteEmail">Adresse e-mail <span style="color: #f97316;">*</span></label>
+        <input type="email" id="athleteEmail" class="form-input" placeholder="votre@email.com" required>
         <p style="font-size: 14px; color: rgba(255,255,255,0.5); margin-top: 8px;">
-          Pour recevoir les notifications importantes de la ligue
+          Utilisée pour vous connecter et recevoir les notifications de la ligue
         </p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="athletePassword">Mot de passe <span style="color: #f97316;">*</span></label>
+        <input type="password" id="athletePassword" class="form-input" placeholder="Minimum 6 caractères" required minlength="6">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="athletePasswordConfirm">Confirmer le mot de passe <span style="color: #f97316;">*</span></label>
+        <input type="password" id="athletePasswordConfirm" class="form-input" placeholder="Répétez votre mot de passe" required>
       </div>
 
       <div class="form-group">

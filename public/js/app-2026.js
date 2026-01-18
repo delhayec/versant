@@ -134,16 +134,16 @@ function renderSeasonBanner() {
     
     banner.innerHTML = `
       <div class="season-info">
-        <div class="season-badge">Saison 1</div>
-        <div class="season-title">Pré-saison • Début le ${formatDate(startDate)}</div>
+        <div class="season-badge">🚀 Pré-saison</div>
+        <div class="season-title">Le challenge démarre le ${formatDate(startDate)}</div>
         <div class="season-meta">
-          ${CHALLENGE_CONFIG.roundDurationDays} jours par round • ${CHALLENGE_CONFIG.eliminationsPerRound} éliminations
+          ${CHALLENGE_CONFIG.roundDurationDays} jours par round • ${CHALLENGE_CONFIG.eliminationsPerRound} éliminations par round
         </div>
       </div>
       <div class="season-stats">
-        <div class="stat-item">
-          <div class="stat-value" id="countdown">${roundInfo.daysUntilStart}</div>
-          <div class="stat-label">Jours avant le début</div>
+        <div class="stat-item" style="flex: 2;">
+          <div class="stat-label" style="margin-bottom: 8px;">⏱️ Compte à rebours</div>
+          <div class="stat-value" id="countdown" style="font-size: 20px; color: #f97316;">--:--:--:--</div>
         </div>
         <div class="stat-item">
           <div class="stat-value">${participants.length}</div>
@@ -206,20 +206,34 @@ function updateCountdown(targetDate) {
   function update() {
     const now = new Date();
     const diff = targetDate - now;
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     
-    if (days >= 0) {
-      countdownEl.textContent = days;
-    } else {
-      countdownEl.textContent = '0';
+    if (diff <= 0) {
+      countdownEl.innerHTML = '<span style="color: #10b981;">C\'est parti !</span>';
       clearInterval(interval);
       // Recharger la page quand la ligue commence
-      location.reload();
+      setTimeout(() => location.reload(), 2000);
+      return;
     }
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    // Format JJ:HH:MM:SS
+    const pad = (n) => String(n).padStart(2, '0');
+    countdownEl.innerHTML = `
+      <span style="font-family: 'Space Mono', monospace; font-size: 1.2em;">
+        ${pad(days)}<span style="color: rgba(255,255,255,0.4);">j</span>
+        ${pad(hours)}<span style="color: rgba(255,255,255,0.4);">h</span>
+        ${pad(minutes)}<span style="color: rgba(255,255,255,0.4);">m</span>
+        ${pad(seconds)}<span style="color: rgba(255,255,255,0.4);">s</span>
+      </span>
+    `;
   }
   
   update();
-  const interval = setInterval(update, 60000); // Mise à jour toutes les minutes
+  const interval = setInterval(update, 1000); // Mise à jour chaque seconde
 }
 
 // ============================================
@@ -335,6 +349,39 @@ function renderParticipants() {
 }
 
 // ============================================
+// GESTION DE LA CONNEXION
+// ============================================
+async function checkLoginStatus() {
+  const dashboardLink = document.getElementById('dashboardLink');
+  const loginLink = document.getElementById('loginLink');
+  const token = localStorage.getItem('versant_token');
+  
+  if (token) {
+    try {
+      const response = await fetch(`${API_BASE}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        currentUser = await response.json();
+        if (dashboardLink) dashboardLink.style.display = 'inline';
+        if (loginLink) loginLink.style.display = 'none';
+        return true;
+      }
+    } catch (error) {
+      console.log('Token invalide');
+    }
+    // Token invalide
+    localStorage.removeItem('versant_token');
+    localStorage.removeItem('versant_athlete_id');
+  }
+  
+  if (dashboardLink) dashboardLink.style.display = 'none';
+  if (loginLink) loginLink.style.display = 'inline';
+  return false;
+}
+
+// ============================================
 // INITIALISATION
 // ============================================
 async function init() {
@@ -345,6 +392,9 @@ async function init() {
   if (loading) loading.style.display = 'flex';
   
   try {
+    // Vérifier le statut de connexion
+    await checkLoginStatus();
+    
     // Charger les données
     await loadParticipants();
     await loadActivities();
