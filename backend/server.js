@@ -720,11 +720,12 @@ app.get('/api/admin/files', async (req, res) => {
 /**
  * Webhook GitHub pour auto-déploiement
  * Configurez sur GitHub: Settings > Webhooks > Add webhook
- * Payload URL: https://votre-domaine.com/api/webhook/github
+ * Payload URL: http://178.170.116.175/api/webhook/github
  * Content type: application/json
- * Secret: (optionnel, à configurer dans .env comme GITHUB_WEBHOOK_SECRET)
  */
 app.post('/api/webhook/github', async (req, res) => {
+  const { exec } = require('child_process');
+  
   try {
     const event = req.headers['x-github-event'];
     const payload = req.body;
@@ -738,25 +739,39 @@ app.post('/api/webhook/github', async (req, res) => {
       if (branch === 'master' || branch === 'main') {
         console.log(`🔄 Push détecté sur ${branch}, lancement du déploiement...`);
         
-        // Exécuter git pull
-        const { exec } = require('child_process');
+        // Répondre immédiatement à GitHub (évite le timeout)
+        res.json({ success: true, message: 'Déploiement lancé' });
+        
+        // Exécuter git pull puis redémarrer PM2
         const projectDir = path.join(__dirname, '..');
         
         exec(`cd ${projectDir} && git pull origin ${branch}`, (error, stdout, stderr) => {
           if (error) {
             console.error(`❌ Erreur git pull: ${error.message}`);
+            console.error(stderr);
             return;
           }
           console.log(`✅ Git pull réussi:\n${stdout}`);
           
-          // Optionnel: redémarrer le serveur (si vous utilisez PM2)
-          // exec('pm2 restart versant', (err) => {
-          //   if (err) console.error('Erreur restart PM2:', err);
-          //   else console.log('✅ Serveur redémarré');
-          // });
+          // Installer les nouvelles dépendances si nécessaire
+          exec(`cd ${projectDir}/backend && npm install`, (errNpm, stdoutNpm) => {
+            if (errNpm) {
+              console.error(`⚠️ Erreur npm install: ${errNpm.message}`);
+            } else {
+              console.log(`✅ npm install terminé`);
+            }
+            
+            // Redémarrer le serveur avec PM2
+            exec('pm2 restart versant-api', (errPm2, stdoutPm2) => {
+              if (errPm2) {
+                console.error(`❌ Erreur restart PM2: ${errPm2.message}`);
+              } else {
+                console.log(`✅ Serveur redémarré avec PM2`);
+              }
+            });
+          });
         });
-
-        res.json({ success: true, message: 'Déploiement lancé' });
+        
       } else {
         res.json({ success: true, message: `Push ignoré (branche: ${branch})` });
       }
