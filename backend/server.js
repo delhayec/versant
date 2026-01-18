@@ -928,6 +928,249 @@ cron.schedule('0 20 * * *', async () => {
 });
 
 // ============================================
+// WEBHOOKS STRAVA - Réception temps réel
+// ============================================
+
+// Token de vérification pour Strava (à définir dans .env)
+const STRAVA_VERIFY_TOKEN = process.env.STRAVA_VERIFY_TOKEN || 'VERSANT2026';
+
+/**
+ * Validation du webhook (GET) - Strava envoie un challenge
+ * URL à enregistrer sur Strava: http://178.170.116.175/api/webhook/strava
+ */
+app.get('/api/webhook/strava', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  console.log('🔔 Webhook Strava - Validation reçue');
+  console.log(`   Mode: ${mode}, Token: ${token}, Challenge: ${challenge}`);
+
+  if (mode === 'subscribe' && token === STRAVA_VERIFY_TOKEN) {
+    console.log('✅ Webhook Strava validé !');
+    res.json({ 'hub.challenge': challenge });
+  } else {
+    console.log('❌ Token de vérification invalide');
+    res.status(403).send('Forbidden');
+  }
+});
+
+/**
+ * Réception des événements (POST) - Nouvelle activité, mise à jour, suppression
+ */
+app.post('/api/webhook/strava', async (req, res) => {
+  const event = req.body;
+  
+  console.log('🔔 Webhook Strava - Événement reçu:');
+  console.log(`   Type: ${event.object_type}, Action: ${event.aspect_type}`);
+  console.log(`   Athlete ID: ${event.owner_id}, Object ID: ${event.object_id}`);
+
+  // Répondre immédiatement à Strava (ils veulent une réponse < 2 sec)
+  res.status(200).send('EVENT_RECEIVED');
+
+  try {
+    // Vérifier que c'est une activité (pas un athlète)
+    if (event.object_type !== 'activity') {
+      console.log('   → Ignoré (pas une activité)');
+      return;
+    }
+
+    // Trouver l'athlète dans notre base
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const athlete = athletes.find(a => String(a.id) === String(event.owner_id));
+
+    if (!athlete) {
+      console.log(`   → Ignoré (athlète ${event.owner_id} non inscrit)`);
+      return;
+    }
+
+    console.log(`   → Athlète trouvé: ${athlete.name} (${athlete.league_id})`);
+
+    const leagueId = athlete.league_id;
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+
+    // Charger les activités existantes
+    let activities = [];
+    try {
+      activities = JSON.parse(await fs.readFile(activitiesFile, 'utf8'));
+    } catch (e) {
+      activities = [];
+    }
+
+    // Traiter selon le type d'événement
+    if (event.aspect_type === 'create') {
+      // Nouvelle activité → récupérer les détails depuis Strava
+      console.log('   📥 Nouvelle activité - récupération des détails...');
+      
+      // Rafraîchir le token si nécessaire
+      let accessToken = athlete.strava_profile?.access_token;
+      if (athlete.strava_profile?.expires_at < Date.now() / 1000) {
+        const refreshed = await refreshStravaToken(athlete.strava_profile.refresh_token);
+        accessToken = refreshed.access_token;
+        
+        // Mettre à jour le token dans la base
+        athlete.strava_profile.access_token = refreshed.access_token;
+        athlete.strava_profile.refresh_token = refreshed.refresh_token;
+        athlete.strava_profile.expires_at = refreshed.expires_at;
+        await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
+      }
+
+      // Récupérer les détails de l'activité
+      const activityResponse = await axios.get(
+        `https://www.strava.com/api/v3/activities/${event.object_id}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      const stravaActivity = activityResponse.data;
+
+      // Vérifier si c'est une activité valide (Run, Hike, Walk, Trail Run)
+      const validTypes = ['Run', 'Hike', 'Walk', 'Trail Run', 'TrailRun'];
+      if (!validTypes.includes(stravaActivity.type)) {
+        console.log(`   → Ignoré (type ${stravaActivity.type} non valide)`);
+        return;
+      }
+
+      // Transformer l'activité
+      const newActivity = {
+        id: stravaActivity.id,
+        athlete_id: athlete.id,
+        athlete_name: athlete.name,
+        name: stravaActivity.name,
+        type: stravaActivity.type,
+        distance: stravaActivity.distance,
+        moving_time: stravaActivity.moving_time,
+        elapsed_time: stravaActivity.elapsed_time,
+        total_elevation_gain: stravaActivity.total_elevation_gain,
+        start_date: stravaActivity.start_date,
+        start_date_local: stravaActivity.start_date_local,
+        average_speed: stravaActivity.average_speed,
+        max_speed: stravaActivity.max_speed,
+        average_heartrate: stravaActivity.average_heartrate,
+        max_heartrate: stravaActivity.max_heartrate,
+        synced_at: new Date().toISOString(),
+        source: 'webhook'
+      };
+
+      // Ajouter si pas déjà présente
+      if (!activities.find(a => a.id === newActivity.id)) {
+        activities.push(newActivity);
+        await fs.writeFile(activitiesFile, JSON.stringify(activities, null, 2));
+        console.log(`   ✅ Activité ajoutée: ${newActivity.name} (${(newActivity.distance/1000).toFixed(2)}km, +${newActivity.total_elevation_gain}m)`);
+      }
+
+    } else if (event.aspect_type === 'update') {
+      // Activité modifiée
+      console.log('   ✏️ Activité modifiée - mise à jour...');
+      // On pourrait re-fetch l'activité ici si nécessaire
+      
+    } else if (event.aspect_type === 'delete') {
+      // Activité supprimée
+      console.log('   🗑️ Activité supprimée');
+      activities = activities.filter(a => a.id !== event.object_id);
+      await fs.writeFile(activitiesFile, JSON.stringify(activities, null, 2));
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur traitement webhook Strava:', error.message);
+  }
+});
+
+/**
+ * Endpoint pour créer/vérifier l'abonnement webhook Strava
+ * À appeler une seule fois pour enregistrer le webhook
+ */
+app.post('/api/admin/strava/subscribe', async (req, res) => {
+  const password = req.headers['x-admin-password'];
+  
+  if (password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Non autorisé' });
+  }
+
+  try {
+    // Vérifier si un abonnement existe déjà
+    const viewResponse = await axios.get('https://www.strava.com/api/v3/push_subscriptions', {
+      params: {
+        client_id: STRAVA_CLIENT_ID,
+        client_secret: STRAVA_CLIENT_SECRET
+      }
+    });
+
+    if (viewResponse.data.length > 0) {
+      console.log('📋 Abonnement webhook existant:', viewResponse.data);
+      return res.json({ 
+        message: 'Abonnement webhook déjà existant',
+        subscription: viewResponse.data[0]
+      });
+    }
+
+    // Créer un nouvel abonnement
+    const callbackUrl = `http://178.170.116.175/api/webhook/strava`;
+    
+    const createResponse = await axios.post('https://www.strava.com/api/v3/push_subscriptions', {
+      client_id: STRAVA_CLIENT_ID,
+      client_secret: STRAVA_CLIENT_SECRET,
+      callback_url: callbackUrl,
+      verify_token: STRAVA_VERIFY_TOKEN
+    });
+
+    console.log('✅ Abonnement webhook créé:', createResponse.data);
+    res.json({ 
+      message: 'Abonnement webhook créé avec succès',
+      subscription: createResponse.data
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur création webhook:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: 'Erreur création webhook',
+      details: error.response?.data || error.message
+    });
+  }
+});
+
+/**
+ * Endpoint pour supprimer l'abonnement webhook Strava
+ */
+app.delete('/api/admin/strava/subscribe', async (req, res) => {
+  const password = req.headers['x-admin-password'];
+  
+  if (password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Non autorisé' });
+  }
+
+  try {
+    // Récupérer l'abonnement existant
+    const viewResponse = await axios.get('https://www.strava.com/api/v3/push_subscriptions', {
+      params: {
+        client_id: STRAVA_CLIENT_ID,
+        client_secret: STRAVA_CLIENT_SECRET
+      }
+    });
+
+    if (viewResponse.data.length === 0) {
+      return res.json({ message: 'Aucun abonnement à supprimer' });
+    }
+
+    const subscriptionId = viewResponse.data[0].id;
+
+    // Supprimer l'abonnement
+    await axios.delete(`https://www.strava.com/api/v3/push_subscriptions/${subscriptionId}`, {
+      params: {
+        client_id: STRAVA_CLIENT_ID,
+        client_secret: STRAVA_CLIENT_SECRET
+      }
+    });
+
+    console.log('🗑️ Abonnement webhook supprimé:', subscriptionId);
+    res.json({ message: 'Abonnement supprimé', subscriptionId });
+
+  } catch (error) {
+    console.error('❌ Erreur suppression webhook:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Erreur suppression webhook' });
+  }
+});
+
+// ============================================
 // DÉMARRAGE
 // ============================================
 initializeServer().then(() => {

@@ -82,6 +82,27 @@
       <!-- Actions -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px;">
         
+        <!-- Webhook Strava -->
+        <div class="info-box">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            🪝 Webhook Strava (temps réel)
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
+            Recevez automatiquement les nouvelles activités dès qu'un athlète les enregistre sur Strava.
+          </p>
+          <div id="webhookStatus" style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
+            Statut: <span style="color: #fbbf24;">Vérification...</span>
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <button id="enableWebhookBtn" style="flex: 1; padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              ✅ Activer le webhook
+            </button>
+            <button id="disableWebhookBtn" style="flex: 1; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              🗑️ Désactiver
+            </button>
+          </div>
+        </div>
+
         <!-- Synchronisation -->
         <div class="info-box">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
@@ -294,6 +315,83 @@
         </table>
       `;
     }
+
+    // ============================================
+    // WEBHOOK STRAVA
+    // ============================================
+    async function checkWebhookStatus() {
+      try {
+        // On ne peut pas vérifier directement, on essaie d'activer et on voit la réponse
+        document.getElementById('webhookStatus').innerHTML = 
+          'Statut: <span style="color: rgba(255,255,255,0.5);">Cliquez sur "Activer" pour vérifier/créer</span>';
+      } catch (error) {
+        console.error('Erreur vérification webhook:', error);
+      }
+    }
+
+    document.getElementById('enableWebhookBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('enableWebhookBtn');
+      const status = document.getElementById('webhookStatus');
+      
+      btn.disabled = true;
+      btn.textContent = 'Activation...';
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/strava/subscribe`, {
+          method: 'POST',
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          status.innerHTML = `Statut: <span style="color: #10b981;">✅ Actif</span> (ID: ${data.subscription?.id || 'existant'})`;
+          addLog(`✅ Webhook Strava: ${data.message}`);
+        } else {
+          status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Erreur: ${data.error}</span>`;
+          addLog(`❌ Webhook erreur: ${data.details || data.error}`);
+        }
+      } catch (error) {
+        status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Erreur réseau</span>`;
+        addLog(`❌ Erreur: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✅ Activer le webhook';
+      }
+    });
+
+    document.getElementById('disableWebhookBtn').addEventListener('click', async () => {
+      if (!confirm('Voulez-vous vraiment désactiver le webhook ? Vous ne recevrez plus les activités en temps réel.')) {
+        return;
+      }
+
+      const btn = document.getElementById('disableWebhookBtn');
+      const status = document.getElementById('webhookStatus');
+      
+      btn.disabled = true;
+      btn.textContent = 'Désactivation...';
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/strava/subscribe`, {
+          method: 'DELETE',
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          status.innerHTML = `Statut: <span style="color: #fbbf24;">⚠️ Désactivé</span>`;
+          addLog(`🗑️ Webhook désactivé: ${data.message}`);
+        } else {
+          addLog(`❌ Erreur: ${data.error}`);
+        }
+      } catch (error) {
+        addLog(`❌ Erreur: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🗑️ Désactiver';
+      }
+    });
 
     // ============================================
     // SYNCHRONISATION
