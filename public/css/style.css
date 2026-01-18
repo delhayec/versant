@@ -739,7 +739,7 @@ body {
 
 .scroll-indicator {
   position: absolute;
-  bottom: 40px;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -966,7 +966,7 @@ body {
 /* === CLASSEMENT SECTION === */
 .ranking-section {
   padding: var(--section-padding) var(--container-padding);
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -980,7 +980,7 @@ body {
 
 .ranking-header {
   display: grid;
-  grid-template-columns: 60px 1fr 150px 150px 100px;
+  grid-template-columns: 60px 1fr 150px 150px 150px;
   padding: 16px 24px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid var(--border-color);
@@ -993,7 +993,7 @@ body {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 60px 1fr 150px 150px 100px;
+  grid-template-columns: 60px 1fr 150px 150px 150px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
@@ -1117,9 +1117,49 @@ body {
 }
 
 .joker-badge {
-  font-size: 1.25rem;
-  opacity: 0.8;
-  transition: opacity 0.2s;
+  font-size: 1rem;
+  opacity: 0.4;
+  transition: all 0.2s ease;
+  cursor: help;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.joker-badge:hover {
+  transform: scale(1.2);
+  opacity: 1;
+}
+
+.joker-badge.joker-available {
+  opacity: 0.4;
+}
+
+.joker-badge.joker-pending {
+  opacity: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.2);
+  border: 2px solid var(--accent-warning);
+  animation: pulse-orange 2s infinite;
+}
+
+.joker-badge.joker-active {
+  opacity: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid var(--status-active);
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-orange {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
 }
 
 /* === STANDINGS TABLE (CLASSEMENT GÉNÉRAL) === */
@@ -2176,5 +2216,142 @@ body {
   
   .login-card {
     padding: 32px 24px;
+  }
+}
+
+/* ============================================
+   NOUVEAUX STYLES 2026
+   ============================================ */
+
+/* Demo Banner */
+.demo-banner {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  padding: 12px 24px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.demo-badge {
+  background: rgba(255,255,255,0.2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.demo-text {
+  color: white;
+  font-weight: 500;
+}
+
+.demo-link {
+  background: white;
+  color: #f97316;
+  padding: 6px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.demo-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Hero CTA Buttons */
+.hero-cta {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(249,115,22,0.4);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.3);
+}
+
+/* Navigation - Join Button */
+.btn-join {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.btn-join:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(249,115,22,0.3);
+}
+
+/* Footer CTA */
+.footer-cta {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.footer-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(249,115,22,0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-cta {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .btn-primary, .btn-secondary {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .demo-banner {
+    flex-direction: column;
+    gap: 12px;
   }
 }

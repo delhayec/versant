@@ -18,10 +18,60 @@ export const CHALLENGE_CONFIG = {
   mainMetric: "elevation",
   mainMetricLabel: "Dénivelé positif",
   mainMetricUnit: "m",
-  specialRuleFrequency: 4,  // 1 round spécial sur 4
+  specialRuleFrequency: 4,
   dataYear: 2025,
   dateLocale: "fr-FR"
 };
+
+// ============================================
+// TYPES DE SAISONS
+// ============================================
+export const SEASON_TYPES = {
+  standard: {
+    id: "standard",
+    name: "Standard",
+    description: "Individuel - D+ cumulé",
+    metric: "elevation",
+    isTeamBased: false
+  },
+  distance: {
+    id: "distance",
+    name: "Distance",
+    description: "Individuel - Distance cumulée",
+    metric: "distance",
+    isTeamBased: false
+  },
+  team: {
+    id: "team",
+    name: "Équipes",
+    description: "Par équipes aléatoires - D+ cumulé",
+    metric: "elevation",
+    isTeamBased: true,
+    teamSize: 3,  // Équipes de 3 personnes (13 joueurs = 4 équipes + 1 solo)
+    reshuffleEachRound: true
+  }
+};
+
+// Planning des types de saisons sur l'année
+export const SEASON_PLANNING = {
+  1: "standard",
+  2: "standard",
+  3: "distance",    // Saison 3 = distance
+  4: "standard",
+  5: "team",        // Saison 5 = équipes
+  6: "standard",
+  7: "standard",
+  8: "distance",    // Saison 8 = distance
+  9: "standard",
+  10: "team",       // Saison 10 = équipes
+  11: "standard",
+  12: "standard"
+};
+
+export function getSeasonType(seasonNumber) {
+  const typeId = SEASON_PLANNING[seasonNumber] || "standard";
+  return SEASON_TYPES[typeId];
+}
 
 // ============================================
 // AUTHENTIFICATION
@@ -73,13 +123,15 @@ export const JOKER_TYPES = {
     description: "Défiez un adversaire et volez 50% de son D+ si vous gagnez",
     effect: "Choisissez un adversaire et un critère. Actif au round suivant.",
     usableInFinal: true,
+    requiresTarget: true,
+    requiresCriteria: true,
     parameters: {
       stealPercentage: 50,
-      challengeCriteria: [
-        { id: "single_elevation", name: "D+ d'une seule activité" },
-        { id: "single_distance", name: "Distance d'une seule activité" },
-        { id: "only_bike", name: "D+ vélo uniquement" },
-        { id: "only_run", name: "D+ course uniquement" }
+      criteria: [
+        { id: "single_elevation", name: "Meilleur D+ sur une activité", metric: "total_elevation_gain", type: "single_best" },
+        { id: "single_distance", name: "Meilleure distance sur une activité", metric: "distance", type: "single_best" },
+        { id: "only_bike", name: "D+ vélo uniquement", metric: "total_elevation_gain", sportFilter: ["Ride", "MountainBikeRide", "GravelRide"] },
+        { id: "only_run", name: "D+ course uniquement", metric: "total_elevation_gain", sportFilter: ["Run", "TrailRun"] }
       ]
     }
   },
@@ -90,6 +142,7 @@ export const JOKER_TYPES = {
     description: "Double le D+ d'une journée choisie",
     effect: "×2 sur une journée du round. Actif au round suivant.",
     usableInFinal: true,
+    requiresTarget: false,
     parameters: { multiplier: 2 }
   },
   bouclier: {
@@ -98,7 +151,8 @@ export const JOKER_TYPES = {
     icon: "🛡️",
     description: "Évitez l'élimination (quelqu'un prend votre place)",
     effect: "Protection contre l'élimination. NON UTILISABLE en finale.",
-    usableInFinal: false
+    usableInFinal: false,
+    requiresTarget: false
   },
   sabotage: {
     id: "sabotage",
@@ -107,6 +161,7 @@ export const JOKER_TYPES = {
     description: "Divise le D+ du premier par 2",
     effect: "Le leader perd 50% de son D+. Actif au round suivant.",
     usableInFinal: true,
+    requiresTarget: false,
     parameters: { divisor: 2 }
   }
 };
@@ -119,28 +174,26 @@ export const ROUND_RULES = {
     id: "standard",
     name: "Standard",
     icon: "📊",
-    description: "D+ classique",
-    fullDescription: "Round classique : le D+ de toutes vos activités compte normalement.",
+    description: "Classique",
+    fullDescription: "Round classique : métrique principale.",
     isSpecial: false
   },
   handicap: {
     id: "handicap",
     name: "Handicap",
     icon: "⚖️",
-    description: "Top 5 annuel avec malus progressif",
-    fullDescription: "Les 5 premiers du classement général annuel ont un malus : 5e=-5%, 4e=-10%, 3e=-15%, 2e=-20%, 1er=-25%. Non applicable en saison 1.",
+    description: "Top 5 annuel avec malus",
+    fullDescription: "Top 5 du classement général: 5e=-5%, 4e=-10%, 3e=-15%, 2e=-20%, 1er=-25%",
     isSpecial: true,
     notInFirstSeason: true,
-    parameters: {
-      malusPerPosition: { 1: 25, 2: 20, 3: 15, 4: 10, 5: 5 }
-    }
+    parameters: { malusPerPosition: { 1: 25, 2: 20, 3: 15, 4: 10, 5: 5 } }
   },
   combinado: {
     id: "combinado",
     name: "Combiné",
     icon: "🔄",
-    description: "D+ ×2 si 2 sports différents le même jour",
-    fullDescription: "Le D+ compte double les jours où vous pratiquez 2 sports différents.",
+    description: "×2 si 2 sports/jour",
+    fullDescription: "Métrique ×2 les jours avec 2 sports différents.",
     isSpecial: true,
     implemented: true,
     parameters: { multiplier: 2 }
@@ -149,8 +202,8 @@ export const ROUND_RULES = {
     id: "pentes_raides",
     name: "Pentes Raides",
     icon: "📐",
-    description: "Seul le D+ sur pentes >10% compte",
-    fullDescription: "⚠️ Nécessite l'analyse des fichiers GPX bruts. Non implémenté actuellement.",
+    description: "D+ sur pentes >10%",
+    fullDescription: "⚠️ Nécessite analyse GPX. Non implémenté.",
     isSpecial: true,
     implemented: false,
     requiresGPX: true
@@ -197,7 +250,7 @@ function generateRoundsSchedule() {
 export const ROUNDS_SCHEDULE = generateRoundsSchedule();
 
 // ============================================
-// FONCTIONS UTILITAIRES DE CONFIG
+// FONCTIONS UTILITAIRES
 // ============================================
 export const getParticipantById = (id) => PARTICIPANTS.find(p => p.id === String(id));
 export const getMainChallengePoints = (pos) => MAIN_CHALLENGE_POINTS[pos] ?? 0;

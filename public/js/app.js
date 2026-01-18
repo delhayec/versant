@@ -536,6 +536,31 @@ function renderRoundBanner() {
 // ============================================
 // CLASSEMENT DU ROUND
 // ============================================
+
+// Récupérer les données des jokers depuis localStorage
+function getAllJokersData() {
+  try {
+    const data = localStorage.getItem('versant_all_jokers');
+    return data ? JSON.parse(data) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function getJokerStatusForRound(participantId, roundNumber) {
+  const allJokers = getAllJokersData();
+  const userData = allJokers[participantId] || { pending: [], active: [], used: [] };
+  
+  // Jokers en attente pour le round suivant
+  const pending = (userData.pending || []).filter(j => j.activateAtRound === roundNumber + 1);
+  // Jokers actifs pour ce round
+  const active = (userData.active || []).filter(j => j.activeRound === roundNumber);
+  // Jokers déjà utilisés
+  const used = userData.used || [];
+  
+  return { pending, active, used };
+}
+
 function renderRanking() {
   const container = document.getElementById('rankingContainer');
   if (!container) return;
@@ -553,14 +578,48 @@ function renderRanking() {
   const ranking = calculateRanking(roundActivities, seasonData?.active || [], roundInfo?.rule?.id || 'standard', yearlyStandingsCache, currentSeasonNumber);
   const seasonDates = getSeasonDates(currentSeasonNumber);
   
-  let html = `<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ Round</div><div>D+ Saison</div><div>Jokers</div></div>`;
+  let html = `<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ Round</div><div>D+ Saison</div><div>Bonus</div></div>`;
   
   ranking.forEach((e, i) => {
     const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const rowClass = e.isInDangerZone ? 'danger-zone' : '';
     const seasonStats = calculateStats(filterByParticipant(filterByPeriod(allActivities, seasonDates.start, endDate), e.participant.id));
     const tooltip = generateActivitiesTooltip(e.activities);
-    const jokers = (e.participant.jokers || []).map(j => JOKER_TYPES[j] ? `<span class="joker-badge" title="${JOKER_TYPES[j].name}">${JOKER_TYPES[j].icon}</span>` : '').join('');
+    
+    // Récupérer le statut des jokers pour ce participant
+    const jokerStatus = getJokerStatusForRound(e.participant.id, currentRoundNumber);
+    
+    // Générer l'affichage des jokers avec couleurs
+    let jokersHtml = '';
+    
+    // Jokers actifs ce round (vert)
+    jokerStatus.active.forEach(j => {
+      const joker = JOKER_TYPES[j.jokerId];
+      if (joker) {
+        const targetInfo = j.targetName ? ` vs ${j.targetName}` : '';
+        const criteriaInfo = j.criteriaName ? ` (${j.criteriaName})` : '';
+        jokersHtml += `<span class="joker-badge joker-active" title="ACTIF: ${joker.name}${targetInfo}${criteriaInfo}">${joker.icon}</span>`;
+      }
+    });
+    
+    // Jokers en attente pour le round suivant (orange)
+    jokerStatus.pending.forEach(j => {
+      const joker = JOKER_TYPES[j.jokerId];
+      if (joker) {
+        const targetInfo = j.targetName ? ` vs ${j.targetName}` : '';
+        jokersHtml += `<span class="joker-badge joker-pending" title="Actif au R${j.activateAtRound}: ${joker.name}${targetInfo}">${joker.icon}</span>`;
+      }
+    });
+    
+    // Jokers disponibles (grisés)
+    const usedIds = [...jokerStatus.used.map(u => u.jokerId), ...jokerStatus.active.map(a => a.jokerId), ...jokerStatus.pending.map(p => p.jokerId)];
+    const availableJokers = (e.participant.jokers || []).filter(jId => !usedIds.includes(jId));
+    availableJokers.forEach(jId => {
+      const joker = JOKER_TYPES[jId];
+      if (joker) {
+        jokersHtml += `<span class="joker-badge joker-available" title="${joker.name} (disponible)">${joker.icon}</span>`;
+      }
+    });
     
     html += `
       <div class="ranking-row ${rowClass}">
@@ -575,7 +634,7 @@ function renderRanking() {
         </div>
         <div class="ranking-elevation">${formatElevation(e.totalElevation, false)} <span>m</span></div>
         <div class="ranking-elevation season">${formatElevation(seasonStats.totalElevation, false)} <span>m</span></div>
-        <div class="ranking-jokers">${jokers || '-'}</div>
+        <div class="ranking-jokers">${jokersHtml || '-'}</div>
       </div>
     `;
   });

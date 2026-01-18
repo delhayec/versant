@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscription - Challenge Versant 2026</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
+  
+  <style>
+    .inscription-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 80px 24px 120px;
+    }
+    
+    .inscription-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    
+    .inscription-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .inscription-subtitle {
+      font-size: 18px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 32px;
+    }
+    
+    .info-box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 40px;
+    }
+    
+    .info-box h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: #f97316;
+    }
+    
+    .info-box ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .info-box li {
+      padding: 8px 0;
+      padding-left: 28px;
+      position: relative;
+    }
+    
+    .info-box li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+    }
+    
+    .strava-connect-section {
+      background: rgba(255,255,255,0.03);
+      border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 48px 32px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .strava-logo {
+      font-size: 48px;
+      margin-bottom: 24px;
+    }
+    
+    .strava-connect-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: #FC4C02;
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 18px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    
+    .strava-connect-btn:hover {
+      background: #e63900;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(252,76,2,0.3);
+    }
+    
+    .strava-connect-btn:disabled {
+      background: rgba(255,255,255,0.1);
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .registration-form {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px;
+      display: none;
+    }
+    
+    .registration-form.active {
+      display: block;
+    }
+    
+    .form-group {
+      margin-bottom: 24px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.9);
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+      font-family: inherit;
+      transition: all 0.3s ease;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #f97316;
+      background: rgba(0,0,0,0.4);
+    }
+    
+    .form-input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .athlete-preview {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    
+    .athlete-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .athlete-info h4 {
+      margin: 0 0 4px 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .athlete-info p {
+      margin: 0;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+    }
+    
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+    
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(249,115,22,0.4);
+    }
+    
+    .submit-btn:disabled {
+      background: rgba(255,255,255,0.1);
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .success-message {
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      display: none;
+    }
+    
+    .success-message.active {
+      display: block;
+    }
+    
+    .success-message h3 {
+      color: #10b981;
+      margin-bottom: 12px;
+    }
+    
+    .error-message {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #ef4444;
+      margin-bottom: 16px;
+      display: none;
+    }
+    
+    .error-message.active {
+      display: block;
+    }
+    
+    .league-info {
+      background: rgba(59,130,246,0.1);
+      border-left: 4px solid #3b82f6;
+      padding: 16px 20px;
+      margin-bottom: 32px;
+      border-radius: 8px;
+    }
+    
+    .league-info p {
+      margin: 0;
+      color: rgba(255,255,255,0.8);
+    }
+    
+    .league-info strong {
+      color: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="inscription.html" class="nav-brand">
+        <span class="brand-icon">◭️</span>
+        <span class="brand-text">Versant • Inscription</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Voir la ligue</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="inscription-container">
+    <div class="inscription-header">
+      <div class="hero-eyebrow" style="display: inline-block; margin-bottom: 16px;">Challenge 2026</div>
+      <h1 class="inscription-title">Rejoindre la ligue</h1>
+      <p class="inscription-subtitle">Connectez votre compte Strava pour participer au Challenge Versant 2026</p>
+    </div>
+
+    <div class="league-info">
+      <p><strong>🏔️ La ligue 2026 démarre le 1er février !</strong></p>
+      <p>Inscrivez-vous dès maintenant pour ne pas manquer le début de la saison.</p>
+    </div>
+
+    <div class="info-box">
+      <h3>📋 Comment ça marche ?</h3>
+      <ul>
+        <li>Connectez votre compte Strava</li>
+        <li>Nous récupérons automatiquement vos activités</li>
+        <li>Participez aux rounds de 5 jours</li>
+        <li>Évitez l'élimination et gagnez des points</li>
+      </ul>
+    </div>
+
+    <div class="info-box">
+      <h3>✨ Ce que nous collectons</h3>
+      <ul>
+        <li>Vos activités trail, ski de rando, course, vélo</li>
+        <li>Distance et dénivelé positif de chaque sortie</li>
+        <li>Pour les challenges spéciaux : traces GPX (pente, hors-sentier)</li>
+        <li>Votre nom et photo de profil Strava</li>
+      </ul>
+    </div>
+
+    <!-- Strava Connection -->
+    <div class="strava-connect-section">
+      <div class="strava-logo">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="#FC4C02">
+          <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+        </svg>
+      </div>
+      <h3 style="margin-bottom: 16px; font-size: 24px;">Connexion Strava</h3>
+      <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
+        Autorisez Versant à accéder à vos activités Strava
+      </p>
+      <button class="strava-connect-btn" id="stravaConnectBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+          <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+        </svg>
+        Se connecter avec Strava
+      </button>
+      <p style="margin-top: 16px; font-size: 14px; color: rgba(255,255,255,0.5);">
+        Vous serez redirigé vers Strava pour autoriser l'accès
+      </p>
+    </div>
+
+    <!-- Error Message -->
+    <div class="error-message" id="errorMessage"></div>
+
+    <!-- Registration Form (shown after Strava connection) -->
+    <div class="registration-form" id="registrationForm">
+      <h3 style="margin-bottom: 24px;">Finaliser votre inscription</h3>
+      
+      <div class="athlete-preview" id="athletePreview">
+        <!-- Filled by JavaScript -->
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="athleteName">Nom d'affichage</label>
+        <input type="text" id="athleteName" class="form-input" placeholder="Votre nom" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="athleteEmail">Email (optionnel)</label>
+        <input type="email" id="athleteEmail" class="form-input" placeholder="votre@email.com">
+        <p style="font-size: 14px; color: rgba(255,255,255,0.5); margin-top: 8px;">
+          Pour recevoir les notifications importantes de la ligue
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="acceptTerms" required style="margin-right: 8px;">
+          J'accepte que mes activités Strava soient synchronisées et affichées publiquement sur Versant
+        </label>
+      </div>
+
+      <button class="submit-btn" id="submitBtn">Confirmer mon inscription</button>
+    </div>
+
+    <!-- Success Message -->
+    <div class="success-message" id="successMessage">
+      <h3>🎉 Inscription réussie !</h3>
+      <p style="margin-bottom: 16px;">Bienvenue dans le Challenge Versant 2026</p>
+      <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">
+        Vos activités seront automatiquement synchronisées à partir du 1er février 2026.
+      </p>
+      <a href="index.html" class="strava-connect-btn" style="display: inline-flex;">
+        Voir le classement
+      </a>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">◭️ Versant</div>
+      <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/inscription.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+# Environnement
+.env
+.env.local
+.env.production
+
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Données sensibles
+backend/data/athletes.json
+backend/data/leagues/*.json
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build
+dist/
+build/
+
+# Temporary files
+*.tmp
+.cache/

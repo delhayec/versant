@@ -1,0 +1,24 @@
+[
+  {
+    "id": "3953180",
+    "name": "Clement D",
+    "email": "clement@example.com",
+    "league_id": "versant-2026",
+    "strava_profile": {
+      "id": 3953180,
+      "firstname": "Clement",
+      "lastname": "D",
+      "profile": "https://dgalywyr863hv.cloudfront.net/pictures/athletes/3953180/...",
+      "city": "Geneva",
+      "country": "Switzerland"
+    },
+    "registered_at": "2026-01-15T10:30:00Z",
+    "tokens": {
+      "access_token": "abc123...",
+      "refresh_token": "xyz789...",
+      "expires_at": 1737897600
+    },
+    "jokers": ["duel", "multiplicateur", "bouclier", "sabotage"],
+    "active": true
+  }
+]
