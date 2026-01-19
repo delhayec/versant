@@ -951,13 +951,22 @@ app.post('/api/webhook/github', async (req, res) => {
             }
             
             // Redémarrer le serveur avec PM2
-            exec('pm2 restart versant-api', (errPm2, stdoutPm2) => {
-              if (errPm2) {
-                console.error(`❌ Erreur restart PM2: ${errPm2.message}`);
-              } else {
-                console.log(`✅ Serveur redémarré avec PM2`);
-              }
-            });
+exec('pm2 restart versant-api', (errPm2, stdoutPm2) => {
+  if (errPm2) {
+    console.error(`❌ Erreur restart PM2: ${errPm2.message}`);
+  } else {
+    console.log(`✅ Serveur redémarré avec PM2`);
+
+    // Copier les fichiers publics vers Nginx
+    exec(`sudo cp -r ${projectDir}/public/* /var/www/versant/`, (errCopy) => {
+      if (errCopy) {
+        console.error(`❌ Erreur copie fichiers publics: ${errCopy.message}`);
+      } else {
+        console.log(`✅ Fichiers publics copiés vers /var/www/versant/`);
+      }
+    });
+  }
+});
           });
         });
         
