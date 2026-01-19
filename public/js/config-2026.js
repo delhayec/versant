@@ -77,11 +77,11 @@ export function getSeasonType(seasonNumber) {
 // SYSTÈME DE POINTS (identique)
 // ============================================
 export const MAIN_CHALLENGE_POINTS = {
-  1: 15, 2: 12, 3: 10, 4: 8, 5: 7, 6: 6, 7: 5, 8: 4, 9: 3, 10: 2, 11: 1, 12: 0, 13: 0, default: 0
+  1: 18, 2: 15, 3: 12, 4: 10, 5: 8, 6: 6, 7: 5, 8: 4, 9: 3, 10: 2, 11: 1, 12: 0, 13: 0, default: 0
 };
 
 export const ELIMINATED_CHALLENGE_POINTS = {
-  1: 9, 2: 6, 3: 3, 4: 1, 5: 0, default: 0
+  1: 9, 2: 6, 3: 3, 4: 2, 5: 1, default: 0
 };
 
 // ============================================
@@ -169,10 +169,10 @@ export const JOKER_TYPES = {
 };
 
 // ============================================
-// RÈGLES SPÉCIALES (identique)
+// RÈGLES SPÉCIALES
 // ============================================
 export const ROUND_RULES = {
-  // ... (même structure que config.js original)
+  //
 };
 
 // ============================================

@@ -134,7 +134,7 @@ function renderSeasonBanner() {
     
     banner.innerHTML = `
       <div class="season-info">
-        <div class="season-badge">🚀 Pré-saison</div>
+        <div class="season-badge"> Pré-saison</div>
         <div class="season-title">Le challenge démarre le ${formatDate(startDate)}</div>
         <div class="season-meta">
           ${CHALLENGE_CONFIG.roundDurationDays} jours par round • ${CHALLENGE_CONFIG.eliminationsPerRound} éliminations par round
@@ -142,7 +142,7 @@ function renderSeasonBanner() {
       </div>
       <div class="season-stats">
         <div class="stat-item" style="flex: 2;">
-          <div class="stat-label" style="margin-bottom: 8px;">⏱️ Compte à rebours</div>
+          <div class="stat-label" style="margin-bottom: 8px;"> Compte à rebours</div>
           <div class="stat-value" id="countdown" style="font-size: 20px; color: #f97316;">--:--:--:--</div>
         </div>
         <div class="stat-item">
@@ -188,11 +188,11 @@ function renderSeasonBanner() {
 function getNextRoundRule(roundNumber) {
   // Logique simplifiée - à adapter selon vos règles
   const rules = [
-    { name: "Standard", icon: "📊" },
-    { name: "Standard", icon: "📊" },
-    { name: "Standard", icon: "📊" },
-    { name: "Pente raide", icon: "⛰️" },
-    { name: "Standard", icon: "📊" }
+    { name: "Standard", icon: "" },
+    { name: "Standard", icon: "" },
+    { name: "Standard", icon: "" },
+    { name: "Pente raide", icon: "" },
+    { name: "Standard", icon: "" }
   ];
   
   const index = (roundNumber - 1) % rules.length;
@@ -250,11 +250,11 @@ function renderRanking() {
       <div style="text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.6);">
         <div style="font-size: 48px; margin-bottom: 16px;">◭</div>
         <h3 style="font-size: 24px; margin-bottom: 12px; color: rgba(255,255,255,0.9);">
-          La ligue démarre le ${formatDate(CHALLENGE_CONFIG.yearStartDate)}
+          La saison démarre le ${formatDate(CHALLENGE_CONFIG.yearStartDate)}
         </h3>
         <p>Le classement s'affichera dès le début du Round 1</p>
         <a href="inscription.html" class="btn-primary" style="display: inline-block; margin-top: 24px; padding: 12px 24px; border-radius: 8px; text-decoration: none; background: linear-gradient(135deg, #f97316, #f43f5e); color: white;">
-          Rejoindre la ligue
+          Rejoindre le challenge
         </a>
       </div>
     `;
@@ -385,7 +385,7 @@ async function checkLoginStatus() {
 // INITIALISATION
 // ============================================
 async function init() {
-  console.log('🚀 Initialisation Versant 2026');
+  console.log('Initialisation Versant 2026');
   
   // Afficher le loading
   const loading = document.getElementById('loadingScreen');

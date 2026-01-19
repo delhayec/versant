@@ -192,7 +192,7 @@ export const ROUND_RULES = {
     id: "combinado",
     name: "Combiné",
     icon: "🔄",
-    description: "×2 si 2 sports/jour",
+    description: "D+ doublé si 2 sports différents/jour",
     fullDescription: "Métrique ×2 les jours avec 2 sports différents.",
     isSpecial: true,
     implemented: true,
