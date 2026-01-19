@@ -713,6 +713,193 @@ app.get('/api/admin/files', async (req, res) => {
   }
 });
 
+/**
+ * Exclure ou réintégrer une activité
+ */
+app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const { leagueId, activityId } = req.params;
+    const { exclude, reason } = req.body;
+
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    
+    let activities = [];
+    try {
+      activities = JSON.parse(await fs.readFile(activitiesFile, 'utf8'));
+    } catch (e) {
+      return res.status(404).json({ error: 'Fichier activités non trouvé' });
+    }
+
+    // Trouver l'activité
+    const activityIndex = activities.findIndex(a => String(a.id) === String(activityId));
+    
+    if (activityIndex === -1) {
+      return res.status(404).json({ error: 'Activité non trouvée' });
+    }
+
+    // Modifier le statut
+    activities[activityIndex].excluded = exclude;
+    activities[activityIndex].excluded_at = exclude ? new Date().toISOString() : null;
+    activities[activityIndex].excluded_reason = exclude ? (reason || 'Exclu par admin') : null;
+
+    // Sauvegarder
+    await fs.writeFile(activitiesFile, JSON.stringify(activities, null, 2));
+
+    console.log(`📝 Activité ${activityId}: ${exclude ? 'exclue' : 'réintégrée'}`);
+
+    res.json({ 
+      success: true, 
+      activity: activities[activityIndex],
+      message: exclude ? 'Activité exclue' : 'Activité réintégrée'
+    });
+
+  } catch (error) {
+    console.error('Erreur exclusion activité:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Exporter le classement en JSON
+ */
+app.get('/api/admin/ranking/:leagueId/export', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const { leagueId } = req.params;
+    const ranking = await generateRanking(leagueId);
+
+    const exportData = {
+      league_id: leagueId,
+      generated_at: new Date().toISOString(),
+      ranking: ranking
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=classement-${leagueId}-${new Date().toISOString().split('T')[0]}.json`);
+    res.send(JSON.stringify(exportData, null, 2));
+
+  } catch (error) {
+    console.error('Erreur export classement:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Générer le classement à partir des activités
+ */
+async function generateRanking(leagueId) {
+  const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+  const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+  
+  let activities = [];
+  try {
+    activities = JSON.parse(await fs.readFile(activitiesFile, 'utf8'));
+  } catch (e) {
+    activities = [];
+  }
+
+  // Filtrer les activités exclues
+  const validActivities = activities.filter(a => !a.excluded);
+
+  // Grouper par athlète
+  const athleteStats = {};
+
+  for (const athlete of athletes.filter(a => a.league_id === leagueId)) {
+    athleteStats[athlete.id] = {
+      id: athlete.id,
+      name: athlete.name,
+      total_distance: 0,
+      total_elevation: 0,
+      total_activities: 0,
+      activities: []
+    };
+  }
+
+  for (const activity of validActivities) {
+    if (athleteStats[activity.athlete_id]) {
+      athleteStats[activity.athlete_id].total_distance += activity.distance || 0;
+      athleteStats[activity.athlete_id].total_elevation += activity.total_elevation_gain || 0;
+      athleteStats[activity.athlete_id].total_activities += 1;
+      athleteStats[activity.athlete_id].activities.push({
+        id: activity.id,
+        name: activity.name,
+        date: activity.start_date,
+        distance: activity.distance,
+        elevation: activity.total_elevation_gain
+      });
+    }
+  }
+
+  // Convertir en tableau et trier par D+ (critère principal)
+  const ranking = Object.values(athleteStats)
+    .sort((a, b) => b.total_elevation - a.total_elevation)
+    .map((athlete, index) => ({
+      rank: index + 1,
+      ...athlete,
+      total_distance_km: (athlete.total_distance / 1000).toFixed(2),
+      total_elevation_m: Math.round(athlete.total_elevation)
+    }));
+
+  return ranking;
+}
+
+/**
+ * Export automatique du classement et push sur Git
+ */
+async function exportAndPushRanking() {
+  const { exec } = require('child_process');
+  const leagueId = 'versant-2026';
+  
+  try {
+    console.log('📊 Export automatique du classement...');
+    
+    const ranking = await generateRanking(leagueId);
+    
+    const exportData = {
+      league_id: leagueId,
+      generated_at: new Date().toISOString(),
+      ranking: ranking
+    };
+
+    // Sauvegarder dans le dossier public/data
+    const exportPath = path.join(__dirname, '..', 'public', 'data', 'classement.json');
+    await fs.writeFile(exportPath, JSON.stringify(exportData, null, 2));
+    
+    console.log(`✅ Classement exporté: ${exportPath}`);
+
+    // Git add, commit, push
+    const projectDir = path.join(__dirname, '..');
+    const dateStr = new Date().toISOString().split('T')[0];
+    
+    exec(`cd ${projectDir} && git add public/data/classement.json && git commit -m "📊 Classement auto ${dateStr}" && git push origin master`, (error, stdout, stderr) => {
+      if (error) {
+        // Pas grave si rien à commit
+        if (error.message.includes('nothing to commit')) {
+          console.log('ℹ️ Pas de changement à commit');
+        } else {
+          console.error(`⚠️ Erreur git: ${error.message}`);
+        }
+        return;
+      }
+      console.log(`✅ Classement pushé sur GitHub`);
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur export automatique:', error);
+  }
+}
+
 // ============================================
 // WEBHOOK GITHUB - DÉPLOIEMENT AUTOMATIQUE
 // ============================================
@@ -909,21 +1096,30 @@ app.post('/api/sync/:leagueId', async (req, res) => {
 });
 
 // ============================================
-// CRON - Sync automatique à 20h
+// CRON - Sync automatique à 20h + Export classement
 // ============================================
 cron.schedule('0 20 * * *', async () => {
-  console.log('🕐 Synchronisation automatique (20h)...');
+  console.log('🕐 Tâches automatiques (20h)...');
   
   try {
+    // 1. Synchroniser les activités
+    console.log('  🔄 Synchronisation des activités...');
     const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
     const leagues = [...new Set(athletes.map(a => a.league_id))];
 
     for (const leagueId of leagues) {
-      console.log(`  🔄 Sync: ${leagueId}`);
-      // Appeler la fonction de sync
+      console.log(`    → Sync: ${leagueId}`);
+      // La sync est gérée par les webhooks, mais on peut faire une sync de rattrapage ici si besoin
     }
+
+    // 2. Exporter le classement et push sur Git
+    console.log('  📊 Export du classement...');
+    await exportAndPushRanking();
+
+    console.log('✅ Tâches automatiques terminées');
+    
   } catch (error) {
-    console.error('Erreur sync auto:', error);
+    console.error('❌ Erreur tâches auto:', error);
   }
 });
 

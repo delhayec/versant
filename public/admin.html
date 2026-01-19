@@ -16,7 +16,7 @@
   <nav class="nav-sticky">
     <div class="nav-container">
       <a href="index.html" class="nav-brand">
-        <span class="brand-icon">◭️</span>
+        <span class="brand-icon">◭</span>
         <span class="brand-text">Versant • Admin</span>
       </a>
       <div class="nav-links">
@@ -26,7 +26,7 @@
     </div>
   </nav>
 
-  <!-- Login Section (shown if not authenticated) -->
+  <!-- Login Section -->
   <section class="ranking-section" id="loginSection" style="padding-top: 120px;">
     <div style="max-width: 400px; margin: 0 auto; padding: 0 24px;">
       <div class="info-box" style="padding: 40px; text-align: center;">
@@ -43,7 +43,7 @@
             id="adminPassword" 
             placeholder="Mot de passe admin"
             required
-            style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 16px;"
+            style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 16px; box-sizing: border-box;"
           >
           <button type="submit" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
             Connexion
@@ -53,7 +53,7 @@
     </div>
   </section>
 
-  <!-- Admin Dashboard (shown after authentication) -->
+  <!-- Admin Dashboard -->
   <section class="ranking-section" id="adminDashboard" style="display: none; padding-top: 120px;">
     <div style="max-width: 1200px; margin: 0 auto; padding: 0 24px;">
       
@@ -74,8 +74,8 @@
           <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Activités</div>
         </div>
         <div class="info-box" style="text-align: center; padding: 24px;">
-          <div style="font-size: 36px; font-weight: 700; color: #10b981;" id="statSessions">-</div>
-          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Sessions actives</div>
+          <div style="font-size: 36px; font-weight: 700; color: #10b981;" id="statExcluded">0</div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Activités exclues</div>
         </div>
       </div>
 
@@ -91,11 +91,11 @@
             Recevez automatiquement les nouvelles activités dès qu'un athlète les enregistre sur Strava.
           </p>
           <div id="webhookStatus" style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
-            Statut: <span style="color: #fbbf24;">Vérification...</span>
+            Statut: <span style="color: #fbbf24;">Cliquez sur Activer pour vérifier</span>
           </div>
           <div style="display: flex; gap: 12px;">
             <button id="enableWebhookBtn" style="flex: 1; padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-              ✅ Activer le webhook
+              ✅ Activer
             </button>
             <button id="disableWebhookBtn" style="flex: 1; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
               🗑️ Désactiver
@@ -109,7 +109,7 @@
             🔄 Synchronisation Strava
           </h3>
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Synchroniser les activités de tous les athlètes depuis Strava
+            Synchroniser manuellement les activités de tous les athlètes.
           </p>
           <div style="display: flex; gap: 12px; margin-bottom: 16px;">
             <input type="date" id="syncStartDate" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
@@ -121,24 +121,68 @@
           <div id="syncResult" style="margin-top: 12px; font-size: 14px;"></div>
         </div>
 
+        <!-- Export Classement -->
+        <div class="info-box">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            🏆 Export Classement
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
+            Générer et télécharger le classement actuel en JSON.
+          </p>
+          <button id="exportRankingBtn" style="width: 100%; padding: 12px; background: #a855f7; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">
+            📥 Télécharger le classement (JSON)
+          </button>
+          <div style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; font-size: 13px;">
+            <div style="color: rgba(255,255,255,0.6); margin-bottom: 8px;">⏰ Export automatique quotidien</div>
+            <div style="color: #10b981;">Tous les jours à 20h → GitHub</div>
+          </div>
+        </div>
+
         <!-- Téléchargements -->
         <div class="info-box">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
             📥 Télécharger les données
           </h3>
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Exporter les fichiers JSON de la base de données
+            Exporter les fichiers JSON bruts.
           </p>
           <div style="display: flex; flex-direction: column; gap: 12px;">
             <button class="download-btn" data-file="athletes" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
-              📋 athletes.json - Liste des inscrits
+              📋 athletes.json
             </button>
             <button class="download-btn" data-file="activities" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
-              🏃 activities.json - Toutes les activités
+              🏃 activities.json
             </button>
             <button class="download-btn" data-file="jokers" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
-              🃏 jokers_usage.json - Utilisation des jokers
+              🃏 jokers_usage.json
             </button>
+          </div>
+        </div>
+
+        <!-- Gestion des activités (exclure) -->
+        <div class="info-box" style="grid-column: 1 / -1;">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            🏃 Gestion des activités
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
+            Exclure ou réintégrer des activités qui ne respectent pas les règles du challenge.
+          </p>
+          
+          <!-- Filtres -->
+          <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+            <input type="text" id="activitySearch" placeholder="Rechercher (nom, athlète...)" style="flex: 1; min-width: 200px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+            <select id="activityFilter" style="padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+              <option value="all">Toutes les activités</option>
+              <option value="active">Actives uniquement</option>
+              <option value="excluded">Exclues uniquement</option>
+            </select>
+            <button id="refreshActivitiesBtn" style="padding: 10px 20px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; cursor: pointer;">
+              🔄 Rafraîchir
+            </button>
+          </div>
+          
+          <div id="activitiesList" style="max-height: 500px; overflow-y: auto;">
+            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
           </div>
         </div>
 
@@ -152,7 +196,7 @@
           </div>
         </div>
 
-        <!-- Logs / Actions récentes -->
+        <!-- Logs -->
         <div class="info-box" style="grid-column: 1 / -1;">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
             📜 Journal des actions
@@ -169,7 +213,7 @@
   <!-- Footer -->
   <footer class="footer" style="margin-top: 80px;">
     <div class="footer-content">
-      <div class="footer-brand">◭️ Versant</div>
+      <div class="footer-brand">◭ Versant</div>
       <p class="footer-text">Panneau d'administration</p>
     </div>
   </footer>
@@ -178,6 +222,7 @@
     const API_BASE = '/api';
     const LEAGUE_ID = 'versant-2026';
     let adminPassword = null;
+    let allActivities = [];
 
     // ============================================
     // AUTHENTIFICATION
@@ -240,32 +285,25 @@
     // ============================================
     async function loadDashboardData() {
       try {
-        // Charger la liste des fichiers
-        const filesRes = await fetch(`${API_BASE}/admin/files`, {
-          headers: { 'X-Admin-Password': adminPassword }
-        });
-        
-        if (!filesRes.ok) {
-          throw new Error('Session expirée');
-        }
-
-        const files = await filesRes.json();
-        
         // Charger les athlètes
         const athletesRes = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
         const athletes = await athletesRes.json();
         
         // Charger les activités
         const activitiesRes = await fetch(`${API_BASE}/activities/${LEAGUE_ID}`);
-        const activities = await activitiesRes.json();
+        allActivities = await activitiesRes.json();
+
+        // Compter les exclues
+        const excludedCount = allActivities.filter(a => a.excluded).length;
 
         // Mettre à jour les stats
         document.getElementById('statAthletes').textContent = athletes.length;
-        document.getElementById('statActivities').textContent = activities.length;
-        document.getElementById('statSessions').textContent = '-';
+        document.getElementById('statActivities').textContent = allActivities.length;
+        document.getElementById('statExcluded').textContent = excludedCount;
 
-        // Afficher la liste des athlètes
+        // Afficher les listes
         renderAthletesList(athletes);
+        renderActivitiesList();
 
         // Définir les dates par défaut pour la sync
         const today = new Date();
@@ -273,14 +311,11 @@
         document.getElementById('syncEndDate').value = today.toISOString().split('T')[0];
         document.getElementById('syncStartDate').value = weekAgo.toISOString().split('T')[0];
 
-        addLog(`📊 Données chargées: ${athletes.length} athlètes, ${activities.length} activités`);
+        addLog(`📊 Données chargées: ${athletes.length} athlètes, ${allActivities.length} activités (${excludedCount} exclues)`);
 
       } catch (error) {
         console.error('Erreur chargement:', error);
-        if (error.message === 'Session expirée') {
-          localStorage.removeItem('versant_admin_password');
-          showLogin();
-        }
+        addLog(`❌ Erreur: ${error.message}`);
       }
     }
 
@@ -317,18 +352,128 @@
     }
 
     // ============================================
-    // WEBHOOK STRAVA
+    // GESTION DES ACTIVITÉS
     // ============================================
-    async function checkWebhookStatus() {
+    function renderActivitiesList() {
+      const container = document.getElementById('activitiesList');
+      const search = document.getElementById('activitySearch').value.toLowerCase();
+      const filter = document.getElementById('activityFilter').value;
+
+      let filtered = allActivities;
+
+      // Filtrer par recherche
+      if (search) {
+        filtered = filtered.filter(a => 
+          a.name?.toLowerCase().includes(search) ||
+          a.athlete_name?.toLowerCase().includes(search)
+        );
+      }
+
+      // Filtrer par statut
+      if (filter === 'active') {
+        filtered = filtered.filter(a => !a.excluded);
+      } else if (filter === 'excluded') {
+        filtered = filtered.filter(a => a.excluded);
+      }
+
+      // Trier par date (plus récent en premier)
+      filtered.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucune activité trouvée</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Date</th>
+              <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Athlète</th>
+              <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Activité</th>
+              <th style="text-align: right; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Distance</th>
+              <th style="text-align: right; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">D+</th>
+              <th style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Statut</th>
+              <th style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.slice(0, 100).map(a => `
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${a.excluded ? 'opacity: 0.5;' : ''}">
+                <td style="padding: 12px 8px; font-size: 13px;">${new Date(a.start_date).toLocaleDateString('fr-FR')}</td>
+                <td style="padding: 12px 8px; font-weight: 500;">${a.athlete_name || 'Inconnu'}</td>
+                <td style="padding: 12px 8px; color: rgba(255,255,255,0.8);">
+                  <a href="https://www.strava.com/activities/${a.id}" target="_blank" style="color: #22d3ee; text-decoration: none;">
+                    ${a.name || 'Sans nom'}
+                  </a>
+                </td>
+                <td style="padding: 12px 8px; text-align: right; font-family: 'Space Mono', monospace;">${(a.distance / 1000).toFixed(2)} km</td>
+                <td style="padding: 12px 8px; text-align: right; font-family: 'Space Mono', monospace;">+${Math.round(a.total_elevation_gain)} m</td>
+                <td style="padding: 12px 8px; text-align: center;">
+                  ${a.excluded 
+                    ? '<span style="color: #ef4444; font-size: 12px;">❌ Exclue</span>' 
+                    : '<span style="color: #10b981; font-size: 12px;">✅ Active</span>'}
+                </td>
+                <td style="padding: 12px 8px; text-align: center;">
+                  <button onclick="toggleActivityExclusion(${a.id}, ${!a.excluded})" style="padding: 6px 12px; background: ${a.excluded ? '#10b981' : '#ef4444'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                    ${a.excluded ? '↩️ Réintégrer' : '🚫 Exclure'}
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ${filtered.length > 100 ? `<p style="color: rgba(255,255,255,0.5); padding: 12px; text-align: center;">Affichage limité à 100 activités sur ${filtered.length}</p>` : ''}
+      `;
+    }
+
+    async function toggleActivityExclusion(activityId, exclude) {
       try {
-        // On ne peut pas vérifier directement, on essaie d'activer et on voit la réponse
-        document.getElementById('webhookStatus').innerHTML = 
-          'Statut: <span style="color: rgba(255,255,255,0.5);">Cliquez sur "Activer" pour vérifier/créer</span>';
+        const response = await fetch(`${API_BASE}/admin/activities/${LEAGUE_ID}/${activityId}/exclude`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword 
+          },
+          body: JSON.stringify({ exclude })
+        });
+
+        if (!response.ok) {
+          throw new Error('Erreur lors de la modification');
+        }
+
+        const data = await response.json();
+        
+        // Mettre à jour localement
+        const activity = allActivities.find(a => a.id === activityId);
+        if (activity) {
+          activity.excluded = exclude;
+          activity.excluded_at = exclude ? new Date().toISOString() : null;
+          activity.excluded_reason = exclude ? 'Exclu par admin' : null;
+        }
+
+        renderActivitiesList();
+        
+        // Mettre à jour le compteur
+        const excludedCount = allActivities.filter(a => a.excluded).length;
+        document.getElementById('statExcluded').textContent = excludedCount;
+
+        addLog(`${exclude ? '🚫' : '↩️'} Activité ${activityId}: ${exclude ? 'exclue' : 'réintégrée'}`);
+
       } catch (error) {
-        console.error('Erreur vérification webhook:', error);
+        addLog(`❌ Erreur: ${error.message}`);
+        alert('Erreur: ' + error.message);
       }
     }
 
+    // Event listeners pour les filtres
+    document.getElementById('activitySearch').addEventListener('input', renderActivitiesList);
+    document.getElementById('activityFilter').addEventListener('change', renderActivitiesList);
+    document.getElementById('refreshActivitiesBtn').addEventListener('click', loadDashboardData);
+
+    // ============================================
+    // WEBHOOK STRAVA
+    // ============================================
     document.getElementById('enableWebhookBtn').addEventListener('click', async () => {
       const btn = document.getElementById('enableWebhookBtn');
       const status = document.getElementById('webhookStatus');
@@ -348,28 +493,25 @@
           status.innerHTML = `Statut: <span style="color: #10b981;">✅ Actif</span> (ID: ${data.subscription?.id || 'existant'})`;
           addLog(`✅ Webhook Strava: ${data.message}`);
         } else {
-          status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Erreur: ${data.error}</span>`;
-          addLog(`❌ Webhook erreur: ${data.details || data.error}`);
+          status.innerHTML = `Statut: <span style="color: #ef4444;">❌ ${data.error}</span>`;
+          addLog(`❌ Webhook erreur: ${JSON.stringify(data.details || data.error)}`);
         }
       } catch (error) {
         status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Erreur réseau</span>`;
         addLog(`❌ Erreur: ${error.message}`);
       } finally {
         btn.disabled = false;
-        btn.textContent = '✅ Activer le webhook';
+        btn.textContent = '✅ Activer';
       }
     });
 
     document.getElementById('disableWebhookBtn').addEventListener('click', async () => {
-      if (!confirm('Voulez-vous vraiment désactiver le webhook ? Vous ne recevrez plus les activités en temps réel.')) {
-        return;
-      }
+      if (!confirm('Désactiver le webhook ? Vous ne recevrez plus les activités en temps réel.')) return;
 
       const btn = document.getElementById('disableWebhookBtn');
       const status = document.getElementById('webhookStatus');
       
       btn.disabled = true;
-      btn.textContent = 'Désactivation...';
       
       try {
         const response = await fetch(`${API_BASE}/admin/strava/subscribe`, {
@@ -378,18 +520,12 @@
         });
 
         const data = await response.json();
-
-        if (response.ok) {
-          status.innerHTML = `Statut: <span style="color: #fbbf24;">⚠️ Désactivé</span>`;
-          addLog(`🗑️ Webhook désactivé: ${data.message}`);
-        } else {
-          addLog(`❌ Erreur: ${data.error}`);
-        }
+        status.innerHTML = `Statut: <span style="color: #fbbf24;">⚠️ Désactivé</span>`;
+        addLog(`🗑️ Webhook désactivé`);
       } catch (error) {
         addLog(`❌ Erreur: ${error.message}`);
       } finally {
         btn.disabled = false;
-        btn.textContent = '🗑️ Désactiver';
       }
     });
 
@@ -403,10 +539,8 @@
       const endDate = document.getElementById('syncEndDate').value;
 
       btn.disabled = true;
-      btn.textContent = 'Synchronisation en cours...';
-      result.innerHTML = '<span style="color: #fbbf24;">⏳ Synchronisation en cours...</span>';
-
-      addLog(`🔄 Lancement sync: ${startDate} → ${endDate}`);
+      btn.textContent = 'Synchronisation...';
+      result.innerHTML = '<span style="color: #fbbf24;">⏳ En cours...</span>';
 
       try {
         const response = await fetch(`${API_BASE}/sync/${LEAGUE_ID}`, {
@@ -420,27 +554,53 @@
 
         const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Erreur de synchronisation');
-        }
+        if (!response.ok) throw new Error(data.error);
 
-        result.innerHTML = `<span style="color: #10b981;">✅ ${data.totalActivities} activités synchronisées pour ${data.athletesCount} athlètes</span>`;
-        addLog(`✅ Sync terminée: ${data.totalActivities} activités`);
-
-        if (data.errors && data.errors.length > 0) {
-          result.innerHTML += `<br><span style="color: #fbbf24;">⚠️ ${data.errors.length} erreurs</span>`;
-          data.errors.forEach(err => addLog(`⚠️ ${err.athlete}: ${err.error}`));
-        }
-
-        // Recharger les données
+        result.innerHTML = `<span style="color: #10b981;">✅ ${data.totalActivities} activités synchronisées</span>`;
+        addLog(`✅ Sync: ${data.totalActivities} activités pour ${data.athletesCount} athlètes`);
+        
         loadDashboardData();
 
       } catch (error) {
         result.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
-        addLog(`❌ Erreur sync: ${error.message}`);
+        addLog(`❌ Sync erreur: ${error.message}`);
       } finally {
         btn.disabled = false;
         btn.textContent = 'Lancer la synchronisation';
+      }
+    });
+
+    // ============================================
+    // EXPORT CLASSEMENT
+    // ============================================
+    document.getElementById('exportRankingBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('exportRankingBtn');
+      btn.disabled = true;
+      btn.textContent = 'Génération...';
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/ranking/${LEAGUE_ID}/export`, {
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+
+        if (!response.ok) throw new Error('Erreur export');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `classement-${LEAGUE_ID}-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+        addLog(`📥 Classement exporté`);
+
+      } catch (error) {
+        addLog(`❌ Erreur export: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📥 Télécharger le classement (JSON)';
       }
     });
 
@@ -452,8 +612,7 @@
         const fileType = btn.dataset.file;
         
         try {
-          let url;
-          let filename;
+          let url, filename;
 
           if (fileType === 'athletes') {
             url = `${API_BASE}/admin/athletes/download`;
@@ -470,25 +629,20 @@
             headers: { 'X-Admin-Password': adminPassword }
           });
 
-          if (!response.ok) {
-            throw new Error('Erreur de téléchargement');
-          }
+          if (!response.ok) throw new Error('Erreur téléchargement');
 
           const blob = await response.blob();
           const downloadUrl = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = downloadUrl;
           a.download = filename;
-          document.body.appendChild(a);
           a.click();
-          a.remove();
           window.URL.revokeObjectURL(downloadUrl);
 
-          addLog(`📥 Téléchargement: ${filename}`);
+          addLog(`📥 ${filename} téléchargé`);
 
         } catch (error) {
-          addLog(`❌ Erreur téléchargement: ${error.message}`);
-          alert('Erreur: ' + error.message);
+          addLog(`❌ Erreur: ${error.message}`);
         }
       });
     });
@@ -503,7 +657,6 @@
       logEntry.style.marginBottom = '8px';
       logEntry.innerHTML = `<span style="color: rgba(255,255,255,0.4);">[${time}]</span> ${message}`;
       
-      // Retirer le message par défaut
       if (container.children.length === 1 && container.children[0].textContent.includes('En attente')) {
         container.innerHTML = '';
       }
