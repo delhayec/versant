@@ -912,9 +912,9 @@ body {
 }
 
 .rule-description {
-  font-size: 0.875rem;
+  font-size: 1 rem;
   color: var(--text-secondary);
-  max-width: 300px;
+  max-width: 500px;
 }
 
 .round-countdown {

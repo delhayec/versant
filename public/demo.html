@@ -3,19 +3,282 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Versant - Démo Challenge Data-2025  </title>
+  <title>Versant - Démo Challenge 2025</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️️</text></svg>">
+  
+  <style>
+    /* Styles pour la section règles */
+    .rules-section {
+      padding: 80px var(--container-padding);
+      background: linear-gradient(180deg, rgba(15,23,42,0.5) 0%, rgba(30,41,59,0.5) 100%);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .rules-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    
+    .rules-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .rules-subtitle {
+      font-size: 18px;
+      color: rgba(255,255,255,0.7);
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .rules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 32px;
+      margin-bottom: 60px;
+    }
+    
+    .rule-card {
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 12px;
+      transition: all 0.3s ease;
+    }
+    
+    .rule-card:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(249,115,22,0.3);
+      transform: translateY(-4px);
+    }
+    
+    .rule-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+    
+    .rule-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #f97316;
+    }
+    
+     .rule-description {
+       width: 90%;           /* Prend toute la largeur */
+       flex-grow: 0.9;          /* Remplit l'espace disponible */
+       text-align: justify;   /* Justifie le texte pour un rendu plus propre */
+       margin: 20px;
+    }
+    
+    .rule-list {
+      list-style: none;
+      padding: 0;
+      margin: 20px;
+    }
+    
+    .rule-list li {
+      padding: 8px 0;
+      padding-left: 28px;
+      position: relative;
+      color: rgba(255,255,255,0.7);
+      font-size: 14px;
+    }
+    
+    .rule-list li:before {
+      content: "→";
+      position: absolute;
+      left: 8px;
+      color: #f97316;
+    }
+    
+    .timeline-section {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 40px;
+      margin-bottom: 60px;
+    }
+    
+    .timeline-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 32px;
+      text-align: center;
+      color: rgba(255,255,255,0.9);
+    }
+    
+    .timeline {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      padding: 20px 0;
+    }
+
+    .timeline:before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #f97316, #f43f5e);
+      z-index: 0;
+    }
+
+    .timeline-item {
+      flex: 1;
+      text-align: right;
+      position: relative;
+      z-index: 1;
+    }
+
+    .timeline-item:first-child {
+      text-align: left;
+    }
+
+    .timeline-item:nth-child(2) {
+      text-align: center;
+    }
+
+    .timeline-item:last-child {
+      height: 58px;
+      text-align: end;
+      display: inline-block;
+    }
+
+    .timeline-dot {
+      width: 16px;
+      height: 16px;
+      background: #f97316;
+      border-radius: 50%;
+      margin: 0 0 0 0;
+      box-shadow: 0 0 0 4px rgba(249,115,22,0.2);
+      display: inline-block;
+    }
+
+    .timeline-item:nth-child(2) .timeline-dot {
+      margin: 0 auto 0px;
+      display: block;
+    }
+
+    .timeline-item:last-child .timeline-dot {
+      margin: 0px auto 0px;
+      float: right;
+      display: block;
+    }
+
+    .timeline-label {
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+
+
+    .timeline-value {
+      color: #f97316;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .demo-info {
+      background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(244,63,94,0.1));
+      border: 1px solid rgba(249,115,22,0.3);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .demo-info-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .demo-info-text {
+      color: rgba(255,255,255,0.8);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .demo-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 20px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .demo-controls-icon {
+      font-size: 32px;
+    }
+
+    .demo-controls-text {
+      color: rgba(255,255,255,0.9);
+      font-weight: 600;
+    }
+
+    .bonus-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    .bonus-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .bonus-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+
+    .bonus-name {
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 8px;
+    }
+
+    .bonus-desc {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.4;
+    }
+  </style>
 </head>
 <body>
   <!-- Loading Screen -->
   <div class="loading-screen" id="loadingScreen">
     <div class="loading-content">
-      <div class="loading-icon">◭️</div>
+      <div class="loading-icon">◭️️</div>
       <div class="loading-title">Versant</div>
       <div class="loading-spinner"></div>
       <div class="loading-text">Chargement de la démo...</div>
@@ -24,7 +287,7 @@
 
   <!-- Demo Banner -->
   <div class="demo-banner">
-    <span class="demo-badge"> MODE DÉMO  </span>
+    <span class="demo-badge"> MODE DÉMO</span>
     <span class="demo-text">Le Challenge Versant avec les données de 2025</span>
     <a href="index.html" class="demo-link">Voir la ligue en cours →</a>
   </div>
@@ -33,7 +296,7 @@
   <section class="hero" style="min-height: 60vh;">
     <div class="hero-bg"></div>
     <div class="hero-content">
-      <span class="hero-eyebrow">Challenge 2025 - Démo </span>
+      <span class="hero-eyebrow">Challenge 2025 • Démo</span>
       <h1 class="hero-title">
         <span class="title-line">Challenge</span>
         <span class="title-line accent">Versant</span>
@@ -54,11 +317,12 @@
   <nav class="nav-sticky">
     <div class="nav-container">
       <a href="demo.html" class="nav-brand">
-        <span class="brand-icon">◭️</span>
-        <span class="brand-text">Versant • Démo </span>
+        <span class="brand-icon">◭️️</span>
+        <span class="brand-text">Versant • Démo</span>
       </a>
       <div class="nav-links">
-        <a href="#ranking" class="nav-link active">Classement</a>
+        <a href="#rules" class="nav-link">Règles</a>
+        <a href="#ranking" class="nav-link">Classement</a>
         <a href="#eliminated" class="nav-link">Éliminés</a>
         <a href="#standings" class="nav-link">Points</a>
         <a href="#participants" class="nav-link">Participants</a>
@@ -66,6 +330,155 @@
       </div>
     </div>
   </nav>
+
+  <!-- ========================================
+       SECTION RÈGLES DU JEU
+       ======================================== -->
+  <section class="rules-section" id="rules">
+    <div class="rules-header">
+      <h2 class="rules-title"> Règles du Challenge</h2>
+      <p class="rules-subtitle">
+        Découvrez comment fonctionne le Challenge Versant, un challenge basé sur le dénivelé positif avec éliminations progressives
+      </p>
+    </div>
+
+    <!-- Règles de Base -->
+    <div class="rules-grid">
+      <div class="rule-card">
+
+        <h3 class="rule-title">Objectif</h3>
+        <p class="rule-description">
+          Accumuler le plus de dénivelé positif (D+) possible tout au long de l'année pour éviter l'élimination et marquer des points.
+        </p>
+        <ul class="rule-list">
+          <li>Activités Strava comptabilisées automatiquement</li>
+          <li>Sports valides : Run, Trail, Marche, Rando, Vélo, VTT, Ski Rando, Ski Nordic</li>
+          <li>En round standard seul le D+ compte (pas la distance)</li>
+        </ul>
+      </div>
+
+      <div class="rule-card">
+
+        <h3 class="rule-title">Éliminations</h3>
+        <p class="rule-description">
+          À la fin de chaque round, les 2 derniers au classement D+ sont éliminés du challenge principal. Le compteur de D+ est remis a zeros (vous ne conservez pas votre avance)
+        </p>
+        <ul class="rule-list">
+          <li>2 derniers éliminés tous les 5 jours</li>
+          <li>Les éliminés continuent dans le Challenge des Éliminés</li>
+          <li>Possibilité de marquer des points malgré l'élimination</li>
+        </ul>
+      </div>
+
+      <div class="rule-card">
+
+        <h3 class="rule-title">Points</h3>
+        <p class="rule-description">
+          Des points sont attribués à la fin de chaque saison selon votre classement dans les deux challenges.
+        </p>
+        <ul class="rule-list">
+          <li>Challenge Principal : 100 pts → 10 pts</li>
+          <li>Challenge Éliminés : 50 pts → 5 pts</li>
+          <li>Classement annuel = Total des points</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Timeline : Ligue → Saison → Round -->
+    <div class="timeline-section">
+      <h3 class="timeline-title"> Structure Temporelle</h3>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-label">LIGUE</div>
+          <div class="timeline-value">1 an</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-label">SAISON</div>
+          <div class="timeline-value">~1 mois</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-label">ROUND</div>
+          <div class="timeline-value">5 jours</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 40px;">
+        <div class="rule-card">
+          <h4 style="color: #f97316; font-weight: 600; margin-bottom: 16px;">🗓️ Détails</h4>
+
+          <p style="margin-bottom: 16px; color: rgba(255,255,255,0.8);">
+            <strong style="color: rgba(255,255,255,0.9);">LIGUE (1 an)</strong><br>
+            Une ligue dure 1 an complet (ex: 1er février 2026 → 31 janvier 2027). Elle contient plusieurs saisons. À la fin de l'année, un classement général est établi en fonction des points accumulés.
+          </p>
+
+          <p style="margin-bottom: 16px; color: rgba(255,255,255,0.8);">
+            <strong style="color: rgba(255,255,255,0.9);">SAISON (~1 mois)</strong><br>
+            Une saison dure environ 1 mois et contient 6 rounds de 5 jours. À la fin de chaque saison, des points sont attribués selon le classement, puis tout le monde repart à zéro pour la saison suivante (même les éliminés).
+          </p>
+
+          <p style="color: rgba(255,255,255,0.8);">
+            <strong style="color: rgba(255,255,255,0.9);">ROUND (5 jours)</strong><br>
+            Un round dure 5 jours et se termine à 20h le dernier jour. C'est la période de compétition de base où vous accumulez du D+. Les 2 derniers sont éliminés à la fin de chaque round.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bonus & Règles Spéciales -->
+    <div style="margin-bottom: 40px;">
+      <h3 style="font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 600; margin-bottom: 24px; text-align: center; color: rgba(255,255,255,0.9);">
+        🎁 Bonus & Règles Spéciales
+      </h3>
+
+      <div class="bonus-grid">
+        <div class="bonus-card">
+          <div class="bonus-icon">🃏</div>
+          <div class="bonus-name">Jokers</div>
+          <div class="bonus-desc">Chaque athlète dispose de 4 jokers stratégiques à utiliser durant la ligue</div>
+        </div>
+
+        <div class="bonus-card">
+          <div class="bonus-icon">◭️️</div>
+          <div class="bonus-name">Pente Raide</div>
+          <div class="bonus-desc">Certains rounds comptent uniquement le D+ sur des pentes > 15%</div>
+        </div>
+
+        <div class="bonus-card">
+          <div class="bonus-icon">🌲</div>
+          <div class="bonus-name">Hors Sentiers</div>
+          <div class="bonus-desc">Bonus de D+ pour les activités hors chemins balisés</div>
+        </div>
+
+        <div class="bonus-card">
+          <div class="bonus-icon">🎯</div>
+          <div class="bonus-name">Round Finale</div>
+          <div class="bonus-desc">Le dernier round de chaque saison compte double</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Mode Démo -->
+    <div class="demo-info">
+      <h3 class="demo-info-title">🎬 À Propos de Ce Mode Démo</h3>
+      <p class="demo-info-text">
+        Cette démo simule un Challenge Versant 2026 en utilisant les <strong>données réelles de 2025</strong>.
+        Elle vous permet de comprendre le fonctionnement du challenge en explorant différentes dates et en visualisant l'évolution des classements, des éliminations et des points.
+      </p>
+
+      <div class="demo-controls">
+        <span class="demo-controls-icon">← →</span>
+        <span class="demo-controls-text">Utilisez le slider en bas de page pour naviguer dans le temps</span>
+      </div>
+
+      <p style="margin-top: 24px; color: rgba(255,255,255,0.7); font-size: 14px;">
+        💡 Astuce : Déplacez le slider pour voir comment les classements évoluent au fil des rounds, qui est éliminé, et comment les points sont attribués à la fin de chaque saison.
+      </p>
+    </div>
+  </section>
 
   <!-- Season Banner -->
   <section style="padding: 24px var(--container-padding);">
@@ -130,7 +543,7 @@
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-content">
-      <div class="footer-brand">◭️ Versant</div>
+      <div class="footer-brand">◭️️ Versant</div>
       <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
       <a href="inscription.html" class="footer-cta">Rejoindre la ligue 2026</a>
     </div>
