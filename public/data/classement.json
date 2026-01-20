@@ -1,1 +1,17 @@
-{}
+{
+  "league_id": "versant-2026",
+  "generated_at": "2026-01-19T20:00:00.921Z",
+  "ranking": [
+    {
+      "rank": 1,
+      "id": "3953180",
+      "name": "Clement D",
+      "total_distance": 0,
+      "total_elevation": 0,
+      "total_activities": 0,
+      "activities": [],
+      "total_distance_km": "0.00",
+      "total_elevation_m": 0
+    }
+  ]
+}
