@@ -1049,11 +1049,15 @@ app.post('/api/sync/:leagueId', async (req, res) => {
         }
 
         // Récupérer les activités
+        // Note: "before" doit être le lendemain de endDate à minuit pour inclure toute la journée
+        const endDatePlusOne = new Date(end);
+        endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
+        
         const response = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
           headers: { Authorization: `Bearer ${accessToken}` },
           params: {
             after: Math.floor(new Date(start).getTime() / 1000),
-            before: Math.floor(new Date(end).getTime() / 1000),
+            before: Math.floor(endDatePlusOne.getTime() / 1000),
             per_page: 200
           }
         });
@@ -1211,16 +1215,23 @@ app.post('/api/webhook/strava', async (req, res) => {
       console.log('   📥 Nouvelle activité - récupération des détails...');
       
       // Rafraîchir le token si nécessaire
-      let accessToken = athlete.strava_profile?.access_token;
-      if (athlete.strava_profile?.expires_at < Date.now() / 1000) {
-        const refreshed = await refreshStravaToken(athlete.strava_profile.refresh_token);
+      let accessToken = athlete.tokens?.access_token;
+      if (!accessToken) {
+        console.log('   → Erreur: pas de token Strava pour cet athlète');
+        return;
+      }
+      
+      if (athlete.tokens?.expires_at < Date.now() / 1000) {
+        console.log('   🔄 Token expiré, rafraîchissement...');
+        const refreshed = await refreshStravaToken(athlete.tokens.refresh_token);
         accessToken = refreshed.access_token;
         
         // Mettre à jour le token dans la base
-        athlete.strava_profile.access_token = refreshed.access_token;
-        athlete.strava_profile.refresh_token = refreshed.refresh_token;
-        athlete.strava_profile.expires_at = refreshed.expires_at;
+        athlete.tokens.access_token = refreshed.access_token;
+        athlete.tokens.refresh_token = refreshed.refresh_token;
+        athlete.tokens.expires_at = refreshed.expires_at;
         await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
+        console.log('   ✅ Token rafraîchi');
       }
 
       // Récupérer les détails de l'activité
