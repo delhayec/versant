@@ -223,6 +223,7 @@
     const LEAGUE_ID = 'versant-2026';
     let adminPassword = null;
     let allActivities = [];
+    let athletesCache = {}; // Cache pour résoudre les noms d'athlètes
 
     // ============================================
     // AUTHENTIFICATION
@@ -245,6 +246,34 @@
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('adminDashboard').style.display = 'block';
       loadDashboardData();
+      checkWebhookStatus(); // Vérifier le statut du webhook
+    }
+
+    // Fonction pour vérifier le statut du webhook
+    async function checkWebhookStatus() {
+      const status = document.getElementById('webhookStatus');
+      status.innerHTML = `Statut: <span style="color: #fbbf24;">⏳ Vérification...</span>`;
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/strava/subscribe/status`, {
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          if (data.active) {
+            status.innerHTML = `Statut: <span style="color: #10b981;">✅ Actif</span> (ID: ${data.subscription?.id || 'N/A'})`;
+            addLog(`📡 Webhook Strava actif (ID: ${data.subscription?.id})`);
+          } else {
+            status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Inactif</span> - Cliquez sur Activer`;
+          }
+        } else {
+          status.innerHTML = `Statut: <span style="color: #fbbf24;">⚠️ Erreur vérification</span>`;
+        }
+      } catch (error) {
+        status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Erreur réseau</span>`;
+      }
     }
 
     document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
@@ -289,6 +318,12 @@
         const athletesRes = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
         const athletes = await athletesRes.json();
         
+        // Créer le cache des athlètes (id -> nom)
+        athletesCache = {};
+        athletes.forEach(a => {
+          athletesCache[a.id] = a.name;
+        });
+        
         // Charger les activités
         const activitiesRes = await fetch(`${API_BASE}/activities/${LEAGUE_ID}`);
         allActivities = await activitiesRes.json();
@@ -317,6 +352,16 @@
         console.error('Erreur chargement:', error);
         addLog(`❌ Erreur: ${error.message}`);
       }
+    }
+
+    // Fonction pour obtenir le nom d'un athlète
+    function getAthleteName(activity) {
+      // Priorité: athlete_name dans l'activité, sinon chercher dans le cache
+      if (activity.athlete_name) return activity.athlete_name;
+      if (activity.athlete_id && athletesCache[activity.athlete_id]) {
+        return athletesCache[activity.athlete_id];
+      }
+      return 'Inconnu';
     }
 
     function renderAthletesList(athletes) {
@@ -401,7 +446,7 @@
             ${filtered.slice(0, 100).map(a => `
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${a.excluded ? 'opacity: 0.5;' : ''}">
                 <td style="padding: 12px 8px; font-size: 13px;">${new Date(a.start_date).toLocaleDateString('fr-FR')}</td>
-                <td style="padding: 12px 8px; font-weight: 500;">${a.athlete_name || 'Inconnu'}</td>
+                <td style="padding: 12px 8px; font-weight: 500;">${getAthleteName(a)}</td>
                 <td style="padding: 12px 8px; color: rgba(255,255,255,0.8);">
                   <a href="https://www.strava.com/activities/${a.id}" target="_blank" style="color: #22d3ee; text-decoration: none;">
                     ${a.name || 'Sans nom'}

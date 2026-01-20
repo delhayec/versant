@@ -1064,6 +1064,7 @@ app.post('/api/sync/:leagueId', async (req, res) => {
           .map(a => ({
             ...a,
             athlete_id: athlete.id,
+            athlete_name: athlete.name, // Ajout du nom de l'athlète
             date: a.start_date.split('T')[0]
           }));
 
@@ -1279,6 +1280,43 @@ app.post('/api/webhook/strava', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Erreur traitement webhook Strava:', error.message);
+  }
+});
+
+/**
+ * Endpoint pour vérifier le statut de l'abonnement webhook Strava
+ * GET /api/admin/strava/subscribe/status
+ */
+app.get('/api/admin/strava/subscribe/status', async (req, res) => {
+  const password = req.headers['x-admin-password'];
+  
+  if (password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Non autorisé' });
+  }
+
+  try {
+    const viewResponse = await axios.get('https://www.strava.com/api/v3/push_subscriptions', {
+      params: {
+        client_id: STRAVA_CLIENT_ID,
+        client_secret: STRAVA_CLIENT_SECRET
+      }
+    });
+
+    if (viewResponse.data.length > 0) {
+      res.json({ 
+        active: true,
+        subscription: viewResponse.data[0]
+      });
+    } else {
+      res.json({ active: false });
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur vérification webhook:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: 'Erreur vérification webhook',
+      details: error.response?.data || error.message
+    });
   }
 });
 
