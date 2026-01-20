@@ -30,7 +30,7 @@
       font-size: 48px;
       font-weight: 700;
       margin-bottom: 16px;
-      background: linear-gradient(135deg, #f97316, #f43f5e);
+      background: linear-gradient(135deg, #f97316, #22d3ee);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -57,6 +57,7 @@
       border-radius: 16px;
       padding: 12px;
       transition: all 0.3s ease;
+      margin-bottom: 60px;
     }
     
     .rule-card:hover {
@@ -76,7 +77,9 @@
       font-size: 24px;
       font-weight: 600;
       margin-bottom: 12px;
-      color: #f97316;
+      background: linear-gradient(135deg, #f97316, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
     
      .rule-description {
@@ -104,7 +107,7 @@
       content: "→";
       position: absolute;
       left: 8px;
-      color: #f97316;
+      color: #22d3ee;
     }
     
     .timeline-section {
@@ -121,7 +124,9 @@
       font-weight: 600;
       margin-bottom: 32px;
       text-align: center;
-      color: rgba(255,255,255,0.9);
+       background: linear-gradient(135deg, #f97316, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
     
     .timeline {
@@ -139,7 +144,7 @@
       left: 0;
       right: 0;
       height: 2px;
-      background: linear-gradient(90deg, #f97316, #f43f5e);
+      background: linear-gradient(90deg, #f97316, #22d3ee);
       z-index: 0;
     }
 
@@ -167,7 +172,7 @@
     .timeline-dot {
       width: 16px;
       height: 16px;
-      background: #f97316;
+      background: #22d3ee;
       border-radius: 50%;
       margin: 0 0 0 0;
       box-shadow: 0 0 0 4px rgba(249,115,22,0.2);
@@ -261,10 +266,32 @@
       margin-bottom: 12px;
     }
 
-    .bonus-name {
+       .bonus-name {
+      height: 52px;
       font-weight: 600;
+      background: linear-gradient(135deg, var(--accent-tertiary), #059669);
+      border-radius: 12px;
+      margin: 0 auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8px 12px;
       color: rgba(255,255,255,0.9);
-      margin-bottom: 8px;
+    }
+
+    .joker-name {
+      height: 52px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      border-radius: 12px;
+      margin: 0 auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8px 12px;
+      color: rgba(255,255,255,0.9);
     }
 
     .bonus-desc {
@@ -361,101 +388,77 @@
 
         <h3 class="rule-title">Éliminations</h3>
         <p class="rule-description">
-          À la fin de chaque round, les 2 derniers au classement D+ sont éliminés du challenge principal. Le compteur de D+ est remis a zeros (vous ne conservez pas votre avance)
+          À la fin de chaque round, les 2 derniers au classement D+ sont éliminés du challenge principal. Le compteur de D+ est remis a zeros.<strong style="color: #f97316;"> Vous ne conservez pas votre avance !! </strong>
         </p>
         <ul class="rule-list">
           <li>2 derniers éliminés tous les 5 jours</li>
+          <li>Plus vous êtes eliminé tard plus vous marquez de points</li>
           <li>Les éliminés continuent dans le Challenge des Éliminés</li>
-          <li>Possibilité de marquer des points malgré l'élimination</li>
         </ul>
       </div>
 
       <div class="rule-card">
 
-        <h3 class="rule-title">Points</h3>
+        <h3 class="rule-title">Challenge des Éliminés</h3>
         <p class="rule-description">
-          Des points sont attribués à la fin de chaque saison selon votre classement dans les deux challenges.
+          Lorsque vous êtes exclus du challenge principal tout n'est pas perdu !
         </p>
         <ul class="rule-list">
-          <li>Challenge Principal : 100 pts → 10 pts</li>
-          <li>Challenge Éliminés : 50 pts → 5 pts</li>
-          <li>Classement annuel = Total des points</li>
+          <li>Vous cumulez de D+ à partir du moment où vous rentrez dans le challenge des éliminés</li>
+          <li>Plus vous y rentrez tôt plus vous avez de temps pour accumuler du D+</li>
         </ul>
       </div>
     </div>
 
     <!-- Timeline : Ligue → Saison → Round -->
-    <div class="timeline-section">
+
       <h3 class="timeline-title"> Structure Temporelle</h3>
-
-      <div class="timeline">
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-label">LIGUE</div>
-          <div class="timeline-value">1 an</div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-label">SAISON</div>
-          <div class="timeline-value">~1 mois</div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-label">ROUND</div>
-          <div class="timeline-value">5 jours</div>
-        </div>
-      </div>
-
-      <div style="margin-top: 40px;">
         <div class="rule-card">
-          <h4 style="color: #f97316; font-weight: 600; margin-bottom: 16px;"> Détails</h4>
-
           <p style="margin-bottom: 16px; color: rgba(255,255,255,0.8);">
             <strong style="color: rgba(255,255,255,0.9);">LIGUE (1 an)</strong><br>
-            Une ligue dure 1 an complet (ex: 1er février 2026 → 31 janvier 2027). Elle contient plusieurs saisons. À la fin de l'année, un classement général est établi en fonction des points accumulés.
+            Une ligue dure 1 an complet (ex: 1er février 2026 → 31 janvier 2027). Elle contient plusieurs saisons. À la fin de l'année, un classement général est établi en fonction des points accumulés (dans les challenges pricipal et celui des éliminés).
           </p>
-
           <p style="margin-bottom: 16px; color: rgba(255,255,255,0.8);">
             <strong style="color: rgba(255,255,255,0.9);">SAISON (~1 mois)</strong><br>
-            Une saison dure environ 1 mois et contient 6 rounds de 5 jours. À la fin de chaque saison, des points sont attribués selon le classement, puis tout le monde repart à zéro pour la saison suivante (même les éliminés).
+            Une saison dure environ 1 mois et contient 6 rounds de 5 jours. À la fin de chaque saison, des points sont attribués selon le classement géneral et le classement des eliminés, puis tout le monde réintègre le challenge pour le premier round de la saison suivante.
           </p>
-
           <p style="color: rgba(255,255,255,0.8);">
             <strong style="color: rgba(255,255,255,0.9);">ROUND (5 jours)</strong><br>
-            Un round dure 5 jours et se termine à 20h le dernier jour. C'est la période de compétition de base où vous accumulez du D+. Les 2 derniers sont éliminés à la fin de chaque round.
+            Un round dure 5 jours et se termine à 20h le dernier jour. C'est la période de compétition de base où vous accumulez du D+. Les 2 derniers sont éliminés à la fin de chaque round. Le D+ est remis à zero au début de chaque round
           </p>
+
         </div>
-      </div>
-    </div>
+
+
 
     <!-- Bonus & Règles Spéciales -->
     <div style="margin-bottom: 40px;">
-      <h3 style="font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 600; margin-bottom: 24px; text-align: center; color: rgba(255,255,255,0.9);">
+      <h3 style="font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 600; margin-bottom: 24px; text-align: center; color: rgba(255,255,255,0.9);">
          Règles Spéciales & Bonus
       </h3>
 
       <div class="bonus-grid">
         <div class="bonus-card">
-          <div class="bonus-icon">🃏</div>
-          <div class="bonus-name">Jokers</div>
+          <div class="joker-name">Jokers</div>
+          <div class="bonus-icon"></div>
           <div class="bonus-desc">Chaque athlète dispose de 4 jokers stratégiques à utiliser durant la ligue</div>
         </div>
 
         <div class="bonus-card">
-          <div class="bonus-icon"></div>
           <div class="bonus-name">Round spéciaux: Pente Raide</div>
+          <div class="bonus-icon"></div>
           <div class="bonus-desc">Certains rounds comptent uniquement le D+ sur des pentes > 15%</div>
         </div>
 
         <div class="bonus-card">
-          <div class="bonus-icon"></div>
           <div class="bonus-name">Round spéciaux: Hors Sentiers</div>
+          <div class="bonus-icon"></div>
           <div class="bonus-desc">Bonus de D+ pour les activités hors chemins balisés</div>
         </div>
 
         <div class="bonus-card">
-          <div class="bonus-icon"></div>
           <div class="bonus-name">Round Final</div>
+          <div class="bonus-icon"></div>
           <div class="bonus-desc">Le dernier round de la saison compte double</div>
         </div>
       </div>
@@ -471,12 +474,8 @@
 
       <div class="demo-controls">
         <span class="demo-controls-icon">← →</span>
-        <span class="demo-controls-text">Utilisez le slider en bas de page pour naviguer dans le temps</span>
+        <span class="demo-controls-text">Utilisez le slider et les flèches en bas de page pour naviguer dans le temps</span>
       </div>
-
-      <p style="margin-top: 24px; color: rgba(255,255,255,0.7); font-size: 14px;">
-        Astuce : Déplacez le slider pour voir comment les classements évoluent au fil des rounds, qui est éliminé, et comment les points sont attribués à la fin de chaque saison.
-      </p>
     </div>
   </section>
 
