@@ -1360,7 +1360,7 @@ app.post('/api/admin/strava/subscribe', async (req, res) => {
     }
 
     // Créer un nouvel abonnement
-    const callbackUrl = `http://178.170.116.175/api/webhook/strava`;
+    const callbackUrl = `https://versant-app.fr/api/webhook/strava`;
     
     const createResponse = await axios.post('https://www.strava.com/api/v3/push_subscriptions', {
       client_id: STRAVA_CLIENT_ID,
