@@ -1,17 +1,46 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-01-19T20:00:00.921Z",
+  "generated_at": "2026-01-21T20:00:00.272Z",
   "ranking": [
     {
       "rank": 1,
       "id": "3953180",
       "name": "Clement D",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
+      "total_distance": 13860.2,
+      "total_elevation": 554,
+      "total_activities": 4,
+      "activities": [
+        {
+          "id": 17094335866,
+          "name": "Course dans la forêt",
+          "date": "2026-01-18T13:57:17Z",
+          "distance": 7117.5,
+          "elevation": 268
+        },
+        {
+          "id": 17114238375,
+          "name": "Trail avec Pef",
+          "date": "2026-01-20T11:04:04Z",
+          "distance": 6542.1,
+          "elevation": 284
+        },
+        {
+          "id": 17115051115,
+          "name": "Test WebHook Strava",
+          "date": "2026-01-20T12:56:14Z",
+          "distance": 87.9,
+          "elevation": 0
+        },
+        {
+          "id": 17116344119,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-01-20T15:11:50Z",
+          "distance": 112.7,
+          "elevation": 2
+        }
+      ],
+      "total_distance_km": "13.86",
+      "total_elevation_m": 554
     }
   ]
 }
