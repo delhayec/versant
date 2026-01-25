@@ -1,9 +1,42 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-01-24T20:00:00.568Z",
+  "generated_at": "2026-01-25T20:00:00.399Z",
   "ranking": [
     {
       "rank": 1,
+      "id": "5231535",
+      "name": "Franck P",
+      "total_distance": 13705.4,
+      "total_elevation": 1020,
+      "total_activities": 3,
+      "activities": [
+        {
+          "id": 17162166919,
+          "name": "Afternoon Trail Run",
+          "date": "2026-01-24T14:15:48Z",
+          "distance": 5469.2,
+          "elevation": 368
+        },
+        {
+          "id": 17163875848,
+          "name": "Evening Trail Run",
+          "date": "2026-01-24T17:04:56Z",
+          "distance": 1887.6,
+          "elevation": 54
+        },
+        {
+          "id": 17172234527,
+          "name": "Morning Trail Run",
+          "date": "2026-01-25T08:55:06Z",
+          "distance": 6348.6,
+          "elevation": 598
+        }
+      ],
+      "total_distance_km": "13.71",
+      "total_elevation_m": 1020
+    },
+    {
+      "rank": 2,
       "id": "3953180",
       "name": "Clement D",
       "total_distance": 13860.2,
@@ -41,32 +74,6 @@
       ],
       "total_distance_km": "13.86",
       "total_elevation_m": 554
-    },
-    {
-      "rank": 2,
-      "id": "5231535",
-      "name": "Franck P",
-      "total_distance": 7356.799999999999,
-      "total_elevation": 422,
-      "total_activities": 2,
-      "activities": [
-        {
-          "id": 17162166919,
-          "name": "Afternoon Trail Run",
-          "date": "2026-01-24T14:15:48Z",
-          "distance": 5469.2,
-          "elevation": 368
-        },
-        {
-          "id": 17163875848,
-          "name": "Evening Trail Run",
-          "date": "2026-01-24T17:04:56Z",
-          "distance": 1887.6,
-          "elevation": 54
-        }
-      ],
-      "total_distance_km": "7.36",
-      "total_elevation_m": 422
     }
   ]
 }
