@@ -611,16 +611,19 @@ function renderRanking() {
       }
     });
     
-    // Jokers disponibles (grisés)
+    // Jokers disponibles (grisés) - utiliser jokerStock (objet) au lieu de jokers (tableau)
     const usedIds = [...jokerStatus.used.map(u => u.jokerId), ...jokerStatus.active.map(a => a.jokerId), ...jokerStatus.pending.map(p => p.jokerId)];
-    const availableJokers = (e.participant.jokers || []).filter(jId => !usedIds.includes(jId));
+    const jokerStock = e.participant.jokerStock || e.participant.jokers_stock || {};
+    const availableJokers = Object.entries(jokerStock)
+      .filter(([jId, count]) => count > 0 && !usedIds.includes(jId))
+      .map(([jId]) => jId);
     availableJokers.forEach(jId => {
       const joker = JOKER_TYPES[jId];
       if (joker) {
         jokersHtml += `<span class="joker-badge joker-available" title="${joker.name} (disponible)">${joker.icon}</span>`;
       }
     });
-    
+
     html += `
       <div class="ranking-row ${rowClass}">
         <div class="ranking-position ${posClass}">${e.position}</div>
@@ -638,7 +641,7 @@ function renderRanking() {
       </div>
     `;
   });
-  
+
   container.innerHTML = html;
 }
 
@@ -659,17 +662,17 @@ function generateActivitiesTooltip(activities) {
 function renderEliminatedChallenge() {
   const container = document.getElementById('eliminatedChallengeContainer');
   if (!container) return;
-  
+
   if (!seasonData?.eliminated?.length) {
     container.innerHTML = '<div class="empty-state"><p>Aucun éliminé cette saison</p></div>';
     return;
   }
-  
+
   const seasonDates = getSeasonDates(currentSeasonNumber);
   const ranking = calculateEliminatedChallenge(allActivities, seasonData.eliminated, seasonDates, getCurrentDate());
-  
+
   let html = `<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>`;
-  
+
   ranking.forEach(e => {
     html += `
       <div class="ranking-row">
@@ -684,7 +687,7 @@ function renderEliminatedChallenge() {
       </div>
     `;
   });
-  
+
   container.innerHTML = html;
 }
 
@@ -694,13 +697,13 @@ function renderEliminatedChallenge() {
 function renderFinalStandings() {
   const container = document.getElementById('finalStandingsContainer');
   if (!container) return;
-  
+
   const activeIds = new Set((seasonData?.active || []).map(p => p.id));
   const standings = yearlyStandingsCache || [];
   const completedSeasons = standings[0]?.seasonsPlayed || 0;
-  
+
   let html = `<div class="standings-header"><div>Rang</div><div>Athlète</div><div>Pts Principal</div><div>Pts Éliminés</div><div>Total</div></div>`;
-  
+
   standings.forEach(e => {
     const isActive = activeIds.has(e.participant.id);
     const wins = e.wins > 0 ? `<span class="wins-badge">🏆×${e.wins}</span>` : '';
@@ -717,7 +720,7 @@ function renderFinalStandings() {
       </div>
     `;
   });
-  
+
   html += `<div class="standings-footer"><p>📊 ${completedSeasons} saison(s) terminée(s) • Saison ${currentSeasonNumber} en cours</p></div>`;
   container.innerHTML = html;
 }
@@ -728,7 +731,7 @@ function renderFinalStandings() {
 function renderParticipants() {
   const container = document.getElementById('participantsGrid');
   if (!container) return;
-  
+
   const roundDates = getRoundDates(currentRoundNumber);
   const seasonDates = getSeasonDates(currentSeasonNumber);
   const today = getCurrentDate();
@@ -737,15 +740,19 @@ function renderParticipants() {
   const ranking = calculateRanking(roundActivities, seasonData?.active || []);
   const posMap = {};
   ranking.forEach(e => posMap[e.participant.id] = e);
-  
+
   let html = '';
   PARTICIPANTS.forEach(p => {
     const isElim = seasonData?.eliminated?.some(e => e.id === p.id);
     const elimData = seasonData?.eliminated?.find(e => e.id === p.id);
     const entry = posMap[p.id] || { totalElevation: 0, position: '-' };
     const seasonStats = calculateStats(filterByParticipant(filterByPeriod(allActivities, seasonDates.start, today), p.id));
-    const jokers = (p.jokers || []).map(j => JOKER_TYPES[j] ? `<span class="joker-badge">${JOKER_TYPES[j].icon}</span>` : '').join('');
-    
+    const jokerStock = p.jokerStock || p.jokers_stock || { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
+    const jokers = Object.entries(jokerStock)
+      .filter(([jId, count]) => count > 0 && JOKER_TYPES[jId])
+      .map(([jId, count]) => `<span class="joker-badge" title="${JOKER_TYPES[jId].name}: ${count} restant(s)">${JOKER_TYPES[jId].icon}${count > 1 ? `<sub>${count}</sub>` : ''}</span>`)
+      .join('');
+
     html += `
       <div class="participant-card ${isElim ? 'eliminated' : ''}">
         <div class="participant-header">
@@ -760,7 +767,7 @@ function renderParticipants() {
       </div>
     `;
   });
-  
+
   container.innerHTML = html;
 }
 
@@ -770,14 +777,14 @@ function renderParticipants() {
 function renderHistorySection() {
   const container = document.getElementById('historyTimeline');
   if (!container) return;
-  
+
   const totalSeasons = Math.min(currentSeasonNumber, getTotalSeasons());
   const completedSeasons = [];
   for (let s = 1; s < currentSeasonNumber; s++) {
     const summary = getSeasonSummary(allActivities, s, getCurrentDate());
     if (summary.isComplete) completedSeasons.push(summary);
   }
-  
+
   // Menu déroulant
   let html = `
     <div class="history-controls">
@@ -789,12 +796,12 @@ function renderHistorySection() {
     </div>
     <div id="historyContent"></div>
   `;
-  
+
   container.innerHTML = html;
-  
+
   const select = document.getElementById('seasonSelect');
   const content = document.getElementById('historyContent');
-  
+
   const renderSeasonHistory = (seasonNum) => {
     if (seasonNum === 'current') {
       // Saison en cours
@@ -802,13 +809,13 @@ function renderHistorySection() {
         content.innerHTML = `<div class="history-item"><div class="history-round">Saison ${currentSeasonNumber}</div><div class="history-title">Aucune élimination</div><div class="history-details">${PARTICIPANTS.length} participants en lice</div></div>`;
         return;
       }
-      
+
       const byRound = {};
       seasonData.eliminated.forEach(p => {
         if (!byRound[p.roundInSeason]) byRound[p.roundInSeason] = [];
         byRound[p.roundInSeason].push(p);
       });
-      
+
       let h = '';
       Object.keys(byRound).sort((a, b) => a - b).forEach(r => {
         const ps = byRound[r];
@@ -819,11 +826,11 @@ function renderHistorySection() {
       // Saison passée
       const summary = getSeasonSummary(allActivities, parseInt(seasonNum), getCurrentDate());
       let h = `<div class="history-season-summary"><h3>🏆 Champion : ${summary.winner?.name || 'N/A'}</h3><p>${formatDateRange(summary.dates.start, summary.dates.end)}</p></div>`;
-      
+
       summary.rounds.forEach(r => {
         const ruleIcon = r.rule.isSpecial ? `<span class="rule-badge">${r.rule.icon} ${r.rule.name}</span>` : '';
         const winnerInfo = r.winner ? `<span class="round-winner">👑 ${r.winner.name} (+${formatElevation(r.winnerElevation, false)}m)</span>` : '';
-        
+
         h += `
           <div class="history-item ${r.rule.isSpecial ? 'special-round' : ''}">
             <div class="history-round">Round ${r.roundInSeason} ${ruleIcon}</div>
@@ -832,7 +839,7 @@ function renderHistorySection() {
           </div>
         `;
       });
-      
+
       // Classement des éliminés
       if (summary.eliminatedRanking.length) {
         h += `<div class="history-eliminated-title">Challenge des Éliminés</div>`;
@@ -840,11 +847,11 @@ function renderHistorySection() {
           h += `<div class="history-eliminated-row"><span>${e.position}.</span><span>${e.participant.name}</span><span>${formatElevation(e.totalElevation)}</span><span class="points-badge">${e.points} pts</span></div>`;
         });
       }
-      
+
       content.innerHTML = h;
     }
   };
-  
+
   select.addEventListener('change', (e) => renderSeasonHistory(e.target.value));
   renderSeasonHistory('current');
 }
