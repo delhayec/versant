@@ -381,16 +381,17 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
 // RENDU UI
 // ============================================
 async function init() {
+  const loadingScreen = document.getElementById('loadingScreen');
+
   try {
     console.log('🚀 Initialisation Versant...');
 
     // Pour la démo : si on est après la fin de l'année de données, simuler une date dans l'année
     const realToday = new Date();
-    const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate || '2025-01-01');
     const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate || '2025-12-31');
     if (realToday > yearEnd) {
       // Positionner à la fin de l'année des données pour la démo
-      setSimulatedDate(yearStart);
+      setSimulatedDate(yearEnd);
       console.log('📅 Mode démo: date simulée à', yearEnd.toISOString().split('T')[0]);
     }
 
@@ -418,9 +419,20 @@ async function init() {
 
     setupDateSlider();
     injectContextMenuStyles();
+
+    // Masquer l'écran de chargement
+    if (loadingScreen) {
+      loadingScreen.style.opacity = '0';
+      setTimeout(() => { loadingScreen.style.display = 'none'; }, 300);
+    }
+
     console.log('🏁 Initialisation complète');
   } catch (error) {
     console.error('❌ Erreur initialisation:', error);
+    // Afficher l'erreur dans le loading screen
+    if (loadingScreen) {
+      loadingScreen.innerHTML = '<div class="loading-content"><div class="loading-icon" style="font-size:64px">⚠️</div><div class="loading-title">Erreur</div><div class="loading-text">'+error.message+'</div></div>';
+    }
   }
 }
 
