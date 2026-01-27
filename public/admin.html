@@ -318,10 +318,10 @@
         const athletesRes = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
         const athletes = await athletesRes.json();
         
-        // Créer le cache des athlètes (id -> nom)
+        // Créer le cache des athlètes (id -> objet complet)
         athletesCache = {};
         athletes.forEach(a => {
-          athletesCache[a.id] = a.name;
+          athletesCache[a.id] = a;
         });
         
         // Charger les activités
@@ -339,6 +339,9 @@
         // Afficher les listes
         renderAthletesList(athletes);
         renderActivitiesList();
+        
+        // Charger les données des jokers
+        loadJokersData();
 
         // Définir les dates par défaut pour la sync
         const today = new Date();
@@ -354,14 +357,27 @@
       }
     }
 
-    // Fonction pour obtenir le nom d'un athlète
+    // Fonction pour obtenir le nom d'un athlète (pour les activités)
     function getAthleteName(activity) {
       // Priorité: athlete_name dans l'activité, sinon chercher dans le cache
       if (activity.athlete_name) return activity.athlete_name;
       if (activity.athlete_id && athletesCache[activity.athlete_id]) {
-        return athletesCache[activity.athlete_id];
+        const a = athletesCache[activity.athlete_id];
+        return a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim() || `#${activity.athlete_id}`;
       }
       return 'Inconnu';
+    }
+    
+    // Fonction pour obtenir le nom court d'un athlète par ID (pour les jokers)
+    function getAthleteShortName(id) {
+      if (athletesCache[id]) {
+        const a = athletesCache[id];
+        if (a.firstname && a.lastname) {
+          return `${a.firstname} ${a.lastname.charAt(0)}.`;
+        }
+        return a.name || `#${id}`;
+      }
+      return `#${id}`;
     }
 
     function renderAthletesList(athletes) {
@@ -708,6 +724,186 @@
       
       container.insertBefore(logEntry, container.firstChild);
     }
+
+    // ============================================
+    // GESTION DES JOKERS
+    // ============================================
+    let jokersData = {};
+
+    async function loadJokersData() {
+      const container = document.getElementById('jokersManagement');
+      try {
+        const response = await fetch(`${API_BASE}/admin/jokers/${LEAGUE_ID}`, {
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        
+        if (!response.ok) throw new Error('Erreur chargement jokers');
+        
+        jokersData = await response.json();
+        renderJokersManagement();
+        addLog('🃏 Données jokers chargées');
+      } catch (error) {
+        container.innerHTML = `<p style="color: #ef4444;">❌ ${error.message}</p>`;
+        addLog(`❌ Erreur jokers: ${error.message}`);
+      }
+    }
+
+    function renderJokersManagement() {
+      const container = document.getElementById('jokersManagement');
+      const { athletes, usage } = jokersData;
+      
+      if (!athletes || athletes.length === 0) {
+        container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun athlète trouvé</p>';
+        return;
+      }
+
+      const jokerTypes = [
+        { id: 'duel', icon: '⚔️', label: 'Duel' },
+        { id: 'multiplicateur', icon: '✖️', label: '×2' },
+        { id: 'bouclier', icon: '🛡️', label: 'Bouclier' },
+        { id: 'sabotage', icon: '💣', label: 'Sabotage' }
+      ];
+
+      let html = `
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <th style="text-align: left; padding: 12px; color: rgba(255,255,255,0.6);">Athlète</th>
+              ${jokerTypes.map(j => `<th style="text-align: center; padding: 12px; color: rgba(255,255,255,0.6);">${j.icon}</th>`).join('')}
+              <th style="text-align: center; padding: 12px; color: rgba(255,255,255,0.6);">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      athletes.forEach(athlete => {
+        const stock = athlete.jokerStock || { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
+        const athleteUsage = (usage || []).filter(u => u.athleteId === athlete.id);
+        
+        html += `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" data-athlete-id="${athlete.id}">
+            <td style="padding: 12px;">
+              <div style="font-weight: 600;">${athlete.firstname} ${athlete.lastname}</div>
+              <div style="font-size: 0.75rem; color: rgba(255,255,255,0.4);">ID: ${athlete.id}</div>
+            </td>
+            ${jokerTypes.map(j => `
+              <td style="text-align: center; padding: 12px;">
+                <input type="number" 
+                       class="joker-input" 
+                       data-type="${j.id}"
+                       value="${stock[j.id] || 0}" 
+                       min="0" max="5"
+                       style="width: 50px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; text-align: center; font-family: 'Space Mono', monospace;">
+              </td>
+            `).join('')}
+            <td style="text-align: center; padding: 12px;">
+              <button onclick="saveAthleteJokers('${athlete.id}')" 
+                      style="padding: 6px 12px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                💾 Sauver
+              </button>
+            </td>
+          </tr>
+        `;
+
+        // Afficher les jokers utilisés
+        if (athleteUsage.length > 0) {
+          html += `
+            <tr style="background: rgba(0,0,0,0.2);">
+              <td colspan="6" style="padding: 8px 12px 12px 24px;">
+                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-bottom: 6px;">Historique d'utilisation :</div>
+                ${athleteUsage.map(u => `
+                  <div style="display: inline-block; padding: 4px 8px; margin: 2px; background: rgba(255,255,255,0.05); border-radius: 4px; font-size: 0.75rem;">
+                    ${getJokerIcon(u.type)} ${u.type}
+                    ${u.targetId ? ` → ${getJokerTargetName(u.targetId)}` : ''}
+                    <span style="color: rgba(255,255,255,0.3);">R${u.round}</span>
+                    <span style="color: ${u.resolved ? '#10b981' : '#f97316'};">${u.resolved ? '✓' : '⏳'}</span>
+                  </div>
+                `).join('')}
+              </td>
+            </tr>
+          `;
+        }
+      });
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function getJokerIcon(type) {
+      const icons = { duel: '⚔️', multiplicateur: '✖️', bouclier: '🛡️', sabotage: '💣' };
+      return icons[type] || '🃏';
+    }
+
+    function getJokerTargetName(id) {
+      if (athletesCache[id]) {
+        const a = athletesCache[id];
+        if (a.firstname && a.lastname) {
+          return `${a.firstname} ${a.lastname.charAt(0)}.`;
+        }
+        return a.name || `#${id}`;
+      }
+      return `#${id}`;
+    }
+
+    async function saveAthleteJokers(athleteId) {
+      const row = document.querySelector(`tr[data-athlete-id="${athleteId}"]`);
+      const inputs = row.querySelectorAll('.joker-input');
+      
+      const jokerStock = {};
+      inputs.forEach(input => {
+        jokerStock[input.dataset.type] = parseInt(input.value) || 0;
+      });
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/jokers/${athleteId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify({ jokerStock })
+        });
+
+        if (!response.ok) throw new Error('Erreur sauvegarde');
+
+        addLog(`✅ Jokers mis à jour pour athlète ${athleteId}`);
+        
+        // Flash vert pour confirmer
+        row.style.background = 'rgba(16,185,129,0.1)';
+        setTimeout(() => { row.style.background = ''; }, 1000);
+
+      } catch (error) {
+        addLog(`❌ Erreur: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      }
+    }
+
+    async function resetAllJokers() {
+      if (!confirm('⚠️ Réinitialiser TOUS les jokers à leur valeur initiale (2 de chaque) ?\n\nCette action est irréversible.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/jokers/reset/${LEAGUE_ID}`, {
+          method: 'POST',
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+
+        if (!response.ok) throw new Error('Erreur reset');
+
+        const data = await response.json();
+        addLog(`🔄 ${data.count} athlètes réinitialisés`);
+        loadJokersData();
+
+      } catch (error) {
+        addLog(`❌ Erreur reset: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      }
+    }
+
+    // Event listeners jokers
+    document.getElementById('refreshJokersBtn')?.addEventListener('click', loadJokersData);
+    document.getElementById('resetJokersBtn')?.addEventListener('click', resetAllJokers);
 
     // ============================================
     // INIT

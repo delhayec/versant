@@ -20,6 +20,9 @@ const path = require('path');
 const cron = require('node-cron');
 const crypto = require('crypto');
 
+// Import du module jokers amélioré
+const { createJokersRoutes, JOKER_CONFIG, createInitialJokersStock } = require('./jokers-routes');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -156,6 +159,17 @@ async function requireAuth(req, res, next) {
   req.athleteId = athleteId;
   next();
 }
+
+// ============================================
+// INTÉGRATION ROUTES JOKERS AMÉLIORÉES
+// ============================================
+const jokersRouter = createJokersRoutes({
+  ATHLETES_FILE,
+  JOKERS_FILE,
+  ADMIN_PASSWORD,
+  requireAuth
+});
+app.use('/api', jokersRouter);
 
 // ============================================
 // ROUTES - AUTHENTIFICATION
