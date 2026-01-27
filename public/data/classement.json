@@ -1,9 +1,42 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-01-21T20:00:00.272Z",
+  "generated_at": "2026-01-26T20:00:00.343Z",
   "ranking": [
     {
       "rank": 1,
+      "id": "5231535",
+      "name": "Franck P",
+      "total_distance": 13705.4,
+      "total_elevation": 1020,
+      "total_activities": 3,
+      "activities": [
+        {
+          "id": 17162166919,
+          "name": "Afternoon Trail Run",
+          "date": "2026-01-24T14:15:48Z",
+          "distance": 5469.2,
+          "elevation": 368
+        },
+        {
+          "id": 17163875848,
+          "name": "Evening Trail Run",
+          "date": "2026-01-24T17:04:56Z",
+          "distance": 1887.6,
+          "elevation": 54
+        },
+        {
+          "id": 17172234527,
+          "name": "Morning Trail Run",
+          "date": "2026-01-25T08:55:06Z",
+          "distance": 6348.6,
+          "elevation": 598
+        }
+      ],
+      "total_distance_km": "13.71",
+      "total_elevation_m": 1020
+    },
+    {
+      "rank": 2,
       "id": "3953180",
       "name": "Clement D",
       "total_distance": 13860.2,
@@ -33,7 +66,7 @@
         },
         {
           "id": 17116344119,
-          "name": "Trail dans l'après-midi",
+          "name": "WebHook 2 Pro Max",
           "date": "2026-01-20T15:11:50Z",
           "distance": 112.7,
           "elevation": 2
