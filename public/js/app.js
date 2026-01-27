@@ -383,6 +383,17 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
 async function init() {
   try {
     console.log('🚀 Initialisation Versant...');
+
+    // Pour la démo : si on est après la fin de l'année de données, simuler une date dans l'année
+    const realToday = new Date();
+    const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate || '2025-01-01');
+    const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate || '2025-12-31');
+    if (realToday > yearEnd) {
+      // Positionner à la fin de l'année des données pour la démo
+      setSimulatedDate(yearStart);
+      console.log('📅 Mode démo: date simulée à', yearEnd.toISOString().split('T')[0]);
+    }
+
     allActivities = await loadActivities();
     console.log('📊 ' + allActivities.length + ' activités chargées');
     console.log('👥 Participants:', PARTICIPANTS.length);
@@ -453,7 +464,7 @@ function renderRoundBanner() {
 function renderRanking() {
   const container = document.getElementById('rankingContainer'); if (!container) return;
   if (seasonData?.seasonComplete) { container.innerHTML = '<div class="empty-state"><p>🏆 Saison terminée ! Champion : '+(seasonData.winner?.name || 'N/A')+'</p></div>'; return; }
-  
+
   const roundDates = getRoundDates(currentRoundNumber), today = getCurrentDate();
   const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
   const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
@@ -461,7 +472,7 @@ function renderRanking() {
   let ranking = calculateRanking(roundActivities, seasonData?.active || [], roundInfo?.rule?.id || 'standard', yearlyStandingsCache, currentSeasonNumber);
   ranking = applyJokerEffects(ranking);
   const seasonDates = getSeasonDates(currentSeasonNumber);
-  
+
   let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ Round</div><div>D+ Saison</div><div>Jokers</div></div>';
   ranking.forEach((e, i) => {
     const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '', rowClass = e.isInDangerZone ? 'danger-zone' : '';
@@ -469,14 +480,14 @@ function renderRanking() {
     const tooltip = generateActivitiesTooltip(e.activities);
     const elevationHtml = formatElevationWithBonuses(e.totalElevation, e.jokerEffects?.bonuses || {});
     const status = getJokerStatusForRound(e.participant.id, currentRoundNumber), stock = status.stock;
-    
+
     let jokersHtml = '';
     status.active.forEach(j => { const joker = JOKER_TYPES[j.jokerId]; if (joker) jokersHtml += '<span class="joker-badge joker-active" title="ACTIF: '+joker.name+(j.targetName ? ' → '+j.targetName : '')+'">'+joker.icon+'</span>'; });
     Object.entries(stock).forEach(([jokerId, count]) => { if (count > 0 && JOKER_TYPES[jokerId] && !status.active.some(j => j.jokerId === jokerId)) jokersHtml += '<span class="joker-badge joker-available" title="'+JOKER_TYPES[jokerId].name+': '+count+'">'+JOKER_TYPES[jokerId].icon+'<sub>'+count+'</sub></span>'; });
-    
+
     let duelIndicator = '';
     if (e.jokerEffects?.duel) { const d = e.jokerEffects.duel; duelIndicator = d.isChallenger ? '<span class="duel-indicator" title="Duel vs '+d.target+'">⚔️</span>' : '<span class="duel-indicator target" title="Défié par '+d.challenger+'">🎯</span>'; }
-    
+
     html += '<div class="ranking-row '+rowClass+'" data-participant-id="'+e.participant.id+'" data-participant-name="'+e.participant.name+'"><div class="ranking-position '+posClass+'">'+e.position+'</div><div class="ranking-athlete tooltip-wrapper"><div class="athlete-avatar" style="background:linear-gradient(135deg,'+getAthleteColor(e.participant.id)+','+getAthleteColor(e.participant.id)+'88)">'+getAthleteInitials(e.participant.id)+'</div><div class="athlete-info"><span class="athlete-name">'+e.participant.name+duelIndicator+'</span><span class="athlete-status '+(e.isInDangerZone ? 'eliminated' : 'active')+'">'+(e.isInDangerZone ? '⚠️ Danger' : 'En course')+'</span></div><div class="tooltip-content">'+tooltip+'</div></div><div class="ranking-elevation">'+elevationHtml+'</div><div class="ranking-elevation season">'+formatElevation(seasonStats.totalElevation, false)+' <span>m</span></div><div class="ranking-jokers">'+(jokersHtml || '-')+'</div></div>';
   });
   container.innerHTML = html;
@@ -517,7 +528,7 @@ function renderParticipants() {
   const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
   const ranking = calculateRanking(roundActivities, seasonData?.active || []);
   const posMap = {}; ranking.forEach(e => posMap[e.participant.id] = e);
-  
+
   let html = '';
   PARTICIPANTS.forEach(p => {
     const isElim = seasonData?.eliminated?.some(e => e.id === p.id), elimData = seasonData?.eliminated?.find(e => e.id === p.id);
@@ -558,14 +569,31 @@ function renderHistorySection() {
 // ============================================
 function setupDateSlider() {
   const container = document.getElementById('dateSliderContainer'); if (!container) return;
-  const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate || '2025-02-01'), yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate || '2025-12-31'), today = getCurrentDate();
-  const totalDays = Math.ceil((yearEnd - yearStart) / 86400000), currentDay = Math.ceil((today - yearStart) / 86400000);
+  const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate || '2025-01-01');
+  const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate || '2025-12-31');
+  const today = getCurrentDate(); // Utilise la date simulée si définie
+
+  const totalDays = Math.ceil((yearEnd - yearStart) / 86400000);
+  // S'assurer que currentDay est dans les limites
+  let currentDay = Math.ceil((today - yearStart) / 86400000);
+  currentDay = Math.max(0, Math.min(totalDays, currentDay));
+
   container.innerHTML = '<div class="date-slider-wrapper"><button class="slider-btn prev" id="prevDay">◀</button><div class="slider-container"><input type="range" id="dateSlider" min="0" max="'+totalDays+'" value="'+currentDay+'"><div class="slider-date" id="sliderDate">'+formatDate(today)+'</div></div><button class="slider-btn next" id="nextDay">▶</button></div>';
+
   const slider = document.getElementById('dateSlider'), dateLabel = document.getElementById('sliderDate');
-  const updateDate = (dayOffset) => { const newDate = new Date(yearStart); newDate.setDate(newDate.getDate() + dayOffset); setSimulatedDate(newDate); dateLabel.textContent = formatDate(newDate); renderAll(); };
+  const updateDate = (dayOffset) => {
+    const newDate = new Date(yearStart);
+    newDate.setDate(newDate.getDate() + dayOffset);
+    setSimulatedDate(newDate);
+    dateLabel.textContent = formatDate(newDate);
+    renderAll();
+  };
+
   slider.addEventListener('input', (e) => updateDate(parseInt(e.target.value)));
   document.getElementById('prevDay').addEventListener('click', () => { slider.value = Math.max(0, parseInt(slider.value) - 1); updateDate(parseInt(slider.value)); });
   document.getElementById('nextDay').addEventListener('click', () => { slider.value = Math.min(totalDays, parseInt(slider.value) + 1); updateDate(parseInt(slider.value)); });
+
+  console.log('📆 Slider configuré: jour', currentDay, '/', totalDays);
 }
 
 // ============================================
