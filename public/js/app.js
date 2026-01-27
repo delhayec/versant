@@ -76,12 +76,16 @@ const getAthleteInitials = (id) => {
 function initializeJokersState() {
   jokersState = {};
   PARTICIPANTS.forEach(p => {
-    jokersState[p.id] = {
-      stock: p.jokerStock || p.jokers_stock || { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 },
-      used: [], active: [], pending: []
-    };
+    // Support multiple formats: jokerStock, jokers_stock, jokers (objet), ou défaut
+    let stock = { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
+    if (p.jokerStock) stock = p.jokerStock;
+    else if (p.jokers_stock) stock = p.jokers_stock;
+    else if (p.jokers && typeof p.jokers === 'object') stock = p.jokers;
+
+    jokersState[p.id] = { stock: { ...stock }, used: [], active: [], pending: [] };
   });
   try { const saved = localStorage.getItem('versant_jokers_state'); if (saved) Object.assign(jokersState, JSON.parse(saved)); } catch (e) {}
+  console.log('🃏 Jokers initialisés:', Object.keys(jokersState).length, 'participants');
 }
 
 function saveJokersState() { try { localStorage.setItem('versant_jokers_state', JSON.stringify(jokersState)); } catch (e) {} }
@@ -93,7 +97,7 @@ function useJoker(participantId, jokerId, options = {}) {
   const jokerType = JOKER_TYPES[jokerId];
   if (!jokerType) return { success: false, error: 'Joker inconnu' };
   if (!state.stock[jokerId] || state.stock[jokerId] <= 0) return { success: false, error: 'Plus de joker disponible' };
-  
+
   state.stock[jokerId]--;
   const usage = { id: `${participantId}-${jokerId}-${currentRoundNumber}-${Date.now()}`, jokerId, jokerName: jokerType.name, round: currentRoundNumber, usedAt: getCurrentDate().toISOString(), ...options };
   state.active.push(usage);
@@ -110,7 +114,7 @@ function applyJokerEffects(ranking) {
       const participant = ranking.find(r => String(r.participant.id) === String(participantId));
       if (!participant) return;
       if (!effects[participantId]) effects[participantId] = { bonuses: {} };
-      
+
       if (joker.jokerId === 'multiplicateur') {
         const amt = participant.totalElevation * 0.2;
         participant.totalElevation += amt;
@@ -138,7 +142,7 @@ function applyJokerEffects(ranking) {
       }
     });
   });
-  
+
   ranking.sort((a, b) => b.totalElevation - a.totalElevation);
   ranking.forEach((e, i) => {
     e.position = i + 1;
@@ -172,7 +176,7 @@ function showContextMenu(e, participantId, participantName) {
   createContextMenu();
   const stock = getJokerStock(participantId);
   const status = getJokerStatusForRound(participantId, currentRoundNumber);
-  
+
   let itemsHtml = '';
   Object.entries(JOKER_TYPES).forEach(([jokerId, joker]) => {
     const count = stock[jokerId] || 0;
@@ -183,7 +187,7 @@ function showContextMenu(e, participantId, participantName) {
       <span class="joker-disabled-reason">${alreadyUsed ? '(déjà utilisé)' : count <= 0 ? '(épuisé)' : ''}</span></div>`;
   });
   itemsHtml += '<div class="context-menu-divider"></div><div class="context-menu-item reset" data-action="reset" data-participant="'+participantId+'"><span class="joker-icon">🔄</span><span class="joker-name">Reset jokers (démo)</span></div>';
-  
+
   contextMenu.querySelector('.context-menu-header').textContent = '🃏 Jokers de ' + participantName;
   contextMenu.querySelector('.context-menu-items').innerHTML = itemsHtml;
   contextMenu.style.left = e.pageX + 'px';
@@ -377,33 +381,58 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
 // RENDU UI
 // ============================================
 async function init() {
-  console.log('🚀 Initialisation Versant...');
-  allActivities = await loadActivities();
-  console.log('📊 ' + allActivities.length + ' activités chargées');
-  initializeJokersState();
-  const today = getCurrentDate();
-  currentSeasonNumber = getSeasonNumber(today);
-  currentRoundNumber = getGlobalRoundNumber(today);
-  yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
-  seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today);
-  renderAll();
-  setupDateSlider();
-  injectContextMenuStyles();
+  try {
+    console.log('🚀 Initialisation Versant...');
+    allActivities = await loadActivities();
+    console.log('📊 ' + allActivities.length + ' activités chargées');
+    console.log('👥 Participants:', PARTICIPANTS.length);
+
+    initializeJokersState();
+
+    const today = getCurrentDate();
+    console.log('📅 Date actuelle:', today.toISOString().split('T')[0]);
+
+    currentSeasonNumber = getSeasonNumber(today);
+    currentRoundNumber = getGlobalRoundNumber(today);
+    console.log('🔢 Saison:', currentSeasonNumber, '| Round:', currentRoundNumber);
+
+    yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
+    console.log('📈 Standings calculés');
+
+    seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today);
+    console.log('🎯 Saison simulée - Actifs:', seasonData?.active?.length, '| Éliminés:', seasonData?.eliminated?.length);
+
+    renderAll();
+    console.log('✅ Rendu initial terminé');
+
+    setupDateSlider();
+    injectContextMenuStyles();
+    console.log('🏁 Initialisation complète');
+  } catch (error) {
+    console.error('❌ Erreur initialisation:', error);
+  }
 }
 
 function renderAll() {
-  const today = getCurrentDate();
-  currentSeasonNumber = getSeasonNumber(today);
-  currentRoundNumber = getGlobalRoundNumber(today);
-  seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today);
-  yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
-  renderSeasonBanner();
-  renderRoundBanner();
-  renderRanking();
-  renderEliminatedChallenge();
-  renderFinalStandings();
-  renderParticipants();
-  renderHistorySection();
+  try {
+    const today = getCurrentDate();
+    currentSeasonNumber = getSeasonNumber(today);
+    currentRoundNumber = getGlobalRoundNumber(today);
+    seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today);
+    yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
+
+    console.log('🔄 renderAll - Saison:', currentSeasonNumber, '| Round:', currentRoundNumber);
+
+    renderSeasonBanner();
+    renderRoundBanner();
+    renderRanking();
+    renderEliminatedChallenge();
+    renderFinalStandings();
+    renderParticipants();
+    renderHistorySection();
+  } catch (error) {
+    console.error('❌ Erreur renderAll:', error);
+  }
 }
 
 function renderSeasonBanner() {
