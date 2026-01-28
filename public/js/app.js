@@ -760,7 +760,7 @@ function renderActiveJokersSection() {
 
   // Jokers programmés pour le prochain round
   if (pendingJokers.length > 0) {
-    html += '<div class="pending-jokers"><h4>⏰ Programmés pour le Round ${getRoundInSeason(getCurrentDate()) + 1}</h4><div class="pending-list">';
+    html += `<div class="pending-jokers"><h4>⏰ Programmés pour le Round ${getRoundInSeason(getCurrentDate()) + 1}</h4><div class="pending-list">`;
     pendingJokers.forEach(joker => {
       const jokerType = JOKER_TYPES[joker.jokerId];
       if (!jokerType) return;
