@@ -311,8 +311,8 @@ function showContextMenu(e, participantId, participantName) {
 
   contextMenu.querySelector('.context-menu-header').textContent = '🃏 ' + (isAdminMode ? 'Gérer' : 'Jokers de') + ' ' + participantName;
   contextMenu.querySelector('.context-menu-items').innerHTML = itemsHtml;
-  contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 280) + 'px';
-  contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 300) + 'px';
+  contextMenu.style.left = Math.min(e.clientX, window.innerWidth - 280) + 'px';
+  contextMenu.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
   contextMenu.classList.add('visible');
 
   contextMenu.querySelectorAll('.context-menu-item:not(.disabled):not(.admin-joker)').forEach(item => {
@@ -1286,7 +1286,7 @@ function injectStyles() {
     .slider-markers { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: rgba(255,255,255,0.4); }
     .slider-info { display: flex; justify-content: center; gap: 32px; margin-top: 12px; font-size: 0.9rem; color: rgba(255,255,255,0.6); }
     .slider-info strong { color: #22d3ee; font-size: 1.1rem; }
-    .joker-context-menu { position: absolute; background: rgba(15,23,42,0.98); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 8px 0; min-width: 260px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 9999; opacity: 0; transform: scale(0.95); pointer-events: none; transition: all 0.15s; }
+    .joker-context-menu { position: fixed; background: rgba(15,23,42,0.98); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 8px 0; min-width: 260px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 9999; opacity: 0; transform: scale(0.95); pointer-events: none; transition: all 0.15s; }
     .joker-context-menu.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
     .context-menu-header { padding: 12px 16px; font-weight: 600; color: #f97316; border-bottom: 1px solid rgba(255,255,255,0.1); }
     .context-menu-info { padding: 8px 16px; font-size: 0.75rem; color: rgba(255,255,255,0.5); background: rgba(34,211,238,0.1); }
