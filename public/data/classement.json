@@ -1,18 +1,18 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-01-26T20:00:00.343Z",
+  "generated_at": "2026-01-27T20:00:00.138Z",
   "ranking": [
     {
       "rank": 1,
       "id": "5231535",
       "name": "Franck P",
-      "total_distance": 13705.4,
-      "total_elevation": 1020,
-      "total_activities": 3,
+      "total_distance": 41483.2,
+      "total_elevation": 2271,
+      "total_activities": 8,
       "activities": [
         {
           "id": 17162166919,
-          "name": "Afternoon Trail Run",
+          "name": "Ouh la belle pente",
           "date": "2026-01-24T14:15:48Z",
           "distance": 5469.2,
           "elevation": 368
@@ -26,22 +26,57 @@
         },
         {
           "id": 17172234527,
-          "name": "Morning Trail Run",
+          "name": "Signal rapide solo",
           "date": "2026-01-25T08:55:06Z",
           "distance": 6348.6,
           "elevation": 598
+        },
+        {
+          "id": 17143503807,
+          "name": "Evening Run",
+          "date": "2026-01-21T18:25:57Z",
+          "distance": 1329.8,
+          "elevation": 32
+        },
+        {
+          "id": 17127587048,
+          "name": "2HLI",
+          "date": "2026-01-21T12:49:52Z",
+          "distance": 10038.8,
+          "elevation": 483
+        },
+        {
+          "id": 17124438405,
+          "name": "Evening Ride",
+          "date": "2026-01-20T17:37:36Z",
+          "distance": 5210,
+          "elevation": 139
+        },
+        {
+          "id": 17193746052,
+          "name": "Morning Run",
+          "date": "2026-01-26T07:25:58Z",
+          "distance": 1161.9,
+          "elevation": 12
+        },
+        {
+          "id": 17193750197,
+          "name": "Afternoon Trail Run",
+          "date": "2026-01-27T12:18:41Z",
+          "distance": 10037.3,
+          "elevation": 585
         }
       ],
-      "total_distance_km": "13.71",
-      "total_elevation_m": 1020
+      "total_distance_km": "41.48",
+      "total_elevation_m": 2271
     },
     {
       "rank": 2,
       "id": "3953180",
       "name": "Clement D",
-      "total_distance": 13860.2,
-      "total_elevation": 554,
-      "total_activities": 4,
+      "total_distance": 27568.4,
+      "total_elevation": 2139,
+      "total_activities": 5,
       "activities": [
         {
           "id": 17094335866,
@@ -70,10 +105,17 @@
           "date": "2026-01-20T15:11:50Z",
           "distance": 112.7,
           "elevation": 2
+        },
+        {
+          "id": 17164474625,
+          "name": "Sommet du Trelod - Couloir Nord",
+          "date": "2026-01-24T09:02:36Z",
+          "distance": 13708.2,
+          "elevation": 1585
         }
       ],
-      "total_distance_km": "13.86",
-      "total_elevation_m": 554
+      "total_distance_km": "27.57",
+      "total_elevation_m": 2139
     }
   ]
 }
