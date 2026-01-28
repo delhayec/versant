@@ -1133,33 +1133,209 @@ function renderJokersGuide() {
 
   mainContent.appendChild(guideSection);
 }
-95); color: #fff; }
+
+// ============================================
+// DATE SLIDER
+// ============================================
+function setupDateSlider() {
+  const container = document.getElementById('dateSliderContainer');
+  if (!container) return;
+
+  const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate || '2025-01-01');
+  const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate || '2025-12-31');
+  const today = getCurrentDate();
+
+  const totalDays = Math.ceil((yearEnd - yearStart) / 86400000);
+  let currentDay = Math.ceil((today - yearStart) / 86400000);
+  currentDay = Math.max(0, Math.min(totalDays, currentDay));
+
+  container.innerHTML = `
+    <div class="slider-wrapper">
+      <div class="slider-header">
+        <span class="slider-icon">📅</span>
+        <span class="slider-title">Navigation temporelle</span>
+        <span class="slider-current-date" id="sliderDate">${formatDate(today)}</span>
+      </div>
+      <div class="slider-controls">
+        <button class="slider-btn" id="prevDay" title="Jour précédent">◀</button>
+        <div class="slider-track">
+          <input type="range" class="date-slider" id="dateSlider" min="0" max="${totalDays}" value="${currentDay}">
+          <div class="slider-markers">
+            <span class="marker-start">${formatDateShort(yearStart)}</span>
+            <span class="marker-end">${formatDateShort(yearEnd)}</span>
+          </div>
+        </div>
+        <button class="slider-btn" id="nextDay" title="Jour suivant">▶</button>
+      </div>
+      <div class="slider-info">
+        <span class="info-season">Saison <strong id="sliderSeason">${currentSeasonNumber}</strong></span>
+        <span class="info-round">Round <strong id="sliderRound">${getRoundInSeason(today)}</strong></span>
+      </div>
+    </div>
+  `;
+
+  const slider = document.getElementById('dateSlider');
+  const dateLabel = document.getElementById('sliderDate');
+  const seasonLabel = document.getElementById('sliderSeason');
+  const roundLabel = document.getElementById('sliderRound');
+
+  const updateDate = (dayOffset) => {
+    const newDate = new Date(yearStart);
+    newDate.setDate(newDate.getDate() + dayOffset);
+    setSimulatedDate(newDate);
+    dateLabel.textContent = formatDate(newDate);
+    seasonLabel.textContent = getSeasonNumber(newDate);
+    roundLabel.textContent = getRoundInSeason(newDate);
+    renderAll();
+  };
+
+  slider.addEventListener('input', (e) => updateDate(parseInt(e.target.value)));
+  document.getElementById('prevDay').addEventListener('click', () => {
+    slider.value = Math.max(0, parseInt(slider.value) - 1);
+    updateDate(parseInt(slider.value));
+  });
+  document.getElementById('nextDay').addEventListener('click', () => {
+    slider.value = Math.min(totalDays, parseInt(slider.value) + 1);
+    updateDate(parseInt(slider.value));
+  });
+}
+
+// ============================================
+// STYLES CSS INJECTÉS
+// ============================================
+function injectStyles() {
+  if (document.getElementById('versant-injected-styles')) return;
+
+  const styles = document.createElement('style');
+  styles.id = 'versant-injected-styles';
+  styles.textContent = `
+    .season-banner { background: linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%); border: 1px solid rgba(34, 211, 238, 0.3); border-radius: 16px; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; gap: 32px; flex-wrap: wrap; }
+    .banner-left, .banner-right { flex: 1; min-width: 200px; }
+    .banner-center { flex: 1.5; text-align: center; min-width: 250px; }
+    .banner-label { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 700; color: #22d3ee; display: block; }
+    .banner-dates { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+    .banner-stats { margin-top: 8px; display: flex; gap: 16px; }
+    .stat-item { font-size: 0.9rem; color: rgba(255,255,255,0.8); }
+    .stat-item strong { color: #22d3ee; }
+    .round-number { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 700; background: linear-gradient(135deg, #f97316, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .round-dates { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
+    .round-countdown { margin-top: 8px; }
+    .countdown-value { background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 8px; font-weight: 700; }
+    .season-progress-container { text-align: right; }
+    .progress-label { font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
+    .progress-bar-bg { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #22d3ee, #10b981); border-radius: 4px; }
+    .progress-percent { font-size: 0.85rem; color: #22d3ee; margin-top: 4px; }
+    .active-jokers-section { margin: 20px 0; padding: 20px; background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(139,92,246,0.1)); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; }
+    .active-jokers-section .section-title { font-size: 1.1rem; margin-bottom: 16px; color: #f97316; }
+    .jokers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .joker-card { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 16px; border-left: 4px solid #f97316; }
+    .joker-card.winning { border-left-color: #10b981; }
+    .joker-card.losing { border-left-color: #ef4444; }
+    .joker-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .joker-card-icon { font-size: 1.5rem; }
+    .joker-card-name { font-weight: 600; }
+    .joker-card-user { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: auto; }
+    .joker-effect { font-size: 0.9rem; color: rgba(255,255,255,0.8); }
+    .duel-status { display: flex; flex-direction: column; gap: 8px; }
+    .duel-competitor { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.05); }
+    .duel-competitor.winning { background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.4); }
+    .duel-competitor.losing { background: rgba(239,68,68,0.1); }
+    .competitor-elevation { font-family: 'Space Mono', monospace; color: #22d3ee; }
+    .duel-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: rgba(16,185,129,0.3); color: #10b981; }
+    .duel-vs { text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+    .duel-stakes { font-size: 0.8rem; color: rgba(255,255,255,0.5); text-align: center; margin-top: 8px; }
+    .pending-jokers { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .pending-jokers h4 { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 8px; }
+    .pending-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pending-item { background: rgba(249,115,22,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; }
+    .elevation-primary { font-weight: 700; font-size: 1.1rem; color: #22d3ee; }
+    .elevation-secondary { color: rgba(255,255,255,0.5); font-size: 0.9rem; }
+    .elevation-unit { color: rgba(255,255,255,0.5); }
+    .elevation-unit-small { color: rgba(255,255,255,0.4); font-size: 0.75rem; }
+    .elevation-bonuses { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .bonus-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+    .bonus-tag.multiplier { background: rgba(34,211,238,0.2); color: #22d3ee; }
+    .bonus-tag.duel-won { background: rgba(16,185,129,0.2); color: #10b981; }
+    .bonus-tag.duel-lost, .bonus-tag.sabotage { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .bonus-tag.sabotage-done { background: rgba(249,115,22,0.2); color: #f97316; }
+    .joker-badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 6px; font-size: 16px; margin: 0 2px; }
+    .joker-badge sub { font-size: 10px; margin-left: 2px; }
+    .joker-badge.active { background: rgba(16,185,129,0.3); box-shadow: 0 0 8px rgba(16,185,129,0.4); }
+    .joker-badge.pending { background: rgba(249,115,22,0.3); }
+    .joker-badge.available { background: rgba(255,255,255,0.1); opacity: 0.7; }
+    .joker-badge.shield-active { background: rgba(59,130,246,0.3); box-shadow: 0 0 10px rgba(59,130,246,0.5); }
+    .duel-indicator { margin-left: 6px; font-size: 14px; }
+    .duel-indicator.winning { color: #10b981; }
+    .duel-indicator.losing { color: #ef4444; }
+    .ranking-row.protected { background: rgba(59,130,246,0.1); border-left: 3px solid #3b82f6; }
+    .athlete-status.protected { color: #3b82f6; }
+    .athlete-status.danger { color: #ef4444; }
+    .date-slider-container { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: rgba(10,10,15,0.98); border-top: 1px solid rgba(249,115,22,0.3); padding: 16px 24px; }
+    .slider-wrapper { max-width: 1000px; margin: 0 auto; }
+    .slider-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .slider-icon { font-size: 1.25rem; }
+    .slider-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.5); }
+    .slider-current-date { margin-left: auto; font-size: 1.1rem; font-weight: 600; color: #f97316; }
+    .slider-controls { display: flex; align-items: center; gap: 16px; }
+    .slider-btn { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); color: #f97316; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; }
+    .slider-btn:hover { background: #f97316; color: #fff; }
+    .slider-track { flex: 1; }
+    .date-slider { width: 100%; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.1); -webkit-appearance: none; cursor: pointer; }
+    .date-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #f97316, #22d3ee); cursor: pointer; }
+    .slider-markers { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: rgba(255,255,255,0.4); }
+    .slider-info { display: flex; justify-content: center; gap: 32px; margin-top: 12px; font-size: 0.9rem; color: rgba(255,255,255,0.6); }
+    .slider-info strong { color: #22d3ee; font-size: 1.1rem; }
+    .joker-context-menu { position: absolute; background: rgba(15,23,42,0.98); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 8px 0; min-width: 260px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 9999; opacity: 0; transform: scale(0.95); pointer-events: none; transition: all 0.15s; }
+    .joker-context-menu.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
+    .context-menu-header { padding: 12px 16px; font-weight: 600; color: #f97316; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .context-menu-info { padding: 8px 16px; font-size: 0.75rem; color: rgba(255,255,255,0.5); background: rgba(34,211,238,0.1); }
+    .context-menu-section { padding: 8px 16px; font-size: 0.75rem; color: rgba(255,255,255,0.5); text-transform: uppercase; }
+    .context-menu-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer; }
+    .context-menu-item:hover:not(.disabled) { background: rgba(249,115,22,0.15); }
+    .context-menu-item.disabled { opacity: 0.4; cursor: not-allowed; }
+    .context-menu-item .joker-icon { font-size: 20px; }
+    .context-menu-item .joker-name { flex: 1; }
+    .context-menu-item .joker-count { background: rgba(249,115,22,0.2); color: #f97316; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+    .context-menu-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 8px 0; }
+    .joker-controls { display: flex; align-items: center; gap: 8px; }
+    .joker-minus, .joker-plus { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #fff; cursor: pointer; font-size: 16px; }
+    .joker-minus:hover { background: #ef4444; }
+    .joker-plus:hover { background: #10b981; }
+    .joker-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000; }
+    .joker-modal-content { background: rgba(15,23,42,0.98); border: 1px solid rgba(249,115,22,0.3); border-radius: 16px; width: 90%; max-width: 400px; }
+    .joker-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: rgba(249,115,22,0.1); font-weight: 600; color: #f97316; }
+    .joker-modal-close { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; }
+    .joker-modal-body { padding: 20px; }
+    .joker-modal-body p { margin-bottom: 16px; color: rgba(255,255,255,0.8); }
+    .target-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+    .target-option { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; }
+    .target-option:hover { background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.3); }
+    .target-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #fff; }
+    .notification { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%) translateY(20px); padding: 14px 28px; border-radius: 10px; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 10001; }
+    .notification.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .notification-success { background: rgba(16,185,129,0.95); color: #fff; }
     .notification-error { background: rgba(239,68,68,0.95); color: #fff; }
     .notification-info { background: rgba(59,130,246,0.95); color: #fff; }
-
-    /* ===== GUIDE DES JOKERS ===== */
     .jokers-guide-section { margin: 40px auto; padding: 32px; max-width: 1200px; background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.9)); border: 1px solid rgba(249,115,22,0.2); border-radius: 16px; }
-    .jokers-guide-section .section-title { font-family: 'Syne', sans-serif; font-size: 1.5rem; margin-bottom: 8px; }
-    .guide-intro { color: rgba(255,255,255,0.7); margin-bottom: 24px; font-size: 0.95rem; }
+    .jokers-guide-section .section-title { font-size: 1.5rem; margin-bottom: 8px; }
+    .guide-intro { color: rgba(255,255,255,0.7); margin-bottom: 24px; }
     .jokers-guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 24px; }
-    .joker-guide-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 20px; border-left: 4px solid #f97316; transition: transform 0.2s; }
-    .joker-guide-card:hover { transform: translateY(-4px); }
+    .joker-guide-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 20px; border-left: 4px solid #f97316; }
     .joker-guide-card.multiplicateur { border-left-color: #22d3ee; }
     .joker-guide-card.duel { border-left-color: #ef4444; }
     .joker-guide-card.sabotage { border-left-color: #f97316; }
     .joker-guide-card.bouclier { border-left-color: #3b82f6; }
     .joker-guide-icon { font-size: 2.5rem; margin-bottom: 12px; }
-    .joker-guide-content h3 { font-family: 'Syne', sans-serif; font-size: 1.2rem; margin-bottom: 8px; color: #fff; }
+    .joker-guide-content h3 { font-size: 1.2rem; margin-bottom: 8px; }
     .joker-effect-desc { font-weight: 600; color: #22d3ee; margin-bottom: 8px; }
     .joker-details { font-size: 0.9rem; color: rgba(255,255,255,0.7); line-height: 1.5; margin-bottom: 12px; }
-    .joker-example { background: rgba(255,255,255,0.05); padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; color: rgba(255,255,255,0.8); }
+    .joker-example { background: rgba(255,255,255,0.05); padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; }
     .joker-tips { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 16px 20px; }
     .joker-tips h4 { color: #10b981; margin-bottom: 12px; }
     .joker-tips ul { list-style: none; }
     .joker-tips li { padding: 6px 0; padding-left: 24px; position: relative; color: rgba(255,255,255,0.8); font-size: 0.9rem; }
     .joker-tips li::before { content: '→'; position: absolute; left: 0; color: #10b981; }
-
-    /* ===== MISC ===== */
     .ranking-row, .participant-card { cursor: context-menu; }
     body { padding-bottom: 120px; }
   `;
