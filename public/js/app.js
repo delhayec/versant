@@ -6,8 +6,7 @@
  * - Menu contextuel pour les jokers (clic droit)
  * - Affichage des bonus (x2, duels, sabotages)
  * - Gestion complète du stock de jokers
- * - Règles spéciales (hors-sentier, pente raide, etc.)
- * - Jokers activés pour le round suivant
+ * - Section dédiée aux jokers actifs
  */
 
 import {
@@ -89,18 +88,17 @@ function useJoker(participantId, jokerId, options = {}) {
   if (!state.stock[jokerId] || state.stock[jokerId] <= 0) return { success: false, error: 'Plus de joker disponible' };
 
   state.stock[jokerId]--;
-  // Joker activé pour le PROCHAIN round
   const activationRound = currentRoundNumber + 1;
   const usage = {
     id: `${participantId}-${jokerId}-${activationRound}-${Date.now()}`,
     jokerId,
     jokerName: jokerType.name,
-    round: activationRound,  // Activé au prochain round
-    scheduledAt: currentRoundNumber,  // Programmé maintenant
+    round: activationRound,
+    scheduledAt: currentRoundNumber,
     usedAt: getCurrentDate().toISOString(),
     ...options
   };
-  state.pending.push(usage);  // En attente jusqu'au prochain round
+  state.pending.push(usage);
   state.used.push(usage);
   saveJokersState();
   return { success: true, usage, activationRound };
@@ -131,11 +129,29 @@ function activatePendingJokers() {
   Object.entries(jokersState).forEach(([participantId, state]) => {
     const toActivate = (state.pending || []).filter(j => j.round === currentRoundNumber);
     toActivate.forEach(j => {
-      state.active.push(j);
+      if (!state.active.some(a => a.id === j.id)) {
+        state.active.push(j);
+      }
       state.pending = state.pending.filter(p => p.id !== j.id);
     });
   });
   saveJokersState();
+}
+
+// Récupérer tous les jokers actifs pour ce round
+function getActiveJokersForRound(roundNumber) {
+  const activeJokers = [];
+  Object.entries(jokersState).forEach(([participantId, state]) => {
+    const participant = getParticipantById(participantId);
+    (state.active || []).filter(j => j.round === roundNumber).forEach(j => {
+      activeJokers.push({
+        ...j,
+        participantId,
+        participantName: participant?.name || 'Inconnu'
+      });
+    });
+  });
+  return activeJokers;
 }
 
 function applyJokerEffects(ranking) {
@@ -143,47 +159,90 @@ function applyJokerEffects(ranking) {
   activatePendingJokers();
 
   const effects = {};
-  Object.entries(jokersState).forEach(([participantId, state]) => {
-    const activeForRound = (state.active || []).filter(j => j.round === currentRoundNumber);
-    activeForRound.forEach(joker => {
-      const participant = ranking.find(r => String(r.participant.id) === String(participantId));
-      if (!participant) return;
-      if (!effects[participantId]) effects[participantId] = { bonuses: {} };
+  const activeJokers = getActiveJokersForRound(currentRoundNumber);
 
-      if (joker.jokerId === 'multiplicateur') {
-        const amt = participant.totalElevation * 0.2;
-        participant.totalElevation += amt;
-        effects[participantId].bonuses.multiplier = { amount: amt * 2 };
-      } else if (joker.jokerId === 'duel') {
-        const target = ranking.find(r => String(r.participant.id) === String(joker.targetId));
-        if (target && participant.totalElevation > target.totalElevation) {
-          const stolen = Math.round(target.totalElevation * 0.25);
-          participant.totalElevation += stolen;
-          target.totalElevation -= stolen;
-          effects[participantId].bonuses.duelWon = { amount: stolen, from: target.participant.name };
+  activeJokers.forEach(joker => {
+    const participant = ranking.find(r => String(r.participant.id) === String(joker.participantId));
+    if (!participant) return;
+    if (!effects[joker.participantId]) effects[joker.participantId] = { bonuses: {} };
+
+    if (joker.jokerId === 'multiplicateur') {
+      // x1.5 au lieu de x2
+      const bonus = participant.totalElevation * 0.5;
+      participant.totalElevation += bonus;
+      effects[joker.participantId].bonuses.multiplier = { amount: bonus };
+    } else if (joker.jokerId === 'duel') {
+      const target = ranking.find(r => String(r.participant.id) === String(joker.targetId));
+      if (target) {
+        // Duel : le gagnant vole 25% du D+ du perdant
+        const challengerWins = participant.totalElevation > target.totalElevation;
+        const winner = challengerWins ? participant : target;
+        const loser = challengerWins ? target : participant;
+        const stolen = Math.round(loser.totalElevation * 0.25);
+
+        winner.totalElevation += stolen;
+        loser.totalElevation -= stolen;
+
+        if (challengerWins) {
+          effects[joker.participantId].bonuses.duelWon = { amount: stolen, from: target.participant.name };
           if (!effects[joker.targetId]) effects[joker.targetId] = { bonuses: {} };
           effects[joker.targetId].bonuses.duelLost = { amount: stolen, by: participant.participant.name };
-        }
-        effects[participantId].duel = { target: joker.targetName, isChallenger: true };
-        if (!effects[joker.targetId]) effects[joker.targetId] = { bonuses: {} };
-        effects[joker.targetId].duel = { challenger: participant.participant.name, isTarget: true };
-      } else if (joker.jokerId === 'sabotage') {
-        const sabTarget = ranking.find(r => String(r.participant.id) === String(joker.targetId));
-        if (sabTarget) {
-          sabTarget.totalElevation = Math.max(0, sabTarget.totalElevation - 250);
+        } else {
+          effects[joker.participantId].bonuses.duelLost = { amount: stolen, by: target.participant.name };
           if (!effects[joker.targetId]) effects[joker.targetId] = { bonuses: {} };
-          effects[joker.targetId].bonuses.sabotaged = { amount: 250, by: participant.participant.name };
+          effects[joker.targetId].bonuses.duelWon = { amount: stolen, from: participant.participant.name };
         }
+
+        effects[joker.participantId].duel = {
+          target: joker.targetName,
+          targetId: joker.targetId,
+          isChallenger: true,
+          challengerElevation: participant.totalElevation,
+          targetElevation: target.totalElevation,
+          isWinning: challengerWins
+        };
+        if (!effects[joker.targetId]) effects[joker.targetId] = { bonuses: {} };
+        effects[joker.targetId].duel = {
+          challenger: participant.participant.name,
+          challengerId: joker.participantId,
+          isTarget: true,
+          challengerElevation: participant.totalElevation,
+          targetElevation: target.totalElevation,
+          isWinning: !challengerWins
+        };
       }
-    });
+    } else if (joker.jokerId === 'sabotage') {
+      // Sabotage : -25% du D+ de la cible
+      const sabTarget = ranking.find(r => String(r.participant.id) === String(joker.targetId));
+      if (sabTarget) {
+        const malus = Math.round(sabTarget.totalElevation * 0.25);
+        sabTarget.totalElevation = Math.max(0, sabTarget.totalElevation - malus);
+        if (!effects[joker.targetId]) effects[joker.targetId] = { bonuses: {} };
+        effects[joker.targetId].bonuses.sabotaged = { amount: malus, by: participant.participant.name };
+        effects[joker.participantId].bonuses.sabotageApplied = { amount: malus, to: sabTarget.participant.name };
+      }
+    } else if (joker.jokerId === 'bouclier') {
+      // Bouclier : protection contre l'élimination
+      effects[joker.participantId].hasShield = true;
+    }
   });
 
   ranking.sort((a, b) => b.totalElevation - a.totalElevation);
+
+  // Déterminer la zone de danger AVANT d'appliquer le bouclier
+  const elimCount = CHALLENGE_CONFIG.eliminationsPerRound;
   ranking.forEach((e, i) => {
     e.position = i + 1;
-    e.isInDangerZone = i >= ranking.length - CHALLENGE_CONFIG.eliminationsPerRound;
+    e.isInDangerZone = i >= ranking.length - elimCount;
     e.jokerEffects = effects[e.participant.id] || { bonuses: {} };
+
+    // Si le joueur a un bouclier et est en zone de danger, il est protégé
+    if (e.jokerEffects.hasShield && e.isInDangerZone) {
+      e.isProtected = true;
+      e.isInDangerZone = false;  // Plus en danger grâce au bouclier
+    }
   });
+
   return ranking;
 }
 
@@ -192,7 +251,7 @@ function getJokerStatusForRound(participantId, roundNumber) {
   return {
     stock: state.stock,
     active: (state.active || []).filter(j => j.round === roundNumber),
-    pending: (state.pending || []).filter(j => j.round === roundNumber + 1),  // Programmés pour le prochain
+    pending: (state.pending || []).filter(j => j.round === roundNumber + 1),
     used: state.used || []
   };
 }
@@ -223,7 +282,6 @@ function showContextMenu(e, participantId, participantName) {
   let itemsHtml = '';
 
   if (isAdminMode) {
-    // Mode admin : ajouter/retirer des jokers
     itemsHtml += '<div class="context-menu-section">Modifier le stock :</div>';
     Object.entries(JOKER_TYPES).forEach(([jokerId, joker]) => {
       const count = stock[jokerId] || 0;
@@ -238,7 +296,6 @@ function showContextMenu(e, participantId, participantName) {
       </div>`;
     });
   } else {
-    // Mode normal : utiliser un joker
     itemsHtml += '<div class="context-menu-info">⏰ Activé au prochain round</div>';
     Object.entries(JOKER_TYPES).forEach(([jokerId, joker]) => {
       const count = stock[jokerId] || 0;
@@ -254,16 +311,14 @@ function showContextMenu(e, participantId, participantName) {
 
   contextMenu.querySelector('.context-menu-header').textContent = '🃏 ' + (isAdminMode ? 'Gérer' : 'Jokers de') + ' ' + participantName;
   contextMenu.querySelector('.context-menu-items').innerHTML = itemsHtml;
-  contextMenu.style.left = e.pageX + 'px';
-  contextMenu.style.top = e.pageY + 'px';
+  contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 280) + 'px';
+  contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 300) + 'px';
   contextMenu.classList.add('visible');
 
-  // Events pour mode normal
   contextMenu.querySelectorAll('.context-menu-item:not(.disabled):not(.admin-joker)').forEach(item => {
     item.onclick = () => handleJokerMenuClick(item);
   });
 
-  // Events pour mode admin
   contextMenu.querySelectorAll('.joker-plus').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -300,7 +355,6 @@ function handleJokerMenuClick(item) {
   }
   const jokerId = item.dataset.joker, participantName = item.dataset.name;
   if (jokerId === 'duel' || jokerId === 'sabotage') showTargetSelector(participantId, participantName, jokerId);
-  else if (jokerId === 'multiplicateur') showDaySelector(participantId, participantName, jokerId);
   else {
     const r = useJoker(participantId, jokerId);
     if (r.success) {
@@ -327,17 +381,6 @@ function showTargetSelector(participantId, participantName, jokerId) {
       modal.remove();
     };
   });
-}
-
-function showDaySelector(participantId, participantName, jokerId) {
-  // Pour le multiplicateur, on programme simplement pour le prochain round
-  const r = useJoker(participantId, jokerId, { allDay: true });
-  if (r.success) {
-    showNotification(`${JOKER_TYPES[jokerId].icon} Multiplicateur ×2 programmé pour le round ${r.activationRound} !`, 'success');
-    renderAll();
-  } else {
-    showNotification(r.error, 'error');
-  }
 }
 
 function showNotification(message, type = 'info') {
@@ -384,69 +427,18 @@ function calculateStats(activities) {
   return { totalElevation: activities.reduce((s, a) => s + (a.total_elevation_gain || 0), 0), totalDistance: activities.reduce((s, a) => s + (a.distance || 0), 0), activitiesCount: activities.length };
 }
 
-// Calcul avec règles spéciales
 function calculateRanking(activities, participants, ruleId = 'standard', yearlyStandings = null, seasonNum = 1) {
-  const rule = ROUND_RULES[ruleId] || ROUND_RULES.standard;
   const ranking = [];
 
   for (const p of participants) {
     const pActivities = filterByParticipant(activities, p.id);
-    let totalElevation = 0;
-    let countedElevation = 0;  // D+ comptabilisé selon les règles
-    let rawElevation = 0;      // D+ brut
-
-    pActivities.forEach(a => {
-      const elev = a.total_elevation_gain || 0;
-      rawElevation += elev;
-
-      // Appliquer les règles spéciales
-      if (ruleId === 'offroad' || ruleId === 'hors_sentiers') {
-        // Hors sentiers : ratio basé sur le type de sport
-        const offRoadRatio = { 'TrailRun': 1.0, 'Hike': 1.0, 'MountainBikeRide': 0.8, 'GravelRide': 0.6, 'Run': 0.2, 'Ride': 0.1 };
-        countedElevation += elev * (offRoadRatio[a.sport_type] || 0.5);
-      } else if (ruleId === 'steep' || ruleId === 'pente_raide') {
-        // Pente raide : seulement D+ sur pentes > 15% (estimation : 60% du total pour trail/hike)
-        const steepRatio = { 'TrailRun': 0.6, 'Hike': 0.7, 'MountainBikeRide': 0.4, 'Run': 0.3, 'Ride': 0.2 };
-        countedElevation += elev * (steepRatio[a.sport_type] || 0.3);
-      } else if (ruleId === 'combinado') {
-        countedElevation += elev;  // Sera traité après par jour
-      } else {
-        countedElevation += elev;
-      }
-    });
-
-    // Règle Combinado : x2 si plusieurs sports dans la même journée
-    if (ruleId === 'combinado') {
-      const byDay = {};
-      pActivities.forEach(a => {
-        const day = a.date || a.start_date?.split('T')[0];
-        if (!byDay[day]) byDay[day] = { sports: new Set(), elevation: 0 };
-        byDay[day].sports.add(a.sport_type);
-        byDay[day].elevation += a.total_elevation_gain || 0;
-      });
-      countedElevation = 0;
-      for (const day in byDay) {
-        const mult = byDay[day].sports.size >= 2 ? 2 : 1;
-        countedElevation += byDay[day].elevation * mult;
-      }
-    }
-
-    // Handicap
-    if (ruleId === 'handicap' && seasonNum > 1 && yearlyStandings) {
-      const standing = yearlyStandings.find(s => s.participant.id === p.id);
-      if (standing && standing.rank <= 5) {
-        const malus = rule.parameters?.malusPerPosition?.[standing.rank] || 0;
-        countedElevation = Math.round(countedElevation * (100 - malus) / 100);
-      }
-    }
+    let totalElevation = pActivities.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
 
     ranking.push({
       participant: p,
-      totalElevation: countedElevation,
-      rawElevation: rawElevation,
+      totalElevation: totalElevation,
       activitiesCount: pActivities.length,
-      activities: pActivities,
-      ruleApplied: ruleId !== 'standard' ? rule : null
+      activities: pActivities
     });
   }
 
@@ -458,15 +450,48 @@ function calculateRanking(activities, participants, ruleId = 'standard', yearlyS
 function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
   const seasonDates = getSeasonDates(seasonNumber), roundsPerSeason = getRoundsPerSeason(), elimPerRound = CHALLENGE_CONFIG.eliminationsPerRound;
   let active = [...PARTICIPANTS]; const eliminated = []; let winner = null, seasonComplete = false;
+
   for (let r = 1; r <= roundsPerSeason; r++) {
     const globalRound = (seasonNumber - 1) * roundsPerSeason + r, roundDates = getRoundDates(globalRound);
     if (currentDate <= new Date(roundDates.end)) break;
     if (active.length <= 1) { seasonComplete = true; winner = active[0]; break; }
+
     const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
-    const roundInfo = getRoundInfo(globalRound);
-    const ranking = calculateRanking(roundActivities, active, roundInfo?.rule?.id || 'standard', yearlyStandingsCache, seasonNumber);
-    const maxElim = Math.min(elimPerRound, active.length - 1), toElim = ranking.slice(-maxElim);
-    toElim.forEach(e => { eliminated.push({ ...e.participant, eliminatedRound: globalRound, roundInSeason: r, seasonNumber, elevationAtElimination: e.totalElevation }); });
+    let ranking = calculateRanking(roundActivities, active);
+
+    // Appliquer les effets des jokers pour ce round historique
+    // Note: pour la simulation, on vérifie les jokers actifs à ce round
+    const protectedIds = [];
+    Object.entries(jokersState).forEach(([participantId, state]) => {
+      const shieldJoker = (state.active || []).find(j => j.round === globalRound && j.jokerId === 'bouclier');
+      if (shieldJoker) protectedIds.push(participantId);
+    });
+
+    // Marquer les protégés
+    ranking.forEach(e => {
+      if (protectedIds.includes(String(e.participant.id))) {
+        e.isProtected = true;
+      }
+    });
+
+    // Éliminer les derniers NON protégés
+    let toElimCount = Math.min(elimPerRound, active.length - 1);
+    const toElim = [];
+    for (let i = ranking.length - 1; i >= 0 && toElim.length < toElimCount; i--) {
+      if (!ranking[i].isProtected) {
+        toElim.push(ranking[i]);
+      }
+    }
+
+    toElim.forEach(e => {
+      eliminated.push({
+        ...e.participant,
+        eliminatedRound: globalRound,
+        roundInSeason: r,
+        seasonNumber,
+        elevationAtElimination: e.totalElevation
+      });
+    });
     active = active.filter(p => !toElim.map(e => e.participant.id).includes(p.id));
     if (active.length <= 1) { seasonComplete = true; winner = active[0]; }
   }
@@ -519,7 +544,7 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
     const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
     const roundInfo = getRoundInfo(globalRound);
     const activeAtRound = PARTICIPANTS.filter(p => !sData.eliminated.some(e => e.eliminatedRound < globalRound && e.id === p.id));
-    const ranking = calculateRanking(roundActivities, activeAtRound, roundInfo?.rule?.id || 'standard');
+    const ranking = calculateRanking(roundActivities, activeAtRound);
     rounds.push({ roundInSeason: r, globalRound, dates: roundDates, rule: roundInfo?.rule || ROUND_RULES.standard, winner: ranking[0]?.participant, winnerElevation: ranking[0]?.totalElevation || 0, eliminated: sData.eliminated.filter(e => e.roundInSeason === r).map(e => e.name) });
   }
   return { seasonNumber, dates: seasonDates, isComplete: sData.seasonComplete, winner: sData.winner, rounds, eliminatedRanking: calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, sData.seasonComplete ? seasonDates.end : currentDate) };
@@ -534,7 +559,6 @@ async function init() {
   try {
     console.log('🚀 Initialisation Versant...');
 
-    // Pour la démo : si on est après la fin de l'année de données, simuler une date dans l'année
     const realToday = new Date();
     const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate || '2025-12-31');
     if (realToday > yearEnd) {
@@ -544,26 +568,22 @@ async function init() {
 
     allActivities = await loadActivities();
     console.log('📊', allActivities.length, 'activités chargées');
-    console.log('👥 Participants:', PARTICIPANTS.length);
 
     initializeJokersState();
 
     const today = getCurrentDate();
-    console.log('📅 Date actuelle:', today.toISOString().split('T')[0]);
-
     currentSeasonNumber = getSeasonNumber(today);
     currentRoundNumber = getGlobalRoundNumber(today);
     console.log('🔢 Saison:', currentSeasonNumber, '| Round:', currentRoundNumber);
 
     yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
     seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today);
-    console.log('🎯 Saison simulée - Actifs:', seasonData?.active?.length, '| Éliminés:', seasonData?.eliminated?.length);
 
     renderAll();
     setupDateSlider();
     injectStyles();
+    renderJokersGuide();
 
-    // Masquer l'écran de chargement
     if (loadingScreen) {
       loadingScreen.style.opacity = '0';
       setTimeout(() => { loadingScreen.style.display = 'none'; }, 300);
@@ -587,6 +607,7 @@ function renderAll() {
     yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
 
     renderCombinedBanner();
+    renderActiveJokersSection();
     renderRanking();
     renderEliminatedChallenge();
     renderFinalStandings();
@@ -597,33 +618,21 @@ function renderAll() {
   }
 }
 
-// Bandeau unique combinant saison et round
 function renderCombinedBanner() {
   const seasonBanner = document.getElementById('seasonBanner');
   const roundBanner = document.getElementById('roundBanner');
 
-  // Cacher le round banner séparé
   if (roundBanner) roundBanner.style.display = 'none';
-
   if (!seasonBanner) return;
 
   const seasonDates = getSeasonDates(currentSeasonNumber);
   const roundDates = getRoundDates(currentRoundNumber);
-  const roundInfo = getRoundInfo(currentRoundNumber);
   const roundInSeason = getRoundInSeason(getCurrentDate());
   const today = getCurrentDate();
 
   const seasonProgress = Math.min(100, Math.max(0, (today - seasonDates.start) / (seasonDates.end - seasonDates.start) * 100));
   const isRoundActive = today >= roundDates.start && today <= roundDates.end;
   const daysLeft = Math.max(0, Math.ceil((roundDates.end - today) / 86400000));
-
-  // Info règle spéciale
-  const ruleInfo = roundInfo?.rule?.isSpecial ? `
-    <div class="rule-badge">
-      <span class="rule-icon">${roundInfo.rule.icon}</span>
-      <span class="rule-name">${roundInfo.rule.name}</span>
-    </div>
-  ` : '';
 
   seasonBanner.innerHTML = `
     <div class="banner-left">
@@ -640,7 +649,6 @@ function renderCombinedBanner() {
     <div class="banner-center">
       <div class="banner-round">
         <span class="round-number">Round ${roundInSeason}</span>
-        ${ruleInfo}
       </div>
       <div class="round-dates">${formatDateRange(roundDates.start, roundDates.end)}</div>
       ${isRoundActive ? `<div class="round-countdown"><span class="countdown-value">${daysLeft}</span> jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}</div>` : ''}
@@ -658,6 +666,113 @@ function renderCombinedBanner() {
   `;
 }
 
+// Section des jokers actifs ce round
+function renderActiveJokersSection() {
+  let container = document.getElementById('activeJokersSection');
+  if (!container) {
+    // Créer la section si elle n'existe pas
+    const rankingSection = document.querySelector('.ranking-section') || document.getElementById('rankingContainer')?.parentElement;
+    if (rankingSection) {
+      container = document.createElement('div');
+      container.id = 'activeJokersSection';
+      container.className = 'active-jokers-section';
+      rankingSection.insertBefore(container, rankingSection.firstChild);
+    } else {
+      return;
+    }
+  }
+
+  const activeJokers = getActiveJokersForRound(currentRoundNumber);
+  const pendingJokers = [];
+  Object.entries(jokersState).forEach(([participantId, state]) => {
+    const participant = getParticipantById(participantId);
+    (state.pending || []).filter(j => j.round === currentRoundNumber + 1).forEach(j => {
+      pendingJokers.push({ ...j, participantId, participantName: participant?.name || 'Inconnu' });
+    });
+  });
+
+  if (activeJokers.length === 0 && pendingJokers.length === 0) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+
+  // Calculer l'état actuel des duels
+  const roundDates = getRoundDates(currentRoundNumber);
+  const today = getCurrentDate();
+  const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
+  const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
+  const tempRanking = calculateRanking(roundActivities, seasonData?.active || []);
+
+  let html = '<h3 class="section-title">🃏 Jokers en jeu ce round</h3><div class="jokers-grid">';
+
+  activeJokers.forEach(joker => {
+    const jokerType = JOKER_TYPES[joker.jokerId];
+    if (!jokerType) return;
+
+    let statusHtml = '';
+    let statusClass = 'active';
+
+    if (joker.jokerId === 'duel') {
+      const challenger = tempRanking.find(r => String(r.participant.id) === String(joker.participantId));
+      const target = tempRanking.find(r => String(r.participant.id) === String(joker.targetId));
+      if (challenger && target) {
+        const challengerWins = challenger.totalElevation > target.totalElevation;
+        statusClass = challengerWins ? 'winning' : 'losing';
+        statusHtml = `
+          <div class="duel-status">
+            <div class="duel-competitor ${challengerWins ? 'winning' : 'losing'}">
+              <span class="competitor-name">${joker.participantName}</span>
+              <span class="competitor-elevation">${formatElevation(challenger.totalElevation)}</span>
+              ${challengerWins ? '<span class="duel-badge">⚔️ EN TÊTE</span>' : ''}
+            </div>
+            <div class="duel-vs">VS</div>
+            <div class="duel-competitor ${!challengerWins ? 'winning' : 'losing'}">
+              <span class="competitor-name">${joker.targetName}</span>
+              <span class="competitor-elevation">${formatElevation(target.totalElevation)}</span>
+              ${!challengerWins ? '<span class="duel-badge">🎯 EN TÊTE</span>' : ''}
+            </div>
+          </div>
+          <div class="duel-stakes">Enjeu : 25% du D+ du perdant</div>
+        `;
+      }
+    } else if (joker.jokerId === 'multiplicateur') {
+      statusHtml = `<div class="joker-effect">×1.5 sur tout le D+ de ${joker.participantName}</div>`;
+    } else if (joker.jokerId === 'sabotage') {
+      statusHtml = `<div class="joker-effect">-25% du D+ de ${joker.targetName}</div>`;
+    } else if (joker.jokerId === 'bouclier') {
+      statusHtml = `<div class="joker-effect">${joker.participantName} est protégé contre l'élimination</div>`;
+    }
+
+    html += `
+      <div class="joker-card ${statusClass}">
+        <div class="joker-card-header">
+          <span class="joker-card-icon">${jokerType.icon}</span>
+          <span class="joker-card-name">${jokerType.name}</span>
+          <span class="joker-card-user">par ${joker.participantName}</span>
+        </div>
+        <div class="joker-card-body">${statusHtml}</div>
+      </div>
+    `;
+  });
+
+  // Jokers programmés pour le prochain round
+  if (pendingJokers.length > 0) {
+    html += '<div class="pending-jokers"><h4>⏰ Programmés pour le Round ${getRoundInSeason(getCurrentDate()) + 1}</h4><div class="pending-list">';
+    pendingJokers.forEach(joker => {
+      const jokerType = JOKER_TYPES[joker.jokerId];
+      if (!jokerType) return;
+      html += `<span class="pending-item">${jokerType.icon} ${joker.participantName}${joker.targetName ? ' → ' + joker.targetName : ''}</span>`;
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 function renderRanking() {
   const container = document.getElementById('rankingContainer');
   if (!container) return;
@@ -671,72 +786,80 @@ function renderRanking() {
   const today = getCurrentDate();
   const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
   const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
-  const roundInfo = getRoundInfo(currentRoundNumber);
-  const ruleId = roundInfo?.rule?.id || 'standard';
 
-  let ranking = calculateRanking(roundActivities, seasonData?.active || [], ruleId, yearlyStandingsCache, currentSeasonNumber);
+  let ranking = calculateRanking(roundActivities, seasonData?.active || []);
   ranking = applyJokerEffects(ranking);
   const seasonDates = getSeasonDates(currentSeasonNumber);
 
-  // Header avec info règle
-  let headerExtra = '';
-  if (roundInfo?.rule?.isSpecial) {
-    headerExtra = `<div class="ranking-rule-info">${roundInfo.rule.icon} ${roundInfo.rule.name} : ${roundInfo.rule.shortDescription || ''}</div>`;
-  }
-
-  let html = headerExtra + '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ Comptabilisé</div><div>D+ Saison</div><div>Jokers</div></div>';
+  // IMPORTANT : Colonnes inversées - D+ Round en premier et en évidence
+  let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ Round</div><div>D+ Saison</div><div>Jokers</div></div>';
 
   ranking.forEach((e, i) => {
     const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const rowClass = e.isInDangerZone ? 'danger-zone' : '';
+    const rowClass = e.isInDangerZone ? 'danger-zone' : (e.isProtected ? 'protected' : '');
     const seasonStats = calculateStats(filterByParticipant(filterByPeriod(allActivities, seasonDates.start, endDate), e.participant.id));
     const tooltip = generateActivitiesTooltip(e.activities);
 
-    // Affichage D+ avec règle appliquée
-    let elevationHtml = '';
-    if (e.ruleApplied && e.rawElevation !== e.totalElevation) {
-      elevationHtml = `<span class="elevation-counted">${formatElevation(e.totalElevation, false)}</span> <span class="elevation-unit">m</span>
-        <div class="elevation-detail">(sur ${formatElevation(e.rawElevation, false)} brut)</div>`;
-    } else {
-      elevationHtml = `<span class="elevation-base">${formatElevation(e.totalElevation, false)}</span> <span class="elevation-unit">m</span>`;
-    }
+    // D+ Round - PRINCIPAL (bleu, gras)
+    let roundElevationHtml = `<span class="elevation-primary">${formatElevation(e.totalElevation, false)}</span> <span class="elevation-unit">m</span>`;
 
-    // Ajouter les bonus jokers
+    // Bonus jokers
     const bonuses = e.jokerEffects?.bonuses || {};
     const bonusDetails = [];
-    if (bonuses.multiplier) bonusDetails.push(`<span class="bonus-tag multiplier">+${formatElevation(bonuses.multiplier.amount, false)} ×2</span>`);
-    if (bonuses.duelWon) bonusDetails.push(`<span class="bonus-tag duel-won">+${formatElevation(bonuses.duelWon.amount, false)} volés</span>`);
-    if (bonuses.duelLost) bonusDetails.push(`<span class="bonus-tag duel-lost">-${formatElevation(bonuses.duelLost.amount, false)} volés</span>`);
-    if (bonuses.sabotaged) bonusDetails.push(`<span class="bonus-tag sabotage">-250 sabotés</span>`);
-    if (bonusDetails.length) elevationHtml += `<div class="elevation-bonuses">${bonusDetails.join(' ')}</div>`;
+    if (bonuses.multiplier) bonusDetails.push(`<span class="bonus-tag multiplier">+${formatElevation(bonuses.multiplier.amount, false)} (×1.5)</span>`);
+    if (bonuses.duelWon) bonusDetails.push(`<span class="bonus-tag duel-won">+${formatElevation(bonuses.duelWon.amount, false)} volés à ${bonuses.duelWon.from}</span>`);
+    if (bonuses.duelLost) bonusDetails.push(`<span class="bonus-tag duel-lost">-${formatElevation(bonuses.duelLost.amount, false)} volés par ${bonuses.duelLost.by}</span>`);
+    if (bonuses.sabotaged) bonusDetails.push(`<span class="bonus-tag sabotage">-${formatElevation(bonuses.sabotaged.amount, false)} (-25%)</span>`);
+    if (bonuses.sabotageApplied) bonusDetails.push(`<span class="bonus-tag sabotage-done">💣 ${bonuses.sabotageApplied.to}</span>`);
+    if (bonusDetails.length) roundElevationHtml += `<div class="elevation-bonuses">${bonusDetails.join(' ')}</div>`;
+
+    // D+ Saison - SECONDAIRE (gris)
+    const seasonElevationHtml = `<span class="elevation-secondary">${formatElevation(seasonStats.totalElevation, false)}</span> <span class="elevation-unit-small">m</span>`;
 
     // Jokers
     const status = getJokerStatusForRound(e.participant.id, currentRoundNumber);
     const stock = status.stock;
     let jokersHtml = '';
 
-    // Jokers actifs ce round
+    // Bouclier actif
+    if (e.jokerEffects?.hasShield) {
+      jokersHtml += `<span class="joker-badge shield-active" title="BOUCLIER ACTIF">🛡️</span>`;
+    }
+
+    // Jokers actifs
     status.active.forEach(j => {
-      const joker = JOKER_TYPES[j.jokerId];
-      if (joker) jokersHtml += `<span class="joker-badge active" title="ACTIF: ${joker.name}${j.targetName ? ' → '+j.targetName : ''}">${joker.icon}</span>`;
+      if (j.jokerId !== 'bouclier') {
+        const joker = JOKER_TYPES[j.jokerId];
+        if (joker) jokersHtml += `<span class="joker-badge active" title="ACTIF: ${joker.name}${j.targetName ? ' → '+j.targetName : ''}">${joker.icon}</span>`;
+      }
     });
-    // Jokers programmés pour le prochain round
+    // Programmés
     status.pending.forEach(j => {
       const joker = JOKER_TYPES[j.jokerId];
-      if (joker) jokersHtml += `<span class="joker-badge pending" title="Programmé R${j.round}: ${joker.name}">${joker.icon}⏰</span>`;
+      if (joker) jokersHtml += `<span class="joker-badge pending" title="Programmé R${getRoundInSeason(getCurrentDate())+1}: ${joker.name}">${joker.icon}⏰</span>`;
     });
-    // Stock disponible
+    // Stock
     Object.entries(stock).forEach(([jokerId, count]) => {
-      if (count > 0 && JOKER_TYPES[jokerId] && !status.active.some(j => j.jokerId === jokerId))
+      if (count > 0 && JOKER_TYPES[jokerId])
         jokersHtml += `<span class="joker-badge available" title="${JOKER_TYPES[jokerId].name}: ${count}">${JOKER_TYPES[jokerId].icon}<sub>${count}</sub></span>`;
     });
 
-    // Indicateur duel
+    // Indicateurs duel
     let duelIndicator = '';
     if (e.jokerEffects?.duel) {
       const d = e.jokerEffects.duel;
-      duelIndicator = d.isChallenger ? `<span class="duel-indicator challenger" title="Duel vs ${d.target}">⚔️</span>` : `<span class="duel-indicator target" title="Défié par ${d.challenger}">🎯</span>`;
+      if (d.isChallenger) {
+        duelIndicator = `<span class="duel-indicator ${d.isWinning ? 'winning' : 'losing'}" title="Duel vs ${d.target}">⚔️</span>`;
+      } else {
+        duelIndicator = `<span class="duel-indicator ${d.isWinning ? 'winning' : 'losing'}" title="Défié par ${d.challenger}">🎯</span>`;
+      }
     }
+
+    // Status
+    let statusText = 'En course';
+    let statusClass = 'active';
+    if (e.isProtected) { statusText = '🛡️ Protégé'; statusClass = 'protected'; }
+    else if (e.isInDangerZone) { statusText = '⚠️ Danger'; statusClass = 'danger'; }
 
     html += `<div class="ranking-row ${rowClass}" data-participant-id="${e.participant.id}" data-participant-name="${e.participant.name}">
       <div class="ranking-position ${posClass}">${e.position}</div>
@@ -744,12 +867,12 @@ function renderRanking() {
         <div class="athlete-avatar" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)">${getAthleteInitials(e.participant.id)}</div>
         <div class="athlete-info">
           <span class="athlete-name">${e.participant.name}${duelIndicator}</span>
-          <span class="athlete-status ${e.isInDangerZone ? 'danger' : 'active'}">${e.isInDangerZone ? '⚠️ Danger' : 'En course'}</span>
+          <span class="athlete-status ${statusClass}">${statusText}</span>
         </div>
         <div class="tooltip-content">${tooltip}</div>
       </div>
-      <div class="ranking-elevation">${elevationHtml}</div>
-      <div class="ranking-elevation season">${formatElevation(seasonStats.totalElevation, false)} <span class="elevation-unit">m</span></div>
+      <div class="ranking-elevation round-elevation">${roundElevationHtml}</div>
+      <div class="ranking-elevation season-elevation">${seasonElevationHtml}</div>
       <div class="ranking-jokers">${jokersHtml || '-'}</div>
     </div>`;
   });
@@ -869,7 +992,6 @@ function renderParticipants() {
   });
   container.innerHTML = html;
 
-  // Clic droit pour gérer les jokers (mode admin si page admin)
   const isAdmin = window.location.pathname.includes('admin');
   setAdminMode(isAdmin);
 
@@ -903,7 +1025,7 @@ function renderHistorySection() {
   const renderSeasonHistory = (seasonNum) => {
     if (seasonNum === 'current') {
       if (!seasonData?.eliminated?.length) {
-        content.innerHTML = '<div class="history-item"><div class="history-round">Saison '+currentSeasonNumber+'</div><div class="history-title">Aucune élimination encore</div></div>';
+        content.innerHTML = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
         return;
       }
       const byRound = {};
@@ -918,8 +1040,8 @@ function renderHistorySection() {
       const summary = getSeasonSummary(allActivities, parseInt(seasonNum), getCurrentDate());
       let h = `<div class="history-season-summary"><h3>🏆 Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
       summary.rounds.forEach(r => {
-        h += `<div class="history-item ${r.rule.isSpecial ? 'special-round' : ''}">
-          <div class="history-round">Round ${r.roundInSeason} ${r.rule.isSpecial ? '<span class="rule-badge">'+r.rule.icon+'</span>' : ''}</div>
+        h += `<div class="history-item">
+          <div class="history-round">Round ${r.roundInSeason}</div>
           <div class="history-title">${r.eliminated.length ? 'Éliminé(s) : '+r.eliminated.join(', ') : 'Aucun éliminé'}</div>
         </div>`;
       });
@@ -931,200 +1053,115 @@ function renderHistorySection() {
   renderSeasonHistory('current');
 }
 
-// ============================================
-// DATE SLIDER - VERSION AMÉLIORÉE
-// ============================================
-function setupDateSlider() {
-  const container = document.getElementById('dateSliderContainer');
-  if (!container) return;
+// Section guide des jokers (pour la démo)
+function renderJokersGuide() {
+  const existingGuide = document.getElementById('jokersGuideSection');
+  if (existingGuide) existingGuide.remove();
 
-  const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate || '2025-01-01');
-  const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate || '2025-12-31');
-  const today = getCurrentDate();
+  // Vérifier si on est sur la page démo
+  if (!window.location.pathname.includes('demo')) return;
 
-  const totalDays = Math.ceil((yearEnd - yearStart) / 86400000);
-  let currentDay = Math.ceil((today - yearStart) / 86400000);
-  currentDay = Math.max(0, Math.min(totalDays, currentDay));
+  const mainContent = document.querySelector('main') || document.body;
+  const guideSection = document.createElement('section');
+  guideSection.id = 'jokersGuideSection';
+  guideSection.className = 'jokers-guide-section';
 
-  container.innerHTML = `
-    <div class="slider-wrapper">
-      <div class="slider-header">
-        <span class="slider-icon">📅</span>
-        <span class="slider-title">Navigation temporelle</span>
-        <span class="slider-current-date" id="sliderDate">${formatDate(today)}</span>
-      </div>
-      <div class="slider-controls">
-        <button class="slider-btn" id="prevDay" title="Jour précédent">◀</button>
-        <div class="slider-track">
-          <input type="range" class="date-slider" id="dateSlider" min="0" max="${totalDays}" value="${currentDay}">
-          <div class="slider-markers">
-            <span class="marker-start">${formatDateShort(yearStart)}</span>
-            <span class="marker-end">${formatDateShort(yearEnd)}</span>
+  guideSection.innerHTML = `
+    <h2 class="section-title">🃏 Guide des Jokers</h2>
+    <p class="guide-intro">Chaque participant dispose de <strong>2 exemplaires</strong> de chaque joker pour toute l'année. Les jokers sont activés au <strong>round suivant</strong> leur utilisation.</p>
+
+    <div class="jokers-guide-grid">
+      <div class="joker-guide-card multiplicateur">
+        <div class="joker-guide-icon">⚡</div>
+        <div class="joker-guide-content">
+          <h3>Multiplicateur</h3>
+          <p class="joker-effect-desc">×1.5 sur tout le D+ du round</p>
+          <p class="joker-details">Bonus de 50% sur l'ensemble de votre dénivelé positif pour le round ciblé. Idéal quand vous prévoyez une grosse semaine !</p>
+          <div class="joker-example">
+            <strong>Exemple :</strong> 2000m de D+ → 3000m comptabilisés
           </div>
         </div>
-        <button class="slider-btn" id="nextDay" title="Jour suivant">▶</button>
       </div>
-      <div class="slider-info">
-        <span class="info-season">Saison <strong id="sliderSeason">${currentSeasonNumber}</strong></span>
-        <span class="info-round">Round <strong id="sliderRound">${getRoundInSeason(today)}</strong></span>
+
+      <div class="joker-guide-card duel">
+        <div class="joker-guide-icon">⚔️</div>
+        <div class="joker-guide-content">
+          <h3>Duel</h3>
+          <p class="joker-effect-desc">Défi direct contre un adversaire</p>
+          <p class="joker-details">Le gagnant du duel (celui avec le plus de D+ sur le round) <strong>vole 25%</strong> du D+ du perdant. Risqué mais potentiellement dévastateur !</p>
+          <div class="joker-example">
+            <strong>Exemple :</strong> Vous : 1500m vs Cible : 1000m → Vous gagnez +250m (25% de 1000)
+          </div>
+        </div>
       </div>
+
+      <div class="joker-guide-card sabotage">
+        <div class="joker-guide-icon">💣</div>
+        <div class="joker-guide-content">
+          <h3>Sabotage</h3>
+          <p class="joker-effect-desc">-25% du D+ d'un adversaire</p>
+          <p class="joker-details">Réduit le dénivelé comptabilisé d'un adversaire de 25%. Efficace pour freiner un concurrent en forme !</p>
+          <div class="joker-example">
+            <strong>Exemple :</strong> Cible avec 2000m → -500m = 1500m comptabilisés
+          </div>
+        </div>
+      </div>
+
+      <div class="joker-guide-card bouclier">
+        <div class="joker-guide-icon">🛡️</div>
+        <div class="joker-guide-content">
+          <h3>Bouclier</h3>
+          <p class="joker-effect-desc">Protection contre l'élimination</p>
+          <p class="joker-details">Même si vous finissez dernier, vous ne serez <strong>pas éliminé</strong> ce round. Le joker de survie par excellence !</p>
+          <div class="joker-example">
+            <strong>Exemple :</strong> Dernier du round mais protégé → Vous restez en course
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="joker-tips">
+      <h4>💡 Conseils stratégiques</h4>
+      <ul>
+        <li>Le <strong>multiplicateur</strong> est plus efficace sur vos gros rounds</li>
+        <li>Le <strong>duel</strong> est risqué : ne le lancez que si vous êtes confiant</li>
+        <li>Le <strong>sabotage</strong> cible idéalement le leader du classement</li>
+        <li>Gardez un <strong>bouclier</strong> pour les situations critiques en fin de saison</li>
+      </ul>
     </div>
   `;
 
-  const slider = document.getElementById('dateSlider');
-  const dateLabel = document.getElementById('sliderDate');
-  const seasonLabel = document.getElementById('sliderSeason');
-  const roundLabel = document.getElementById('sliderRound');
-
-  const updateDate = (dayOffset) => {
-    const newDate = new Date(yearStart);
-    newDate.setDate(newDate.getDate() + dayOffset);
-    setSimulatedDate(newDate);
-    dateLabel.textContent = formatDate(newDate);
-    seasonLabel.textContent = getSeasonNumber(newDate);
-    roundLabel.textContent = getRoundInSeason(newDate);
-    renderAll();
-  };
-
-  slider.addEventListener('input', (e) => updateDate(parseInt(e.target.value)));
-  document.getElementById('prevDay').addEventListener('click', () => {
-    slider.value = Math.max(0, parseInt(slider.value) - 1);
-    updateDate(parseInt(slider.value));
-  });
-  document.getElementById('nextDay').addEventListener('click', () => {
-    slider.value = Math.min(totalDays, parseInt(slider.value) + 1);
-    updateDate(parseInt(slider.value));
-  });
-
-  console.log('📆 Slider configuré: jour', currentDay, '/', totalDays);
+  mainContent.appendChild(guideSection);
 }
-
-// ============================================
-// STYLES CSS INJECTÉS
-// ============================================
-function injectStyles() {
-  if (document.getElementById('versant-injected-styles')) return;
-
-  const styles = document.createElement('style');
-  styles.id = 'versant-injected-styles';
-  styles.textContent = `
-    /* ===== BANDEAU COMBINÉ ===== */
-    .season-banner {
-      background: linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%);
-      border: 1px solid rgba(34, 211, 238, 0.3);
-      border-radius: 16px;
-      padding: 20px 32px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 32px;
-      flex-wrap: wrap;
-      font-family: 'Inter', sans-serif;
-    }
-    .banner-left, .banner-right { flex: 1; min-width: 200px; }
-    .banner-center { flex: 1.5; text-align: center; min-width: 250px; }
-    .banner-label { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 700; color: #22d3ee; display: block; }
-    .banner-dates { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
-    .banner-stats { margin-top: 8px; display: flex; gap: 16px; }
-    .stat-item { font-size: 0.9rem; color: rgba(255,255,255,0.8); }
-    .stat-item strong { color: #22d3ee; }
-    .banner-round { display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .round-number { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 700; background: linear-gradient(135deg, #f97316, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .round-dates { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
-    .round-countdown { margin-top: 8px; }
-    .countdown-value { background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 8px; font-weight: 700; font-size: 1.1rem; }
-    .rule-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(249, 115, 22, 0.2); border: 1px solid rgba(249, 115, 22, 0.4); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; }
-    .rule-icon { font-size: 1.1rem; }
-    .rule-name { color: #f97316; font-weight: 600; }
-    .season-progress-container { text-align: right; }
-    .progress-label { font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
-    .progress-bar-bg { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #22d3ee, #10b981); border-radius: 4px; transition: width 0.3s; }
-    .progress-percent { font-size: 0.85rem; color: #22d3ee; margin-top: 4px; }
-
-    /* ===== SLIDER AMÉLIORÉ ===== */
-    .date-slider-container { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: linear-gradient(180deg, rgba(10,10,15,0.95) 0%, rgba(10,10,15,0.98) 100%); border-top: 1px solid rgba(249,115,22,0.3); padding: 16px 24px; backdrop-filter: blur(10px); }
-    .slider-wrapper { max-width: 1000px; margin: 0 auto; }
-    .slider-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .slider-icon { font-size: 1.25rem; }
-    .slider-title { font-family: 'Space Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.5); }
-    .slider-current-date { margin-left: auto; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 600; color: #f97316; }
-    .slider-controls { display: flex; align-items: center; gap: 16px; }
-    .slider-btn { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); color: #f97316; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
-    .slider-btn:hover { background: #f97316; color: #fff; }
-    .slider-track { flex: 1; }
-    .date-slider { width: 100%; height: 10px; border-radius: 5px; background: rgba(255,255,255,0.1); outline: none; -webkit-appearance: none; cursor: pointer; }
-    .date-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #f97316, #22d3ee); cursor: pointer; box-shadow: 0 2px 10px rgba(249,115,22,0.5); transition: transform 0.2s; }
-    .date-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-    .slider-markers { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.7rem; color: rgba(255,255,255,0.4); }
-    .slider-info { display: flex; justify-content: center; gap: 24px; margin-top: 10px; font-size: 0.85rem; color: rgba(255,255,255,0.6); }
-    .slider-info strong { color: #22d3ee; }
-
-    /* ===== MENU CONTEXTUEL JOKERS ===== */
-    .joker-context-menu { position: absolute; background: rgba(15,23,42,0.98); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 8px 0; min-width: 260px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 9999; opacity: 0; transform: scale(0.95); pointer-events: none; transition: all 0.15s; }
-    .joker-context-menu.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
-    .context-menu-header { padding: 12px 16px; font-weight: 600; color: #f97316; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px; }
-    .context-menu-info { padding: 8px 16px; font-size: 0.75rem; color: rgba(255,255,255,0.5); background: rgba(34,211,238,0.1); }
-    .context-menu-section { padding: 8px 16px; font-size: 0.75rem; color: rgba(255,255,255,0.5); text-transform: uppercase; }
-    .context-menu-items { padding: 8px 0; }
-    .context-menu-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer; transition: background 0.15s; }
-    .context-menu-item:hover:not(.disabled) { background: rgba(249,115,22,0.15); }
-    .context-menu-item.disabled { opacity: 0.4; cursor: not-allowed; }
-    .context-menu-item .joker-icon { font-size: 20px; }
-    .context-menu-item .joker-name { flex: 1; color: rgba(255,255,255,0.9); }
-    .context-menu-item .joker-count { background: rgba(249,115,22,0.2); color: #f97316; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; min-width: 24px; text-align: center; }
-    .context-menu-item .joker-disabled-reason { font-size: 11px; color: rgba(255,255,255,0.4); }
-    .context-menu-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 8px 0; }
-    .joker-controls { display: flex; align-items: center; gap: 8px; }
-    .joker-minus, .joker-plus { width: 24px; height: 24px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #fff; cursor: pointer; font-size: 14px; transition: all 0.15s; }
-    .joker-minus:hover { background: #ef4444; border-color: #ef4444; }
-    .joker-plus:hover { background: #10b981; border-color: #10b981; }
-
-    /* ===== MODAL JOKER ===== */
-    .joker-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000; }
-    .joker-modal-content { background: rgba(15,23,42,0.98); border: 1px solid rgba(249,115,22,0.3); border-radius: 16px; width: 90%; max-width: 400px; overflow: hidden; }
-    .joker-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: rgba(249,115,22,0.1); font-weight: 600; color: #f97316; }
-    .joker-modal-close { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; }
-    .joker-modal-body { padding: 20px; }
-    .joker-modal-body p { margin-bottom: 16px; color: rgba(255,255,255,0.8); }
-    .target-list { display: flex; flex-direction: column; gap: 8px; }
-    .target-option { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.15s; }
-    .target-option:hover { background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.3); }
-    .target-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #fff; }
-
-    /* ===== NOTIFICATIONS ===== */
-    .notification { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%) translateY(20px); padding: 14px 28px; border-radius: 10px; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 10001; max-width: 90%; text-align: center; }
-    .notification.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
-    .notification-success { background: rgba(16,185,129,0.95); color: #fff; }
+95); color: #fff; }
     .notification-error { background: rgba(239,68,68,0.95); color: #fff; }
     .notification-info { background: rgba(59,130,246,0.95); color: #fff; }
 
-    /* ===== ELEVATION AVEC RÈGLES ===== */
-    .elevation-counted { font-weight: 700; color: #22d3ee; }
-    .elevation-detail { font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 2px; }
-    .elevation-bonuses { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
-    .bonus-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
-    .bonus-tag.multiplier { background: rgba(34,211,238,0.2); color: #22d3ee; }
-    .bonus-tag.duel-won { background: rgba(16,185,129,0.2); color: #10b981; }
-    .bonus-tag.duel-lost, .bonus-tag.sabotage { background: rgba(239,68,68,0.2); color: #ef4444; }
+    /* ===== GUIDE DES JOKERS ===== */
+    .jokers-guide-section { margin: 40px auto; padding: 32px; max-width: 1200px; background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.9)); border: 1px solid rgba(249,115,22,0.2); border-radius: 16px; }
+    .jokers-guide-section .section-title { font-family: 'Syne', sans-serif; font-size: 1.5rem; margin-bottom: 8px; }
+    .guide-intro { color: rgba(255,255,255,0.7); margin-bottom: 24px; font-size: 0.95rem; }
+    .jokers-guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 24px; }
+    .joker-guide-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 20px; border-left: 4px solid #f97316; transition: transform 0.2s; }
+    .joker-guide-card:hover { transform: translateY(-4px); }
+    .joker-guide-card.multiplicateur { border-left-color: #22d3ee; }
+    .joker-guide-card.duel { border-left-color: #ef4444; }
+    .joker-guide-card.sabotage { border-left-color: #f97316; }
+    .joker-guide-card.bouclier { border-left-color: #3b82f6; }
+    .joker-guide-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .joker-guide-content h3 { font-family: 'Syne', sans-serif; font-size: 1.2rem; margin-bottom: 8px; color: #fff; }
+    .joker-effect-desc { font-weight: 600; color: #22d3ee; margin-bottom: 8px; }
+    .joker-details { font-size: 0.9rem; color: rgba(255,255,255,0.7); line-height: 1.5; margin-bottom: 12px; }
+    .joker-example { background: rgba(255,255,255,0.05); padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; color: rgba(255,255,255,0.8); }
+    .joker-tips { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 16px 20px; }
+    .joker-tips h4 { color: #10b981; margin-bottom: 12px; }
+    .joker-tips ul { list-style: none; }
+    .joker-tips li { padding: 6px 0; padding-left: 24px; position: relative; color: rgba(255,255,255,0.8); font-size: 0.9rem; }
+    .joker-tips li::before { content: '→'; position: absolute; left: 0; color: #10b981; }
 
-    /* ===== JOKER BADGES ===== */
-    .joker-badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 6px; font-size: 16px; margin: 0 2px; }
-    .joker-badge sub { font-size: 10px; margin-left: 2px; color: rgba(255,255,255,0.7); }
-    .joker-badge.active { background: rgba(16,185,129,0.3); box-shadow: 0 0 8px rgba(16,185,129,0.4); }
-    .joker-badge.pending { background: rgba(249,115,22,0.3); }
-    .joker-badge.available { background: rgba(255,255,255,0.1); opacity: 0.7; }
-    .duel-indicator { margin-left: 6px; font-size: 14px; }
-    .duel-indicator.target { color: #ef4444; }
-    .no-jokers { font-size: 0.8rem; color: rgba(255,255,255,0.4); }
-
-    /* ===== RULE INFO ===== */
-    .ranking-rule-info { background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(34,211,238,0.1)); border: 1px solid rgba(249,115,22,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem; color: rgba(255,255,255,0.8); }
-
-    /* ===== CONTEXT MENU TRIGGER ===== */
+    /* ===== MISC ===== */
     .ranking-row, .participant-card { cursor: context-menu; }
-
-    body { padding-bottom: 100px; }
+    body { padding-bottom: 120px; }
   `;
   document.head.appendChild(styles);
 }
@@ -1137,7 +1174,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('loginBtn')?.addEventListener('click', () => window.location.href = 'login.html');
 });
 
-// Export pour usage externe
 window.versant = {
   getCurrentDate,
   setSimulatedDate,
@@ -1146,5 +1182,6 @@ window.versant = {
   addJoker,
   removeJoker,
   getJokerStock,
-  setAdminMode
+  setAdminMode,
+  getActiveJokersForRound
 };
