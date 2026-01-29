@@ -49,7 +49,7 @@ async function loadActivities() {
     const response = await fetch(`/api/activities?year=${CHALLENGE_CONFIG.dataYear}`);
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
     const data = await response.json();
-    allActivities = (data.activities || data || []).filter(a => isValidSport(a.sport_type));
+    allActivities = parseActivitiesData(data);
     console.log(`📊 ${allActivities.length} activités chargées`);
     return allActivities;
   } catch (error) {
@@ -58,7 +58,7 @@ async function loadActivities() {
       const localResponse = await fetch('/data/classement.json');
       if (localResponse.ok) {
         const localData = await localResponse.json();
-        allActivities = (localData.activities || localData || []).filter(a => isValidSport(a.sport_type));
+        allActivities = parseActivitiesData(localData);
         console.log(`📊 ${allActivities.length} activités (fichier local)`);
       }
     } catch (e) {
@@ -66,6 +66,53 @@ async function loadActivities() {
     }
     return allActivities;
   }
+}
+
+/**
+ * Parse différents formats de données d'activités
+ * Supporte: tableau direct, {activities: []}, {ranking: [{activities: []}]}
+ */
+function parseActivitiesData(data) {
+  // Si c'est déjà un tableau
+  if (Array.isArray(data)) {
+    return data.filter(a => !a.sport_type || isValidSport(a.sport_type));
+  }
+
+  // Si c'est {activities: [...]}
+  if (data.activities && Array.isArray(data.activities)) {
+    return data.activities.filter(a => !a.sport_type || isValidSport(a.sport_type));
+  }
+
+  // Si c'est {ranking: [{id, activities: [...]}]} (format classement.json)
+  if (data.ranking && Array.isArray(data.ranking)) {
+    const activities = [];
+    for (const participant of data.ranking) {
+      if (participant.activities && Array.isArray(participant.activities)) {
+        for (const activity of participant.activities) {
+          activities.push({
+            ...activity,
+            // Normaliser les champs pour compatibilité
+            start_date: activity.date || activity.start_date,
+            total_elevation_gain: activity.elevation || activity.total_elevation_gain,
+            distance: activity.distance,
+            // Si pas de sport_type, assumer que c'est valide (données pré-filtrées)
+            sport_type: activity.sport_type || 'Run',
+            // Ajouter les infos athlète pour le filtrage
+            athlete: {
+              id: participant.id,
+              firstname: participant.name?.split(' ')[0] || '',
+              lastname: participant.name?.split(' ').slice(1).join(' ') || ''
+            }
+          });
+        }
+      }
+    }
+    // Pour les données classement.json, pas besoin de re-filtrer par sport
+    return activities;
+  }
+
+  console.warn('⚠️ Format de données non reconnu');
+  return [];
 }
 
 // ============================================
@@ -100,7 +147,7 @@ function calculateStats(activities) {
 
 function calculateRanking(activities, activeParticipants) {
   const participantsList = activeParticipants.length > 0 ? activeParticipants : PARTICIPANTS;
-  
+
   return participantsList
     .map(participant => {
       const pActivities = filterByParticipant(activities, participant.id);
@@ -126,16 +173,16 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
   let active = [...PARTICIPANTS];
   const eliminated = [];
   const roundResults = [];
-  
+
   const roundsPerSeason = Math.ceil((PARTICIPANTS.length - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
-  
+
   for (let roundInSeason = 1; roundInSeason <= roundsPerSeason; roundInSeason++) {
     const globalRound = (seasonNumber - 1) * roundsPerSeason + roundInSeason;
     const roundDates = getRoundDates(globalRound);
-    
+
     // Round pas encore commencé
     if (currentDate < roundDates.start) break;
-    
+
     // Round en cours (pas encore terminé)
     if (currentDate <= roundDates.end) {
       roundResults.push({
@@ -146,37 +193,37 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       });
       break;
     }
-    
+
     // Round terminé - calculer les éliminations
     const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
     const ranking = calculateRanking(roundActivities, active);
-    
+
     // Appliquer les effets des jokers
     const rankingWithEffects = applyJokerEffects(ranking, globalRound);
-    
+
     // Éliminer les derniers (sauf bouclier)
     const elimCount = isFinaleRound(roundInSeason) ? active.length - 1 : CHALLENGE_CONFIG.eliminationsPerRound;
     const toEliminate = [];
-    
+
     for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < elimCount; i--) {
       const entry = rankingWithEffects[i];
       // Protégé par un bouclier ?
       if (entry.jokerEffects?.hasShield) continue;
       toEliminate.push(entry.participant);
     }
-    
+
     toEliminate.forEach(p => {
       eliminated.push({ ...p, eliminatedRound: roundInSeason, eliminatedSeason: seasonNumber });
       active = active.filter(a => a.id !== p.id);
     });
-    
+
     roundResults.push({
       round: roundInSeason,
       status: 'completed',
       ranking: rankingWithEffects,
       eliminated: toEliminate.map(p => p.id)
     });
-    
+
     // Finale ?
     if (active.length <= 1) {
       return {
@@ -188,7 +235,7 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       };
     }
   }
-  
+
   return {
     seasonComplete: false,
     active,
@@ -204,7 +251,7 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
 function calculateYearlyStandings(activities, currentDate) {
   const standings = {};
   const totalSeasons = Math.floor(365 / (Math.ceil((PARTICIPANTS.length - 1) / CHALLENGE_CONFIG.eliminationsPerRound) * CHALLENGE_CONFIG.roundDurationDays));
-  
+
   PARTICIPANTS.forEach(p => {
     standings[p.id] = {
       participant: p,
@@ -213,18 +260,18 @@ function calculateYearlyStandings(activities, currentDate) {
       totalElevation: 0
     };
   });
-  
+
   // Calculer pour chaque saison passée
   for (let season = 1; season <= totalSeasons; season++) {
     const seasonDates = getSeasonDates(season);
     if (currentDate < seasonDates.start) break;
-    
-    const seasonActivities = filterByPeriod(activities, seasonDates.start, 
+
+    const seasonActivities = filterByPeriod(activities, seasonDates.start,
       currentDate < seasonDates.end ? currentDate : seasonDates.end);
-    
+
     // TODO: Calculer les points de chaque participant pour cette saison
   }
-  
+
   return Object.values(standings).sort((a, b) => b.totalPoints - a.totalPoints);
 }
 
@@ -239,7 +286,7 @@ function renderAll() {
     currentRoundNumber = getGlobalRoundNumber(today);
     seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today);
     yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
-    
+
     // Banner
     const seasonBanner = document.getElementById('seasonBanner');
     if (seasonBanner) {
@@ -250,7 +297,7 @@ function renderAll() {
         currentDate: today
       });
     }
-    
+
     // Jokers actifs
     let jokersSection = document.getElementById('activeJokersSection');
     if (!jokersSection) {
@@ -268,34 +315,34 @@ function renderAll() {
       const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
       const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
       const ranking = calculateRanking(roundActivities, seasonData?.active || []);
-      
+
       renderActiveJokersSection(jokersSection, {
         currentRoundNumber,
         ranking
       });
     }
-    
+
     // Classement
     const rankingContainer = document.getElementById('rankingContainer');
     if (rankingContainer) {
       const roundDates = getRoundDates(currentRoundNumber);
       const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
       const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
-      
+
       let ranking = calculateRanking(roundActivities, seasonData?.active || []);
       ranking = applyJokerEffects(ranking, currentRoundNumber);
-      
+
       // Stats saison pour chaque participant
       const seasonDates = getSeasonDates(currentSeasonNumber);
       const seasonStats = {};
       PARTICIPANTS.forEach(p => {
         const pActivities = filterByParticipant(
-          filterByPeriod(allActivities, seasonDates.start, endDate), 
+          filterByPeriod(allActivities, seasonDates.start, endDate),
           p.id
         );
         seasonStats[p.id] = calculateStats(pActivities);
       });
-      
+
       // Marquer la zone de danger
       const elimCount = CHALLENGE_CONFIG.eliminationsPerRound;
       ranking.forEach((e, i) => {
@@ -305,7 +352,7 @@ function renderAll() {
           e.isInDangerZone = false;
         }
       });
-      
+
       renderRanking(rankingContainer, {
         ranking,
         seasonData,
@@ -315,7 +362,7 @@ function renderAll() {
         currentRoundNumber
       });
     }
-    
+
     // Participants (cards)
     const participantsContainer = document.getElementById('participantsContainer');
     if (participantsContainer) {
@@ -327,20 +374,20 @@ function renderAll() {
           filterByParticipant(filterByPeriod(allActivities, seasonDates.start, endDate), p.id)
         );
       });
-      
+
       renderParticipants(participantsContainer, {
         participants: PARTICIPANTS,
         stats,
         currentRoundNumber
       });
     }
-    
+
     // Guide des jokers
     const jokersGuide = document.getElementById('jokersGuide');
     if (jokersGuide) {
       renderJokersGuide(jokersGuide);
     }
-    
+
   } catch (error) {
     console.error('❌ Erreur renderAll:', error);
   }
@@ -355,21 +402,21 @@ function setupJokerEvents() {
   document.addEventListener('contextmenu', (e) => {
     const row = e.target.closest('.ranking-row, .participant-card');
     if (!row) return;
-    
+
     const participantId = row.dataset.participantId;
     const participant = getParticipantById(participantId);
     if (!participant) return;
-    
+
     const menu = showContextMenu(e, participantId, participant.name, {
       isAdmin: isAdminMode,
       currentRoundNumber
     });
-    
+
     // Gestion des clics sur les items du menu
     menu.querySelectorAll('.context-menu-item:not(.disabled):not(.admin-joker)').forEach(item => {
       item.onclick = () => handleJokerMenuClick(item);
     });
-    
+
     // Mode admin - boutons +/-
     menu.querySelectorAll('.joker-plus').forEach(btn => {
       btn.onclick = (ev) => {
@@ -383,7 +430,7 @@ function setupJokerEvents() {
         }
       };
     });
-    
+
     menu.querySelectorAll('.joker-minus').forEach(btn => {
       btn.onclick = (ev) => {
         ev.stopPropagation();
@@ -403,9 +450,9 @@ function handleJokerMenuClick(item) {
   const jokerId = item.dataset.joker;
   const participantId = item.dataset.participant;
   const participantName = item.dataset.name;
-  
+
   hideContextMenu();
-  
+
   // Reset
   if (item.dataset.action === 'reset') {
     if (resetJokers(participantId)) {
@@ -414,7 +461,7 @@ function handleJokerMenuClick(item) {
     }
     return;
   }
-  
+
   // Jokers avec cible
   if (['duel', 'sabotage'].includes(jokerId)) {
     showTargetSelectionModal({
@@ -426,7 +473,7 @@ function handleJokerMenuClick(item) {
           targetId,
           targetName
         });
-        
+
         if (result.success) {
           showNotification(`${jokerId === 'duel' ? '⚔️ Duel' : '💣 Sabotage'} programmé contre ${targetName} !`, 'success');
           renderAll();
@@ -437,10 +484,10 @@ function handleJokerMenuClick(item) {
     });
     return;
   }
-  
+
   // Jokers sans cible
   const result = jokerUse(participantId, jokerId, currentRoundNumber, getCurrentDate());
-  
+
   if (result.success) {
     showNotification(`Joker programmé pour le round ${result.activationRound} !`, 'success');
     renderAll();
@@ -455,13 +502,13 @@ function handleJokerMenuClick(item) {
 
 async function init() {
   console.log('🏔️ Versant - Initialisation...');
-  
+
   // Initialiser les jokers
   initializeJokersState();
-  
+
   // Charger les données
   await loadActivities();
-  
+
   // Initialiser le mode démo si slider présent
   if (document.getElementById('dateSliderContainer')) {
     initDemoMode({
@@ -470,13 +517,13 @@ async function init() {
       enableRightClick: false // Géré séparément pour les jokers
     });
   }
-  
+
   // Events jokers
   setupJokerEvents();
-  
+
   // Premier rendu
   renderAll();
-  
+
   console.log('✅ Versant initialisé');
 }
 
@@ -486,7 +533,7 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', () => {
   init();
-  
+
   document.getElementById('loginBtn')?.addEventListener('click', () => {
     window.location.href = 'login.html';
   });
