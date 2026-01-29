@@ -10,27 +10,37 @@
  * - Sports acceptés
  * - Système de points
  * - Utilitaires de date
+ * 
+ * Détection automatique: demo.html → 2025, sinon → 2026
  */
+
+// ============================================
+// DÉTECTION DU MODE (DEMO vs PRODUCTION)
+// ============================================
+const IS_DEMO = typeof window !== 'undefined' && window.location.pathname.includes('demo');
+const CURRENT_YEAR = IS_DEMO ? 2025 : 2026;
+
+console.log(`⚙️ Config: mode ${IS_DEMO ? 'DEMO (2025)' : 'PRODUCTION (2026)'}`);
 
 // ============================================
 // CONFIGURATION PRINCIPALE DE LA LIGUE
 // ============================================
 export const CHALLENGE_CONFIG = {
   name: "Versant",
-  fullName: "Challenge Versant 2025",
+  fullName: `Challenge Versant ${CURRENT_YEAR}`,
   description: "Course à élimination progressive par saisons",
-  leagueId: "versant-2025",
-  yearStartDate: "2025-01-01",
-  yearEndDate: "2025-12-31",
+  leagueId: `versant-${CURRENT_YEAR}`,
+  yearStartDate: `${CURRENT_YEAR}-01-01`,
+  yearEndDate: `${CURRENT_YEAR}-12-31`,
   roundDurationDays: 5,
   eliminationsPerRound: 2,
   mainMetric: "elevation",
   mainMetricLabel: "Dénivelé positif",
   mainMetricUnit: "m",
   specialRuleFrequency: 4,
-  dataYear: 2025,
+  dataYear: CURRENT_YEAR,
   dateLocale: "fr-FR",
-  isDemo: false
+  isDemo: IS_DEMO
 };
 
 // ============================================
@@ -243,7 +253,8 @@ function createInitialJokers() {
   return { ...INITIAL_JOKERS };
 }
 
-export const PARTICIPANTS = [
+// Participants 2025 (pour demo)
+const PARTICIPANTS_2025 = [
   { id: "3953180", name: "Clement D", jokers: createInitialJokers() },
   { id: "6635902", name: "Bapt I", jokers: createInitialJokers() },
   { id: "3762537", name: "Bapt M", jokers: createInitialJokers() },
@@ -258,6 +269,15 @@ export const PARTICIPANTS = [
   { id: "84388438", name: "Remi S", jokers: createInitialJokers() },
   { id: "25332977", name: "Thomas G", jokers: createInitialJokers() }
 ];
+
+// Participants 2026 (pour production - sera chargé dynamiquement depuis l'API à terme)
+const PARTICIPANTS_2026 = [
+  { id: "3953180", name: "Clement D", jokers: createInitialJokers() },
+  { id: "5231535", name: "Franck P", jokers: createInitialJokers() }
+];
+
+// Sélection automatique selon le mode
+export const PARTICIPANTS = IS_DEMO ? PARTICIPANTS_2025 : PARTICIPANTS_2026;
 
 export const getParticipantById = (id) => PARTICIPANTS.find(p => p.id === String(id));
 

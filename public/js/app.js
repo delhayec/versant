@@ -45,21 +45,26 @@ let isAdminMode = false;
 // ============================================
 
 async function loadActivities() {
+  // Déterminer quel fichier charger selon la page
+  const isDemo = window.location.pathname.includes('demo');
+  const dataFile = isDemo ? '/data/all_activities_2025.json' : '/data/classement.json';
+  const apiYear = isDemo ? 2025 : CHALLENGE_CONFIG.dataYear;
+  
   try {
-    const response = await fetch(`/api/activities?year=${CHALLENGE_CONFIG.dataYear}`);
+    const response = await fetch(`/api/activities?year=${apiYear}`);
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
     const data = await response.json();
     allActivities = parseActivitiesData(data);
-    console.log(`📊 ${allActivities.length} activités chargées`);
+    console.log(`📊 ${allActivities.length} activités chargées (API)`);
     return allActivities;
   } catch (error) {
-    console.warn('⚠️ Erreur chargement API, tentative fichier local...');
+    console.warn('⚠️ Erreur chargement API, tentative fichier local:', dataFile);
     try {
-      const localResponse = await fetch('/data/classement.json');
+      const localResponse = await fetch(dataFile);
       if (localResponse.ok) {
         const localData = await localResponse.json();
         allActivities = parseActivitiesData(localData);
-        console.log(`📊 ${allActivities.length} activités (fichier local)`);
+        console.log(`📊 ${allActivities.length} activités (fichier local: ${dataFile})`);
       }
     } catch (e) {
       console.error('❌ Impossible de charger les données:', e);
