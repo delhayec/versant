@@ -430,8 +430,9 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
     if (currentDate < roundDates.start) break;
 
     const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
+    // Filtrer les participants actifs à ce round (ceux qui n'ont pas été éliminés AVANT ce round)
     const activeAtRound = PARTICIPANTS.filter(p =>
-      !sData.eliminated.some(e => e.eliminatedRound < globalRound && e.id === p.id)
+      !sData.eliminated.some(e => e.eliminatedRound < r && e.id === p.id)
     );
     const ranking = calculateRanking(roundActivities, activeAtRound);
 
@@ -441,7 +442,8 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
       dates: roundDates,
       winner: ranking[0]?.participant,
       winnerElevation: ranking[0]?.totalElevation || 0,
-      eliminated: sData.eliminated.filter(e => e.roundInSeason === r).map(e => e.name)
+      // Filtrer par eliminatedRound (round dans la saison)
+      eliminated: sData.eliminated.filter(e => e.eliminatedRound === r).map(e => e.name)
     });
   }
 
@@ -718,12 +720,12 @@ function renderParticipantsGrid(container, today) {
         <div class="participant-avatar" style="background:linear-gradient(135deg,${getAthleteColor(p.id)},${getAthleteColor(p.id)}88)">${getAthleteInitials(p.id)}</div>
         <div>
           <div class="participant-name">${p.name}</div>
-          <div class="athlete-status ${isElim ? 'eliminated' : 'active'}">${isElim ? 'Éliminé R'+elimData?.roundInSeason : formatPosition(entry.position)}</div>
+          <div class="athlete-status ${isElim ? 'eliminated' : 'active'}">${isElim ? 'Éliminé R'+elimData?.eliminatedRound : formatPosition(entry.position)}</div>
         </div>
       </div>
       <div class="participant-stats">
         <div class="stat-item"><div class="stat-value">${formatElevation(entry.totalElevation || 0, false)}</div><div class="stat-label">D+ round</div></div>
-        <div class="stat-item"><div class="stat-value">${formatElevation(seasonStats.totalElevation, false)}</div><div class="stat-label">D+ saison</div></div>
+        <div class="stat-item"><div class="stat-value">${formatElevation(seasonStats.elevation || 0, false)}</div><div class="stat-label">D+ saison</div></div>
       </div>
       <div class="participant-jokers">${jokersHtml}</div>
     </div>`;
@@ -777,8 +779,9 @@ function renderHistorySection(container) {
       }
       const byRound = {};
       seasonData.eliminated.forEach(p => {
-        if (!byRound[p.roundInSeason]) byRound[p.roundInSeason] = [];
-        byRound[p.roundInSeason].push(p);
+        const round = p.eliminatedRound;
+        if (!byRound[round]) byRound[round] = [];
+        byRound[round].push(p);
       });
       content.innerHTML = Object.keys(byRound).sort((a, b) => a - b).map(r =>
         `<div class="history-item"><div class="history-round">Round ${r}</div><div class="history-title">Éliminé(s) : ${byRound[r].map(p => p.name).join(', ')}</div></div>`

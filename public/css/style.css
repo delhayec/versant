@@ -68,7 +68,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* === DATE SLIDER (DEBUG) === */
+/* === DATE SLIDER (COMPACT) === */
 .date-slider-container {
   position: fixed;
   bottom: 0;
@@ -77,57 +77,103 @@ body {
   z-index: 200;
   background: linear-gradient(
     135deg,
-    rgba(249, 115, 22, 0.15) 0%,
-    rgba(34, 211, 238, 0.15) 100%
+    rgba(249, 115, 22, 0.12) 0%,
+    rgba(34, 211, 238, 0.12) 100%
   );
   border-top: 1px solid var(--border-accent);
-  padding: 12px var(--container-padding);
+  padding: 8px var(--container-padding);
   backdrop-filter: blur(10px);
 }
 
-.date-slider-container.bottom {
-  top: auto;
-  bottom: 0;
-  border-top: 1px solid var(--border-accent);
-  border-bottom: none;
-}
-
-.date-slider-wrapper {
-  max-width: 800px;
+.slider-compact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-.date-slider-label {
+.slider-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.slider-icon {
-  font-size: 1.25rem;
+.slider-right {
+  flex: 1;
+  min-width: 200px;
 }
 
-.slider-title {
-  font-family: var(--font-mono);
+.slider-nav-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-accent);
+  background: var(--bg-card);
+  color: var(--accent-primary);
+  border-radius: 6px;
+  cursor: pointer;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.slider-nav-btn:hover {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
 }
 
 .slider-date {
-  margin-left: auto;
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--accent-primary);
+  min-width: 130px;
 }
 
-.date-slider {
-  width: 100%;
-  height: 8px;
+.slider-info-inline {
+  display: flex;
+  gap: 6px;
+}
+
+.info-badge {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
   border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.info-badge strong {
+  color: var(--accent-secondary);
+  margin-left: 2px;
+}
+
+.slider-reset-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+
+.slider-reset-btn:hover {
+  background: var(--accent-secondary);
+  color: var(--bg-primary);
+  border-color: var(--accent-secondary);
+}
+
+.slider-right .date-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
   background: var(--bg-card);
   outline: none;
   -webkit-appearance: none;
@@ -135,11 +181,11 @@ body {
   cursor: pointer;
 }
 
-.date-slider::-webkit-slider-thumb {
+.slider-right .date-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: linear-gradient(
     135deg,
@@ -147,17 +193,12 @@ body {
     var(--accent-secondary)
   );
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(249, 115, 22, 0.4);
-  transition: transform 0.2s ease;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
 }
 
-.date-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.date-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+.slider-right .date-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: linear-gradient(
     135deg,
@@ -166,37 +207,12 @@ body {
   );
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 10px rgba(249, 115, 22, 0.4);
-}
-
-.slider-bounds {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--text-muted);
-}
-
-.slider-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  color: var(--accent-primary);
-  padding: 4px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-}
-
-.slider-btn:hover {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
 }
 
 /* Ajouter du padding en bas pour le slider fixe */
 body {
-  padding-bottom: 80px;
+  padding-bottom: 60px;
 }
 
 /* === SEASON BANNER === */

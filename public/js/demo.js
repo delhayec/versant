@@ -65,27 +65,19 @@ export function initDateSlider(onDateChange) {
   currentDay = Math.max(0, Math.min(totalDays, currentDay));
   
   container.innerHTML = `
-    <div class="slider-wrapper">
-      <div class="slider-header">
-        <span class="slider-icon">📅</span>
-        <span class="slider-title">Navigation temporelle</span>
-        <span class="slider-current-date" id="sliderDate">${formatDate(today)}</span>
+    <div class="slider-compact">
+      <div class="slider-left">
+        <button class="slider-nav-btn" id="prevDay" title="Jour précédent">◀</button>
+        <button class="slider-nav-btn" id="nextDay" title="Jour suivant">▶</button>
+        <span class="slider-date" id="sliderDate">${formatDate(today)}</span>
+        <span class="slider-info-inline">
+          <span class="info-badge">S<strong id="sliderSeason">${getSeasonNumber(today)}</strong></span>
+          <span class="info-badge">R<strong id="sliderRound">${getRoundInSeason(today)}</strong></span>
+        </span>
+        <button class="slider-reset-btn" id="resetDate" title="Retour à aujourd'hui">↻</button>
       </div>
-      <div class="slider-controls">
-        <button class="slider-btn" id="prevDay" title="Jour précédent">◀</button>
-        <div class="slider-track">
-          <input type="range" class="date-slider" id="dateSlider" min="0" max="${totalDays}" value="${currentDay}">
-          <div class="slider-markers">
-            <span class="marker-start">${formatDateShort(yearStart)}</span>
-            <span class="marker-end">${formatDateShort(yearEnd)}</span>
-          </div>
-        </div>
-        <button class="slider-btn" id="nextDay" title="Jour suivant">▶</button>
-      </div>
-      <div class="slider-info">
-        <span class="info-season">Saison <strong id="sliderSeason">${getSeasonNumber(today)}</strong></span>
-        <span class="info-round">Round <strong id="sliderRound">${getRoundInSeason(today)}</strong></span>
-        <button class="reset-btn" id="resetDate" title="Retour à aujourd'hui">Aujourd'hui</button>
+      <div class="slider-right">
+        <input type="range" class="date-slider" id="dateSlider" min="0" max="${totalDays}" value="${currentDay}">
       </div>
     </div>
   `;
