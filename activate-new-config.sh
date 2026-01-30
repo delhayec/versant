@@ -26,9 +26,9 @@ if [ -f "$JS_DIR/config.js" ]; then
     echo "   ✓ config.js sauvegardé"
 fi
 
-if [ -f "$JS_DIR/config-2026.js" ]; then
-    cp "$JS_DIR/config-2026.js" "$BACKUP_DIR/config-2026.js.bak"
-    echo "   ✓ config-2026.js sauvegardé"
+if [ -f "$JS_DIR/config.js" ]; then
+    cp "$JS_DIR/config.js" "$BACKUP_DIR/config.js.bak"
+    echo "   ✓ config.js sauvegardé"
 fi
 
 # Activer les nouvelles configurations

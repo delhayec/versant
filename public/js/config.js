@@ -120,12 +120,12 @@ export const JOKER_TYPES = {
     id: "duel",
     name: "Duel",
     icon: "⚔️",
-    description: "Défiez un adversaire et volez 25% de son D+ si vous gagnez",
+    description: "Défiez un adversaire et volez 50% de son D+ si vous gagnez",
     effect: "Choisissez un adversaire. Actif au round suivant.",
     usableInFinal: true,
     requiresTarget: true,
     notOnLastDay: true,
-    parameters: { stealPercentage: 25 }
+    parameters: { stealPercentage: 50 }
   },
   multiplicateur: {
     id: "multiplicateur",
