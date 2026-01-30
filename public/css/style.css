@@ -1034,7 +1034,7 @@ body {
 
 .ranking-header {
   display: grid;
-  grid-template-columns: 60px 1fr 150px 150px 150px;
+  grid-template-columns: 60px minmax(140px, 1fr) 130px 130px 180px;
   padding: 16px 24px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid var(--border-color);
@@ -1047,7 +1047,7 @@ body {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 60px 1fr 150px 150px 150px;
+  grid-template-columns: 60px minmax(140px, 1fr) 130px 130px 180px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
@@ -3489,4 +3489,214 @@ body {
 
 .go-btn:hover {
   background: #ea580c;
+}
+
+/* ============================================
+   ÉCRAN D'ATTENTE AVANT LE CHALLENGE
+   ============================================ */
+
+.waiting-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  min-height: 400px;
+}
+
+.waiting-icon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.waiting-title {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 30px;
+}
+
+.waiting-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.countdown-number {
+  font-family: var(--font-display);
+  font-size: 6rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  line-height: 1;
+}
+
+.countdown-label {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+}
+
+.waiting-date {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.waiting-date strong {
+  color: var(--accent-secondary);
+}
+
+.waiting-info {
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+.waiting-participants {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.participants-count {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.banner-waiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(34, 211, 238, 0.1) 100%);
+  border-radius: 12px;
+  border: 1px solid var(--border-accent);
+}
+
+.banner-waiting .banner-icon {
+  font-size: 1.5rem;
+}
+
+.banner-waiting .banner-text {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.banner-waiting .banner-countdown {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+/* ============================================
+   AMÉLIORATION DES BONUS (AFFICHAGE SUR UNE LIGNE)
+   ============================================ */
+
+.elevation-bonuses {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.bonus-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bonus-tag.multiplier {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.bonus-tag.duel-won {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.bonus-tag.duel-lost {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bonus-tag.sabotage {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bonus-tag.sabotage-done {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+/* Jokers dans la colonne */
+.jokers-cell {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.joker-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--bg-card);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.joker-badge sub {
+  font-size: 0.65rem;
+  margin-left: 2px;
+  color: var(--text-muted);
+}
+
+.joker-badge.active {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: var(--accent-primary);
+}
+
+.joker-badge.pending {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--accent-secondary);
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.no-jokers {
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }

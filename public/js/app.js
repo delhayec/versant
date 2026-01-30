@@ -44,6 +44,73 @@ let yearlyStandingsCache = null;
 let isAdminMode = false;
 
 // ============================================
+// ÉCRAN D'ATTENTE AVANT LE CHALLENGE
+// ============================================
+
+function renderWaitingScreen(startDate) {
+  const now = getCurrentDate();
+  const daysUntilStart = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
+  const formattedDate = startDate.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  // Masquer le loader
+  const loadingScreen = document.getElementById('loadingScreen');
+  if (loadingScreen) {
+    loadingScreen.style.display = 'none';
+  }
+
+  // Afficher l'écran d'attente dans les conteneurs principaux
+  const banner = document.getElementById('seasonBanner');
+  const ranking = document.getElementById('rankingContainer');
+  const eliminated = document.getElementById('eliminatedChallengeContainer');
+  const standings = document.getElementById('finalStandingsContainer');
+
+  const waitingHtml = `
+    <div class="waiting-screen">
+      <div class="waiting-icon">🏔️</div>
+      <h2 class="waiting-title">Challenge Versant ${CHALLENGE_CONFIG.dataYear}</h2>
+      <div class="waiting-countdown">
+        <span class="countdown-number">${daysUntilStart}</span>
+        <span class="countdown-label">jour${daysUntilStart > 1 ? 's' : ''} avant le départ</span>
+      </div>
+      <p class="waiting-date">Début le <strong>${formattedDate}</strong></p>
+      <p class="waiting-info">Préparez-vous ! Le 1ᵉʳ round débutera à cette date.</p>
+      <div class="waiting-participants">
+        <span class="participants-count">${PARTICIPANTS.length}</span> participants inscrits
+      </div>
+    </div>
+  `;
+
+  if (banner) {
+    banner.innerHTML = `
+      <div class="banner-waiting">
+        <span class="banner-icon">⏳</span>
+        <span class="banner-text">Challenge ${CHALLENGE_CONFIG.dataYear} • Début le ${startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
+        <span class="banner-countdown">${daysUntilStart}j</span>
+      </div>
+    `;
+  }
+
+  if (ranking) {
+    ranking.innerHTML = waitingHtml;
+  }
+
+  if (eliminated) {
+    eliminated.innerHTML = '<div class="empty-state"><p>Le challenge n\'a pas encore commencé</p></div>';
+  }
+
+  if (standings) {
+    standings.innerHTML = '<div class="empty-state"><p>Le classement sera disponible après le début du challenge</p></div>';
+  }
+
+  console.log(`⏳ Challenge en attente - début dans ${daysUntilStart} jours`);
+}
+
+// ============================================
 // CHARGEMENT DES DONNÉES
 // ============================================
 
@@ -259,18 +326,25 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
 function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, currentDate) {
   const ranking = [];
   const endDate = currentDate < seasonDates.end ? currentDate : seasonDates.end;
+  const roundsPerSeason = getRoundsPerSeason();
 
   for (const p of eliminatedList) {
-    const roundDates = getRoundDates(p.eliminatedRound);
+    // Calculer le round global à partir du round dans la saison et de la saison d'élimination
+    const globalRound = (p.eliminatedSeason - 1) * roundsPerSeason + p.eliminatedRound;
+    const roundDates = getRoundDates(globalRound);
     const startDate = new Date(roundDates.end);
     startDate.setDate(startDate.getDate() + 1);
     if (startDate > endDate) continue;
 
     const pActs = filterByParticipant(filterByPeriod(activities, startDate, endDate), p.id);
+    const stats = calculateStats(pActs);
     ranking.push({
       participant: p,
-      ...calculateStats(pActs),
+      totalElevation: stats.elevation,
+      totalDistance: stats.distance,
+      activityCount: stats.activities,
       eliminatedRound: p.eliminatedRound,
+      eliminatedSeason: p.eliminatedSeason,
       daysSinceElimination: Math.max(0, Math.floor((endDate - startDate) / 86400000))
     });
   }
@@ -390,6 +464,13 @@ function renderAll() {
     console.log('🎨 renderAll - début');
     const today = getCurrentDate();
     console.log('📅 Date:', today);
+
+    // Vérifier si le challenge a commencé
+    const challengeStart = new Date(CHALLENGE_CONFIG.yearStartDate);
+    if (today < challengeStart) {
+      renderWaitingScreen(challengeStart);
+      return;
+    }
 
     currentSeasonNumber = getSeasonNumber(today);
     console.log('🏆 Saison:', currentSeasonNumber);
@@ -557,6 +638,11 @@ function renderEliminatedChallenge(container) {
   const seasonDates = getSeasonDates(currentSeasonNumber);
   const ranking = calculateEliminatedChallenge(allActivities, seasonData.eliminated, seasonDates, getCurrentDate());
 
+  if (ranking.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>Les éliminés n\'ont pas encore d\'activités depuis leur élimination</p></div>';
+    return;
+  }
+
   let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
   ranking.forEach(e => {
     html += `<div class="ranking-row">
@@ -569,7 +655,7 @@ function renderEliminatedChallenge(container) {
         </div>
       </div>
       <div class="ranking-elevation">${formatElevation(e.totalElevation, false)} <span class="elevation-unit">m</span></div>
-      <div class="ranking-round">R${e.eliminatedRound % getRoundsPerSeason() || getRoundsPerSeason()}</div>
+      <div class="ranking-round">R${e.eliminatedRound}</div>
       <div class="ranking-points"><span class="points-badge">${e.points} pts</span></div>
     </div>`;
   });
