@@ -292,24 +292,27 @@ export async function loadParticipants() {
   
   try {
     console.log('📋 Chargement des participants depuis l\'API...');
-    const response = await fetch('/api/participants');
+    
+    // Utiliser le même endpoint que l'admin : /api/athletes/versant-2026
+    const response = await fetch('/api/athletes/versant-2026');
     
     if (!response.ok) {
       throw new Error(`Erreur API: ${response.status}`);
     }
     
-    const data = await response.json();
+    const athletes = await response.json();
     
-    if (data.participants && data.participants.length > 0) {
-      PARTICIPANTS_2026 = data.participants.map(p => ({
-        id: String(p.id),
-        name: p.name,
+    if (athletes && athletes.length > 0) {
+      // Transformer le format API en format PARTICIPANTS
+      const loadedParticipants = athletes.map(a => ({
+        id: String(a.id),
+        name: a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim(),
         jokers: createInitialJokers()
       }));
       
       // Mettre à jour la liste globale
       PARTICIPANTS.length = 0;
-      PARTICIPANTS.push(...PARTICIPANTS_2026);
+      PARTICIPANTS.push(...loadedParticipants);
       
       console.log(`✅ ${PARTICIPANTS.length} participants chargés depuis l'API`);
     } else {
