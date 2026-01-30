@@ -290,6 +290,126 @@ app.get('/stats', (req, res) => {
 });
 
 // ============================================
+// ROUTES - PARTICIPANTS / INSCRIPTIONS
+// ============================================
+
+/**
+ * GET /api/participants
+ * Liste tous les participants inscrits
+ */
+app.get('/api/participants', (req, res) => {
+  const participants = dataManager.getParticipants();
+  res.json({
+    count: participants.length,
+    participants: participants.map(p => ({
+      id: p.id,
+      name: p.name,
+      status: p.status || 'active',
+      registered_at: p.registered_at
+    }))
+  });
+});
+
+/**
+ * POST /api/athletes/register
+ * Inscription d'un nouvel athlète
+ */
+app.post('/api/athletes/register', async (req, res) => {
+  try {
+    const { 
+      athlete_id, 
+      name, 
+      email, 
+      password,
+      strava_data,
+      access_token,
+      refresh_token,
+      expires_at,
+      league_id 
+    } = req.body;
+    
+    // Validation
+    if (!athlete_id || !name || !email) {
+      return res.status(400).json({ error: 'Champs obligatoires manquants' });
+    }
+    
+    // Vérifier si déjà inscrit
+    const existing = dataManager.getParticipants().find(p => p.id === String(athlete_id));
+    if (existing) {
+      return res.status(409).json({ error: 'Cet athlète est déjà inscrit' });
+    }
+    
+    // Enregistrer le participant
+    const participant = dataManager.registerParticipant({
+      id: String(athlete_id),
+      name,
+      email,
+      strava_data,
+      league_id: league_id || 'versant-2026'
+    });
+    
+    // Sauvegarder les tokens Strava si fournis
+    if (access_token && refresh_token) {
+      dataManager.saveAthleteToken(athlete_id, {
+        access_token,
+        refresh_token,
+        expires_at,
+        athlete: strava_data
+      });
+    }
+    
+    console.log(`✅ Nouvel inscrit: ${name} (${athlete_id})`);
+    
+    res.json({
+      success: true,
+      message: `Bienvenue ${name} ! Votre inscription est confirmée.`,
+      athlete_id: String(athlete_id),
+      token: `session_${athlete_id}_${Date.now()}` // Token de session simple
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur inscription:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'inscription' });
+  }
+});
+
+/**
+ * POST /api/auth/strava/exchange
+ * Échange un code OAuth contre un token (pour inscription)
+ */
+app.post('/api/auth/strava/exchange', async (req, res) => {
+  const { code } = req.body;
+  
+  if (!code) {
+    return res.status(400).json({ error: 'Code manquant' });
+  }
+  
+  try {
+    const tokenData = await strava.exchangeCodeForToken(code);
+    res.json(tokenData);
+  } catch (error) {
+    console.error('❌ Erreur échange token:', error);
+    res.status(500).json({ error: 'Échec de l\'échange de token' });
+  }
+});
+
+/**
+ * DELETE /api/participants/:athleteId
+ * Supprime un participant (admin)
+ */
+app.delete('/api/participants/:athleteId', (req, res) => {
+  const { athleteId } = req.params;
+  
+  try {
+    dataManager.removeParticipant(athleteId);
+    console.log(`🗑️ Participant supprimé: ${athleteId}`);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la suppression' });
+  }
+});
+
+// ============================================
 // SYNCHRONISATION AUTOMATIQUE (CRON)
 // ============================================
 

@@ -4,7 +4,7 @@
  * ============================================
  */
 
-import { CHALLENGE_CONFIG, JOKER_TYPES } from './config.js';
+import { CHALLENGE_CONFIG, JOKER_TYPES } from './config-2026.js';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;

@@ -54,7 +54,8 @@ module.exports = {
   paths: {
     tokens: './data/tokens.json',       // Tokens OAuth des athlètes
     activities: './data/activities.json', // Activités synchronisées
-    jokers: './data/jokers.json'         // État des bonus/jokers
+    jokers: './data/jokers.json',        // État des bonus/jokers
+    participants: './data/participants.json' // Participants inscrits
   },
   
   // === SYNCHRONISATION ===

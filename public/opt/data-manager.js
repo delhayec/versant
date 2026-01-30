@@ -177,6 +177,60 @@ function saveAthleteJokers(athleteId, data) {
 }
 
 // ============================================
+// PARTICIPANTS (Inscriptions)
+// ============================================
+
+/**
+ * Récupère tous les participants inscrits
+ */
+function getParticipants() {
+  return readJSON(config.paths.participants) || [];
+}
+
+/**
+ * Sauvegarde les participants
+ */
+function saveParticipants(participants) {
+  return writeJSON(config.paths.participants, participants);
+}
+
+/**
+ * Ajoute ou met à jour un participant
+ */
+function registerParticipant(participantData) {
+  const participants = getParticipants();
+  const existingIndex = participants.findIndex(p => p.id === participantData.id);
+  
+  if (existingIndex >= 0) {
+    // Mise à jour
+    participants[existingIndex] = {
+      ...participants[existingIndex],
+      ...participantData,
+      updated_at: new Date().toISOString()
+    };
+  } else {
+    // Nouvelle inscription
+    participants.push({
+      ...participantData,
+      registered_at: new Date().toISOString(),
+      status: 'active'
+    });
+  }
+  
+  saveParticipants(participants);
+  return participants.find(p => p.id === participantData.id);
+}
+
+/**
+ * Supprime un participant
+ */
+function removeParticipant(athleteId) {
+  const participants = getParticipants();
+  const filtered = participants.filter(p => p.id !== String(athleteId));
+  return saveParticipants(filtered);
+}
+
+// ============================================
 // EXPORT
 // ============================================
 
@@ -200,5 +254,11 @@ module.exports = {
   getJokers,
   saveJokers,
   getAthleteJokers,
-  saveAthleteJokers
+  saveAthleteJokers,
+  
+  // Participants
+  getParticipants,
+  saveParticipants,
+  registerParticipant,
+  removeParticipant
 };

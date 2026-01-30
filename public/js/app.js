@@ -15,7 +15,7 @@ import {
   getParticipantById, getRoundDates, getSeasonNumber, getSeasonDates,
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getMainChallengePoints, getEliminatedChallengePoints,
-  getAthleteColor, getAthleteInitials
+  getAthleteColor, getAthleteInitials, loadParticipants
 } from './config.js';
 
 import {
@@ -71,7 +71,7 @@ function renderWaitingScreen(startDate) {
 
   const waitingHtml = `
     <div class="waiting-screen">
-      <div class="waiting-icon">◭️️</div>
+      <div class="waiting-icon">🏔️</div>
       <h2 class="waiting-title">Challenge Versant ${CHALLENGE_CONFIG.dataYear}</h2>
       <div class="waiting-countdown">
         <span class="countdown-number">${daysUntilStart}</span>
@@ -911,7 +911,28 @@ function handleJokerMenuClick(item) {
 // ============================================
 
 async function init() {
-  console.log('◭️ Versant - Initialisation...');
+  console.log('🏔️ Versant - Initialisation...');
+
+  // Charger les participants depuis l'API (mode 2026) ou utiliser la liste statique (mode démo)
+  await loadParticipants();
+  
+  if (PARTICIPANTS.length === 0) {
+    console.error('❌ Aucun participant chargé !');
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+      loadingScreen.innerHTML = `
+        <div class="loading-content">
+          <div class="loading-icon">⚠️</div>
+          <div class="loading-title">Erreur</div>
+          <div class="loading-text">Aucun participant inscrit.<br>Inscrivez-vous sur la page d'inscription.</div>
+          <a href="inscription.html" style="margin-top:20px;color:var(--accent-primary);">→ Page d'inscription</a>
+        </div>
+      `;
+    }
+    return;
+  }
+  
+  console.log(`📋 ${PARTICIPANTS.length} participants actifs`);
 
   // Initialiser les jokers
   initializeJokersState();

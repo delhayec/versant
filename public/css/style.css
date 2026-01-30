@@ -81,7 +81,7 @@ body {
     rgba(34, 211, 238, 0.12) 100%
   );
   border-top: 1px solid var(--border-accent);
-  padding: 12px var(--container-padding);
+  padding: 8px var(--container-padding);
   backdrop-filter: blur(10px);
 }
 
@@ -102,7 +102,7 @@ body {
 
 .slider-right {
   flex: 1;
-  min-width: 600px;
+  min-width: 200px;
 }
 
 .slider-nav-btn {

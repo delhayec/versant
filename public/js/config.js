@@ -120,12 +120,12 @@ export const JOKER_TYPES = {
     id: "duel",
     name: "Duel",
     icon: "⚔️",
-    description: "Défiez un adversaire et volez 50% de son D+ si vous gagnez",
+    description: "Défiez un adversaire et volez 25% de son D+ si vous gagnez",
     effect: "Choisissez un adversaire. Actif au round suivant.",
     usableInFinal: true,
     requiresTarget: true,
     notOnLastDay: true,
-    parameters: { stealPercentage: 50 }
+    parameters: { stealPercentage: 25 }
   },
   multiplicateur: {
     id: "multiplicateur",
@@ -257,7 +257,7 @@ function createInitialJokers() {
   return { ...INITIAL_JOKERS };
 }
 
-// Participants 2025 (pour demo)
+// Participants 2025 (pour demo - statique)
 const PARTICIPANTS_2025 = [
   { id: "3953180", name: "Clement D", jokers: createInitialJokers() },
   { id: "6635902", name: "Bapt I", jokers: createInitialJokers() },
@@ -274,24 +274,66 @@ const PARTICIPANTS_2025 = [
   { id: "25332977", name: "Thomas G", jokers: createInitialJokers() }
 ];
 
-// Participants 2026 (pour production - sera chargé dynamiquement depuis l'API à terme)
-const PARTICIPANTS_2026 = [
-  { id: "3953180", name: "Clement D", jokers: createInitialJokers() },
-  { id: "5231535", name: "Franck P", jokers: createInitialJokers() }
-];
+// Participants 2026 (tableau mutable, chargé depuis l'API)
+let PARTICIPANTS_2026 = [];
 
-// Sélection automatique selon le mode
-export const PARTICIPANTS = IS_DEMO ? PARTICIPANTS_2025 : PARTICIPANTS_2026;
+// Liste des participants active (mutable pour permettre le chargement dynamique)
+export let PARTICIPANTS = IS_DEMO ? [...PARTICIPANTS_2025] : [];
+
+/**
+ * Charge les participants depuis l'API (pour mode production 2026)
+ * À appeler au démarrage de l'application
+ */
+export async function loadParticipants() {
+  if (IS_DEMO) {
+    console.log('📋 Mode démo: utilisation des participants 2025 statiques');
+    return PARTICIPANTS_2025;
+  }
+  
+  try {
+    console.log('📋 Chargement des participants depuis l\'API...');
+    const response = await fetch('/api/participants');
+    
+    if (!response.ok) {
+      throw new Error(`Erreur API: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.participants && data.participants.length > 0) {
+      PARTICIPANTS_2026 = data.participants.map(p => ({
+        id: String(p.id),
+        name: p.name,
+        jokers: createInitialJokers()
+      }));
+      
+      // Mettre à jour la liste globale
+      PARTICIPANTS.length = 0;
+      PARTICIPANTS.push(...PARTICIPANTS_2026);
+      
+      console.log(`✅ ${PARTICIPANTS.length} participants chargés depuis l'API`);
+    } else {
+      console.warn('⚠️ Aucun participant trouvé via l\'API');
+    }
+    
+    return PARTICIPANTS;
+  } catch (error) {
+    console.error('❌ Erreur chargement participants:', error);
+    // En cas d'erreur, on garde la liste vide ou existante
+    return PARTICIPANTS;
+  }
+}
 
 export const getParticipantById = (id) => PARTICIPANTS.find(p => p.id === String(id));
 
 // ============================================
 // UTILITAIRES DE DATE
 // ============================================
-const participantsCount = PARTICIPANTS.length;
 
+// Utiliser PARTICIPANTS.length dynamiquement (pas de variable statique)
 export function getRoundsPerSeason() {
-  return Math.ceil((participantsCount - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
+  const count = PARTICIPANTS.length || 13; // Fallback à 13 si pas encore chargé
+  return Math.ceil((count - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
 }
 
 export function getSeasonDurationDays() {

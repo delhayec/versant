@@ -279,7 +279,7 @@ export function applyJokerEffects(ranking, currentRoundNumber) {
         const challengerWins = participant.totalElevation > target.totalElevation;
         const winner = challengerWins ? participant : target;
         const loser = challengerWins ? target : participant;
-        const stolen = Math.round(loser.totalElevation * 0.5);
+        const stolen = Math.round(loser.totalElevation * 0.25);
         
         winner.totalElevation += stolen;
         loser.totalElevation -= stolen;
