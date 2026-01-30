@@ -71,7 +71,7 @@ function renderWaitingScreen(startDate) {
 
   const waitingHtml = `
     <div class="waiting-screen">
-      <div class="waiting-icon">🏔️</div>
+      <div class="waiting-icon">◭️</div>
       <h2 class="waiting-title">Challenge Versant ${CHALLENGE_CONFIG.dataYear}</h2>
       <div class="waiting-countdown">
         <span class="countdown-number">${daysUntilStart}</span>
@@ -911,7 +911,7 @@ function handleJokerMenuClick(item) {
 // ============================================
 
 async function init() {
-  console.log('🏔️ Versant - Initialisation...');
+  console.log('◭️ Versant - Initialisation...');
 
   // Charger les participants depuis l'API (mode 2026) ou utiliser la liste statique (mode démo)
   await loadParticipants();
