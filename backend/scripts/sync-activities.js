@@ -52,7 +52,7 @@ if (args.length < 1) {
   console.log('');
   console.log('Exemples:');
   console.log('  node sync-activities.js versant-2026');
-  console.log('  node sync-activities.js versant-2026 2026-02-01 2026-02-05');
+  console.log('  node sync-activities.js versant-2026 2026-02-02 2026-02-05');
   process.exit(1);
 }
 

@@ -26,8 +26,8 @@ console.log(`⚙️ Config: mode ${IS_DEMO ? 'DEMO (2025)' : 'PRODUCTION (2026)'
 // CONFIGURATION PRINCIPALE DE LA LIGUE
 // ============================================
 
-// Date de début différente selon l'année : 2025 = 1er janvier (démo), 2026 = 1er février
-const CHALLENGE_START_DATE = IS_DEMO ? `${CURRENT_YEAR}-01-01` : `${CURRENT_YEAR}-02-01`;
+// Date de début différente selon l'année : 2025 = 1er janvier (démo), 2026 = 1er février 02-01
+const CHALLENGE_START_DATE = IS_DEMO ? `${CURRENT_YEAR}-01-01` : `${CURRENT_YEAR}-02-02`;
 
 export const CHALLENGE_CONFIG = {
   name: "Versant",
