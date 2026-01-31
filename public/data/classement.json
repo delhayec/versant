@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-01-30T20:00:00.765Z",
+  "generated_at": "2026-01-31T20:00:00.328Z",
   "ranking": [
     {
       "rank": 1,
@@ -180,15 +180,56 @@
       "rank": 5,
       "id": "1841009",
       "name": "Mariana S",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
+      "total_distance": 13960.3,
+      "total_elevation": 468,
+      "total_activities": 3,
+      "activities": [
+        {
+          "id": 17236745408,
+          "name": "Marche le midi",
+          "date": "2026-01-31T10:55:47Z",
+          "distance": 2780.5,
+          "elevation": 103.8
+        },
+        {
+          "id": 17238443857,
+          "name": "Afternoon Run",
+          "date": "2026-01-31T12:07:15Z",
+          "distance": 5671.3,
+          "elevation": 189.4
+        },
+        {
+          "id": 17238444157,
+          "name": "Afternoon Trail Run",
+          "date": "2026-01-31T13:16:11Z",
+          "distance": 5508.5,
+          "elevation": 174.8
+        }
+      ],
+      "total_distance_km": "13.96",
+      "total_elevation_m": 468
     },
     {
       "rank": 6,
+      "id": "110979265",
+      "name": "Pef",
+      "total_distance": 11422.2,
+      "total_elevation": 375,
+      "total_activities": 1,
+      "activities": [
+        {
+          "id": 17238438106,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-01-31T12:07:12Z",
+          "distance": 11422.2,
+          "elevation": 375
+        }
+      ],
+      "total_distance_km": "11.42",
+      "total_elevation_m": 375
+    },
+    {
+      "rank": 7,
       "id": "87904944",
       "name": "Guillaume B",
       "total_distance": 0,
@@ -199,9 +240,20 @@
       "total_elevation_m": 0
     },
     {
-      "rank": 7,
-      "id": "110979265",
-      "name": "Pef",
+      "rank": 8,
+      "id": "92880400",
+      "name": "Ben",
+      "total_distance": 0,
+      "total_elevation": 0,
+      "total_activities": 0,
+      "activities": [],
+      "total_distance_km": "0.00",
+      "total_elevation_m": 0
+    },
+    {
+      "rank": 9,
+      "id": "100399073",
+      "name": "Leo B",
       "total_distance": 0,
       "total_elevation": 0,
       "total_activities": 0,
