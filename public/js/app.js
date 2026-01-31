@@ -63,11 +63,22 @@ function renderWaitingScreen(startDate) {
     loadingScreen.style.display = 'none';
   }
 
+  // Générer la liste des participants
+  const participantsListHtml = PARTICIPANTS.map(p => `
+    <div class="waiting-participant">
+      <div class="participant-avatar-small" style="background:linear-gradient(135deg,${getAthleteColor(p.id)},${getAthleteColor(p.id)}88)">
+        ${getAthleteInitials(p.id)}
+      </div>
+      <span class="participant-name-small">${p.name}</span>
+    </div>
+  `).join('');
+
   // Afficher l'écran d'attente dans les conteneurs principaux
   const banner = document.getElementById('seasonBanner');
   const ranking = document.getElementById('rankingContainer');
   const eliminated = document.getElementById('eliminatedChallengeContainer');
   const standings = document.getElementById('finalStandingsContainer');
+  const participantsContainer = document.getElementById('participantsContainer');
 
   const waitingHtml = `
     <div class="waiting-screen">
@@ -85,10 +96,22 @@ function renderWaitingScreen(startDate) {
     </div>
   `;
 
+  const participantsGridHtml = `
+    <div class="waiting-participants-section">
+      <h3 class="waiting-section-title"> Participants inscrits</h3>
+      <div class="waiting-participants-grid">
+        ${participantsListHtml}
+      </div>
+      <p class="waiting-inscription-cta">
+        <a href="inscription.html" class="btn-inscription">Pas encore inscrit ? Rejoignez le challenge !</a>
+      </p>
+    </div>
+  `;
+
   if (banner) {
     banner.innerHTML = `
       <div class="banner-waiting">
-        <span class="banner-icon">⏳</span>
+        <span class="banner-icon"></span>
         <span class="banner-text">Challenge ${CHALLENGE_CONFIG.dataYear} • Début le ${startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
         <span class="banner-countdown">${daysUntilStart}j</span>
       </div>
@@ -100,11 +123,16 @@ function renderWaitingScreen(startDate) {
   }
 
   if (eliminated) {
-    eliminated.innerHTML = '<div class="empty-state"><p>Le challenge n\'a pas encore commencé</p></div>';
+    eliminated.innerHTML = participantsGridHtml;
   }
 
   if (standings) {
     standings.innerHTML = '<div class="empty-state"><p>Le classement sera disponible après le début du challenge</p></div>';
+  }
+
+  // Si la section participants existe, y afficher aussi la grille
+  if (participantsContainer) {
+    participantsContainer.innerHTML = participantsGridHtml;
   }
 
   console.log(`⏳ Challenge en attente - début dans ${daysUntilStart} jours`);
