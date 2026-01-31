@@ -1,9 +1,42 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-01-28T20:00:00.238Z",
+  "generated_at": "2026-01-30T20:00:00.765Z",
   "ranking": [
     {
       "rank": 1,
+      "id": "84388438",
+      "name": "Rémi S",
+      "total_distance": 35467,
+      "total_elevation": 3832,
+      "total_activities": 3,
+      "activities": [
+        {
+          "id": 17213948845,
+          "name": "Ski de randonnée le matin",
+          "date": "2026-01-29T05:11:35Z",
+          "distance": 9162,
+          "elevation": 1181
+        },
+        {
+          "id": 17192374370,
+          "name": "Ski de randonnée le matin",
+          "date": "2026-01-27T08:36:04Z",
+          "distance": 10195,
+          "elevation": 1027
+        },
+        {
+          "id": 17162287257,
+          "name": "Ski de randonnée le matin",
+          "date": "2026-01-24T09:02:34Z",
+          "distance": 16110,
+          "elevation": 1624
+        }
+      ],
+      "total_distance_km": "35.47",
+      "total_elevation_m": 3832
+    },
+    {
+      "rank": 2,
       "id": "5231535",
       "name": "Franck P",
       "total_distance": 41483.2,
@@ -61,7 +94,7 @@
         },
         {
           "id": 17193750197,
-          "name": "Afternoon Trail Run",
+          "name": "Intensités et carrés",
           "date": "2026-01-27T12:18:41Z",
           "distance": 10037.3,
           "elevation": 585
@@ -71,7 +104,7 @@
       "total_elevation_m": 2271
     },
     {
-      "rank": 2,
+      "rank": 3,
       "id": "3953180",
       "name": "Clement D",
       "total_distance": 27568.4,
@@ -116,6 +149,65 @@
       ],
       "total_distance_km": "27.57",
       "total_elevation_m": 2139
+    },
+    {
+      "rank": 4,
+      "id": "6635902",
+      "name": "Baptiste I",
+      "total_distance": 24149.9,
+      "total_elevation": 1817,
+      "total_activities": 2,
+      "activities": [
+        {
+          "id": 17213950937,
+          "name": "Earlybird Sulens avec toute la team!",
+          "date": "2026-01-29T05:11:20Z",
+          "distance": 9575,
+          "elevation": 1227
+        },
+        {
+          "id": 17176514450,
+          "name": "Refuge du Saut depuis Méribel",
+          "date": "2026-01-24T10:59:20Z",
+          "distance": 14574.9,
+          "elevation": 590
+        }
+      ],
+      "total_distance_km": "24.15",
+      "total_elevation_m": 1817
+    },
+    {
+      "rank": 5,
+      "id": "1841009",
+      "name": "Mariana S",
+      "total_distance": 0,
+      "total_elevation": 0,
+      "total_activities": 0,
+      "activities": [],
+      "total_distance_km": "0.00",
+      "total_elevation_m": 0
+    },
+    {
+      "rank": 6,
+      "id": "87904944",
+      "name": "Guillaume B",
+      "total_distance": 0,
+      "total_elevation": 0,
+      "total_activities": 0,
+      "activities": [],
+      "total_distance_km": "0.00",
+      "total_elevation_m": 0
+    },
+    {
+      "rank": 7,
+      "id": "110979265",
+      "name": "Pef",
+      "total_distance": 0,
+      "total_elevation": 0,
+      "total_activities": 0,
+      "activities": [],
+      "total_distance_km": "0.00",
+      "total_elevation_m": 0
     }
   ]
 }
