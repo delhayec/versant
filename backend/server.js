@@ -705,6 +705,117 @@ app.get('/api/admin/jokers/download', async (req, res) => {
 });
 
 /**
+ * Récupérer les données jokers pour l'admin
+ */
+app.get('/api/admin/jokers/:leagueId', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const { leagueId } = req.params;
+    
+    // Charger les athlètes de la ligue
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId);
+    
+    // Charger l'historique des jokers
+    let usage = [];
+    try {
+      usage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+    } catch {}
+
+    res.json({
+      athletes: leagueAthletes,
+      usage: usage.filter(u => leagueAthletes.some(a => a.id === u.athleteId))
+    });
+
+  } catch (error) {
+    console.error('Erreur admin jokers:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Mettre à jour les jokers d'un athlète
+ */
+app.put('/api/admin/jokers/:athleteId', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const { athleteId } = req.params;
+    const { jokerStock } = req.body;
+    
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    const index = athletes.findIndex(a => String(a.id) === String(athleteId));
+    
+    if (index === -1) {
+      return res.status(404).json({ error: 'Athlète non trouvé' });
+    }
+
+    athletes[index].jokerStock = jokerStock;
+    await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
+    
+    console.log(`🃏 Jokers mis à jour pour ${athleteId}:`, jokerStock);
+    res.json({ success: true, jokerStock });
+
+  } catch (error) {
+    console.error('Erreur mise à jour jokers:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Réinitialiser tous les jokers d'une ligue
+ */
+app.post('/api/admin/jokers/reset/:leagueId', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const { leagueId } = req.params;
+    const defaultStock = { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
+    
+    const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+    let count = 0;
+    
+    athletes.forEach(a => {
+      if (a.league_id === leagueId) {
+        a.jokerStock = { ...defaultStock };
+        count++;
+      }
+    });
+
+    await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
+    
+    // Vider aussi l'historique des jokers utilisés pour cette ligue
+    let usage = [];
+    try {
+      usage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+      const athleteIds = athletes.filter(a => a.league_id === leagueId).map(a => a.id);
+      usage = usage.filter(u => !athleteIds.includes(u.athleteId));
+      await fs.writeFile(JOKERS_FILE, JSON.stringify(usage, null, 2));
+    } catch {}
+    
+    console.log(`🔄 Jokers réinitialisés pour ${count} athlètes de ${leagueId}`);
+    res.json({ success: true, count });
+
+  } catch (error) {
+    console.error('Erreur reset jokers:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
  * Lister tous les fichiers disponibles
  */
 app.get('/api/admin/files', async (req, res) => {

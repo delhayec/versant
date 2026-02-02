@@ -836,52 +836,9 @@ function renderHistorySection(container) {
 // ============================================
 
 function setupJokerEvents() {
-  // Clic droit sur les lignes de classement et cartes participants
-  document.addEventListener('contextmenu', (e) => {
-    const row = e.target.closest('.ranking-row, .participant-card');
-    if (!row) return;
-
-    const participantId = row.dataset.participantId;
-    const participant = getParticipantById(participantId);
-    if (!participant) return;
-
-    const menu = showContextMenu(e, participantId, participant.name, {
-      isAdmin: isAdminMode,
-      currentRoundNumber
-    });
-
-    // Gestion des clics sur les items du menu
-    menu.querySelectorAll('.context-menu-item:not(.disabled):not(.admin-joker)').forEach(item => {
-      item.onclick = () => handleJokerMenuClick(item);
-    });
-
-    // Mode admin - boutons +/-
-    menu.querySelectorAll('.joker-plus').forEach(btn => {
-      btn.onclick = (ev) => {
-        ev.stopPropagation();
-        const item = btn.closest('.admin-joker');
-        if (addJoker(item.dataset.participant, item.dataset.joker)) {
-          const countEl = item.querySelector('.joker-count');
-          countEl.textContent = parseInt(countEl.textContent) + 1;
-          showNotification('Joker ajouté !', 'success');
-          renderAll();
-        }
-      };
-    });
-
-    menu.querySelectorAll('.joker-minus').forEach(btn => {
-      btn.onclick = (ev) => {
-        ev.stopPropagation();
-        const item = btn.closest('.admin-joker');
-        if (removeJoker(item.dataset.participant, item.dataset.joker)) {
-          const countEl = item.querySelector('.joker-count');
-          countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
-          showNotification('Joker retiré !', 'success');
-          renderAll();
-        }
-      };
-    });
-  });
+  // DÉSACTIVÉ sur la page principale
+  // Les jokers ne peuvent être utilisés que depuis le dashboard personnel (dashboard.html)
+  console.log('ℹ️ Gestion des jokers désactivée sur la page principale. Utilisez votre dashboard personnel.');
 }
 
 function handleJokerMenuClick(item) {

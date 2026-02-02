@@ -13,6 +13,10 @@ import { PARTICIPANTS, JOKER_TYPES, getParticipantById } from './config.js';
 // ============================================
 let jokersState = {};
 
+// Version du stockage - changer pour forcer un reset des jokers
+const JOKERS_STORAGE_VERSION = 'v2_20260202';
+const JOKERS_STORAGE_KEY = `versant_jokers_state_${JOKERS_STORAGE_VERSION}`;
+
 /**
  * Initialise l'état des jokers pour tous les participants
  */
@@ -20,12 +24,8 @@ export function initializeJokersState() {
   jokersState = {};
   
   PARTICIPANTS.forEach(p => {
-    let stock = { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
-    
-    // Récupérer le stock initial depuis la config du participant
-    if (p.jokerStock) stock = p.jokerStock;
-    else if (p.jokers_stock) stock = p.jokers_stock;
-    else if (p.jokers && typeof p.jokers === 'object') stock = p.jokers;
+    // Stock initial: 2 de chaque type
+    const stock = { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
     
     jokersState[p.id] = {
       stock: { ...stock },
@@ -35,10 +35,10 @@ export function initializeJokersState() {
     };
   });
   
-  // Charger l'état sauvegardé
+  // Charger l'état sauvegardé (si même version)
   loadJokersState();
   
-  console.log('🃏 Jokers initialisés:', Object.keys(jokersState).length, 'participants');
+  console.log('🃏 Jokers initialisés:', Object.keys(jokersState).length, 'participants (2 de chaque)');
 }
 
 /**
@@ -46,7 +46,7 @@ export function initializeJokersState() {
  */
 function loadJokersState() {
   try {
-    const saved = localStorage.getItem('versant_jokers_state');
+    const saved = localStorage.getItem(JOKERS_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       Object.assign(jokersState, parsed);
@@ -61,7 +61,7 @@ function loadJokersState() {
  */
 export function saveJokersState() {
   try {
-    localStorage.setItem('versant_jokers_state', JSON.stringify(jokersState));
+    localStorage.setItem(JOKERS_STORAGE_KEY, JSON.stringify(jokersState));
   } catch (e) {
     console.warn('Impossible de sauvegarder l\'état des jokers:', e);
   }

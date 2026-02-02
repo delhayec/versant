@@ -1063,8 +1063,8 @@ body {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 60px minmax(140px, 1fr) 130px 130px 180px;
-  padding: 16px 24px;
+  grid-template-columns: 50px minmax(160px, 1fr) 100px 100px 140px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
   transition: background 0.2s ease;
@@ -1090,7 +1090,7 @@ body {
 
 .ranking-position {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
@@ -1113,8 +1113,9 @@ body {
 }
 
 .athlete-avatar {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   border-radius: 50%;
   background: linear-gradient(
     135deg,
@@ -1125,24 +1126,35 @@ body {
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--bg-primary);
 }
 
 .athlete-info {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.athlete-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .athlete-name {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .athlete-status {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .athlete-status.active {
@@ -1155,7 +1167,7 @@ body {
 
 .ranking-elevation {
   font-family: var(--font-mono);
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--accent-primary);
 }

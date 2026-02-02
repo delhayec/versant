@@ -8,8 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260202">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 </head>
 <body>
   <!-- Loading Screen -->
@@ -124,6 +127,18 @@
     </div>
   </footer>
 
-  <script type="module" src="js/app.js"></script>
+  <script>
+    // Force reload - purge du cache à chaque visite
+    if ('caches' in window) {
+      caches.keys().then(names => names.forEach(name => caches.delete(name)));
+    }
+    // Vider le localStorage des anciennes versions de jokers
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('versant_jokers') && !key.includes('v2_20260202')) {
+        localStorage.removeItem(key);
+      }
+    });
+  </script>
+  <script type="module" src="js/app.js?v=20260202b"></script>
 </body>
 </html>

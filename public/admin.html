@@ -196,6 +196,24 @@
           </div>
         </div>
 
+        <!-- Gestion des Jokers -->
+        <div class="info-box" style="grid-column: 1 / -1;">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            🃏 Gestion des Jokers
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
+            Modifier le stock de jokers de chaque athlète. Utilisez les boutons +/- ou entrez directement une valeur.
+          </p>
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button id="resetAllJokersBtn" style="padding: 10px 20px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; cursor: pointer;">
+              🔄 Reset tous les jokers (2 de chaque)
+            </button>
+          </div>
+          <div id="jokersManagementTable" style="max-height: 500px; overflow-y: auto;">
+            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
+          </div>
+        </div>
+
         <!-- Logs -->
         <div class="info-box" style="grid-column: 1 / -1;">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
@@ -749,7 +767,8 @@
     }
 
     function renderJokersManagement() {
-      const container = document.getElementById('jokersManagement');
+      // Utiliser le nouveau conteneur si disponible, sinon l'ancien
+      const container = document.getElementById('jokersManagementTable') || document.getElementById('jokersManagement');
       const { athletes, usage } = jokersData;
       
       if (!athletes || athletes.length === 0) {
@@ -769,8 +788,7 @@
           <thead>
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
               <th style="text-align: left; padding: 12px; color: rgba(255,255,255,0.6);">Athlète</th>
-              ${jokerTypes.map(j => `<th style="text-align: center; padding: 12px; color: rgba(255,255,255,0.6);">${j.icon}</th>`).join('')}
-              <th style="text-align: center; padding: 12px; color: rgba(255,255,255,0.6);">Actions</th>
+              ${jokerTypes.map(j => `<th style="text-align: center; padding: 12px; color: rgba(255,255,255,0.6);">${j.icon} ${j.label}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
@@ -778,51 +796,34 @@
 
       athletes.forEach(athlete => {
         const stock = athlete.jokerStock || { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
-        const athleteUsage = (usage || []).filter(u => u.athleteId === athlete.id);
+        const athleteName = athlete.name || `${athlete.firstname || ''} ${athlete.lastname || ''}`.trim();
         
         html += `
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" data-athlete-id="${athlete.id}">
             <td style="padding: 12px;">
-              <div style="font-weight: 600;">${athlete.firstname} ${athlete.lastname}</div>
-              <div style="font-size: 0.75rem; color: rgba(255,255,255,0.4);">ID: ${athlete.id}</div>
+              <div style="font-weight: 600;">${athleteName}</div>
+              <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4);">ID: ${athlete.id}</div>
             </td>
             ${jokerTypes.map(j => `
-              <td style="text-align: center; padding: 12px;">
-                <input type="number" 
-                       class="joker-input" 
-                       data-type="${j.id}"
-                       value="${stock[j.id] || 0}" 
-                       min="0" max="5"
-                       style="width: 50px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; text-align: center; font-family: 'Space Mono', monospace;">
+              <td style="text-align: center; padding: 8px;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <button onclick="adjustJoker('${athlete.id}', '${j.id}', -1)" 
+                          style="width: 28px; height: 28px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; line-height: 1;">
+                    −
+                  </button>
+                  <span id="joker-${athlete.id}-${j.id}" 
+                        style="min-width: 24px; font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 600; color: ${(stock[j.id] || 0) > 0 ? '#22d3ee' : '#ef4444'};">
+                    ${stock[j.id] || 0}
+                  </span>
+                  <button onclick="adjustJoker('${athlete.id}', '${j.id}', 1)" 
+                          style="width: 28px; height: 28px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; line-height: 1;">
+                    +
+                  </button>
+                </div>
               </td>
             `).join('')}
-            <td style="text-align: center; padding: 12px;">
-              <button onclick="saveAthleteJokers('${athlete.id}')" 
-                      style="padding: 6px 12px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
-                💾 Sauver
-              </button>
-            </td>
           </tr>
         `;
-
-        // Afficher les jokers utilisés
-        if (athleteUsage.length > 0) {
-          html += `
-            <tr style="background: rgba(0,0,0,0.2);">
-              <td colspan="6" style="padding: 8px 12px 12px 24px;">
-                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-bottom: 6px;">Historique d'utilisation :</div>
-                ${athleteUsage.map(u => `
-                  <div style="display: inline-block; padding: 4px 8px; margin: 2px; background: rgba(255,255,255,0.05); border-radius: 4px; font-size: 0.75rem;">
-                    ${getJokerIcon(u.type)} ${u.type}
-                    ${u.targetId ? ` → ${getJokerTargetName(u.targetId)}` : ''}
-                    <span style="color: rgba(255,255,255,0.3);">R${u.round}</span>
-                    <span style="color: ${u.resolved ? '#10b981' : '#f97316'};">${u.resolved ? '✓' : '⏳'}</span>
-                  </div>
-                `).join('')}
-              </td>
-            </tr>
-          `;
-        }
       });
 
       html += '</tbody></table>';
@@ -878,8 +879,57 @@
       }
     }
 
+    // Ajuster un joker avec boutons +/-
+    async function adjustJoker(athleteId, jokerType, delta) {
+      const spanId = `joker-${athleteId}-${jokerType}`;
+      const span = document.getElementById(spanId);
+      if (!span) return;
+
+      const currentValue = parseInt(span.textContent) || 0;
+      const newValue = Math.max(0, Math.min(5, currentValue + delta));
+      
+      if (newValue === currentValue) return;
+
+      // Mise à jour visuelle immédiate
+      span.textContent = newValue;
+      span.style.color = newValue > 0 ? '#22d3ee' : '#ef4444';
+
+      // Récupérer tous les jokers actuels de cet athlète
+      const jokerStock = {
+        duel: parseInt(document.getElementById(`joker-${athleteId}-duel`)?.textContent) || 0,
+        multiplicateur: parseInt(document.getElementById(`joker-${athleteId}-multiplicateur`)?.textContent) || 0,
+        bouclier: parseInt(document.getElementById(`joker-${athleteId}-bouclier`)?.textContent) || 0,
+        sabotage: parseInt(document.getElementById(`joker-${athleteId}-sabotage`)?.textContent) || 0
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/jokers/${athleteId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify({ jokerStock })
+        });
+
+        if (!response.ok) throw new Error('Erreur sauvegarde');
+
+        addLog(`🃏 ${jokerType} ${delta > 0 ? '+1' : '-1'} pour athlète ${athleteId} (total: ${newValue})`);
+        
+        // Flash de confirmation
+        span.style.transform = 'scale(1.3)';
+        setTimeout(() => { span.style.transform = ''; }, 200);
+
+      } catch (error) {
+        // Annuler le changement visuel
+        span.textContent = currentValue;
+        span.style.color = currentValue > 0 ? '#22d3ee' : '#ef4444';
+        addLog(`❌ Erreur: ${error.message}`);
+      }
+    }
+
     async function resetAllJokers() {
-      if (!confirm('⚠️ Réinitialiser TOUS les jokers à leur valeur initiale (2 de chaque) ?\n\nCette action est irréversible.')) {
+      if (!confirm('⚠️ Réinitialiser TOUS les jokers à 2 de chaque pour tous les athlètes ?\n\nCette action est irréversible.')) {
         return;
       }
 
@@ -892,7 +942,7 @@
         if (!response.ok) throw new Error('Erreur reset');
 
         const data = await response.json();
-        addLog(`🔄 ${data.count} athlètes réinitialisés`);
+        addLog(`🔄 ${data.count || 'Tous les'} athlètes réinitialisés (2 jokers de chaque)`);
         loadJokersData();
 
       } catch (error) {
@@ -904,6 +954,7 @@
     // Event listeners jokers
     document.getElementById('refreshJokersBtn')?.addEventListener('click', loadJokersData);
     document.getElementById('resetJokersBtn')?.addEventListener('click', resetAllJokers);
+    document.getElementById('resetAllJokersBtn')?.addEventListener('click', resetAllJokers);
 
     // ============================================
     // INIT
