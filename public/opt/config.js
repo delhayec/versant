@@ -11,7 +11,7 @@ module.exports = {
   // === STRAVA API ===
   strava: {
     clientId: '195975',
-    clientSecret: process.env.STRAVA_CLIENT_SECRET || 'REMPLACE_PAR_TON_SECRET',
+    clientSecret: process.env.STRAVA_CLIENT_SECRET || ,
     
     // URLs de l'API Strava
     authUrl: 'https://www.strava.com/oauth/authorize',

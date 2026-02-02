@@ -71,7 +71,7 @@ function generateToken() {
  */
 function getRoundEndTime(roundEndDate) {
   const endDate = new Date(roundEndDate);
-  endDate.setHours(20, 0, 0, 0); // 20h00
+  endDate.setHours(23, 59, 59, 999); // 20h00
   return endDate;
 }
 
