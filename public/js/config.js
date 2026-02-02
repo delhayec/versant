@@ -294,7 +294,7 @@ export async function loadParticipants() {
     console.log('📋 Chargement des participants depuis l\'API...');
     
     // Utiliser le même endpoint que l'admin : /api/athletes/versant-2026
-    const response = await fetch('/api/athletes/versant-2026');
+    const response = await fetch(`/api/athletes/${CHALLENGE_CONFIG.leagueId}`);
     
     if (!response.ok) {
       throw new Error(`Erreur API: ${response.status}`);
@@ -316,14 +316,57 @@ export async function loadParticipants() {
       
       console.log(`✅ ${PARTICIPANTS.length} participants chargés depuis l'API`);
     } else {
-      console.warn('⚠️ Aucun participant trouvé via l\'API');
+      console.warn('⚠️ Aucun participant dans athletes.json, tentative d\'extraction depuis les activités...');
+      await loadParticipantsFromActivities();
     }
     
     return PARTICIPANTS;
   } catch (error) {
     console.error('❌ Erreur chargement participants:', error);
-    // En cas d'erreur, on garde la liste vide ou existante
+    // Tenter de charger depuis les activités en cas d'erreur
+    await loadParticipantsFromActivities();
     return PARTICIPANTS;
+  }
+}
+
+/**
+ * Extrait les participants uniques depuis les activités
+ * Utilisé comme fallback quand athletes.json est vide
+ */
+async function loadParticipantsFromActivities() {
+  try {
+    const response = await fetch(`/api/activities/${CHALLENGE_CONFIG.leagueId}`);
+    if (!response.ok) return;
+    
+    const activities = await response.json();
+    if (!activities || activities.length === 0) return;
+    
+    // Extraire les participants uniques
+    const participantsMap = new Map();
+    
+    for (const activity of activities) {
+      const athleteId = String(activity.athlete?.id || activity.athlete_id);
+      if (!athleteId || participantsMap.has(athleteId)) continue;
+      
+      const name = activity.athlete_name || 
+                   (activity.athlete?.firstname && activity.athlete?.lastname 
+                     ? `${activity.athlete.firstname} ${activity.athlete.lastname.charAt(0)}.`
+                     : `Athlète ${athleteId}`);
+      
+      participantsMap.set(athleteId, {
+        id: athleteId,
+        name: name,
+        jokers: createInitialJokers()
+      });
+    }
+    
+    if (participantsMap.size > 0) {
+      PARTICIPANTS.length = 0;
+      PARTICIPANTS.push(...participantsMap.values());
+      console.log(`✅ ${PARTICIPANTS.length} participants extraits depuis les activités`);
+    }
+  } catch (error) {
+    console.error('❌ Erreur extraction participants depuis activités:', error);
   }
 }
 

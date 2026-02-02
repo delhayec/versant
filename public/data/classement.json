@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-01T20:00:00.094Z",
+  "generated_at": "2026-01-31T20:00:00.328Z",
   "ranking": [
     {
       "rank": 1,
@@ -37,60 +37,6 @@
     },
     {
       "rank": 2,
-      "id": "3953180",
-      "name": "Clement D",
-      "total_distance": 34810.4,
-      "total_elevation": 2416,
-      "total_activities": 6,
-      "activities": [
-        {
-          "id": 17094335866,
-          "name": "Course dans la forêt",
-          "date": "2026-01-18T13:57:17Z",
-          "distance": 7117.5,
-          "elevation": 268
-        },
-        {
-          "id": 17114238375,
-          "name": "Trail avec Pef",
-          "date": "2026-01-20T11:04:04Z",
-          "distance": 6542.1,
-          "elevation": 284
-        },
-        {
-          "id": 17115051115,
-          "name": "Test WebHook Strava",
-          "date": "2026-01-20T12:56:14Z",
-          "distance": 87.9,
-          "elevation": 0
-        },
-        {
-          "id": 17116344119,
-          "name": "WebHook 2 Pro Max",
-          "date": "2026-01-20T15:11:50Z",
-          "distance": 112.7,
-          "elevation": 2
-        },
-        {
-          "id": 17164474625,
-          "name": "Sommet du Trelod - Couloir Nord",
-          "date": "2026-01-24T09:02:36Z",
-          "distance": 13708.2,
-          "elevation": 1585
-        },
-        {
-          "id": 17252177494,
-          "name": "Trail dans l'après-midi",
-          "date": "2026-02-01T15:28:47Z",
-          "distance": 7242,
-          "elevation": 277
-        }
-      ],
-      "total_distance_km": "34.81",
-      "total_elevation_m": 2416
-    },
-    {
-      "rank": 3,
       "id": "5231535",
       "name": "Franck P",
       "total_distance": 41483.2,
@@ -158,6 +104,53 @@
       "total_elevation_m": 2271
     },
     {
+      "rank": 3,
+      "id": "3953180",
+      "name": "Clement D",
+      "total_distance": 27568.4,
+      "total_elevation": 2139,
+      "total_activities": 5,
+      "activities": [
+        {
+          "id": 17094335866,
+          "name": "Course dans la forêt",
+          "date": "2026-01-18T13:57:17Z",
+          "distance": 7117.5,
+          "elevation": 268
+        },
+        {
+          "id": 17114238375,
+          "name": "Trail avec Pef",
+          "date": "2026-01-20T11:04:04Z",
+          "distance": 6542.1,
+          "elevation": 284
+        },
+        {
+          "id": 17115051115,
+          "name": "Test WebHook Strava",
+          "date": "2026-01-20T12:56:14Z",
+          "distance": 87.9,
+          "elevation": 0
+        },
+        {
+          "id": 17116344119,
+          "name": "WebHook 2 Pro Max",
+          "date": "2026-01-20T15:11:50Z",
+          "distance": 112.7,
+          "elevation": 2
+        },
+        {
+          "id": 17164474625,
+          "name": "Sommet du Trelod - Couloir Nord",
+          "date": "2026-01-24T09:02:36Z",
+          "distance": 13708.2,
+          "elevation": 1585
+        }
+      ],
+      "total_distance_km": "27.57",
+      "total_elevation_m": 2139
+    },
+    {
       "rank": 4,
       "id": "6635902",
       "name": "Baptiste I",
@@ -218,25 +211,6 @@
     },
     {
       "rank": 6,
-      "id": "87904944",
-      "name": "Guillaume B",
-      "total_distance": 8652.4,
-      "total_elevation": 427,
-      "total_activities": 1,
-      "activities": [
-        {
-          "id": 17249722311,
-          "name": "Afternoon Trail Run",
-          "date": "2026-02-01T12:18:01Z",
-          "distance": 8652.4,
-          "elevation": 427
-        }
-      ],
-      "total_distance_km": "8.65",
-      "total_elevation_m": 427
-    },
-    {
-      "rank": 7,
       "id": "110979265",
       "name": "Pef",
       "total_distance": 11422.2,
@@ -255,62 +229,18 @@
       "total_elevation_m": 375
     },
     {
+      "rank": 7,
+      "id": "87904944",
+      "name": "Guillaume B",
+      "total_distance": 0,
+      "total_elevation": 0,
+      "total_activities": 0,
+      "activities": [],
+      "total_distance_km": "0.00",
+      "total_elevation_m": 0
+    },
+    {
       "rank": 8,
-      "id": "3762537",
-      "name": "Baptiste M",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
-    },
-    {
-      "rank": 9,
-      "id": "3989319",
-      "name": "Da M",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
-    },
-    {
-      "rank": 10,
-      "id": "8716867",
-      "name": "Thomas M",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
-    },
-    {
-      "rank": 11,
-      "id": "31184097",
-      "name": "1000N",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
-    },
-    {
-      "rank": 12,
-      "id": "68391361",
-      "name": "Elodie F",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
-    },
-    {
-      "rank": 13,
       "id": "92880400",
       "name": "Ben",
       "total_distance": 0,
@@ -321,20 +251,9 @@
       "total_elevation_m": 0
     },
     {
-      "rank": 14,
+      "rank": 9,
       "id": "100399073",
       "name": "Leo B",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
-    },
-    {
-      "rank": 15,
-      "id": "119310419",
-      "name": "Max2Peuf",
       "total_distance": 0,
       "total_elevation": 0,
       "total_activities": 0,
