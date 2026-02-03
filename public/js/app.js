@@ -895,6 +895,11 @@ function handleJokerMenuClick(item) {
 // INITIALISATION
 // ============================================
 
+// État du polling
+let lastActivitiesCount = 0;
+let lastModified = null;
+let pollingInterval = null;
+
 async function init() {
   console.log('◭️ Versant - Initialisation...');
 
@@ -924,6 +929,9 @@ async function init() {
 
   // Charger les données
   await loadActivities();
+  
+  // Initialiser le compteur pour le polling
+  lastActivitiesCount = allActivities.length;
 
   // Initialiser le mode démo si slider présent
   if (document.getElementById('dateSliderContainer')) {
@@ -939,8 +947,120 @@ async function init() {
 
   // Premier rendu
   renderAll();
+  
+  // Démarrer le polling automatique (sauf en mode démo)
+  if (!CHALLENGE_CONFIG.isDemo) {
+    startAutoRefresh();
+  }
 
   console.log('✅ Versant initialisé');
+}
+
+/**
+ * Polling automatique pour détecter les nouvelles activités
+ */
+function startAutoRefresh() {
+  const POLLING_INTERVAL = 30000; // 30 secondes
+  
+  console.log('🔄 Auto-refresh activé (toutes les 30s)');
+  
+  pollingInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/activities-status/${CHALLENGE_CONFIG.leagueId}`);
+      if (!response.ok) return;
+      
+      const status = await response.json();
+      
+      // Vérifier si les données ont changé
+      if (status.count !== lastActivitiesCount || status.lastModified !== lastModified) {
+        console.log(`🔔 Changement détecté! ${lastActivitiesCount} → ${status.count} activités`);
+        
+        // Afficher une notification si nouvelle activité
+        if (status.count > lastActivitiesCount && status.lastActivity) {
+          showNewActivityNotification(status.lastActivity);
+        }
+        
+        // Mettre à jour les compteurs
+        lastActivitiesCount = status.count;
+        lastModified = status.lastModified;
+        
+        // Recharger les données et rafraîchir
+        await loadActivities();
+        renderAll();
+        
+        console.log('✅ Affichage mis à jour');
+      }
+    } catch (error) {
+      // Silencieux - on ne veut pas spammer la console
+    }
+  }, POLLING_INTERVAL);
+}
+
+/**
+ * Affiche une notification pour une nouvelle activité
+ */
+function showNewActivityNotification(activity) {
+  const notification = document.createElement('div');
+  notification.className = 'new-activity-notification';
+  notification.innerHTML = `
+    <div class="notification-icon">🏃</div>
+    <div class="notification-content">
+      <div class="notification-title">Nouvelle activité !</div>
+      <div class="notification-text">${activity.athlete_name || 'Un participant'} vient d'ajouter "${activity.name}"</div>
+    </div>
+  `;
+  notification.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.95), rgba(168, 85, 247, 0.95));
+    color: white;
+    padding: 16px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+    max-width: 350px;
+  `;
+  
+  // Ajouter les styles d'animation si pas déjà présents
+  if (!document.getElementById('notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notification-styles';
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+      }
+      .new-activity-notification .notification-icon {
+        font-size: 24px;
+      }
+      .new-activity-notification .notification-title {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .new-activity-notification .notification-text {
+        font-size: 12px;
+        opacity: 0.9;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  document.body.appendChild(notification);
+  
+  // Retirer après 5 secondes
+  setTimeout(() => {
+    notification.style.animation = 'slideOut 0.3s ease-in forwards';
+    setTimeout(() => notification.remove(), 300);
+  }, 5000);
 }
 
 // ============================================

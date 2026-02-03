@@ -71,7 +71,7 @@ function generateToken() {
  */
 function getRoundEndTime(roundEndDate) {
   const endDate = new Date(roundEndDate);
-  endDate.setHours(23, 59, 59, 999); // 20h00
+  endDate.setHours(20, 0, 0, 0); // 20h00
   return endDate;
 }
 
@@ -612,6 +612,48 @@ app.get('/api/activities/:leagueId', async (req, res) => {
 
   } catch (error) {
     console.error('Erreur récupération activités:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Statut des activités pour le polling (léger)
+ * Retourne juste le count et le timestamp de dernière modification
+ */
+app.get('/api/activities-status/:leagueId', async (req, res) => {
+  try {
+    const { leagueId } = req.params;
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    
+    try {
+      const stats = await fs.stat(activitiesFile);
+      const data = await fs.readFile(activitiesFile, 'utf8');
+      const activities = JSON.parse(data);
+      
+      // Trouver la dernière activité ajoutée
+      let lastActivity = null;
+      if (activities.length > 0) {
+        const sorted = [...activities].sort((a, b) => 
+          new Date(b.synced_at || b.start_date) - new Date(a.synced_at || a.start_date)
+        );
+        lastActivity = {
+          id: sorted[0].id,
+          name: sorted[0].name,
+          athlete_name: sorted[0].athlete_name,
+          synced_at: sorted[0].synced_at || sorted[0].start_date
+        };
+      }
+      
+      res.json({
+        count: activities.length,
+        lastModified: stats.mtime.toISOString(),
+        lastActivity
+      });
+    } catch {
+      res.json({ count: 0, lastModified: null, lastActivity: null });
+    }
+
+  } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
