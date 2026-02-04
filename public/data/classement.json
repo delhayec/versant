@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-02T20:00:00.784Z",
+  "generated_at": "2026-02-03T20:00:00.688Z",
   "ranking": [
     {
       "rank": 1,
@@ -145,51 +145,11 @@
     },
     {
       "rank": 4,
-      "id": "6635902",
-      "name": "Baptiste I",
-      "total_distance": 38829.9,
-      "total_elevation": 2551,
-      "total_activities": 4,
-      "activities": [
-        {
-          "id": 17213950937,
-          "name": "Earlybird Sulens avec toute la team!",
-          "date": "2026-01-29T05:11:20Z",
-          "distance": 9575,
-          "elevation": 1227
-        },
-        {
-          "id": 17176514450,
-          "name": "Refuge du Saut depuis Méribel",
-          "date": "2026-01-24T10:59:20Z",
-          "distance": 14574.9,
-          "elevation": 590
-        },
-        {
-          "id": 17251845213,
-          "name": "Balade dans le Semnoz",
-          "date": "2026-02-01T08:19:20Z",
-          "distance": 7459.3,
-          "elevation": 471
-        },
-        {
-          "id": 17260140658,
-          "name": "Trail dans l'après-midi",
-          "date": "2026-02-02T12:15:21Z",
-          "distance": 7220.7,
-          "elevation": 263
-        }
-      ],
-      "total_distance_km": "38.83",
-      "total_elevation_m": 2551
-    },
-    {
-      "rank": 5,
       "id": "5231535",
       "name": "Franck P",
-      "total_distance": 43199.799999999996,
-      "total_elevation": 2288,
-      "total_activities": 9,
+      "total_distance": 64484.79999999999,
+      "total_elevation": 2585,
+      "total_activities": 11,
       "activities": [
         {
           "id": 17162166919,
@@ -253,10 +213,64 @@
           "date": "2026-01-30T07:23:31Z",
           "distance": 1716.6,
           "elevation": 17
+        },
+        {
+          "id": 17263671638,
+          "name": "Afternoon Ride",
+          "date": "2026-02-02T14:52:33Z",
+          "distance": 6369.2,
+          "elevation": 94
+        },
+        {
+          "id": 17273280562,
+          "name": "Afternoon Ride",
+          "date": "2026-02-03T13:55:34Z",
+          "distance": 14915.8,
+          "elevation": 203
         }
       ],
-      "total_distance_km": "43.20",
-      "total_elevation_m": 2288
+      "total_distance_km": "64.48",
+      "total_elevation_m": 2585
+    },
+    {
+      "rank": 5,
+      "id": "6635902",
+      "name": "Baptiste I",
+      "total_distance": 38829.9,
+      "total_elevation": 2551,
+      "total_activities": 4,
+      "activities": [
+        {
+          "id": 17213950937,
+          "name": "Earlybird Sulens avec toute la team!",
+          "date": "2026-01-29T05:11:20Z",
+          "distance": 9575,
+          "elevation": 1227
+        },
+        {
+          "id": 17176514450,
+          "name": "Refuge du Saut depuis Méribel",
+          "date": "2026-01-24T10:59:20Z",
+          "distance": 14574.9,
+          "elevation": 590
+        },
+        {
+          "id": 17251845213,
+          "name": "Balade dans le Semnoz",
+          "date": "2026-02-01T08:19:20Z",
+          "distance": 7459.3,
+          "elevation": 471
+        },
+        {
+          "id": 17260140658,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-02-02T12:15:21Z",
+          "distance": 7220.7,
+          "elevation": 263
+        }
+      ],
+      "total_distance_km": "38.83",
+      "total_elevation_m": 2551
     },
     {
       "rank": 6,
@@ -321,6 +335,60 @@
     },
     {
       "rank": 7,
+      "id": "1841009",
+      "name": "Mariana S",
+      "total_distance": 51351.2,
+      "total_elevation": 1365,
+      "total_activities": 6,
+      "activities": [
+        {
+          "id": 17236745408,
+          "name": "Marche le midi",
+          "date": "2026-01-31T10:55:47Z",
+          "distance": 2780.5,
+          "elevation": 103.8
+        },
+        {
+          "id": 17238443857,
+          "name": "Tour dans l’Ain",
+          "date": "2026-01-31T12:07:15Z",
+          "distance": 5671.3,
+          "elevation": 189.4
+        },
+        {
+          "id": 17238444157,
+          "name": "Tour dans l’Ain",
+          "date": "2026-01-31T13:16:11Z",
+          "distance": 5508.5,
+          "elevation": 174.8
+        },
+        {
+          "id": 17248112231,
+          "name": "Plateau de hauteville",
+          "date": "2026-02-01T09:06:13Z",
+          "distance": 18396.7,
+          "elevation": 384.1
+        },
+        {
+          "id": 17218488098,
+          "name": "Afternoon Nordic Ski",
+          "date": "2026-01-29T15:46:18Z",
+          "distance": 13497.1,
+          "elevation": 192.2
+        },
+        {
+          "id": 17273667260,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-03T16:09:42Z",
+          "distance": 5497.1,
+          "elevation": 320.7
+        }
+      ],
+      "total_distance_km": "51.35",
+      "total_elevation_m": 1365
+    },
+    {
+      "rank": 8,
       "id": "100399073",
       "name": "Leo B",
       "total_distance": 40037.8,
@@ -367,59 +435,12 @@
       "total_elevation_m": 1185
     },
     {
-      "rank": 8,
-      "id": "1841009",
-      "name": "Mariana S",
-      "total_distance": 45854.1,
-      "total_elevation": 1044.3,
-      "total_activities": 5,
-      "activities": [
-        {
-          "id": 17236745408,
-          "name": "Marche le midi",
-          "date": "2026-01-31T10:55:47Z",
-          "distance": 2780.5,
-          "elevation": 103.8
-        },
-        {
-          "id": 17238443857,
-          "name": "Tour dans l’Ain",
-          "date": "2026-01-31T12:07:15Z",
-          "distance": 5671.3,
-          "elevation": 189.4
-        },
-        {
-          "id": 17238444157,
-          "name": "Tour dans l’Ain",
-          "date": "2026-01-31T13:16:11Z",
-          "distance": 5508.5,
-          "elevation": 174.8
-        },
-        {
-          "id": 17248112231,
-          "name": "Plateau de hauteville",
-          "date": "2026-02-01T09:06:13Z",
-          "distance": 18396.7,
-          "elevation": 384.1
-        },
-        {
-          "id": 17218488098,
-          "name": "Afternoon Nordic Ski",
-          "date": "2026-01-29T15:46:18Z",
-          "distance": 13497.1,
-          "elevation": 192.2
-        }
-      ],
-      "total_distance_km": "45.85",
-      "total_elevation_m": 1044
-    },
-    {
       "rank": 9,
       "id": "110979265",
       "name": "Pef",
-      "total_distance": 29949.9,
-      "total_elevation": 761.4,
-      "total_activities": 3,
+      "total_distance": 38073.4,
+      "total_elevation": 1115,
+      "total_activities": 4,
       "activities": [
         {
           "id": 17238438106,
@@ -441,10 +462,17 @@
           "date": "2026-01-29T09:19:00Z",
           "distance": 0,
           "elevation": 0
+        },
+        {
+          "id": 17273323974,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-02-03T15:20:33Z",
+          "distance": 8123.5,
+          "elevation": 353.6
         }
       ],
-      "total_distance_km": "29.95",
-      "total_elevation_m": 761
+      "total_distance_km": "38.07",
+      "total_elevation_m": 1115
     },
     {
       "rank": 10,
