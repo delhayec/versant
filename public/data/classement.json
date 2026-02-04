@@ -1,9 +1,49 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-03T20:00:00.688Z",
+  "generated_at": "2026-02-04T20:00:00.543Z",
   "ranking": [
     {
       "rank": 1,
+      "id": "87904944",
+      "name": "Guillaume B",
+      "total_distance": 53030,
+      "total_elevation": 4992,
+      "total_activities": 4,
+      "activities": [
+        {
+          "id": 17249722311,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-01T12:18:01Z",
+          "distance": 8652.4,
+          "elevation": 427
+        },
+        {
+          "id": 17238201260,
+          "name": "Morning Backcountry Ski",
+          "date": "2026-01-31T06:59:29Z",
+          "distance": 23133,
+          "elevation": 2110
+        },
+        {
+          "id": 17213984007,
+          "name": "Morning Backcountry Ski",
+          "date": "2026-01-29T05:12:05Z",
+          "distance": 10801.4,
+          "elevation": 1236
+        },
+        {
+          "id": 17280367993,
+          "name": "Morning Backcountry Ski",
+          "date": "2026-02-04T05:26:35Z",
+          "distance": 10443.2,
+          "elevation": 1219
+        }
+      ],
+      "total_distance_km": "53.03",
+      "total_elevation_m": 4992
+    },
+    {
+      "rank": 2,
       "id": "84388438",
       "name": "Rémi S",
       "total_distance": 58327,
@@ -50,106 +90,59 @@
       "total_elevation_m": 4233
     },
     {
-      "rank": 2,
-      "id": "87904944",
-      "name": "Guillaume B",
-      "total_distance": 42586.8,
-      "total_elevation": 3773,
-      "total_activities": 3,
-      "activities": [
-        {
-          "id": 17249722311,
-          "name": "Afternoon Trail Run",
-          "date": "2026-02-01T12:18:01Z",
-          "distance": 8652.4,
-          "elevation": 427
-        },
-        {
-          "id": 17238201260,
-          "name": "Morning Backcountry Ski",
-          "date": "2026-01-31T06:59:29Z",
-          "distance": 23133,
-          "elevation": 2110
-        },
-        {
-          "id": 17213984007,
-          "name": "Morning Backcountry Ski",
-          "date": "2026-01-29T05:12:05Z",
-          "distance": 10801.4,
-          "elevation": 1236
-        }
-      ],
-      "total_distance_km": "42.59",
-      "total_elevation_m": 3773
-    },
-    {
       "rank": 3,
-      "id": "3953180",
-      "name": "Clement D",
-      "total_distance": 41435,
-      "total_elevation": 2700,
-      "total_activities": 7,
+      "id": "6635902",
+      "name": "Baptiste I",
+      "total_distance": 48163.5,
+      "total_elevation": 3771,
+      "total_activities": 5,
       "activities": [
         {
-          "id": 17094335866,
-          "name": "Course dans la forêt",
-          "date": "2026-01-18T13:57:17Z",
-          "distance": 7117.5,
-          "elevation": 268
+          "id": 17213950937,
+          "name": "Earlybird Sulens avec toute la team!",
+          "date": "2026-01-29T05:11:20Z",
+          "distance": 9575,
+          "elevation": 1227
         },
         {
-          "id": 17114238375,
-          "name": "Trail avec Pef",
-          "date": "2026-01-20T11:04:04Z",
-          "distance": 6542.1,
-          "elevation": 284
+          "id": 17176514450,
+          "name": "Refuge du Saut depuis Méribel",
+          "date": "2026-01-24T10:59:20Z",
+          "distance": 14574.9,
+          "elevation": 590
         },
         {
-          "id": 17115051115,
-          "name": "Test WebHook Strava",
-          "date": "2026-01-20T12:56:14Z",
-          "distance": 87.9,
-          "elevation": 0
+          "id": 17251845213,
+          "name": "Balade dans le Semnoz",
+          "date": "2026-02-01T08:19:20Z",
+          "distance": 7459.3,
+          "elevation": 471
         },
         {
-          "id": 17116344119,
-          "name": "WebHook 2 Pro Max",
-          "date": "2026-01-20T15:11:50Z",
-          "distance": 112.7,
-          "elevation": 2
+          "id": 17260140658,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-02-02T12:15:21Z",
+          "distance": 7220.7,
+          "elevation": 263
         },
         {
-          "id": 17164474625,
-          "name": "Sommet du Trelod - Couloir Nord",
-          "date": "2026-01-24T09:02:36Z",
-          "distance": 13708.2,
-          "elevation": 1585
-        },
-        {
-          "id": 17252177494,
-          "name": "Rodage pré challenge",
-          "date": "2026-02-01T15:28:47Z",
-          "distance": 7242,
-          "elevation": 277
-        },
-        {
-          "id": 17259688243,
-          "name": "Trail trantran",
-          "date": "2026-02-02T11:39:18Z",
-          "distance": 6624.6,
-          "elevation": 284
+          "id": 17280373968,
+          "name": "🐥Earlybird  a Balme 💨",
+          "date": "2026-02-04T05:26:37Z",
+          "distance": 9333.6,
+          "elevation": 1220
         }
       ],
-      "total_distance_km": "41.44",
-      "total_elevation_m": 2700
+      "total_distance_km": "48.16",
+      "total_elevation_m": 3771
     },
     {
       "rank": 4,
       "id": "5231535",
       "name": "Franck P",
-      "total_distance": 64484.79999999999,
-      "total_elevation": 2585,
-      "total_activities": 11,
+      "total_distance": 71420.29999999999,
+      "total_elevation": 2794,
+      "total_activities": 13,
       "activities": [
         {
           "id": 17162166919,
@@ -227,50 +220,85 @@
           "date": "2026-02-03T13:55:34Z",
           "distance": 14915.8,
           "elevation": 203
+        },
+        {
+          "id": 17284718839,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-04T13:13:04Z",
+          "distance": 4434.5,
+          "elevation": 188
+        },
+        {
+          "id": 17284719023,
+          "name": "Afternoon Ride",
+          "date": "2026-02-04T14:08:57Z",
+          "distance": 2501,
+          "elevation": 21
         }
       ],
-      "total_distance_km": "64.48",
-      "total_elevation_m": 2585
+      "total_distance_km": "71.42",
+      "total_elevation_m": 2794
     },
     {
       "rank": 5,
-      "id": "6635902",
-      "name": "Baptiste I",
-      "total_distance": 38829.9,
-      "total_elevation": 2551,
-      "total_activities": 4,
+      "id": "3953180",
+      "name": "Clement D",
+      "total_distance": 41435,
+      "total_elevation": 2700,
+      "total_activities": 7,
       "activities": [
         {
-          "id": 17213950937,
-          "name": "Earlybird Sulens avec toute la team!",
-          "date": "2026-01-29T05:11:20Z",
-          "distance": 9575,
-          "elevation": 1227
+          "id": 17094335866,
+          "name": "Course dans la forêt",
+          "date": "2026-01-18T13:57:17Z",
+          "distance": 7117.5,
+          "elevation": 268
         },
         {
-          "id": 17176514450,
-          "name": "Refuge du Saut depuis Méribel",
-          "date": "2026-01-24T10:59:20Z",
-          "distance": 14574.9,
-          "elevation": 590
+          "id": 17114238375,
+          "name": "Trail avec Pef",
+          "date": "2026-01-20T11:04:04Z",
+          "distance": 6542.1,
+          "elevation": 284
         },
         {
-          "id": 17251845213,
-          "name": "Balade dans le Semnoz",
-          "date": "2026-02-01T08:19:20Z",
-          "distance": 7459.3,
-          "elevation": 471
+          "id": 17115051115,
+          "name": "Test WebHook Strava",
+          "date": "2026-01-20T12:56:14Z",
+          "distance": 87.9,
+          "elevation": 0
         },
         {
-          "id": 17260140658,
-          "name": "Trail dans l'après-midi",
-          "date": "2026-02-02T12:15:21Z",
-          "distance": 7220.7,
-          "elevation": 263
+          "id": 17116344119,
+          "name": "WebHook 2 Pro Max",
+          "date": "2026-01-20T15:11:50Z",
+          "distance": 112.7,
+          "elevation": 2
+        },
+        {
+          "id": 17164474625,
+          "name": "Sommet du Trelod - Couloir Nord",
+          "date": "2026-01-24T09:02:36Z",
+          "distance": 13708.2,
+          "elevation": 1585
+        },
+        {
+          "id": 17252177494,
+          "name": "Rodage pré challenge",
+          "date": "2026-02-01T15:28:47Z",
+          "distance": 7242,
+          "elevation": 277
+        },
+        {
+          "id": 17259688243,
+          "name": "Trail trantran",
+          "date": "2026-02-02T11:39:18Z",
+          "distance": 6624.6,
+          "elevation": 284
         }
       ],
-      "total_distance_km": "38.83",
-      "total_elevation_m": 2551
+      "total_distance_km": "41.44",
+      "total_elevation_m": 2700
     },
     {
       "rank": 6,
@@ -335,6 +363,60 @@
     },
     {
       "rank": 7,
+      "id": "100399073",
+      "name": "Leo B",
+      "total_distance": 50622,
+      "total_elevation": 1901,
+      "total_activities": 6,
+      "activities": [
+        {
+          "id": 17248230189,
+          "name": "Ski nordique le matin",
+          "date": "2026-02-01T09:04:53Z",
+          "distance": 18701.9,
+          "elevation": 406
+        },
+        {
+          "id": 17238453098,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-01-31T13:15:25Z",
+          "distance": 5622.3,
+          "elevation": 184
+        },
+        {
+          "id": 17238465508,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-01-31T12:08:33Z",
+          "distance": 5587.8,
+          "elevation": 203
+        },
+        {
+          "id": 17219846135,
+          "name": "Trail en soirée",
+          "date": "2026-01-29T18:12:01Z",
+          "distance": 5558,
+          "elevation": 337
+        },
+        {
+          "id": 17263288125,
+          "name": "Trail en soirée",
+          "date": "2026-02-02T18:06:24Z",
+          "distance": 4567.8,
+          "elevation": 55
+        },
+        {
+          "id": 17284273830,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-02-04T13:04:44Z",
+          "distance": 10584.2,
+          "elevation": 716
+        }
+      ],
+      "total_distance_km": "50.62",
+      "total_elevation_m": 1901
+    },
+    {
+      "rank": 8,
       "id": "1841009",
       "name": "Mariana S",
       "total_distance": 51351.2,
@@ -378,7 +460,7 @@
         },
         {
           "id": 17273667260,
-          "name": "Afternoon Trail Run",
+          "name": "Petit trail - Charves",
           "date": "2026-02-03T16:09:42Z",
           "distance": 5497.1,
           "elevation": 320.7
@@ -386,53 +468,6 @@
       ],
       "total_distance_km": "51.35",
       "total_elevation_m": 1365
-    },
-    {
-      "rank": 8,
-      "id": "100399073",
-      "name": "Leo B",
-      "total_distance": 40037.8,
-      "total_elevation": 1185,
-      "total_activities": 5,
-      "activities": [
-        {
-          "id": 17248230189,
-          "name": "Ski nordique le matin",
-          "date": "2026-02-01T09:04:53Z",
-          "distance": 18701.9,
-          "elevation": 406
-        },
-        {
-          "id": 17238453098,
-          "name": "Trail dans l'après-midi",
-          "date": "2026-01-31T13:15:25Z",
-          "distance": 5622.3,
-          "elevation": 184
-        },
-        {
-          "id": 17238465508,
-          "name": "Trail dans l'après-midi",
-          "date": "2026-01-31T12:08:33Z",
-          "distance": 5587.8,
-          "elevation": 203
-        },
-        {
-          "id": 17219846135,
-          "name": "Trail en soirée",
-          "date": "2026-01-29T18:12:01Z",
-          "distance": 5558,
-          "elevation": 337
-        },
-        {
-          "id": 17263288125,
-          "name": "Trail en soirée",
-          "date": "2026-02-02T18:06:24Z",
-          "distance": 4567.8,
-          "elevation": 55
-        }
-      ],
-      "total_distance_km": "40.04",
-      "total_elevation_m": 1185
     },
     {
       "rank": 9,
@@ -478,9 +513,9 @@
       "rank": 10,
       "id": "68391361",
       "name": "Elodie F",
-      "total_distance": 7459.3,
-      "total_elevation": 471,
-      "total_activities": 1,
+      "total_distance": 12916.7,
+      "total_elevation": 528,
+      "total_activities": 2,
       "activities": [
         {
           "id": 17257278209,
@@ -488,10 +523,17 @@
           "date": "2026-02-01T08:19:20Z",
           "distance": 7459.3,
           "elevation": 471
+        },
+        {
+          "id": 17282878526,
+          "name": "Petit Run : avec le gang 👯",
+          "date": "2026-02-04T11:14:03Z",
+          "distance": 5457.4,
+          "elevation": 57
         }
       ],
-      "total_distance_km": "7.46",
-      "total_elevation_m": 471
+      "total_distance_km": "12.92",
+      "total_elevation_m": 528
     },
     {
       "rank": 11,
