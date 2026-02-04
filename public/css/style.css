@@ -1050,7 +1050,7 @@ body {
 
 .ranking-header {
   display: grid;
-  grid-template-columns: 60px minmax(140px, 1fr) 130px 130px 200px;
+  grid-template-columns: 60px minmax(160px, 1fr) 130px 130px 200px;
   padding: 16px 24px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid var(--border-color);
@@ -1063,7 +1063,7 @@ body {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 50px minmax(160px, 1fr) 100px 100px 200px;
+  grid-template-columns: 60px minmax(160px, 1fr) 130px 130px 200px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
