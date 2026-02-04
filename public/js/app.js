@@ -148,21 +148,47 @@ async function loadActivities() {
   const dataFile = isDemo ? '/data/all_activities_2025.json' : '/data/classement.json';
   const leagueId = CHALLENGE_CONFIG.leagueId;
 
+  console.log(`📡 Chargement activités - League: ${leagueId}`);
+
   try {
     const response = await fetch(`/api/activities/${leagueId}`);
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
     const data = await response.json();
     allActivities = parseActivitiesData(data);
-    console.log(`📊 ${allActivities.length} activités chargées (API: ${leagueId})`);
+    
+    // Debug: afficher les dates des activités
+    if (allActivities.length > 0) {
+      const dates = allActivities.map(a => a.start_date?.substring(0, 10)).filter(Boolean);
+      const uniqueDates = [...new Set(dates)].sort().reverse();
+      console.log(`📊 ${allActivities.length} activités chargées (API: ${leagueId})`);
+      console.log(`📅 Dates récentes: ${uniqueDates.slice(0, 5).join(', ')}`);
+      
+      // Vérifier les activités du round actuel
+      const today = new Date();
+      const roundStart = new Date(CHALLENGE_CONFIG.yearStartDate);
+      console.log(`📆 Round commence: ${roundStart.toISOString().substring(0, 10)}`);
+      console.log(`📆 Aujourd'hui: ${today.toISOString().substring(0, 10)}`);
+      
+      const recentActivities = allActivities.filter(a => {
+        const d = new Date(a.start_date);
+        return d >= roundStart;
+      });
+      console.log(`🎯 Activités depuis début challenge: ${recentActivities.length}`);
+    } else {
+      console.warn('⚠️ Aucune activité dans la réponse API');
+    }
+    
     return allActivities;
   } catch (error) {
-    console.warn('⚠️ Erreur chargement API, tentative fichier local:', dataFile);
+    console.warn('⚠️ Erreur chargement API:', error.message);
+    console.warn('⚠️ Tentative fichier local:', dataFile);
     try {
       const localResponse = await fetch(dataFile);
       if (localResponse.ok) {
         const localData = await localResponse.json();
         allActivities = parseActivitiesData(localData);
         console.log(`📊 ${allActivities.length} activités (fichier local: ${dataFile})`);
+        console.warn('⚠️ ATTENTION: Données locales utilisées, pas l\'API!');
       }
     } catch (e) {
       console.error('❌ Impossible de charger les données:', e);
@@ -561,8 +587,20 @@ function renderAll() {
       console.log('📋 Calcul du classement...');
       const roundDates = getRoundDates(currentRoundNumber);
       const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
+      
+      // DEBUG: Afficher les dates exactes
+      console.log(`📆 Round ${currentRoundNumber}: ${roundDates.start.toISOString().substring(0,10)} → ${roundDates.end.toISOString().substring(0,10)}`);
+      console.log(`📆 Filtrage jusqu'à: ${endDate instanceof Date ? endDate.toISOString().substring(0,10) : endDate}`);
+      console.log(`📊 Total activités disponibles: ${allActivities.length}`);
+      
       const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
       console.log('📋 Activités du round:', roundActivities.length);
+      
+      // DEBUG: Si pas d'activités, montrer pourquoi
+      if (roundActivities.length === 0 && allActivities.length > 0) {
+        const sampleDates = allActivities.slice(0, 5).map(a => a.start_date?.substring(0,10));
+        console.warn('⚠️ Aucune activité dans la période! Exemples de dates disponibles:', sampleDates);
+      }
 
       let ranking = calculateRanking(roundActivities, seasonData?.active || []);
       console.log('📋 Ranking calculé:', ranking.length, 'participants');

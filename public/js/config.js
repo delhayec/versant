@@ -102,7 +102,7 @@ export function getSeasonType(seasonNumber) {
 // SYSTÈME DE POINTS
 // ============================================
 export const MAIN_CHALLENGE_POINTS = {
-  1: 20, 2: 16, 3: 14, 4: 12, 5: 9, 6: 8, 7: 7, 8: 6, 9: 5, 10: 4, 11: 3, 12: 2, 13: 1, default: 0
+  1: 15, 2: 12, 3: 10, 4: 8, 5: 7, 6: 6, 7: 5, 8: 4, 9: 3, 10: 2, 11: 1, 12: 0, 13: 0, default: 0
 };
 
 export const ELIMINATED_CHALLENGE_POINTS = {
