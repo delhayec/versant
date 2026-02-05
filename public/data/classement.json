@@ -1,54 +1,14 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-04T20:00:00.543Z",
+  "generated_at": "2026-02-05T20:00:00.244Z",
   "ranking": [
     {
       "rank": 1,
-      "id": "87904944",
-      "name": "Guillaume B",
-      "total_distance": 53030,
-      "total_elevation": 4992,
-      "total_activities": 4,
-      "activities": [
-        {
-          "id": 17249722311,
-          "name": "Afternoon Trail Run",
-          "date": "2026-02-01T12:18:01Z",
-          "distance": 8652.4,
-          "elevation": 427
-        },
-        {
-          "id": 17238201260,
-          "name": "Morning Backcountry Ski",
-          "date": "2026-01-31T06:59:29Z",
-          "distance": 23133,
-          "elevation": 2110
-        },
-        {
-          "id": 17213984007,
-          "name": "Morning Backcountry Ski",
-          "date": "2026-01-29T05:12:05Z",
-          "distance": 10801.4,
-          "elevation": 1236
-        },
-        {
-          "id": 17280367993,
-          "name": "Morning Backcountry Ski",
-          "date": "2026-02-04T05:26:35Z",
-          "distance": 10443.2,
-          "elevation": 1219
-        }
-      ],
-      "total_distance_km": "53.03",
-      "total_elevation_m": 4992
-    },
-    {
-      "rank": 2,
       "id": "84388438",
       "name": "Rémi S",
-      "total_distance": 58327,
-      "total_elevation": 4233,
-      "total_activities": 5,
+      "total_distance": 87996,
+      "total_elevation": 6888.6,
+      "total_activities": 7,
       "activities": [
         {
           "id": 17213948845,
@@ -84,10 +44,71 @@
           "date": "2026-01-31T09:03:58Z",
           "distance": 12700,
           "elevation": 210
+        },
+        {
+          "id": 17296124468,
+          "name": "Ski de randonnée dans l'après-midi",
+          "date": "2026-02-05T13:29:28Z",
+          "distance": 8370,
+          "elevation": 821
+        },
+        {
+          "id": 17295202766,
+          "name": "Ski alpin le midi",
+          "date": "2026-02-05T10:04:53Z",
+          "distance": 21299,
+          "elevation": 1834.6
         }
       ],
-      "total_distance_km": "58.33",
-      "total_elevation_m": 4233
+      "total_distance_km": "88.00",
+      "total_elevation_m": 6889
+    },
+    {
+      "rank": 2,
+      "id": "87904944",
+      "name": "Guillaume B",
+      "total_distance": 64926.3,
+      "total_elevation": 6388,
+      "total_activities": 5,
+      "activities": [
+        {
+          "id": 17249722311,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-01T12:18:01Z",
+          "distance": 8652.4,
+          "elevation": 427
+        },
+        {
+          "id": 17238201260,
+          "name": "Morning Backcountry Ski",
+          "date": "2026-01-31T06:59:29Z",
+          "distance": 23133,
+          "elevation": 2110
+        },
+        {
+          "id": 17213984007,
+          "name": "Morning Backcountry Ski",
+          "date": "2026-01-29T05:12:05Z",
+          "distance": 10801.4,
+          "elevation": 1236
+        },
+        {
+          "id": 17280367993,
+          "name": "Morning Backcountry Ski",
+          "date": "2026-02-04T05:26:35Z",
+          "distance": 10443.2,
+          "elevation": 1219
+        },
+        {
+          "id": 17292173052,
+          "name": "Tournette",
+          "date": "2026-02-05T04:15:33Z",
+          "distance": 11896.3,
+          "elevation": 1396
+        }
+      ],
+      "total_distance_km": "64.93",
+      "total_elevation_m": 6388
     },
     {
       "rank": 3,
@@ -223,7 +244,7 @@
         },
         {
           "id": 17284718839,
-          "name": "Afternoon Trail Run",
+          "name": "Everly Hills",
           "date": "2026-02-04T13:13:04Z",
           "distance": 4434.5,
           "elevation": 188
@@ -304,9 +325,9 @@
       "rank": 6,
       "id": "8716867",
       "name": "Thomas M",
-      "total_distance": 149717.69999999998,
-      "total_elevation": 2207.3,
-      "total_activities": 7,
+      "total_distance": 153913.4,
+      "total_elevation": 2223.6000000000004,
+      "total_activities": 8,
       "activities": [
         {
           "id": 17241363241,
@@ -356,10 +377,17 @@
           "date": "2026-01-26T09:52:45Z",
           "distance": 40298.4,
           "elevation": 578.5
+        },
+        {
+          "id": 17298347912,
+          "name": "Course à pied en Soirée FR 20min",
+          "date": "2026-02-05T18:29:39Z",
+          "distance": 4195.7,
+          "elevation": 16.3
         }
       ],
-      "total_distance_km": "149.72",
-      "total_elevation_m": 2207
+      "total_distance_km": "153.91",
+      "total_elevation_m": 2224
     },
     {
       "rank": 7,
