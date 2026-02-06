@@ -258,7 +258,12 @@ function filterByPeriod(activities, startDate, endDate) {
 }
 
 function filterByParticipant(activities, participantId) {
-  return activities.filter(a => String(a.athlete?.id) === String(participantId));
+  const pid = String(participantId);
+  return activities.filter(a => {
+    // Supporter les deux formats: athlete.id (sync) et athlete_id (ancien webhook)
+    const athleteId = a.athlete?.id || a.athlete_id;
+    return String(athleteId) === pid;
+  });
 }
 
 // ============================================

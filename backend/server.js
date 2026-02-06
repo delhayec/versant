@@ -658,6 +658,94 @@ app.get('/api/activities-status/:leagueId', async (req, res) => {
   }
 });
 
+/**
+ * Endpoint de diagnostic complet
+ */
+app.get('/api/debug/:leagueId', async (req, res) => {
+  try {
+    const { leagueId } = req.params;
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    
+    // Charger activités
+    let activities = [];
+    try {
+      activities = JSON.parse(await fs.readFile(activitiesFile, 'utf8'));
+    } catch {}
+    
+    // Charger athlètes
+    let athletes = [];
+    try {
+      const allAthletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+      athletes = allAthletes.filter(a => a.league_id === leagueId);
+    } catch {}
+    
+    // Analyser les formats
+    const withAthleteObj = activities.filter(a => a.athlete && a.athlete.id);
+    const withAthleteId = activities.filter(a => a.athlete_id);
+    const fromWebhook = activities.filter(a => a.source === 'webhook');
+    const fromSync = activities.filter(a => a.source !== 'webhook');
+    
+    // Dates
+    const dates = activities.map(a => a.start_date?.substring(0, 10)).filter(Boolean);
+    const uniqueDates = [...new Set(dates)].sort().reverse();
+    
+    // Activités depuis le 2 février 2026
+    const challengeStart = new Date('2026-02-02');
+    const sinceChallenge = activities.filter(a => new Date(a.start_date) >= challengeStart);
+    
+    res.json({
+      summary: {
+        totalActivities: activities.length,
+        totalAthletes: athletes.length,
+        activitiesSinceChallengeStart: sinceChallenge.length,
+        fromWebhook: fromWebhook.length,
+        fromSync: fromSync.length,
+        withAthleteObject: withAthleteObj.length,
+        withAthleteIdOnly: withAthleteId.length - withAthleteObj.length,
+        missingAthleteInfo: activities.length - withAthleteId.length
+      },
+      dates: {
+        mostRecent: uniqueDates.slice(0, 10),
+        challengeStart: '2026-02-02',
+        activitiesInCurrentRound: sinceChallenge.length
+      },
+      athletes: athletes.map(a => ({
+        id: a.id,
+        name: a.name,
+        active: a.active,
+        activityCount: activities.filter(act => 
+          String(act.athlete?.id) === String(a.id) || String(act.athlete_id) === String(a.id)
+        ).length
+      })),
+      recentActivities: activities
+        .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
+        .slice(0, 20)
+        .map(a => ({
+          id: a.id,
+          name: a.name,
+          date: a.start_date?.substring(0, 10),
+          elevation: a.total_elevation_gain,
+          source: a.source || 'sync',
+          athleteObj: a.athlete?.id || null,
+          athleteId: a.athlete_id || null,
+          athleteName: a.athlete_name || null
+        })),
+      issues: [
+        ...(withAthleteObj.length < activities.length ? 
+          [`${activities.length - withAthleteObj.length} activités sans athlete.id (problème de filtrage)`] : []),
+        ...(sinceChallenge.length === 0 ? 
+          ['Aucune activité depuis le début du challenge (02/02/2026)'] : []),
+        ...(athletes.length === 0 ? 
+          ['Aucun athlète inscrit'] : [])
+      ]
+    });
+    
+  } catch (error) {
+    console.error('Erreur debug:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // ROUTES - ADMIN
 // ============================================
@@ -1416,13 +1504,20 @@ app.post('/api/webhook/strava', async (req, res) => {
         return;
       }
 
-      // Transformer l'activité
+      // Transformer l'activité - IMPORTANT: garder le format compatible avec la sync manuelle
       const newActivity = {
         id: stravaActivity.id,
+        // Champ athlete au format Strava (CRUCIAL pour le filtrage frontend)
+        athlete: {
+          id: athlete.id,
+          resource_state: 1
+        },
+        // Champs additionnels pour faciliter l'affichage
         athlete_id: athlete.id,
         athlete_name: athlete.name,
         name: stravaActivity.name,
         type: stravaActivity.type,
+        sport_type: stravaActivity.sport_type || stravaActivity.type,
         distance: stravaActivity.distance,
         moving_time: stravaActivity.moving_time,
         elapsed_time: stravaActivity.elapsed_time,
