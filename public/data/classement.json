@@ -1,14 +1,14 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-07T20:00:00.119Z",
+  "generated_at": "2026-02-08T20:00:00.179Z",
   "ranking": [
     {
       "rank": 1,
       "id": "84388438",
       "name": "Rémi S",
-      "total_distance": 105622,
-      "total_elevation": 8611.6,
-      "total_activities": 8,
+      "total_distance": 108628,
+      "total_elevation": 8619.6,
+      "total_activities": 9,
       "activities": [
         {
           "id": 17213948845,
@@ -65,10 +65,17 @@
           "date": "2026-02-07T08:52:53Z",
           "distance": 17626,
           "elevation": 1723
+        },
+        {
+          "id": 17326118068,
+          "name": "Course à pied le matin",
+          "date": "2026-02-08T09:57:31Z",
+          "distance": 3006,
+          "elevation": 8
         }
       ],
-      "total_distance_km": "105.62",
-      "total_elevation_m": 8612
+      "total_distance_km": "108.63",
+      "total_elevation_m": 8620
     },
     {
       "rank": 2,
@@ -632,9 +639,9 @@
       "rank": 10,
       "id": "68391361",
       "name": "Elodie F",
-      "total_distance": 20284.1,
-      "total_elevation": 723,
-      "total_activities": 3,
+      "total_distance": 28041.8,
+      "total_elevation": 931,
+      "total_activities": 4,
       "activities": [
         {
           "id": 17257278209,
@@ -656,10 +663,17 @@
           "date": "2026-02-05T18:05:06Z",
           "distance": 7367.4,
           "elevation": 195
+        },
+        {
+          "id": 17332044554,
+          "name": "Course à pied dans l'après-midi",
+          "date": "2026-02-08T16:41:50Z",
+          "distance": 7757.7,
+          "elevation": 208
         }
       ],
-      "total_distance_km": "20.28",
-      "total_elevation_m": 723
+      "total_distance_km": "28.04",
+      "total_elevation_m": 931
     },
     {
       "rank": 11,
@@ -682,6 +696,32 @@
     },
     {
       "rank": 12,
+      "id": "31184097",
+      "name": "1000N",
+      "total_distance": 6331.6,
+      "total_elevation": 204,
+      "total_activities": 2,
+      "activities": [
+        {
+          "id": 17331999150,
+          "name": "Lunch Hike",
+          "date": "2026-01-31T10:55:29Z",
+          "distance": 2698.3,
+          "elevation": 111
+        },
+        {
+          "id": 17332000447,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-08T16:19:45Z",
+          "distance": 3633.3,
+          "elevation": 93
+        }
+      ],
+      "total_distance_km": "6.33",
+      "total_elevation_m": 204
+    },
+    {
+      "rank": 13,
       "id": "3989319",
       "name": "Da M",
       "total_distance": 7435.1,
@@ -698,17 +738,6 @@
       ],
       "total_distance_km": "7.44",
       "total_elevation_m": 176
-    },
-    {
-      "rank": 13,
-      "id": "31184097",
-      "name": "1000N",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
     },
     {
       "rank": 14,
