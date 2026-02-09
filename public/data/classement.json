@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-08T20:00:00.179Z",
+  "generated_at": "2026-02-09T20:00:00.843Z",
   "ranking": [
     {
       "rank": 1,
@@ -81,9 +81,9 @@
       "rank": 2,
       "id": "87904944",
       "name": "Guillaume B",
-      "total_distance": 73920.8,
-      "total_elevation": 7124,
-      "total_activities": 6,
+      "total_distance": 81906.7,
+      "total_elevation": 8103,
+      "total_activities": 7,
       "activities": [
         {
           "id": 17249722311,
@@ -126,18 +126,25 @@
           "date": "2026-02-07T07:04:34Z",
           "distance": 8994.5,
           "elevation": 736
+        },
+        {
+          "id": 17328731037,
+          "name": "Morning Backcountry Ski",
+          "date": "2026-02-08T09:54:45Z",
+          "distance": 7985.9,
+          "elevation": 979
         }
       ],
-      "total_distance_km": "73.92",
-      "total_elevation_m": 7124
+      "total_distance_km": "81.91",
+      "total_elevation_m": 8103
     },
     {
       "rank": 3,
       "id": "8716867",
       "name": "Thomas M",
-      "total_distance": 223289.9,
-      "total_elevation": 7118.9,
-      "total_activities": 10,
+      "total_distance": 239778.1,
+      "total_elevation": 7324.799999999999,
+      "total_activities": 11,
       "activities": [
         {
           "id": 17241363241,
@@ -208,18 +215,25 @@
           "date": "2026-02-07T10:19:54Z",
           "distance": 50396.1,
           "elevation": 4596.2
+        },
+        {
+          "id": 17328658288,
+          "name": "Sortie à Vélo en après-midi Toulouse Jolimont",
+          "date": "2026-02-08T12:24:22Z",
+          "distance": 16488.2,
+          "elevation": 205.9
         }
       ],
-      "total_distance_km": "223.29",
-      "total_elevation_m": 7119
+      "total_distance_km": "239.78",
+      "total_elevation_m": 7325
     },
     {
       "rank": 4,
       "id": "6635902",
       "name": "Baptiste I",
-      "total_distance": 73633.3,
-      "total_elevation": 5744,
-      "total_activities": 7,
+      "total_distance": 83134.6,
+      "total_elevation": 6072,
+      "total_activities": 8,
       "activities": [
         {
           "id": 17213950937,
@@ -265,14 +279,21 @@
         },
         {
           "id": 17318492868,
-          "name": "Ski de randonnée le matin",
+          "name": "Rando avec les copains dans la peuf",
           "date": "2026-02-07T08:53:03Z",
           "distance": 18010.4,
           "elevation": 1759
+        },
+        {
+          "id": 17338445440,
+          "name": "Trail le midi",
+          "date": "2026-02-09T11:21:58Z",
+          "distance": 9501.3,
+          "elevation": 328
         }
       ],
-      "total_distance_km": "73.63",
-      "total_elevation_m": 5744
+      "total_distance_km": "83.13",
+      "total_elevation_m": 6072
     },
     {
       "rank": 5,
@@ -443,7 +464,7 @@
         },
         {
           "id": 17317735737,
-          "name": "Morning Run",
+          "name": "Cousins",
           "date": "2026-02-07T08:12:28Z",
           "distance": 14157.1,
           "elevation": 47
@@ -463,9 +484,9 @@
       "rank": 7,
       "id": "1841009",
       "name": "Mariana S",
-      "total_distance": 60684.299999999996,
-      "total_elevation": 2162,
-      "total_activities": 8,
+      "total_distance": 67159.59999999999,
+      "total_elevation": 2465,
+      "total_activities": 9,
       "activities": [
         {
           "id": 17236745408,
@@ -522,13 +543,81 @@
           "date": "2026-02-07T14:44:39Z",
           "distance": 5682,
           "elevation": 627.5
+        },
+        {
+          "id": 17338692914,
+          "name": "Lunch Trail Run",
+          "date": "2026-02-09T11:12:11Z",
+          "distance": 6475.3,
+          "elevation": 303
         }
       ],
-      "total_distance_km": "60.68",
-      "total_elevation_m": 2162
+      "total_distance_km": "67.16",
+      "total_elevation_m": 2465
     },
     {
       "rank": 8,
+      "id": "110979265",
+      "name": "Pef",
+      "total_distance": 55631,
+      "total_elevation": 2228.8,
+      "total_activities": 7,
+      "activities": [
+        {
+          "id": 17238438106,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-01-31T12:07:12Z",
+          "distance": 11422.2,
+          "elevation": 375
+        },
+        {
+          "id": 17247896899,
+          "name": "Ski nordique le matin",
+          "date": "2026-02-01T09:05:03Z",
+          "distance": 18527.7,
+          "elevation": 386.4
+        },
+        {
+          "id": 17217723005,
+          "name": "Ski alpin le matin",
+          "date": "2026-01-29T09:19:00Z",
+          "distance": 0,
+          "elevation": 0
+        },
+        {
+          "id": 17273323974,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-02-03T15:20:33Z",
+          "distance": 8123.5,
+          "elevation": 353.6
+        },
+        {
+          "id": 17315668442,
+          "name": "Randonnée le midi",
+          "date": "2026-02-07T10:00:24Z",
+          "distance": 3725.5,
+          "elevation": 166
+        },
+        {
+          "id": 17319913665,
+          "name": "Ski de randonnée dans l'après-midi",
+          "date": "2026-02-07T14:50:00Z",
+          "distance": 5757.9,
+          "elevation": 588.4
+        },
+        {
+          "id": 17340802388,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-02-09T15:23:43Z",
+          "distance": 8074.2,
+          "elevation": 359.4
+        }
+      ],
+      "total_distance_km": "55.63",
+      "total_elevation_m": 2229
+    },
+    {
+      "rank": 9,
       "id": "100399073",
       "name": "Leo B",
       "total_distance": 50622,
@@ -582,60 +671,6 @@
       "total_elevation_m": 1901
     },
     {
-      "rank": 9,
-      "id": "110979265",
-      "name": "Pef",
-      "total_distance": 47556.8,
-      "total_elevation": 1869.4,
-      "total_activities": 6,
-      "activities": [
-        {
-          "id": 17238438106,
-          "name": "Trail dans l'après-midi",
-          "date": "2026-01-31T12:07:12Z",
-          "distance": 11422.2,
-          "elevation": 375
-        },
-        {
-          "id": 17247896899,
-          "name": "Ski nordique le matin",
-          "date": "2026-02-01T09:05:03Z",
-          "distance": 18527.7,
-          "elevation": 386.4
-        },
-        {
-          "id": 17217723005,
-          "name": "Ski alpin le matin",
-          "date": "2026-01-29T09:19:00Z",
-          "distance": 0,
-          "elevation": 0
-        },
-        {
-          "id": 17273323974,
-          "name": "Trail dans l'après-midi",
-          "date": "2026-02-03T15:20:33Z",
-          "distance": 8123.5,
-          "elevation": 353.6
-        },
-        {
-          "id": 17315668442,
-          "name": "Randonnée le midi",
-          "date": "2026-02-07T10:00:24Z",
-          "distance": 3725.5,
-          "elevation": 166
-        },
-        {
-          "id": 17319913665,
-          "name": "Ski de randonnée dans l'après-midi",
-          "date": "2026-02-07T14:50:00Z",
-          "distance": 5757.9,
-          "elevation": 588.4
-        }
-      ],
-      "total_distance_km": "47.56",
-      "total_elevation_m": 1869
-    },
-    {
       "rank": 10,
       "id": "68391361",
       "name": "Elodie F",
@@ -666,7 +701,7 @@
         },
         {
           "id": 17332044554,
-          "name": "Course à pied dans l'après-midi",
+          "name": "Run : à l’attaque des côtes 🔥",
           "date": "2026-02-08T16:41:50Z",
           "distance": 7757.7,
           "elevation": 208
@@ -741,17 +776,6 @@
     },
     {
       "rank": 14,
-      "id": "92880400",
-      "name": "Ben",
-      "total_distance": 0,
-      "total_elevation": 0,
-      "total_activities": 0,
-      "activities": [],
-      "total_distance_km": "0.00",
-      "total_elevation_m": 0
-    },
-    {
-      "rank": 15,
       "id": "119310419",
       "name": "Max2Peuf",
       "total_distance": 0,
