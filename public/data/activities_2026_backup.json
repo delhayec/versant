@@ -5751,5 +5751,29 @@
     "athlete_id": "8716867",
     "athlete_name": "Thomas M",
     "date": "2026-02-08"
+  },
+  {
+    "id": 17338445440,
+    "athlete": {
+      "id": "6635902",
+      "resource_state": 1
+    },
+    "athlete_id": "6635902",
+    "athlete_name": "Baptiste I",
+    "name": "Trail le midi",
+    "type": "Run",
+    "sport_type": "TrailRun",
+    "distance": 9501.3,
+    "moving_time": 3562,
+    "elapsed_time": 3562,
+    "total_elevation_gain": 328,
+    "start_date": "2026-02-09T11:21:58Z",
+    "start_date_local": "2026-02-09T12:21:58Z",
+    "average_speed": 2.667,
+    "max_speed": 4.76,
+    "average_heartrate": 145.5,
+    "max_heartrate": 168,
+    "synced_at": "2026-02-09T12:22:28.992Z",
+    "source": "webhook"
   }
 ]
