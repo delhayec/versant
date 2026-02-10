@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-09T20:00:00.843Z",
+  "generated_at": "2026-02-10T20:00:00.772Z",
   "ranking": [
     {
       "rank": 1,
@@ -81,9 +81,9 @@
       "rank": 2,
       "id": "87904944",
       "name": "Guillaume B",
-      "total_distance": 81906.7,
-      "total_elevation": 8103,
-      "total_activities": 7,
+      "total_distance": 88186.4,
+      "total_elevation": 8183,
+      "total_activities": 8,
       "activities": [
         {
           "id": 17249722311,
@@ -133,10 +133,17 @@
           "date": "2026-02-08T09:54:45Z",
           "distance": 7985.9,
           "elevation": 979
+        },
+        {
+          "id": 17349834529,
+          "name": "Lunch Run",
+          "date": "2026-02-10T11:36:37Z",
+          "distance": 6279.7,
+          "elevation": 80
         }
       ],
-      "total_distance_km": "81.91",
-      "total_elevation_m": 8103
+      "total_distance_km": "88.19",
+      "total_elevation_m": 8183
     },
     {
       "rank": 3,
