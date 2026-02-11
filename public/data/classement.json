@@ -1,14 +1,14 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-10T20:00:00.772Z",
+  "generated_at": "2026-02-11T20:00:00.377Z",
   "ranking": [
     {
       "rank": 1,
       "id": "84388438",
       "name": "Rémi S",
-      "total_distance": 108628,
-      "total_elevation": 8619.6,
-      "total_activities": 9,
+      "total_distance": 117241,
+      "total_elevation": 8897.6,
+      "total_activities": 10,
       "activities": [
         {
           "id": 17213948845,
@@ -72,10 +72,17 @@
           "date": "2026-02-08T09:57:31Z",
           "distance": 3006,
           "elevation": 8
+        },
+        {
+          "id": 17364780774,
+          "name": "Trail dans l'après-midi",
+          "date": "2026-02-11T16:41:22Z",
+          "distance": 8613,
+          "elevation": 278
         }
       ],
-      "total_distance_km": "108.63",
-      "total_elevation_m": 8620
+      "total_distance_km": "117.24",
+      "total_elevation_m": 8898
     },
     {
       "rank": 2,
@@ -149,9 +156,9 @@
       "rank": 3,
       "id": "8716867",
       "name": "Thomas M",
-      "total_distance": 239778.1,
-      "total_elevation": 7324.799999999999,
-      "total_activities": 11,
+      "total_distance": 242852.80000000002,
+      "total_elevation": 7342.599999999999,
+      "total_activities": 12,
       "activities": [
         {
           "id": 17241363241,
@@ -229,10 +236,17 @@
           "date": "2026-02-08T12:24:22Z",
           "distance": 16488.2,
           "elevation": 205.9
+        },
+        {
+          "id": 17359213856,
+          "name": "Course à pied en matinée F 15min",
+          "date": "2026-02-11T06:38:05Z",
+          "distance": 3074.7,
+          "elevation": 17.8
         }
       ],
-      "total_distance_km": "239.78",
-      "total_elevation_m": 7325
+      "total_distance_km": "242.85",
+      "total_elevation_m": 7343
     },
     {
       "rank": 4,
@@ -719,6 +733,32 @@
     },
     {
       "rank": 11,
+      "id": "3989319",
+      "name": "Da M",
+      "total_distance": 11278.5,
+      "total_elevation": 304.9,
+      "total_activities": 2,
+      "activities": [
+        {
+          "id": 17184452277,
+          "name": "3x1000m en 4’10",
+          "date": "2026-01-26T16:45:17Z",
+          "distance": 7435.1,
+          "elevation": 176
+        },
+        {
+          "id": 17363281149,
+          "name": "Randonnée dans l'après-midi",
+          "date": "2026-02-11T13:53:45Z",
+          "distance": 3843.4,
+          "elevation": 128.9
+        }
+      ],
+      "total_distance_km": "11.28",
+      "total_elevation_m": 305
+    },
+    {
+      "rank": 12,
       "id": "3762537",
       "name": "Baptiste M",
       "total_distance": 6048.9,
@@ -737,7 +777,7 @@
       "total_elevation_m": 231
     },
     {
-      "rank": 12,
+      "rank": 13,
       "id": "31184097",
       "name": "1000N",
       "total_distance": 6331.6,
@@ -761,25 +801,6 @@
       ],
       "total_distance_km": "6.33",
       "total_elevation_m": 204
-    },
-    {
-      "rank": 13,
-      "id": "3989319",
-      "name": "Da M",
-      "total_distance": 7435.1,
-      "total_elevation": 176,
-      "total_activities": 1,
-      "activities": [
-        {
-          "id": 17184452277,
-          "name": "3x1000m en 4’10",
-          "date": "2026-01-26T16:45:17Z",
-          "distance": 7435.1,
-          "elevation": 176
-        }
-      ],
-      "total_distance_km": "7.44",
-      "total_elevation_m": 176
     },
     {
       "rank": 14,
