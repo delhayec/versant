@@ -128,17 +128,33 @@
   </footer>
 
   <script>
-    // Force reload - purge du cache à chaque visite
-    if ('caches' in window) {
-      caches.keys().then(names => names.forEach(name => caches.delete(name)));
+  // Force reload - purge du cache à chaque visite
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(name => caches.delete(name)));
+  }
+  // Vider le localStorage des anciennes versions de jokers
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('versant_jokers') && !key.includes('v2_20260202')) {
+      localStorage.removeItem(key);
     }
-    // Vider le localStorage des anciennes versions de jokers
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('versant_jokers') && !key.includes('v2_20260202')) {
-        localStorage.removeItem(key);
-      }
-    });
-  </script>
+  });
+
+  // Afficher "Mon Dashboard" si connecté, sinon "Connexion"
+  const athleteId = localStorage.getItem('versant_athlete_id');
+  const token = localStorage.getItem('versant_token');
+  const dashboardLink = document.getElementById('dashboardLink');
+  const loginLink = document.getElementById('loginLink');
+
+  if (athleteId || token) {
+    // Utilisateur connecté
+    if (dashboardLink) dashboardLink.style.display = 'inline-block';
+    if (loginLink) loginLink.style.display = 'none';
+  } else {
+    // Non connecté
+    if (dashboardLink) dashboardLink.style.display = 'none';
+    if (loginLink) loginLink.style.display = 'inline-block';
+  }
+</script>
   <script type="module" src="js/app.js?v=20260203"></script>
 </body>
 </html>
