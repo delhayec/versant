@@ -391,12 +391,27 @@ function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, c
     // Calculer le round global à partir du round dans la saison et de la saison d'élimination
     const globalRound = (p.eliminatedSeason - 1) * roundsPerSeason + p.eliminatedRound;
     const roundDates = getRoundDates(globalRound);
-    const startDate = new Date(roundDates.end);
-    startDate.setDate(startDate.getDate() + 1);
-    if (startDate > endDate) continue;
 
-    const pActs = filterByParticipant(filterByPeriod(activities, startDate, endDate), p.id);
-    const stats = calculateStats(pActs);
+    // L'éliminé peut participer dès la fin de son round d'élimination
+    const eliminationDate = new Date(roundDates.end);
+
+    // Vérifier que le round d'élimination est bien terminé
+    if (currentDate < eliminationDate) continue;
+
+    // Les activités comptent à partir du lendemain de l'élimination
+    const startDate = new Date(eliminationDate);
+    startDate.setDate(startDate.getDate() + 1);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Même si pas encore d'activités, l'éliminé doit apparaître
+    let pActs = [];
+    let stats = { elevation: 0, distance: 0, activities: 0 };
+
+    if (startDate <= endDate) {
+      pActs = filterByParticipant(filterByPeriod(activities, startDate, endDate), p.id);
+      stats = calculateStats(pActs);
+    }
+
     ranking.push({
       participant: p,
       totalElevation: stats.elevation,
@@ -404,7 +419,7 @@ function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, c
       activityCount: stats.activities,
       eliminatedRound: p.eliminatedRound,
       eliminatedSeason: p.eliminatedSeason,
-      daysSinceElimination: Math.max(0, Math.floor((endDate - startDate) / 86400000))
+      daysSinceElimination: Math.max(0, Math.floor((endDate - eliminationDate) / 86400000))
     });
   }
 
@@ -415,7 +430,6 @@ function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, c
   });
   return ranking;
 }
-
 // ============================================
 // CLASSEMENT ANNUEL
 // ============================================
