@@ -116,16 +116,15 @@ export const getEliminatedChallengePoints = (pos) => ELIMINATED_CHALLENGE_POINTS
 // JOKERS (BONUS) - Définition complète
 // ============================================
 export const JOKER_TYPES = {
-  duel: {
-    id: "duel",
-    name: "Duel",
-    icon: "⚔️",
-    description: "Défiez un adversaire et volez 25% de son D+ si vous gagnez",
-    effect: "Choisissez un adversaire. Actif au round suivant.",
+   voleur: {
+    id: "voleur",
+    name: "Voleur",
+    icon: "🦹",
+    description: "Vole l'activité avec le plus de D+ d'un adversaire",
+    effect: "Choisissez un adversaire. Au prochain round, vous lui volez son activité avec le plus de D+.",
     usableInFinal: true,
     requiresTarget: true,
-    notOnLastDay: true,
-    parameters: { stealPercentage: 25 }
+    notOnLastDay: true
   },
   multiplicateur: {
     id: "multiplicateur",
@@ -142,9 +141,11 @@ export const JOKER_TYPES = {
     name: "Bouclier",
     icon: "🛡️",
     description: "Évitez l'élimination",
-    effect: "Protection contre l'élimination. NON UTILISABLE en finale.",
+    effect: "Activable immédiatement (jours 1-2 du round) ou pour le prochain round. NON UTILISABLE en finale.",
     usableInFinal: false,
-    requiresTarget: false
+    requiresTarget: false,
+    canActivateNow: true,
+    maxDayForImmediateUse: 2
   },
   sabotage: {
     id: "sabotage",
@@ -154,7 +155,7 @@ export const JOKER_TYPES = {
     effect: "Ciblez un adversaire. Actif au round suivant.",
     usableInFinal: true,
     requiresTarget: true,
-    parameters: { stealPercentage: 25 }
+    parameters: { penaltyPercentage: 25 }
   }
 };
 

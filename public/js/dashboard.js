@@ -4,7 +4,7 @@
  * ============================================
  */
 
-import { CHALLENGE_CONFIG, JOKER_TYPES } from './config-2026.js';
+import { CHALLENGE_CONFIG, JOKER_TYPES, getRoundDates, getGlobalRoundNumber } from './config.js';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
@@ -128,31 +128,204 @@ function renderJokers() {
   const grid = document.getElementById('jokersGrid');
   if (!grid || !currentUser) return;
   
-  const userJokers = currentUser.jokers || [];
-  
+  // Calculer le jour actuel dans le round
+  const now = new Date();
+  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
+  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  const currentRound = Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1;
+  const dayInRound = (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;
+
+  const userJokers = currentUser.jokers || ['voleur', 'multiplicateur', 'bouclier', 'sabotage'];
+
   grid.innerHTML = Object.values(JOKER_TYPES).map(joker => {
     const hasJoker = userJokers.includes(joker.id);
-    const isUsed = false; // TODO: Vérifier si déjà utilisé
-    
+
+    // Pour le bouclier, vérifier si on peut l'activer immédiatement
+    let canUseNow = hasJoker;
+    let immediateOption = false;
+
+    if (joker.id === 'bouclier' && hasJoker) {
+      immediateOption = dayInRound <= (joker.maxDayForImmediateUse || 2);
+    }
+
     return `
-      <div class="joker-card ${hasJoker && !isUsed ? 'available' : 'used'}" data-joker="${joker.id}">
+      <div class="joker-card ${hasJoker ? 'available' : 'used'}" data-joker="${joker.id}" data-immediate="${immediateOption}">
         <div class="joker-icon">${joker.icon}</div>
         <div class="joker-name">${joker.name}</div>
         <div class="joker-desc">${joker.description}</div>
-        <div class="joker-status ${hasJoker && !isUsed ? 'available' : 'used'}">
-          ${hasJoker && !isUsed ? 'Disponible' : 'Utilisé'}
+        ${immediateOption ? '<div class="joker-immediate">⚡ Activation immédiate possible</div>' : ''}
+        <div class="joker-status ${hasJoker ? 'available' : 'used'}">
+          ${hasJoker ? 'Disponible' : 'Utilisé'}
         </div>
       </div>
     `;
   }).join('');
-  
+
   // Ajouter les event listeners
   grid.querySelectorAll('.joker-card.available').forEach(card => {
     card.addEventListener('click', () => {
       const jokerId = card.dataset.joker;
-      useJoker(jokerId);
+      const canImmediate = card.dataset.immediate === 'true';
+      openJokerModal(jokerId, canImmediate, currentRound, dayInRound);
     });
   });
+}
+
+async function openJokerModal(jokerId, canImmediate, currentRound, dayInRound) {
+  const joker = JOKER_TYPES[jokerId];
+  if (!joker) return;
+
+  // Charger les adversaires pour les jokers qui nécessitent une cible
+  let targetHtml = '';
+  if (joker.requiresTarget) {
+    const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
+    const athletes = await res.json();
+    const opponents = athletes.filter(a => a.id !== currentUser.id);
+
+    targetHtml = `
+      <div class="modal-field">
+        <label>Choisir un adversaire :</label>
+        <select id="jokerTarget" required>
+          <option value="">-- Sélectionner --</option>
+          ${opponents.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
+
+  // Pour le multiplicateur, ajouter le sélecteur de jour
+  let dayHtml = '';
+  if (joker.requiresDay) {
+    const nextRound = currentRound + 1;
+    const roundStart = new Date(CHALLENGE_CONFIG.yearStartDate);
+    roundStart.setDate(roundStart.getDate() + (nextRound - 1) * CHALLENGE_CONFIG.roundDurationDays);
+
+    const days = [];
+    for (let i = 0; i < CHALLENGE_CONFIG.roundDurationDays; i++) {
+      const day = new Date(roundStart);
+      day.setDate(day.getDate() + i);
+      days.push({
+        date: day.toISOString().split('T')[0],
+        label: day.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+      });
+    }
+
+    dayHtml = `
+      <div class="modal-field">
+        <label>Choisir le jour à doubler :</label>
+        <select id="jokerDay" required>
+          <option value="">-- Sélectionner --</option>
+          ${days.map(d => `<option value="${d.date}">${d.label}</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
+
+  // Pour le bouclier, ajouter l'option d'activation immédiate
+  let timingHtml = '';
+  if (jokerId === 'bouclier' && canImmediate) {
+    timingHtml = `
+      <div class="modal-field">
+        <label>Quand activer le bouclier ?</label>
+        <div class="timing-options">
+          <label class="timing-option">
+            <input type="radio" name="timing" value="now" checked>
+            <span>⚡ Ce round (immédiat)</span>
+          </label>
+          <label class="timing-option">
+            <input type="radio" name="timing" value="next">
+            <span>⏰ Prochain round</span>
+          </label>
+        </div>
+      </div>
+    `;
+  }
+
+  // Créer le modal
+  const modal = document.createElement('div');
+  modal.className = 'joker-modal-overlay';
+  modal.innerHTML = `
+    <div class="joker-modal">
+      <div class="modal-header">
+        <span class="modal-icon">${joker.icon}</span>
+        <h3>${joker.name}</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">${joker.effect}</p>
+        ${timingHtml}
+        ${targetHtml}
+        ${dayHtml}
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="this.closest('.joker-modal-overlay').remove()">Annuler</button>
+        <button class="btn-confirm" id="confirmJoker">Activer le joker</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Gérer la confirmation
+  modal.querySelector('#confirmJoker').addEventListener('click', async () => {
+    const targetId = modal.querySelector('#jokerTarget')?.value;
+    const selectedDay = modal.querySelector('#jokerDay')?.value;
+    const timing = modal.querySelector('input[name="timing"]:checked')?.value || 'next';
+
+    if (joker.requiresTarget && !targetId) {
+      alert('Veuillez sélectionner un adversaire');
+      return;
+    }
+
+    if (joker.requiresDay && !selectedDay) {
+      alert('Veuillez sélectionner un jour');
+      return;
+    }
+
+    await confirmJokerUse(jokerId, {
+      targetId,
+      selectedDay,
+      activateNow: timing === 'now',
+      round: timing === 'now' ? currentRound : currentRound + 1
+    });
+
+    modal.remove();
+  });
+}
+
+async function confirmJokerUse(jokerId, options) {
+  try {
+    const token = localStorage.getItem('versant_token');
+
+    const res = await fetch(`${API_BASE}/jokers/use`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        joker_id: jokerId,
+        target_athlete_id: options.targetId,
+        selected_day: options.selectedDay,
+        activate_now: options.activateNow,
+        round_number: options.round
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erreur');
+    }
+
+    alert(`Joker ${JOKER_TYPES[jokerId].name} activé avec succès !`);
+
+    // Recharger les données
+    await loadCurrentUser();
+    renderJokers();
+
+  } catch (error) {
+    console.error('Erreur utilisation joker:', error);
+    alert('Erreur: ' + error.message);
+  }
 }
 
 function renderActivities() {

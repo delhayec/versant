@@ -472,11 +472,17 @@ function calculateYearlyStandings(activities, currentDate) {
         mainPts = getMainChallengePoints(2);
       }
 
-      if (sData.seasonComplete || elim) {
+            if (sData.seasonComplete || elim) {
         totals[p.id].totalMainPoints += mainPts;
-        totals[p.id].totalEliminatedPoints += elimPts;
-        totals[p.id].totalPoints += mainPts + elimPts;
-        if (sData.seasonComplete) totals[p.id].seasonsPlayed++;
+        // Points éliminés uniquement attribués en fin de saison
+        if (sData.seasonComplete) {
+          totals[p.id].totalEliminatedPoints += elimPts;
+          totals[p.id].totalPoints += mainPts + elimPts;
+          totals[p.id].seasonsPlayed++;
+        } else {
+          // Saison en cours : seulement les points du challenge principal
+          totals[p.id].totalPoints += mainPts;
+        }
       }
     });
   }
