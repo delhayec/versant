@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-11T20:00:00.377Z",
+  "generated_at": "2026-02-12T20:00:00.869Z",
   "ranking": [
     {
       "rank": 1,
@@ -252,9 +252,9 @@
       "rank": 4,
       "id": "6635902",
       "name": "Baptiste I",
-      "total_distance": 83134.6,
-      "total_elevation": 6072,
-      "total_activities": 8,
+      "total_distance": 88049.90000000001,
+      "total_elevation": 6606,
+      "total_activities": 9,
       "activities": [
         {
           "id": 17213950937,
@@ -311,10 +311,17 @@
           "date": "2026-02-09T11:21:58Z",
           "distance": 9501.3,
           "elevation": 328
+        },
+        {
+          "id": 17363523930,
+          "name": "Afterwork à Oppdal",
+          "date": "2026-02-11T14:22:34Z",
+          "distance": 4915.3,
+          "elevation": 534
         }
       ],
-      "total_distance_km": "83.13",
-      "total_elevation_m": 6072
+      "total_distance_km": "88.05",
+      "total_elevation_m": 6606
     },
     {
       "rank": 5,
@@ -735,9 +742,9 @@
       "rank": 11,
       "id": "3989319",
       "name": "Da M",
-      "total_distance": 11278.5,
-      "total_elevation": 304.9,
-      "total_activities": 2,
+      "total_distance": 12723.4,
+      "total_elevation": 323,
+      "total_activities": 3,
       "activities": [
         {
           "id": 17184452277,
@@ -752,10 +759,17 @@
           "date": "2026-02-11T13:53:45Z",
           "distance": 3843.4,
           "elevation": 128.9
+        },
+        {
+          "id": 17339693743,
+          "name": "Ski alpin dans l'après-midi",
+          "date": "2026-02-09T14:38:37Z",
+          "distance": 1444.9,
+          "elevation": 18.1
         }
       ],
-      "total_distance_km": "11.28",
-      "total_elevation_m": 305
+      "total_distance_km": "12.72",
+      "total_elevation_m": 323
     },
     {
       "rank": 12,
@@ -804,6 +818,17 @@
     },
     {
       "rank": 14,
+      "id": "45072827",
+      "name": "Benjamin T",
+      "total_distance": 0,
+      "total_elevation": 0,
+      "total_activities": 0,
+      "activities": [],
+      "total_distance_km": "0.00",
+      "total_elevation_m": 0
+    },
+    {
+      "rank": 15,
       "id": "119310419",
       "name": "Max2Peuf",
       "total_distance": 0,
