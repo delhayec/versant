@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-12T20:00:00.869Z",
+  "generated_at": "2026-02-13T20:00:00.059Z",
   "ranking": [
     {
       "rank": 1,
@@ -88,9 +88,9 @@
       "rank": 2,
       "id": "87904944",
       "name": "Guillaume B",
-      "total_distance": 88186.4,
-      "total_elevation": 8183,
-      "total_activities": 8,
+      "total_distance": 97696.4,
+      "total_elevation": 8750,
+      "total_activities": 9,
       "activities": [
         {
           "id": 17249722311,
@@ -147,10 +147,17 @@
           "date": "2026-02-10T11:36:37Z",
           "distance": 6279.7,
           "elevation": 80
+        },
+        {
+          "id": 17383234745,
+          "name": "Lunch Trail Run",
+          "date": "2026-02-13T11:08:40Z",
+          "distance": 9510,
+          "elevation": 567
         }
       ],
-      "total_distance_km": "88.19",
-      "total_elevation_m": 8183
+      "total_distance_km": "97.70",
+      "total_elevation_m": 8750
     },
     {
       "rank": 3,
@@ -395,9 +402,9 @@
       "rank": 6,
       "id": "5231535",
       "name": "Franck P",
-      "total_distance": 87047,
-      "total_elevation": 2913,
-      "total_activities": 15,
+      "total_distance": 94057.7,
+      "total_elevation": 3241,
+      "total_activities": 16,
       "activities": [
         {
           "id": 17162166919,
@@ -503,18 +510,25 @@
           "date": "2026-02-05T20:55:58Z",
           "distance": 1469.6,
           "elevation": 72
+        },
+        {
+          "id": 17383491743,
+          "name": "Lunch Trail Run",
+          "date": "2026-02-13T11:38:01Z",
+          "distance": 7010.7,
+          "elevation": 328
         }
       ],
-      "total_distance_km": "87.05",
-      "total_elevation_m": 2913
+      "total_distance_km": "94.06",
+      "total_elevation_m": 3241
     },
     {
       "rank": 7,
       "id": "1841009",
       "name": "Mariana S",
-      "total_distance": 67159.59999999999,
-      "total_elevation": 2465,
-      "total_activities": 9,
+      "total_distance": 73055.79999999999,
+      "total_elevation": 2879.3,
+      "total_activities": 10,
       "activities": [
         {
           "id": 17236745408,
@@ -578,18 +592,25 @@
           "date": "2026-02-09T11:12:11Z",
           "distance": 6475.3,
           "elevation": 303
+        },
+        {
+          "id": 17386269716,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-13T16:09:45Z",
+          "distance": 5896.2,
+          "elevation": 414.3
         }
       ],
-      "total_distance_km": "67.16",
-      "total_elevation_m": 2465
+      "total_distance_km": "73.06",
+      "total_elevation_m": 2879
     },
     {
       "rank": 8,
       "id": "110979265",
       "name": "Pef",
-      "total_distance": 55631,
-      "total_elevation": 2228.8,
-      "total_activities": 7,
+      "total_distance": 62414.4,
+      "total_elevation": 2508.3,
+      "total_activities": 8,
       "activities": [
         {
           "id": 17238438106,
@@ -639,10 +660,17 @@
           "date": "2026-02-09T15:23:43Z",
           "distance": 8074.2,
           "elevation": 359.4
+        },
+        {
+          "id": 17383440631,
+          "name": "Trail le midi",
+          "date": "2026-02-13T11:36:42Z",
+          "distance": 6783.4,
+          "elevation": 279.5
         }
       ],
-      "total_distance_km": "55.63",
-      "total_elevation_m": 2229
+      "total_distance_km": "62.41",
+      "total_elevation_m": 2508
     },
     {
       "rank": 9,
