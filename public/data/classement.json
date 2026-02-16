@@ -1,14 +1,14 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-15T20:00:00.887Z",
+  "generated_at": "2026-02-16T20:00:00.391Z",
   "ranking": [
     {
       "rank": 1,
       "id": "8716867",
       "name": "Thomas M",
-      "total_distance": 324294.7,
-      "total_elevation": 15960.1,
-      "total_activities": 15,
+      "total_distance": 330401.5,
+      "total_elevation": 16453.3,
+      "total_activities": 16,
       "activities": [
         {
           "id": 17241363241,
@@ -103,29 +103,36 @@
         },
         {
           "id": 17407151347,
-          "name": "Activité matinale",
+          "name": "Journée Ski à Peyragudes",
           "date": "2026-02-15T09:19:59Z",
           "distance": 72396.6,
-          "elevation": 8362.9
+          "elevation": 8362.7
         },
         {
           "id": 17409411315,
-          "name": "Trail en soirée",
+          "name": "Course à pied Trail en Soirée pour récupérer les pizzas",
           "date": "2026-02-15T18:29:40Z",
           "distance": 3368.2,
           "elevation": 223.6
+        },
+        {
+          "id": 17416359432,
+          "name": "Trail en après-midi Luchon <--> Stèle de la crémaillère",
+          "date": "2026-02-16T13:30:38Z",
+          "distance": 6106.8,
+          "elevation": 493.4
         }
       ],
-      "total_distance_km": "324.29",
-      "total_elevation_m": 15960
+      "total_distance_km": "330.40",
+      "total_elevation_m": 16453
     },
     {
       "rank": 2,
       "id": "87904944",
       "name": "Guillaume B",
-      "total_distance": 111642.4,
-      "total_elevation": 10085,
-      "total_activities": 11,
+      "total_distance": 118678.29999999999,
+      "total_elevation": 10173,
+      "total_activities": 12,
       "activities": [
         {
           "id": 17249722311,
@@ -203,18 +210,25 @@
           "date": "2026-02-14T11:53:04Z",
           "distance": 6925.9,
           "elevation": 767
+        },
+        {
+          "id": 17414938235,
+          "name": "Lunch Run",
+          "date": "2026-02-16T11:22:14Z",
+          "distance": 7035.9,
+          "elevation": 88
         }
       ],
-      "total_distance_km": "111.64",
-      "total_elevation_m": 10085
+      "total_distance_km": "118.68",
+      "total_elevation_m": 10173
     },
     {
       "rank": 3,
       "id": "84388438",
       "name": "Rémi S",
-      "total_distance": 121634,
-      "total_elevation": 9378.6,
-      "total_activities": 11,
+      "total_distance": 122048,
+      "total_elevation": 9456.6,
+      "total_activities": 12,
       "activities": [
         {
           "id": 17213948845,
@@ -292,10 +306,17 @@
           "date": "2026-02-14T16:32:03Z",
           "distance": 4393,
           "elevation": 481
+        },
+        {
+          "id": 17417244899,
+          "name": "Retour club Med",
+          "date": "2026-02-16T15:59:53Z",
+          "distance": 414,
+          "elevation": 78
         }
       ],
-      "total_distance_km": "121.63",
-      "total_elevation_m": 9379
+      "total_distance_km": "122.05",
+      "total_elevation_m": 9457
     },
     {
       "rank": 4,
@@ -395,65 +416,11 @@
     },
     {
       "rank": 5,
-      "id": "68391361",
-      "name": "Elodie F",
-      "total_distance": 75292.8,
-      "total_elevation": 4749.6,
-      "total_activities": 6,
-      "activities": [
-        {
-          "id": 17257278209,
-          "name": "Ski de rando : Semnoz & 🍟",
-          "date": "2026-02-01T08:19:20Z",
-          "distance": 7459.3,
-          "elevation": 471
-        },
-        {
-          "id": 17282878526,
-          "name": "Petit Run : avec le gang 👯",
-          "date": "2026-02-04T11:14:03Z",
-          "distance": 5457.4,
-          "elevation": 57
-        },
-        {
-          "id": 17298490756,
-          "name": "Ski de fond : nocturne du Semnoz ❄️☃️",
-          "date": "2026-02-05T18:05:06Z",
-          "distance": 7367.4,
-          "elevation": 195
-        },
-        {
-          "id": 17332044554,
-          "name": "Run : à l’attaque des côtes 🔥",
-          "date": "2026-02-08T16:41:50Z",
-          "distance": 7757.7,
-          "elevation": 208
-        },
-        {
-          "id": 17407002181,
-          "name": "Ski de fond : on rattrapera pas Klaebo 😅",
-          "date": "2026-02-15T13:28:47Z",
-          "distance": 11244.2,
-          "elevation": 247
-        },
-        {
-          "id": 17398496020,
-          "name": "Ski de piste  💃🏻🦌",
-          "date": "2026-02-14T12:43:05Z",
-          "distance": 36006.8,
-          "elevation": 3571.6
-        }
-      ],
-      "total_distance_km": "75.29",
-      "total_elevation_m": 4750
-    },
-    {
-      "rank": 6,
       "id": "3953180",
       "name": "Clement D",
-      "total_distance": 64601.299999999996,
-      "total_elevation": 4492,
-      "total_activities": 9,
+      "total_distance": 99018.29999999999,
+      "total_elevation": 4917,
+      "total_activities": 11,
       "activities": [
         {
           "id": 17094335866,
@@ -517,10 +484,78 @@
           "date": "2026-02-15T12:58:45Z",
           "distance": 9413.1,
           "elevation": 75
+        },
+        {
+          "id": 17414105237,
+          "name": "Hamster dénivelé avec Quentin",
+          "date": "2026-02-16T09:17:01Z",
+          "distance": 9955.9,
+          "elevation": 210
+        },
+        {
+          "id": 17417584013,
+          "name": "Pti tour dans la pampa",
+          "date": "2026-02-16T15:25:20Z",
+          "distance": 24461.1,
+          "elevation": 215
         }
       ],
-      "total_distance_km": "64.60",
-      "total_elevation_m": 4492
+      "total_distance_km": "99.02",
+      "total_elevation_m": 4917
+    },
+    {
+      "rank": 6,
+      "id": "68391361",
+      "name": "Elodie F",
+      "total_distance": 75292.8,
+      "total_elevation": 4749.6,
+      "total_activities": 6,
+      "activities": [
+        {
+          "id": 17257278209,
+          "name": "Ski de rando : Semnoz & 🍟",
+          "date": "2026-02-01T08:19:20Z",
+          "distance": 7459.3,
+          "elevation": 471
+        },
+        {
+          "id": 17282878526,
+          "name": "Petit Run : avec le gang 👯",
+          "date": "2026-02-04T11:14:03Z",
+          "distance": 5457.4,
+          "elevation": 57
+        },
+        {
+          "id": 17298490756,
+          "name": "Ski de fond : nocturne du Semnoz ❄️☃️",
+          "date": "2026-02-05T18:05:06Z",
+          "distance": 7367.4,
+          "elevation": 195
+        },
+        {
+          "id": 17332044554,
+          "name": "Run : à l’attaque des côtes 🔥",
+          "date": "2026-02-08T16:41:50Z",
+          "distance": 7757.7,
+          "elevation": 208
+        },
+        {
+          "id": 17407002181,
+          "name": "Ski de fond : on rattrapera pas Klaebo 😅",
+          "date": "2026-02-15T13:28:47Z",
+          "distance": 11244.2,
+          "elevation": 247
+        },
+        {
+          "id": 17398496020,
+          "name": "Ski de piste  💃🏻🦌",
+          "date": "2026-02-14T12:43:05Z",
+          "distance": 36006.8,
+          "elevation": 3571.6
+        }
+      ],
+      "total_distance_km": "75.29",
+      "total_elevation_m": 4750
     },
     {
       "rank": 7,
