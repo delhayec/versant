@@ -1,6 +1,6 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-16T20:00:00.391Z",
+  "generated_at": "2026-02-17T20:00:00.673Z",
   "ranking": [
     {
       "rank": 1,
@@ -226,9 +226,9 @@
       "rank": 3,
       "id": "84388438",
       "name": "Rémi S",
-      "total_distance": 122048,
-      "total_elevation": 9456.6,
-      "total_activities": 12,
+      "total_distance": 123123,
+      "total_elevation": 9577.6,
+      "total_activities": 14,
       "activities": [
         {
           "id": 17213948845,
@@ -313,10 +313,24 @@
           "date": "2026-02-16T15:59:53Z",
           "distance": 414,
           "elevation": 78
+        },
+        {
+          "id": 17424241434,
+          "name": "Randonnée le matin",
+          "date": "2026-02-17T07:25:50Z",
+          "distance": 465,
+          "elevation": 52
+        },
+        {
+          "id": 17430247711,
+          "name": "Randonnée en soirée",
+          "date": "2026-02-17T17:41:19Z",
+          "distance": 610,
+          "elevation": 69
         }
       ],
-      "total_distance_km": "122.05",
-      "total_elevation_m": 9457
+      "total_distance_km": "123.12",
+      "total_elevation_m": 9578
     },
     {
       "rank": 4,
@@ -795,9 +809,9 @@
       "rank": 9,
       "id": "110979265",
       "name": "Pef",
-      "total_distance": 64060.3,
-      "total_elevation": 2545.8,
-      "total_activities": 10,
+      "total_distance": 68772.8,
+      "total_elevation": 3220.4,
+      "total_activities": 11,
       "activities": [
         {
           "id": 17238438106,
@@ -868,10 +882,17 @@
           "date": "2026-02-14T08:00:00Z",
           "distance": 0,
           "elevation": 0
+        },
+        {
+          "id": 17431599620,
+          "name": "Randonnée en soirée",
+          "date": "2026-02-17T17:41:10Z",
+          "distance": 4712.5,
+          "elevation": 674.6
         }
       ],
-      "total_distance_km": "64.06",
-      "total_elevation_m": 2546
+      "total_distance_km": "68.77",
+      "total_elevation_m": 3220
     },
     {
       "rank": 10,
@@ -938,9 +959,9 @@
       "rank": 11,
       "id": "45072827",
       "name": "Benjamin T",
-      "total_distance": 57689,
-      "total_elevation": 1061,
-      "total_activities": 2,
+      "total_distance": 64677,
+      "total_elevation": 1166,
+      "total_activities": 3,
       "activities": [
         {
           "id": 17374823860,
@@ -955,10 +976,17 @@
           "date": "2026-02-08T08:35:39Z",
           "distance": 46533,
           "elevation": 981
+        },
+        {
+          "id": 17426161579,
+          "name": "Lunch Trail Run",
+          "date": "2026-02-17T10:59:02Z",
+          "distance": 6988,
+          "elevation": 105
         }
       ],
-      "total_distance_km": "57.69",
-      "total_elevation_m": 1061
+      "total_distance_km": "64.68",
+      "total_elevation_m": 1166
     },
     {
       "rank": 12,
