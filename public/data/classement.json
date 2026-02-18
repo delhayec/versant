@@ -1,14 +1,14 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-17T20:00:00.673Z",
+  "generated_at": "2026-02-18T20:00:00.061Z",
   "ranking": [
     {
       "rank": 1,
       "id": "8716867",
       "name": "Thomas M",
-      "total_distance": 330401.5,
-      "total_elevation": 16453.3,
-      "total_activities": 16,
+      "total_distance": 349530.1,
+      "total_elevation": 16641.6,
+      "total_activities": 17,
       "activities": [
         {
           "id": 17241363241,
@@ -121,18 +121,25 @@
           "date": "2026-02-16T13:30:38Z",
           "distance": 6106.8,
           "elevation": 493.4
+        },
+        {
+          "id": 17430218992,
+          "name": "Sortie à Vélo dans l'après-midi Toulouse Garonne et Jolimont",
+          "date": "2026-02-17T16:27:39Z",
+          "distance": 19128.6,
+          "elevation": 188.3
         }
       ],
-      "total_distance_km": "330.40",
-      "total_elevation_m": 16453
+      "total_distance_km": "349.53",
+      "total_elevation_m": 16642
     },
     {
       "rank": 2,
       "id": "87904944",
       "name": "Guillaume B",
-      "total_distance": 118678.29999999999,
-      "total_elevation": 10173,
-      "total_activities": 12,
+      "total_distance": 129292.9,
+      "total_elevation": 10500,
+      "total_activities": 13,
       "activities": [
         {
           "id": 17249722311,
@@ -217,10 +224,17 @@
           "date": "2026-02-16T11:22:14Z",
           "distance": 7035.9,
           "elevation": 88
+        },
+        {
+          "id": 17438325152,
+          "name": "Lunch Run",
+          "date": "2026-02-18T11:20:21Z",
+          "distance": 10614.6,
+          "elevation": 327
         }
       ],
-      "total_distance_km": "118.68",
-      "total_elevation_m": 10173
+      "total_distance_km": "129.29",
+      "total_elevation_m": 10500
     },
     {
       "rank": 3,
@@ -316,14 +330,14 @@
         },
         {
           "id": 17424241434,
-          "name": "Randonnée le matin",
+          "name": "Montée Club Med",
           "date": "2026-02-17T07:25:50Z",
           "distance": 465,
           "elevation": 52
         },
         {
           "id": 17430247711,
-          "name": "Randonnée en soirée",
+          "name": "Retour Ski Show",
           "date": "2026-02-17T17:41:19Z",
           "distance": 610,
           "elevation": 69
@@ -573,6 +587,116 @@
     },
     {
       "rank": 7,
+      "id": "1841009",
+      "name": "Mariana S",
+      "total_distance": 95936.29999999997,
+      "total_elevation": 4244.1,
+      "total_activities": 14,
+      "activities": [
+        {
+          "id": 17236745408,
+          "name": "Marche le midi",
+          "date": "2026-01-31T10:55:47Z",
+          "distance": 2780.5,
+          "elevation": 103.8
+        },
+        {
+          "id": 17238443857,
+          "name": "Tour dans l’Ain",
+          "date": "2026-01-31T12:07:15Z",
+          "distance": 5671.3,
+          "elevation": 189.4
+        },
+        {
+          "id": 17238444157,
+          "name": "Tour dans l’Ain",
+          "date": "2026-01-31T13:16:11Z",
+          "distance": 5508.5,
+          "elevation": 174.8
+        },
+        {
+          "id": 17248112231,
+          "name": "Plateau de hauteville",
+          "date": "2026-02-01T09:06:13Z",
+          "distance": 18396.7,
+          "elevation": 384.1
+        },
+        {
+          "id": 17218488098,
+          "name": "Afternoon Nordic Ski",
+          "date": "2026-01-29T15:46:18Z",
+          "distance": 13497.1,
+          "elevation": 192.2
+        },
+        {
+          "id": 17273667260,
+          "name": "Petit trail - Charves",
+          "date": "2026-02-03T16:09:42Z",
+          "distance": 5497.1,
+          "elevation": 320.7
+        },
+        {
+          "id": 17320032298,
+          "name": "Lunch Hike",
+          "date": "2026-02-07T10:01:06Z",
+          "distance": 3651.1,
+          "elevation": 169.5
+        },
+        {
+          "id": 17320032005,
+          "name": "Aillon le jeune",
+          "date": "2026-02-07T14:44:39Z",
+          "distance": 5682,
+          "elevation": 627.5
+        },
+        {
+          "id": 17338692914,
+          "name": "Lunch Trail Run",
+          "date": "2026-02-09T11:12:11Z",
+          "distance": 6475.3,
+          "elevation": 303
+        },
+        {
+          "id": 17386269716,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-13T16:09:45Z",
+          "distance": 5896.2,
+          "elevation": 414.3
+        },
+        {
+          "id": 17406910005,
+          "name": "Afternoon Walk",
+          "date": "2026-02-15T13:17:15Z",
+          "distance": 1598.7,
+          "elevation": 37.1
+        },
+        {
+          "id": 17406910153,
+          "name": "Afternoon Ride",
+          "date": "2026-02-15T14:03:59Z",
+          "distance": 13040,
+          "elevation": 420.8
+        },
+        {
+          "id": 17431648369,
+          "name": "Hold up Granier",
+          "date": "2026-02-17T17:44:08Z",
+          "distance": 4401.9,
+          "elevation": 586.1
+        },
+        {
+          "id": 17440997420,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-18T16:09:59Z",
+          "distance": 3839.9,
+          "elevation": 320.8
+        }
+      ],
+      "total_distance_km": "95.94",
+      "total_elevation_m": 4244
+    },
+    {
+      "rank": 8,
       "id": "5231535",
       "name": "Franck P",
       "total_distance": 132935.5,
@@ -710,102 +834,6 @@
       "total_elevation_m": 3829
     },
     {
-      "rank": 8,
-      "id": "1841009",
-      "name": "Mariana S",
-      "total_distance": 87694.49999999999,
-      "total_elevation": 3337.2000000000003,
-      "total_activities": 12,
-      "activities": [
-        {
-          "id": 17236745408,
-          "name": "Marche le midi",
-          "date": "2026-01-31T10:55:47Z",
-          "distance": 2780.5,
-          "elevation": 103.8
-        },
-        {
-          "id": 17238443857,
-          "name": "Tour dans l’Ain",
-          "date": "2026-01-31T12:07:15Z",
-          "distance": 5671.3,
-          "elevation": 189.4
-        },
-        {
-          "id": 17238444157,
-          "name": "Tour dans l’Ain",
-          "date": "2026-01-31T13:16:11Z",
-          "distance": 5508.5,
-          "elevation": 174.8
-        },
-        {
-          "id": 17248112231,
-          "name": "Plateau de hauteville",
-          "date": "2026-02-01T09:06:13Z",
-          "distance": 18396.7,
-          "elevation": 384.1
-        },
-        {
-          "id": 17218488098,
-          "name": "Afternoon Nordic Ski",
-          "date": "2026-01-29T15:46:18Z",
-          "distance": 13497.1,
-          "elevation": 192.2
-        },
-        {
-          "id": 17273667260,
-          "name": "Petit trail - Charves",
-          "date": "2026-02-03T16:09:42Z",
-          "distance": 5497.1,
-          "elevation": 320.7
-        },
-        {
-          "id": 17320032298,
-          "name": "Lunch Hike",
-          "date": "2026-02-07T10:01:06Z",
-          "distance": 3651.1,
-          "elevation": 169.5
-        },
-        {
-          "id": 17320032005,
-          "name": "Aillon le jeune",
-          "date": "2026-02-07T14:44:39Z",
-          "distance": 5682,
-          "elevation": 627.5
-        },
-        {
-          "id": 17338692914,
-          "name": "Lunch Trail Run",
-          "date": "2026-02-09T11:12:11Z",
-          "distance": 6475.3,
-          "elevation": 303
-        },
-        {
-          "id": 17386269716,
-          "name": "Afternoon Trail Run",
-          "date": "2026-02-13T16:09:45Z",
-          "distance": 5896.2,
-          "elevation": 414.3
-        },
-        {
-          "id": 17406910005,
-          "name": "Afternoon Walk",
-          "date": "2026-02-15T13:17:15Z",
-          "distance": 1598.7,
-          "elevation": 37.1
-        },
-        {
-          "id": 17406910153,
-          "name": "Afternoon Ride",
-          "date": "2026-02-15T14:03:59Z",
-          "distance": 13040,
-          "elevation": 420.8
-        }
-      ],
-      "total_distance_km": "87.69",
-      "total_elevation_m": 3337
-    },
-    {
       "rank": 9,
       "id": "110979265",
       "name": "Pef",
@@ -885,7 +913,7 @@
         },
         {
           "id": 17431599620,
-          "name": "Randonnée en soirée",
+          "name": "Ski de Randonnée en soirée",
           "date": "2026-02-17T17:41:10Z",
           "distance": 4712.5,
           "elevation": 674.6
@@ -898,9 +926,9 @@
       "rank": 10,
       "id": "100399073",
       "name": "Leo B",
-      "total_distance": 65312.1,
-      "total_elevation": 2310,
-      "total_activities": 7,
+      "total_distance": 70625.6,
+      "total_elevation": 2932,
+      "total_activities": 8,
       "activities": [
         {
           "id": 17248230189,
@@ -950,10 +978,17 @@
           "date": "2026-02-15T12:45:00Z",
           "distance": 14690.1,
           "elevation": 409
+        },
+        {
+          "id": 17431655652,
+          "name": "Granier grosse peuf 🇯🇵",
+          "date": "2026-02-17T17:43:54Z",
+          "distance": 5313.5,
+          "elevation": 622
         }
       ],
-      "total_distance_km": "65.31",
-      "total_elevation_m": 2310
+      "total_distance_km": "70.63",
+      "total_elevation_m": 2932
     },
     {
       "rank": 11,
@@ -990,6 +1025,46 @@
     },
     {
       "rank": 12,
+      "id": "31184097",
+      "name": "1000N",
+      "total_distance": 36379.3,
+      "total_elevation": 895,
+      "total_activities": 4,
+      "activities": [
+        {
+          "id": 17331999150,
+          "name": "Lunch Hike",
+          "date": "2026-01-31T10:55:29Z",
+          "distance": 2698.3,
+          "elevation": 111
+        },
+        {
+          "id": 17332000447,
+          "name": "Afternoon Trail Run",
+          "date": "2026-02-08T16:19:45Z",
+          "distance": 3633.3,
+          "elevation": 93
+        },
+        {
+          "id": 17407950547,
+          "name": "Afternoon Nordic Ski",
+          "date": "2026-02-15T12:38:01Z",
+          "distance": 16101.1,
+          "elevation": 447
+        },
+        {
+          "id": 17431871625,
+          "name": "Evening Nordic Ski",
+          "date": "2026-02-17T17:42:29Z",
+          "distance": 13946.6,
+          "elevation": 244
+        }
+      ],
+      "total_distance_km": "36.38",
+      "total_elevation_m": 895
+    },
+    {
+      "rank": 13,
       "id": "3762537",
       "name": "Baptiste M",
       "total_distance": 12755.7,
@@ -1013,39 +1088,6 @@
       ],
       "total_distance_km": "12.76",
       "total_elevation_m": 702
-    },
-    {
-      "rank": 13,
-      "id": "31184097",
-      "name": "1000N",
-      "total_distance": 22432.7,
-      "total_elevation": 651,
-      "total_activities": 3,
-      "activities": [
-        {
-          "id": 17331999150,
-          "name": "Lunch Hike",
-          "date": "2026-01-31T10:55:29Z",
-          "distance": 2698.3,
-          "elevation": 111
-        },
-        {
-          "id": 17332000447,
-          "name": "Afternoon Trail Run",
-          "date": "2026-02-08T16:19:45Z",
-          "distance": 3633.3,
-          "elevation": 93
-        },
-        {
-          "id": 17407950547,
-          "name": "Afternoon Nordic Ski",
-          "date": "2026-02-15T12:38:01Z",
-          "distance": 16101.1,
-          "elevation": 447
-        }
-      ],
-      "total_distance_km": "22.43",
-      "total_elevation_m": 651
     },
     {
       "rank": 14,
