@@ -1,14 +1,14 @@
 {
   "league_id": "versant-2026",
-  "generated_at": "2026-02-18T20:00:00.061Z",
+  "generated_at": "2026-02-19T20:00:00.641Z",
   "ranking": [
     {
       "rank": 1,
       "id": "8716867",
       "name": "Thomas M",
-      "total_distance": 349530.1,
-      "total_elevation": 16641.6,
-      "total_activities": 17,
+      "total_distance": 389415.39999999997,
+      "total_elevation": 17215.3,
+      "total_activities": 18,
       "activities": [
         {
           "id": 17241363241,
@@ -128,10 +128,17 @@
           "date": "2026-02-17T16:27:39Z",
           "distance": 19128.6,
           "elevation": 188.3
+        },
+        {
+          "id": 17441540879,
+          "name": "Sortie à Vélo en après-midi Toulouse Pech-David",
+          "date": "2026-02-18T15:41:57Z",
+          "distance": 39885.3,
+          "elevation": 573.7
         }
       ],
-      "total_distance_km": "349.53",
-      "total_elevation_m": 16642
+      "total_distance_km": "389.42",
+      "total_elevation_m": 17215
     },
     {
       "rank": 2,
@@ -350,9 +357,9 @@
       "rank": 4,
       "id": "6635902",
       "name": "Baptiste I",
-      "total_distance": 124146.30000000002,
-      "total_elevation": 7069.8,
-      "total_activities": 12,
+      "total_distance": 132492.1,
+      "total_elevation": 7294.8,
+      "total_activities": 13,
       "activities": [
         {
           "id": 17213950937,
@@ -437,18 +444,25 @@
           "date": "2026-02-14T12:43:46Z",
           "distance": 22969.4,
           "elevation": 208.8
+        },
+        {
+          "id": 17449440017,
+          "name": "Trail le midi",
+          "date": "2026-02-19T11:23:34Z",
+          "distance": 8345.8,
+          "elevation": 225
         }
       ],
-      "total_distance_km": "124.15",
-      "total_elevation_m": 7070
+      "total_distance_km": "132.49",
+      "total_elevation_m": 7295
     },
     {
       "rank": 5,
       "id": "3953180",
       "name": "Clement D",
-      "total_distance": 99018.29999999999,
-      "total_elevation": 4917,
-      "total_activities": 11,
+      "total_distance": 125863.19999999998,
+      "total_elevation": 5237,
+      "total_activities": 12,
       "activities": [
         {
           "id": 17094335866,
@@ -526,18 +540,25 @@
           "date": "2026-02-16T15:25:20Z",
           "distance": 24461.1,
           "elevation": 215
+        },
+        {
+          "id": 17448502159,
+          "name": "Sortie VTT gras d’eau",
+          "date": "2026-02-19T08:33:33Z",
+          "distance": 26844.9,
+          "elevation": 320
         }
       ],
-      "total_distance_km": "99.02",
-      "total_elevation_m": 4917
+      "total_distance_km": "125.86",
+      "total_elevation_m": 5237
     },
     {
       "rank": 6,
       "id": "68391361",
       "name": "Elodie F",
-      "total_distance": 75292.8,
-      "total_elevation": 4749.6,
-      "total_activities": 6,
+      "total_distance": 80605.5,
+      "total_elevation": 4846.6,
+      "total_activities": 7,
       "activities": [
         {
           "id": 17257278209,
@@ -580,10 +601,17 @@
           "date": "2026-02-14T12:43:05Z",
           "distance": 36006.8,
           "elevation": 3571.6
+        },
+        {
+          "id": 17449392530,
+          "name": "Course à pied le midi",
+          "date": "2026-02-19T11:14:14Z",
+          "distance": 5312.7,
+          "elevation": 97
         }
       ],
-      "total_distance_km": "75.29",
-      "total_elevation_m": 4750
+      "total_distance_km": "80.61",
+      "total_elevation_m": 4847
     },
     {
       "rank": 7,
@@ -699,9 +727,9 @@
       "rank": 8,
       "id": "5231535",
       "name": "Franck P",
-      "total_distance": 132935.5,
-      "total_elevation": 3829,
-      "total_activities": 18,
+      "total_distance": 135872.2,
+      "total_elevation": 3918,
+      "total_activities": 19,
       "activities": [
         {
           "id": 17162166919,
@@ -828,10 +856,17 @@
           "date": "2026-02-14T16:34:23Z",
           "distance": 35123.6,
           "elevation": 498
+        },
+        {
+          "id": 17452897653,
+          "name": "Evening Run",
+          "date": "2026-02-19T17:14:40Z",
+          "distance": 2936.7,
+          "elevation": 89
         }
       ],
-      "total_distance_km": "132.94",
-      "total_elevation_m": 3829
+      "total_distance_km": "135.87",
+      "total_elevation_m": 3918
     },
     {
       "rank": 9,
