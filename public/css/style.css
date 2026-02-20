@@ -1976,120 +1976,6 @@ body {
   color: var(--bg-primary);
 }
 
-/* Modal Jokers */
-.joker-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.joker-modal {
-  background: #1a1a2e;
-  border-radius: 16px;
-  padding: 24px;
-  max-width: 400px;
-  width: 90%;
-  border: 1px solid #333;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.modal-icon {
-  font-size: 32px;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #fff;
-}
-
-.modal-desc {
-  color: #aaa;
-  margin-bottom: 20px;
-}
-
-.modal-field {
-  margin-bottom: 16px;
-}
-
-.modal-field label {
-  display: block;
-  color: #fff;
-  margin-bottom: 8px;
-}
-
-.modal-field select {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  background: #0f0f1a;
-  border: 1px solid #333;
-  color: #fff;
-}
-
-.timing-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.timing-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  background: #0f0f1a;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.timing-option:hover {
-  background: #1f1f3a;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.btn-cancel, .btn-confirm {
-  flex: 1;
-  padding: 12px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.btn-cancel {
-  background: #333;
-  color: #fff;
-}
-
-.btn-confirm {
-  background: linear-gradient(135deg, #f97316, #fb923c);
-  color: #fff;
-}
-
-.joker-immediate {
-  color: #fbbf24;
-  font-size: 12px;
-  margin-top: 8px;
-}
-
 /* === ROUND HISTORY === */
 .round-history-section {
   padding: var(--section-padding) var(--container-padding);
@@ -3380,6 +3266,345 @@ body {
 }
 
 /* ============================================
+   INDICATEURS DE BONUS SUR AVATAR
+   ============================================ */
+
+.athlete-avatar-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.avatar-bonus-indicators {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  display: flex;
+  gap: 1px;
+}
+
+.avatar-bonus-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  border: 2px solid var(--bg-card);
+  cursor: help;
+  transition: transform 0.15s ease;
+}
+
+.avatar-bonus-icon:hover {
+  transform: scale(1.3);
+  z-index: 10;
+}
+
+/* Multiplicateur - Violet */
+.avatar-bonus-icon.multiplier {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+}
+
+/* Bouclier - Cyan */
+.avatar-bonus-icon.shield {
+  background: linear-gradient(135deg, #06b6d4, #22d3ee);
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+}
+
+/* Duel gagné - Vert */
+.avatar-bonus-icon.duel-won {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+/* Duel perdu - Rouge */
+.avatar-bonus-icon.duel-lost {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+/* Saboté (victime) - Rouge */
+.avatar-bonus-icon.sabotaged {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+  animation: sabotaged-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sabotaged-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.8); }
+}
+
+/* Saboteur (celui qui sabote) - Orange */
+.avatar-bonus-icon.saboteur {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.5);
+}
+
+/* Voleur actif - Violet foncé */
+.avatar-bonus-icon.thief {
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  box-shadow: 0 0 6px rgba(124, 58, 237, 0.5);
+}
+
+/* Victime du vol - Gris */
+.avatar-bonus-icon.stolen {
+  background: linear-gradient(135deg, #6b7280, #9ca3af);
+  box-shadow: 0 0 6px rgba(107, 114, 128, 0.5);
+}
+
+/* ============================================
+   MODALE JOKER AMÉLIORÉE
+   ============================================ */
+
+.joker-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.joker-modal-content {
+  background: linear-gradient(145deg, rgba(26, 26, 36, 0.98), rgba(18, 18, 26, 0.98));
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow: hidden;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5), 
+              0 0 40px rgba(249, 115, 22, 0.1);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from { transform: translateY(-20px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.joker-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(34, 211, 238, 0.1));
+  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent-primary);
+}
+
+.joker-modal-close {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.joker-modal-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.joker-modal-body {
+  padding: 24px;
+}
+
+.joker-modal-body p {
+  margin-bottom: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+}
+
+.target-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.target-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.target-option:hover {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.target-option:active {
+  transform: translateY(0);
+}
+
+.target-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.target-option:hover .target-avatar {
+  transform: scale(1.1);
+}
+
+.target-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* ============================================
+   TIMING SELECTOR (Activation du joker)
+   ============================================ */
+
+.joker-timing-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.joker-timing-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  margin-bottom: 12px;
+}
+
+.timing-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timing-option {
+  flex: 1;
+  min-width: 100px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.timing-option:hover {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+.timing-option.selected {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--accent-secondary);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+}
+
+.timing-option-label {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+
+.timing-option-value {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ============================================
+   BOUTON DE CONFIRMATION JOKER
+   ============================================ */
+
+.joker-confirm-btn {
+  width: 100%;
+  padding: 16px 24px;
+  margin-top: 24px;
+  background: linear-gradient(135deg, var(--accent-primary), #e85d04);
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.joker-confirm-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.4);
+}
+
+.joker-confirm-btn:active {
+  transform: translateY(0);
+}
+
+.joker-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.joker-confirm-btn .btn-icon {
+  font-size: 1.2rem;
+}
+
+/* ============================================
    NOTIFICATIONS
    ============================================ */
 
@@ -3918,4 +4143,363 @@ body {
 .btn-inscription:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(249, 115, 22, 0.3);
+}
+
+/* ============================================
+   MOBILE RESPONSIVE - TABLEAUX ÉLIMINÉS & CLASSEMENT GÉNÉRAL
+   ============================================ */
+
+/* === TABLET (768px) === */
+@media (max-width: 768px) {
+  /* Classement Général - Afficher les 5 colonnes compactes */
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 35px 1fr 55px 55px 60px;
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .standings-rank {
+    font-size: 0.9rem;
+  }
+
+  .standings-athlete {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .standings-athlete > span {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .standings-athlete .athlete-avatar-small {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.65rem;
+  }
+
+  .standings-athlete .wins-badge,
+  .standings-athlete .active-badge {
+    display: none;
+  }
+
+  .standings-points {
+    font-size: 0.75rem;
+  }
+
+  .standings-total {
+    font-size: 0.9rem;
+  }
+
+  /* Challenge Éliminés - Compact */
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 30px 1fr 70px 40px 55px;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  #eliminatedChallengeContainer .ranking-position {
+    font-size: 0.85rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-athlete {
+    gap: 8px;
+  }
+
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.65rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.8rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-status {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.8rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-round {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .points-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+}
+
+/* === MOBILE (480px) === */
+@media (max-width: 480px) {
+  /* Classement Général - Ultra compact pour iPhone */
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 28px 1fr 45px 45px 50px;
+    padding: 8px 8px;
+    gap: 4px;
+  }
+
+  .standings-header {
+    font-size: 0.55rem;
+    letter-spacing: 0.05em;
+  }
+
+  .standings-rank {
+    font-size: 0.8rem;
+  }
+
+  .standings-athlete {
+    gap: 6px;
+  }
+
+  .standings-athlete > span {
+    font-size: 0.7rem;
+  }
+
+  .standings-athlete .athlete-avatar-small {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    font-size: 0.55rem;
+  }
+
+  .standings-points {
+    font-size: 0.65rem;
+  }
+
+  .standings-total {
+    font-size: 0.8rem;
+  }
+
+  /* Challenge Éliminés - Ultra compact */
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 25px 1fr 60px 35px 45px;
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  #eliminatedChallengeContainer .ranking-header {
+    font-size: 0.55rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-position {
+    font-size: 0.75rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-athlete {
+    gap: 6px;
+  }
+
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    font-size: 0.55rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-status {
+    font-size: 0.55rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .elevation-unit {
+    display: none;
+  }
+
+  #eliminatedChallengeContainer .ranking-round {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .points-badge {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
+
+  /* Ranking principal - Ajustements supplémentaires */
+  .ranking-header,
+  .ranking-row {
+    grid-template-columns: 40px 1fr 80px;
+    padding: 8px 10px;
+  }
+
+  .ranking-header {
+    font-size: 0.6rem;
+  }
+
+  .position {
+    font-size: 0.9rem;
+  }
+
+  .athlete-avatar {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 0.7rem;
+  }
+
+  .athlete-name {
+    font-size: 0.8rem;
+  }
+
+  .athlete-status {
+    font-size: 0.6rem;
+  }
+
+  .elevation-cell .elevation-primary {
+    font-size: 0.85rem;
+  }
+
+  .elevation-bonuses {
+    flex-wrap: wrap;
+  }
+
+  .bonus-tag {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+  }
+
+  /* Section titles - Plus compact */
+  .section-title {
+    font-size: clamp(1.25rem, 4vw, 2rem);
+  }
+
+  /* Banner saison - Compact */
+  .season-banner {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .season-number {
+    font-size: 1.75rem;
+  }
+
+  .season-progress {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* Container padding réduit */
+  :root {
+    --container-padding: clamp(12px, 3vw, 40px);
+  }
+}
+
+/* === TRÈS PETIT MOBILE (360px et moins) === */
+@media (max-width: 360px) {
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 24px 1fr 38px 38px 45px;
+    padding: 6px 6px;
+    gap: 3px;
+  }
+
+  .standings-header {
+    font-size: 0.5rem;
+  }
+
+  .standings-rank {
+    font-size: 0.7rem;
+  }
+
+  .standings-athlete > span {
+    font-size: 0.65rem;
+  }
+
+  .standings-athlete .athlete-avatar-small {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    font-size: 0.5rem;
+  }
+
+  .standings-points {
+    font-size: 0.6rem;
+  }
+
+  .standings-total {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 22px 1fr 50px 30px 40px;
+    padding: 5px 6px;
+  }
+
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+  }
+
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.6rem;
+  }
+}
+
+/* ============================================
+   AVATAR BONUS INDICATORS - MOBILE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .avatar-bonus-indicators {
+    bottom: -3px;
+    right: -3px;
+  }
+  
+  .avatar-bonus-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 8px;
+    border-width: 1.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .avatar-bonus-indicators {
+    bottom: -2px;
+    right: -2px;
+  }
+  
+  .avatar-bonus-icon {
+    width: 12px;
+    height: 12px;
+    font-size: 7px;
+    border-width: 1px;
+  }
+  
+  /* Limiter à 2 indicateurs max sur mobile */
+  .avatar-bonus-icon:nth-child(n+3) {
+    display: none;
+  }
 }

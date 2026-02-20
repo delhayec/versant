@@ -230,14 +230,20 @@ export function renderRanking(container, data) {
     const seasonElev = seasonStats?.[entry.participant.id]?.elevation || 0;
     const effects = entry.jokerEffects || { bonuses: {} };
     
+    // Générer les indicateurs de bonus sur l'avatar
+    const bonusIndicators = renderAvatarBonusIndicators(effects.bonuses);
+    
     html += `
       <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
         <div class="position ${posClass}">
           ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
         </div>
         <div class="athlete-info">
-          <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
-            ${getAthleteInitials(entry.participant.id)}
+          <div class="athlete-avatar-wrapper">
+            <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
+              ${getAthleteInitials(entry.participant.id)}
+            </div>
+            ${bonusIndicators}
           </div>
           <div class="athlete-details">
             <span class="athlete-name">${entry.participant.name}</span>
@@ -257,6 +263,64 @@ export function renderRanking(container, data) {
   });
   
   container.innerHTML = html;
+}
+
+// ============================================
+// RENDU DES INDICATEURS DE BONUS SUR AVATAR
+// ============================================
+
+function renderAvatarBonusIndicators(bonuses = {}) {
+  const indicators = [];
+  
+  // Multiplicateur (×1.5)
+  if (bonuses.multiplier) {
+    indicators.push({ icon: '✨', class: 'multiplier', title: 'Multiplicateur ×1.5' });
+  }
+  
+  // Bouclier
+  if (bonuses.shield) {
+    indicators.push({ icon: '🛡️', class: 'shield', title: 'Bouclier actif' });
+  }
+  
+  // Duel gagné
+  if (bonuses.duelWon) {
+    indicators.push({ icon: '⚔️', class: 'duel-won', title: 'Duel gagné' });
+  }
+  
+  // Duel perdu
+  if (bonuses.duelLost) {
+    indicators.push({ icon: '⚔️', class: 'duel-lost', title: 'Duel perdu' });
+  }
+  
+  // Saboté (victime)
+  if (bonuses.sabotaged) {
+    indicators.push({ icon: '💣', class: 'sabotaged', title: 'Saboté' });
+  }
+  
+  // Sabotage appliqué (celui qui sabote)
+  if (bonuses.sabotageApplied) {
+    indicators.push({ icon: '💣', class: 'saboteur', title: 'Sabotage actif' });
+  }
+  
+  // Voleur actif
+  if (bonuses.thief) {
+    indicators.push({ icon: '🦹', class: 'thief', title: 'Vol actif' });
+  }
+  
+  // Victime du vol
+  if (bonuses.stolen) {
+    indicators.push({ icon: '🦹', class: 'stolen', title: 'Activité volée' });
+  }
+  
+  if (indicators.length === 0) return '';
+  
+  return `
+    <div class="avatar-bonus-indicators">
+      ${indicators.map(ind => `
+        <span class="avatar-bonus-icon ${ind.class}" title="${ind.title}">${ind.icon}</span>
+      `).join('')}
+    </div>
+  `;
 }
 
 // ============================================
