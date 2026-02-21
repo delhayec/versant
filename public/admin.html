@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260221">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
 </head>
 <body>
@@ -34,13 +34,13 @@
         <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 24px;">
           Accès Administration
         </h2>
-        
+
         <div id="loginError" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
-        
+
         <form id="adminLoginForm">
-          <input 
-            type="password" 
-            id="adminPassword" 
+          <input
+            type="password"
+            id="adminPassword"
             placeholder="Mot de passe admin"
             required
             style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 16px; box-sizing: border-box;"
@@ -56,7 +56,7 @@
   <!-- Admin Dashboard -->
   <section class="ranking-section" id="adminDashboard" style="display: none; padding-top: 120px;">
     <div style="max-width: 1200px; margin: 0 auto; padding: 0 24px;">
-      
+
       <div class="section-header" style="margin-bottom: 40px;">
         <span class="section-number">🔧</span>
         <h2 class="section-title">Panneau d'Administration</h2>
@@ -81,7 +81,7 @@
 
       <!-- Actions -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px;">
-        
+
         <!-- Webhook Strava -->
         <div class="info-box">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
@@ -167,7 +167,7 @@
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
             Exclure ou réintégrer des activités qui ne respectent pas les règles du challenge.
           </p>
-          
+
           <!-- Filtres -->
           <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
             <input type="text" id="activitySearch" placeholder="Rechercher (nom, athlète...)" style="flex: 1; min-width: 200px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
@@ -180,7 +180,7 @@
               🔄 Rafraîchir
             </button>
           </div>
-          
+
           <div id="activitiesList" style="max-height: 500px; overflow-y: auto;">
             <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
           </div>
@@ -271,14 +271,14 @@
     async function checkWebhookStatus() {
       const status = document.getElementById('webhookStatus');
       status.innerHTML = `Statut: <span style="color: #fbbf24;">⏳ Vérification...</span>`;
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/strava/subscribe/status`, {
           headers: { 'X-Admin-Password': adminPassword }
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
           if (data.active) {
             status.innerHTML = `Statut: <span style="color: #10b981;">✅ Actif</span> (ID: ${data.subscription?.id || 'N/A'})`;
@@ -297,7 +297,7 @@
     document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const password = document.getElementById('adminPassword').value;
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/login`, {
           method: 'POST',
@@ -335,13 +335,13 @@
         // Charger les athlètes
         const athletesRes = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
         const athletes = await athletesRes.json();
-        
+
         // Créer le cache des athlètes (id -> objet complet)
         athletesCache = {};
         athletes.forEach(a => {
           athletesCache[a.id] = a;
         });
-        
+
         // Charger les activités
         const activitiesRes = await fetch(`${API_BASE}/activities/${LEAGUE_ID}`);
         allActivities = await activitiesRes.json();
@@ -357,7 +357,7 @@
         // Afficher les listes
         renderAthletesList(athletes);
         renderActivitiesList();
-        
+
         // Charger les données des jokers
         loadJokersData();
 
@@ -385,7 +385,7 @@
       }
       return 'Inconnu';
     }
-    
+
     // Fonction pour obtenir le nom court d'un athlète par ID (pour les jokers)
     function getAthleteShortName(id) {
       if (athletesCache[id]) {
@@ -400,7 +400,7 @@
 
     function renderAthletesList(athletes) {
       const container = document.getElementById('athletesList');
-      
+
       if (athletes.length === 0) {
         container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun athlète inscrit</p>';
         return;
@@ -442,7 +442,7 @@
 
       // Filtrer par recherche
       if (search) {
-        filtered = filtered.filter(a => 
+        filtered = filtered.filter(a =>
           a.name?.toLowerCase().includes(search) ||
           a.athlete_name?.toLowerCase().includes(search)
         );
@@ -489,8 +489,8 @@
                 <td style="padding: 12px 8px; text-align: right; font-family: 'Space Mono', monospace;">${(a.distance / 1000).toFixed(2)} km</td>
                 <td style="padding: 12px 8px; text-align: right; font-family: 'Space Mono', monospace;">+${Math.round(a.total_elevation_gain)} m</td>
                 <td style="padding: 12px 8px; text-align: center;">
-                  ${a.excluded 
-                    ? '<span style="color: #ef4444; font-size: 12px;">❌ Exclue</span>' 
+                  ${a.excluded
+                    ? '<span style="color: #ef4444; font-size: 12px;">❌ Exclue</span>'
                     : '<span style="color: #10b981; font-size: 12px;">✅ Active</span>'}
                 </td>
                 <td style="padding: 12px 8px; text-align: center;">
@@ -510,9 +510,9 @@
       try {
         const response = await fetch(`${API_BASE}/admin/activities/${LEAGUE_ID}/${activityId}/exclude`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
-            'X-Admin-Password': adminPassword 
+            'X-Admin-Password': adminPassword
           },
           body: JSON.stringify({ exclude })
         });
@@ -522,7 +522,7 @@
         }
 
         const data = await response.json();
-        
+
         // Mettre à jour localement
         const activity = allActivities.find(a => a.id === activityId);
         if (activity) {
@@ -532,7 +532,7 @@
         }
 
         renderActivitiesList();
-        
+
         // Mettre à jour le compteur
         const excludedCount = allActivities.filter(a => a.excluded).length;
         document.getElementById('statExcluded').textContent = excludedCount;
@@ -556,10 +556,10 @@
     document.getElementById('enableWebhookBtn').addEventListener('click', async () => {
       const btn = document.getElementById('enableWebhookBtn');
       const status = document.getElementById('webhookStatus');
-      
+
       btn.disabled = true;
       btn.textContent = 'Activation...';
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/strava/subscribe`, {
           method: 'POST',
@@ -589,9 +589,9 @@
 
       const btn = document.getElementById('disableWebhookBtn');
       const status = document.getElementById('webhookStatus');
-      
+
       btn.disabled = true;
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/strava/subscribe`, {
           method: 'DELETE',
@@ -624,7 +624,7 @@
       try {
         const response = await fetch(`${API_BASE}/sync/${LEAGUE_ID}`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'X-Admin-Password': adminPassword
           },
@@ -637,7 +637,7 @@
 
         result.innerHTML = `<span style="color: #10b981;">✅ ${data.totalActivities} activités synchronisées</span>`;
         addLog(`✅ Sync: ${data.totalActivities} activités pour ${data.athletesCount} athlètes`);
-        
+
         loadDashboardData();
 
       } catch (error) {
@@ -689,7 +689,7 @@
     document.querySelectorAll('.download-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const fileType = btn.dataset.file;
-        
+
         try {
           let url, filename;
 
@@ -735,11 +735,11 @@
       const logEntry = document.createElement('div');
       logEntry.style.marginBottom = '8px';
       logEntry.innerHTML = `<span style="color: rgba(255,255,255,0.4);">[${time}]</span> ${message}`;
-      
+
       if (container.children.length === 1 && container.children[0].textContent.includes('En attente')) {
         container.innerHTML = '';
       }
-      
+
       container.insertBefore(logEntry, container.firstChild);
     }
 
@@ -754,9 +754,9 @@
         const response = await fetch(`${API_BASE}/admin/jokers/${LEAGUE_ID}`, {
           headers: { 'X-Admin-Password': adminPassword }
         });
-        
+
         if (!response.ok) throw new Error('Erreur chargement jokers');
-        
+
         jokersData = await response.json();
         renderJokersManagement();
         addLog('🃏 Données jokers chargées');
@@ -770,7 +770,7 @@
       // Utiliser le nouveau conteneur si disponible, sinon l'ancien
       const container = document.getElementById('jokersManagementTable') || document.getElementById('jokersManagement');
       const { athletes, usage } = jokersData;
-      
+
       if (!athletes || athletes.length === 0) {
         container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun athlète trouvé</p>';
         return;
@@ -797,7 +797,7 @@
       athletes.forEach(athlete => {
         const stock = athlete.jokerStock || { duel: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
         const athleteName = athlete.name || `${athlete.firstname || ''} ${athlete.lastname || ''}`.trim();
-        
+
         html += `
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" data-athlete-id="${athlete.id}">
             <td style="padding: 12px;">
@@ -807,15 +807,15 @@
             ${jokerTypes.map(j => `
               <td style="text-align: center; padding: 8px;">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                  <button onclick="adjustJoker('${athlete.id}', '${j.id}', -1)" 
+                  <button onclick="adjustJoker('${athlete.id}', '${j.id}', -1)"
                           style="width: 28px; height: 28px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; line-height: 1;">
                     −
                   </button>
-                  <span id="joker-${athlete.id}-${j.id}" 
+                  <span id="joker-${athlete.id}-${j.id}"
                         style="min-width: 24px; font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 600; color: ${(stock[j.id] || 0) > 0 ? '#22d3ee' : '#ef4444'};">
                     ${stock[j.id] || 0}
                   </span>
-                  <button onclick="adjustJoker('${athlete.id}', '${j.id}', 1)" 
+                  <button onclick="adjustJoker('${athlete.id}', '${j.id}', 1)"
                           style="width: 28px; height: 28px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; line-height: 1;">
                     +
                   </button>
@@ -849,7 +849,7 @@
     async function saveAthleteJokers(athleteId) {
       const row = document.querySelector(`tr[data-athlete-id="${athleteId}"]`);
       const inputs = row.querySelectorAll('.joker-input');
-      
+
       const jokerStock = {};
       inputs.forEach(input => {
         jokerStock[input.dataset.type] = parseInt(input.value) || 0;
@@ -868,7 +868,7 @@
         if (!response.ok) throw new Error('Erreur sauvegarde');
 
         addLog(`✅ Jokers mis à jour pour athlète ${athleteId}`);
-        
+
         // Flash vert pour confirmer
         row.style.background = 'rgba(16,185,129,0.1)';
         setTimeout(() => { row.style.background = ''; }, 1000);
@@ -887,7 +887,7 @@
 
       const currentValue = parseInt(span.textContent) || 0;
       const newValue = Math.max(0, Math.min(5, currentValue + delta));
-      
+
       if (newValue === currentValue) return;
 
       // Mise à jour visuelle immédiate
@@ -915,7 +915,7 @@
         if (!response.ok) throw new Error('Erreur sauvegarde');
 
         addLog(`🃏 ${jokerType} ${delta > 0 ? '+1' : '-1'} pour athlète ${athleteId} (total: ${newValue})`);
-        
+
         // Flash de confirmation
         span.style.transform = 'scale(1.3)';
         setTimeout(() => { span.style.transform = ''; }, 200);
