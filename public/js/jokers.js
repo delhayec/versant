@@ -386,3 +386,58 @@ export function getAllJokersState() {
 export async function refreshJokersFromServer() {
   await loadJokersFromServer();
 }
+
+// ============================================
+// FONCTIONS ADMIN (ajout/suppression manuelle)
+// ============================================
+
+/**
+ * Ajoute un joker au stock d'un participant (admin only)
+ */
+export function addJoker(participantId, jokerId) {
+  const pid = String(participantId);
+  if (!jokersCache[pid]) {
+    jokersCache[pid] = { stock: {}, used: [] };
+  }
+  if (!jokersCache[pid].stock) {
+    jokersCache[pid].stock = {};
+  }
+  jokersCache[pid].stock[jokerId] = (jokersCache[pid].stock[jokerId] || 0) + 1;
+  saveJokersState();
+  console.log(`➕ Joker ${jokerId} ajouté pour ${pid}`);
+  return true;
+}
+
+/**
+ * Retire un joker du stock d'un participant (admin only)
+ */
+export function removeJoker(participantId, jokerId) {
+  const pid = String(participantId);
+  if (!jokersCache[pid]?.stock?.[jokerId] || jokersCache[pid].stock[jokerId] <= 0) {
+    console.warn(`⚠️ Pas de joker ${jokerId} à retirer pour ${pid}`);
+    return false;
+  }
+  jokersCache[pid].stock[jokerId]--;
+  saveJokersState();
+  console.log(`➖ Joker ${jokerId} retiré pour ${pid}`);
+  return true;
+}
+
+/**
+ * Réinitialise tous les jokers d'un participant (admin only)
+ */
+export function resetJokers(participantId) {
+  const pid = String(participantId);
+  jokersCache[pid] = {
+    stock: {
+      multiplicateur: 2,
+      bouclier: 2,
+      sabotage: 2,
+      voleur: 2
+    },
+    used: []
+  };
+  saveJokersState();
+  console.log(`🔄 Jokers réinitialisés pour ${pid}`);
+  return true;
+}

@@ -285,6 +285,23 @@ export let PARTICIPANTS = IS_DEMO ? [...PARTICIPANTS_2025] : [];
  * Charge les participants depuis l'API (pour mode production 2026)
  * À appeler au démarrage de l'application
  */
+// Helper pour fetch avec timeout (important pour mobile)
+async function fetchWithTimeout(url, timeout = 10000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Timeout après ${timeout/1000}s`);
+    }
+    throw error;
+  }
+}
+
 export async function loadParticipants() {
   if (IS_DEMO) {
     console.log('📋 Mode démo: utilisation des participants 2025 statiques');
@@ -295,7 +312,8 @@ export async function loadParticipants() {
     console.log('📋 Chargement des participants depuis l\'API...');
     
     // Utiliser le même endpoint que l'admin : /api/athletes/versant-2026
-    const response = await fetch(`/api/athletes/${CHALLENGE_CONFIG.leagueId}`);
+    // Timeout de 8 secondes pour éviter blocage sur mobile
+    const response = await fetchWithTimeout(`/api/athletes/${CHALLENGE_CONFIG.leagueId}`, 8000);
     
     if (!response.ok) {
       throw new Error(`Erreur API: ${response.status}`);
@@ -336,7 +354,7 @@ export async function loadParticipants() {
  */
 async function loadParticipantsFromActivities() {
   try {
-    const response = await fetch(`/api/activities/${CHALLENGE_CONFIG.leagueId}`);
+    const response = await fetchWithTimeout(`/api/activities/${CHALLENGE_CONFIG.leagueId}`, 10000);
     if (!response.ok) return;
     
     const activities = await response.json();

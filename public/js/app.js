@@ -703,7 +703,7 @@ function renderAll() {
       // Utiliser la classe CSS pour la transition
       loadingScreen.classList.add('hidden');
       // Fallback: forcer le masquage après la transition
-      setTimeout(() => {
+      setTimeout(() => { 
         loadingScreen.style.display = 'none';
         loadingScreen.style.visibility = 'hidden';
         loadingScreen.style.pointerEvents = 'none';
@@ -971,13 +971,13 @@ let pollingInterval = null;
 
 async function init() {
   console.log('◭️ Versant - Initialisation...');
-
+  
   const loadingScreen = document.getElementById('loadingScreen');
-
+  
   try {
     // Charger les participants depuis l'API (mode 2026) ou utiliser la liste statique (mode démo)
     await loadParticipants();
-
+    
     if (PARTICIPANTS.length === 0) {
       console.error('❌ Aucun participant chargé !');
       if (loadingScreen) {
@@ -993,7 +993,7 @@ async function init() {
       }
       return;
     }
-
+    
     console.log(`📋 ${PARTICIPANTS.length} participants actifs`);
 
     // Initialiser les jokers
@@ -1001,7 +1001,7 @@ async function init() {
 
     // Charger les données
     await loadActivities();
-
+    
     // Initialiser le compteur pour le polling
     lastActivitiesCount = allActivities.length;
 
@@ -1019,14 +1019,14 @@ async function init() {
 
     // Premier rendu
     renderAll();
-
+    
     // Démarrer le polling automatique (sauf en mode démo)
     if (!CHALLENGE_CONFIG.isDemo) {
       startAutoRefresh();
     }
 
     console.log('✅ Versant initialisé');
-
+    
   } catch (error) {
     console.error('❌ Erreur d\'initialisation:', error);
     if (loadingScreen) {
