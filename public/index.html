@@ -155,6 +155,18 @@
     if (loginLink) loginLink.style.display = 'inline-block';
   }
 </script>
-  <script type="module" src="js/app.js?v=20260203"></script>
+  <!-- Safety timeout: masquer le loader après 12 secondes max -->
+  <script>
+    setTimeout(function() {
+      var loader = document.getElementById('loadingScreen');
+      if (loader && !loader.classList.contains('hidden')) {
+        console.warn('⚠️ Safety timeout: masquage forcé du loader');
+        loader.classList.add('hidden');
+        loader.style.display = 'none';
+        loader.style.visibility = 'hidden';
+      }
+    }, 12000);
+  </script>
+  <script type="module" src="js/app.js?v=20260222"></script>
 </body>
 </html>
