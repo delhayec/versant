@@ -697,11 +697,17 @@ function renderAll() {
 
     console.log('🎨 renderAll - fin, masquage du loader...');
 
-    // Masquer le loader avec transition
+    // Masquer le loader avec transition - méthode robuste pour mobile
     const loadingScreen = document.getElementById('loadingScreen');
     if (loadingScreen) {
-      loadingScreen.style.opacity = '0';
-      setTimeout(() => { loadingScreen.style.display = 'none'; }, 300);
+      // Utiliser la classe CSS pour la transition
+      loadingScreen.classList.add('hidden');
+      // Fallback: forcer le masquage après la transition
+      setTimeout(() => {
+        loadingScreen.style.display = 'none';
+        loadingScreen.style.visibility = 'hidden';
+        loadingScreen.style.pointerEvents = 'none';
+      }, 600);
       console.log('✅ Loader masqué');
     } else {
       console.warn('⚠️ loadingScreen non trouvé');
@@ -966,57 +972,74 @@ let pollingInterval = null;
 async function init() {
   console.log('◭️ Versant - Initialisation...');
 
-  // Charger les participants depuis l'API (mode 2026) ou utiliser la liste statique (mode démo)
-  await loadParticipants();
-  
-  if (PARTICIPANTS.length === 0) {
-    console.error('❌ Aucun participant chargé !');
-    const loadingScreen = document.getElementById('loadingScreen');
+  const loadingScreen = document.getElementById('loadingScreen');
+
+  try {
+    // Charger les participants depuis l'API (mode 2026) ou utiliser la liste statique (mode démo)
+    await loadParticipants();
+
+    if (PARTICIPANTS.length === 0) {
+      console.error('❌ Aucun participant chargé !');
+      if (loadingScreen) {
+        loadingScreen.innerHTML = `
+          <div class="loading-content">
+            <div class="loading-icon">⚠️</div>
+            <div class="loading-title">Aucun participant</div>
+            <div class="loading-text">Aucun participant inscrit pour le moment.<br>Inscrivez-vous sur la page d'inscription.</div>
+            <a href="inscription.html" style="margin-top:20px;color:var(--accent-primary);text-decoration:none;padding:10px 20px;border:1px solid var(--accent-primary);border-radius:8px;">→ S'inscrire</a>
+            <button onclick="location.reload()" style="margin-top:12px;background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:8px 16px;border-radius:6px;cursor:pointer;">↻ Réessayer</button>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    console.log(`📋 ${PARTICIPANTS.length} participants actifs`);
+
+    // Initialiser les jokers
+    initializeJokersState();
+
+    // Charger les données
+    await loadActivities();
+
+    // Initialiser le compteur pour le polling
+    lastActivitiesCount = allActivities.length;
+
+    // Initialiser le mode démo si slider présent
+    if (document.getElementById('dateSliderContainer')) {
+      initDemoMode({
+        onDateChange: () => renderAll(),
+        showSlider: true,
+        enableRightClick: false // Géré séparément pour les jokers
+      });
+    }
+
+    // Events jokers
+    setupJokerEvents();
+
+    // Premier rendu
+    renderAll();
+
+    // Démarrer le polling automatique (sauf en mode démo)
+    if (!CHALLENGE_CONFIG.isDemo) {
+      startAutoRefresh();
+    }
+
+    console.log('✅ Versant initialisé');
+
+  } catch (error) {
+    console.error('❌ Erreur d\'initialisation:', error);
     if (loadingScreen) {
       loadingScreen.innerHTML = `
         <div class="loading-content">
-          <div class="loading-icon">⚠️</div>
-          <div class="loading-title">Erreur</div>
-          <div class="loading-text">Aucun participant inscrit.<br>Inscrivez-vous sur la page d'inscription.</div>
-          <a href="inscription.html" style="margin-top:20px;color:var(--accent-primary);">→ Page d'inscription</a>
+          <div class="loading-icon">❌</div>
+          <div class="loading-title">Erreur de connexion</div>
+          <div class="loading-text">Impossible de charger les données.<br>Vérifiez votre connexion internet.</div>
+          <button onclick="location.reload()" style="margin-top:20px;background:var(--accent-primary);border:none;color:white;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;">↻ Réessayer</button>
         </div>
       `;
     }
-    return;
   }
-  
-  console.log(`📋 ${PARTICIPANTS.length} participants actifs`);
-
-  // Initialiser les jokers
-  initializeJokersState();
-
-  // Charger les données
-  await loadActivities();
-  
-  // Initialiser le compteur pour le polling
-  lastActivitiesCount = allActivities.length;
-
-  // Initialiser le mode démo si slider présent
-  if (document.getElementById('dateSliderContainer')) {
-    initDemoMode({
-      onDateChange: () => renderAll(),
-      showSlider: true,
-      enableRightClick: false // Géré séparément pour les jokers
-    });
-  }
-
-  // Events jokers
-  setupJokerEvents();
-
-  // Premier rendu
-  renderAll();
-  
-  // Démarrer le polling automatique (sauf en mode démo)
-  if (!CHALLENGE_CONFIG.isDemo) {
-    startAutoRefresh();
-  }
-
-  console.log('✅ Versant initialisé');
 }
 
 /**
