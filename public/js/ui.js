@@ -65,8 +65,24 @@ export function renderCombinedBanner(container, data) {
     (currentDate - seasonDates.start) / (seasonDates.end - seasonDates.start) * 100
   ));
   const isRoundActive = currentDate >= roundDates.start && currentDate <= roundDates.end;
-  const daysLeft = Math.max(0, Math.ceil((roundDates.end - currentDate) / 86400000));
-  
+
+  // Calcul du jour actuel dans le round (1 à 5)
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const dayInRound = Math.min(5, Math.max(1, Math.floor((currentDate - roundDates.start) / msPerDay) + 1));
+
+  // Calcul du temps restant pour le countdown
+  const timeRemaining = roundDates.end.getTime() - currentDate.getTime();
+  const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+
+  // Formater avec zéros devant
+  const pad = (n) => String(n).padStart(2, '0');
+  const countdownDisplay = timeRemaining > 0
+    ? `${pad(days)}j ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
+    : '00j 00h 00m 00s';
+
   container.innerHTML = `
     <div class="banner-left">
       <div class="banner-season">
@@ -82,11 +98,13 @@ export function renderCombinedBanner(container, data) {
     <div class="banner-center">
       <div class="banner-round">
         <span class="round-number">Round ${roundInSeason}</span>
+        ${isRoundActive ? `<span class="round-day">Journée ${dayInRound}/5</span>` : ''}
       </div>
       <div class="round-dates">${formatDateRange(roundDates.start, roundDates.end)}</div>
       ${isRoundActive ? `
         <div class="round-countdown">
-          <span class="countdown-value">${daysLeft}</span> jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}
+          <span class="countdown-timer" id="countdownTimer"
+                data-end="${roundDates.end.getTime()}">${countdownDisplay}</span>
         </div>
       ` : ''}
     </div>
@@ -101,6 +119,47 @@ export function renderCombinedBanner(container, data) {
       </div>
     </div>
   `;
+
+  // Démarrer le countdown en temps réel si le round est actif
+  if (isRoundActive && timeRemaining > 0) {
+    startCountdownTimer(roundDates.end.getTime());
+  }
+}
+
+// Timer pour mise à jour en temps réel du countdown
+let countdownInterval = null;
+
+function startCountdownTimer(endTime) {
+  // Arrêter l'ancien timer s'il existe
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+
+  countdownInterval = setInterval(() => {
+    const timerElement = document.getElementById('countdownTimer');
+    if (!timerElement) {
+      clearInterval(countdownInterval);
+      return;
+    }
+
+    const now = Date.now();
+    const timeRemaining = endTime - now;
+
+    if (timeRemaining <= 0) {
+      timerElement.textContent = '00j 00h 00m 00s';
+      timerElement.classList.add('countdown-ended');
+      clearInterval(countdownInterval);
+      return;
+    }
+
+    const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+
+    const pad = (n) => String(n).padStart(2, '0');
+    timerElement.textContent = `${pad(days)}j ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  }, 1000);
 }
 
 // ============================================

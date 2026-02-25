@@ -244,94 +244,177 @@ export async function useJoker(participantId, jokerId, currentRoundNumber, curre
 
 /**
  * Applique les effets des jokers actifs sur le classement
- * C'est cette fonction qui modifie les D+ en fonction des jokers
+ *
+ * RÈGLES DE CUMUL:
+ * - Sabotage: 30% calculé sur le D+ ORIGINAL (avant tout bonus), cumulable
+ * - Voleur: La même activité peut être volée plusieurs fois
+ * - Multiplicateur: Appliqué sur le D+ après sabotages/vols
+ * - Bouclier: Protection contre l'élimination
  */
 export function applyJokerEffects(ranking, currentRoundNumber, activities = []) {
   const activeJokers = getActiveJokersForRound(currentRoundNumber);
 
-  // Créer une copie du ranking pour ne pas modifier l'original
+  // Créer une copie du ranking avec le D+ original sauvegardé
   const modifiedRanking = ranking.map(entry => ({
     ...entry,
-    originalElevation: entry.totalElevation,
-    jokerEffects: { bonuses: {} }
+    originalElevation: entry.totalElevation, // D+ de base (pour calcul sabotage)
+    jokerEffects: {
+      bonuses: {},
+      sabotages: [],    // Liste des sabotages reçus
+      thefts: [],       // Liste des vols subis
+      stolenActivities: [] // Activités volées (pour éviter double comptage sur la même activité)
+    }
   }));
 
-  // Appliquer chaque joker actif
-  activeJokers.forEach(joker => {
-    const participantEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
-    if (!participantEntry) return;
+  // ========================================
+  // ÉTAPE 1: Appliquer les SABOTAGES (sur D+ original)
+  // ========================================
+  const sabotageJokers = activeJokers.filter(j => j.jokerId === 'sabotage');
 
-    switch (joker.jokerId) {
-      case 'multiplicateur':
-        // ×1.5 sur le D+ du round
-        const bonus = Math.round(participantEntry.totalElevation * 0.5);
-        participantEntry.totalElevation += bonus;
-        participantEntry.jokerEffects.bonuses.multiplier = {
-          factor: 1.5,
-          amount: bonus
-        };
-        break;
+  sabotageJokers.forEach(joker => {
+    if (!joker.targetId) return;
 
-      case 'bouclier':
-        // Protection contre l'élimination
-        participantEntry.jokerEffects.hasShield = true;
-        participantEntry.jokerEffects.bonuses.shield = true;
-        break;
+    const targetEntry = modifiedRanking.find(e => String(e.participant.id) === joker.targetId);
+    const attackerEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
 
-      case 'sabotage':
-        // Retire 30% du D+ de la cible
-        if (joker.targetId) {
-          const targetEntry = modifiedRanking.find(e => String(e.participant.id) === joker.targetId);
-          if (targetEntry) {
-            const penalty = Math.round(targetEntry.totalElevation * 0.3);
-            targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - penalty);
-            targetEntry.jokerEffects.bonuses.sabotaged = {
-              by: joker.participantName,
-              amount: penalty
-            };
-            participantEntry.jokerEffects.bonuses.sabotageApplied = {
-              to: targetEntry.participant.name,
-              amount: penalty
-            };
-          }
-        }
-        break;
+    if (targetEntry && attackerEntry) {
+      // 30% calculé sur le D+ ORIGINAL (avant tout bonus)
+      const penalty = Math.round(targetEntry.originalElevation * 0.3);
+      targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - penalty);
 
-      case 'voleur':
-        // Vole la meilleure activité de la cible
-        if (joker.targetId && activities.length > 0) {
-          const targetActivities = activities.filter(a =>
-            String(a.athlete_id || a.athlete?.id) === joker.targetId
-          );
-          if (targetActivities.length > 0) {
-            const bestActivity = targetActivities.reduce((best, current) =>
-              (current.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? current : best
-            );
-            const stolenElevation = Math.round(bestActivity.total_elevation_gain || 0);
+      // Enregistrer le sabotage
+      targetEntry.jokerEffects.sabotages.push({
+        by: joker.participantName,
+        byId: joker.participantId,
+        amount: penalty
+      });
 
-            const targetEntry = modifiedRanking.find(e => String(e.participant.id) === joker.targetId);
-            if (targetEntry && stolenElevation > 0) {
-              targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - stolenElevation);
-              participantEntry.totalElevation += stolenElevation;
-
-              targetEntry.jokerEffects.bonuses.stolen = {
-                by: joker.participantName,
-                amount: stolenElevation,
-                activity: bestActivity.name
-              };
-              participantEntry.jokerEffects.bonuses.thief = {
-                from: targetEntry.participant.name,
-                amount: stolenElevation,
-                activity: bestActivity.name
-              };
-            }
-          }
-        }
-        break;
+      // Marquer l'attaquant
+      if (!attackerEntry.jokerEffects.bonuses.sabotageApplied) {
+        attackerEntry.jokerEffects.bonuses.sabotageApplied = [];
+      }
+      attackerEntry.jokerEffects.bonuses.sabotageApplied.push({
+        to: targetEntry.participant.name,
+        toId: joker.targetId,
+        amount: penalty
+      });
     }
   });
 
-  // Retrier le classement après application des effets
+  // Consolider les sabotages pour l'affichage
+  modifiedRanking.forEach(entry => {
+    if (entry.jokerEffects.sabotages.length > 0) {
+      const totalPenalty = entry.jokerEffects.sabotages.reduce((sum, s) => sum + s.amount, 0);
+      const attackers = entry.jokerEffects.sabotages.map(s => s.by).join(', ');
+      entry.jokerEffects.bonuses.sabotaged = {
+        by: attackers,
+        amount: totalPenalty,
+        count: entry.jokerEffects.sabotages.length
+      };
+    }
+  });
+
+  // ========================================
+  // ÉTAPE 2: Appliquer les VOLS (sur D+ original, même activité peut être volée plusieurs fois)
+  // ========================================
+  const voleurJokers = activeJokers.filter(j => j.jokerId === 'voleur');
+
+  voleurJokers.forEach(joker => {
+    if (!joker.targetId || activities.length === 0) return;
+
+    const targetEntry = modifiedRanking.find(e => String(e.participant.id) === joker.targetId);
+    const thiefEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
+
+    if (!targetEntry || !thiefEntry) return;
+
+    // Trouver les activités de la cible
+    const targetActivities = activities.filter(a =>
+      String(a.athlete_id || a.athlete?.id) === joker.targetId
+    );
+
+    if (targetActivities.length === 0) return;
+
+    // Trouver la meilleure activité
+    const bestActivity = targetActivities.reduce((best, current) =>
+      (current.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? current : best
+    );
+
+    const stolenElevation = Math.round(bestActivity.total_elevation_gain || 0);
+
+    if (stolenElevation > 0) {
+      // Retirer le D+ à la victime
+      targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - stolenElevation);
+
+      // Ajouter le D+ au voleur
+      thiefEntry.totalElevation += stolenElevation;
+
+      // Enregistrer le vol
+      targetEntry.jokerEffects.thefts.push({
+        by: joker.participantName,
+        byId: joker.participantId,
+        amount: stolenElevation,
+        activity: bestActivity.name
+      });
+
+      if (!thiefEntry.jokerEffects.bonuses.thief) {
+        thiefEntry.jokerEffects.bonuses.thief = [];
+      }
+      thiefEntry.jokerEffects.bonuses.thief.push({
+        from: targetEntry.participant.name,
+        fromId: joker.targetId,
+        amount: stolenElevation,
+        activity: bestActivity.name
+      });
+    }
+  });
+
+  // Consolider les vols pour l'affichage
+  modifiedRanking.forEach(entry => {
+    if (entry.jokerEffects.thefts.length > 0) {
+      const totalStolen = entry.jokerEffects.thefts.reduce((sum, t) => sum + t.amount, 0);
+      const thieves = entry.jokerEffects.thefts.map(t => t.by).join(', ');
+      entry.jokerEffects.bonuses.stolen = {
+        by: thieves,
+        amount: totalStolen,
+        count: entry.jokerEffects.thefts.length
+      };
+    }
+  });
+
+  // ========================================
+  // ÉTAPE 3: Appliquer les MULTIPLICATEURS (sur D+ après sabotages/vols)
+  // ========================================
+  const multiplicateurJokers = activeJokers.filter(j => j.jokerId === 'multiplicateur');
+
+  multiplicateurJokers.forEach(joker => {
+    const participantEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
+    if (!participantEntry) return;
+
+    // ×1.5 sur le D+ actuel (après sabotages/vols)
+    const bonus = Math.round(participantEntry.totalElevation * 0.5);
+    participantEntry.totalElevation += bonus;
+    participantEntry.jokerEffects.bonuses.multiplier = {
+      factor: 1.5,
+      amount: bonus
+    };
+  });
+
+  // ========================================
+  // ÉTAPE 4: Appliquer les BOUCLIERS
+  // ========================================
+  const bouclierJokers = activeJokers.filter(j => j.jokerId === 'bouclier');
+
+  bouclierJokers.forEach(joker => {
+    const participantEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
+    if (!participantEntry) return;
+
+    participantEntry.jokerEffects.hasShield = true;
+    participantEntry.jokerEffects.bonuses.shield = true;
+  });
+
+  // ========================================
+  // ÉTAPE 5: Retrier le classement
+  // ========================================
   modifiedRanking.sort((a, b) => b.totalElevation - a.totalElevation);
 
   // Recalculer les positions
