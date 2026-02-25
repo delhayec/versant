@@ -1,663 +1,421 @@
 /**
  * ============================================
- * VERSANT - FONCTIONS DE RENDU UI
+ * VERSANT - GESTION DES JOKERS v3.0 (CLEAN)
  * ============================================
- * Toutes les fonctions qui génèrent du HTML.
- * AUCUNE logique métier ici.
+ *
+ * SOURCE UNIQUE: Le serveur API (/api/jokers/all)
+ *
+ * Le serveur stocke uniquement les UTILISATIONS de jokers.
+ * Le stock est calculé: INITIAL (2) - UTILISATIONS
+ *
+ * PAS de localStorage, PAS de cache complexe.
  */
 
-import {
-  CHALLENGE_CONFIG, JOKER_TYPES, ROUND_RULES, PARTICIPANTS,
-  getSeasonDates, getRoundDates, getRoundInSeason, getParticipantById,
-  getAthleteColor, getAthleteInitials, getRoundInfo
-} from './config.js';
-
-import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
+import { PARTICIPANTS, JOKER_TYPES, getParticipantById } from './config.js';
 
 // ============================================
-// UTILITAIRES DE FORMATAGE
+// CONFIGURATION
 // ============================================
 
-export function formatDate(date, opts = {}) {
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    ...opts
-  });
-}
-
-export function formatDateShort(date) {
-  return formatDate(date, { month: 'short', year: undefined });
-}
-
-export function formatElevation(value, showUnit = true) {
-  const rounded = Math.round(value);
-  const formatted = rounded.toLocaleString('fr-FR');
-  return showUnit ? `${formatted} m` : formatted;
-}
-
-export function formatPosition(pos) {
-  return `${pos}${pos === 1 ? 'er' : 'e'}`;
-}
-
-export function formatDateRange(start, end) {
-  const s = new Date(start);
-  const e = new Date(end);
-  if (s.getMonth() === e.getMonth()) {
-    return `${s.getDate()} - ${formatDate(e, { day: 'numeric', month: 'long', year: undefined })}`;
-  }
-  return `${formatDateShort(s)} - ${formatDateShort(e)}`;
-}
+const API_BASE = '/api';
+const LEAGUE_ID = 'versant-2026';
+const INITIAL_STOCK = 2; // Chaque joueur commence avec 2 de chaque joker
 
 // ============================================
-// RENDU DU BANNER SAISON/ROUND
+// CACHE SIMPLE - UNIQUE SOURCE DE VÉRITÉ
 // ============================================
 
-export function renderCombinedBanner(container, data) {
-  const { currentSeasonNumber, currentRoundNumber, seasonData, currentDate } = data;
-
-  const seasonDates = getSeasonDates(currentSeasonNumber);
-  const roundDates = getRoundDates(currentRoundNumber);
-  const roundInSeason = getRoundInSeason(currentDate);
-
-  const seasonProgress = Math.min(100, Math.max(0,
-    (currentDate - seasonDates.start) / (seasonDates.end - seasonDates.start) * 100
-  ));
-  const isRoundActive = currentDate >= roundDates.start && currentDate <= roundDates.end;
-  const daysLeft = Math.max(0, Math.ceil((roundDates.end - currentDate) / 86400000));
-
-  container.innerHTML = `
-    <div class="banner-left">
-      <div class="banner-season">
-        <span class="banner-label">Saison ${currentSeasonNumber}</span>
-        <span class="banner-dates">${formatDateRange(seasonDates.start, seasonDates.end)}</span>
-      </div>
-      <div class="banner-stats">
-        <span class="stat-item"><strong>${seasonData?.active?.length || 0}</strong> en course</span>
-        <span class="stat-item"><strong>${seasonData?.eliminated?.length || 0}</strong> éliminés</span>
-      </div>
-    </div>
-
-    <div class="banner-center">
-      <div class="banner-round">
-        <span class="round-number">Round ${roundInSeason}</span>
-      </div>
-      <div class="round-dates">${formatDateRange(roundDates.start, roundDates.end)}</div>
-      ${isRoundActive ? `
-        <div class="round-countdown">
-          <span class="countdown-value">${daysLeft}</span> jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}
-        </div>
-      ` : ''}
-    </div>
-
-    <div class="banner-right">
-      <div class="season-progress-container">
-        <div class="progress-label">Progression saison</div>
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width: ${seasonProgress}%"></div>
-        </div>
-        <div class="progress-percent">${Math.round(seasonProgress)}%</div>
-      </div>
-    </div>
-  `;
-}
+// Le cache contient uniquement les utilisations chargées depuis le serveur
+let jokerUsageCache = [];
+let cacheTimestamp = null;
 
 // ============================================
-// RENDU DES JOKERS ACTIFS
+// CHARGEMENT DEPUIS LE SERVEUR
 // ============================================
 
-export function renderActiveJokersSection(container, data) {
-  const { currentRoundNumber, ranking } = data;
-
-  const activeJokers = getActiveJokersForRound(currentRoundNumber);
-  const pendingJokers = getPendingJokersForNextRound(currentRoundNumber);
-
-  if (activeJokers.length === 0 && pendingJokers.length === 0) {
-    container.innerHTML = '';
-    container.style.display = 'none';
-    return;
-  }
-
-  container.style.display = 'block';
-
-  let html = '<h3 class="section-title">🃏 Jokers en jeu ce round</h3><div class="jokers-grid">';
-
-  activeJokers.forEach(joker => {
-    const jokerType = JOKER_TYPES[joker.jokerId];
-    if (!jokerType) return;
-
-    let statusHtml = '';
-    let statusClass = 'active';
-
-    if (joker.jokerId === 'duel' && ranking) {
-      const challenger = ranking.find(r => String(r.participant.id) === String(joker.participantId));
-      const target = ranking.find(r => String(r.participant.id) === String(joker.targetId));
-
-      if (challenger && target) {
-        const challengerWins = challenger.totalElevation > target.totalElevation;
-        statusClass = challengerWins ? 'winning' : 'losing';
-
-        statusHtml = `
-          <div class="duel-status">
-            <div class="duel-competitor ${challengerWins ? 'winning' : 'losing'}">
-              <span class="competitor-name">${joker.participantName}</span>
-              <span class="competitor-elevation">${formatElevation(challenger.totalElevation)}</span>
-              ${challengerWins ? '<span class="duel-badge">⚔️ EN TÊTE</span>' : ''}
-            </div>
-            <div class="duel-vs">VS</div>
-            <div class="duel-competitor ${!challengerWins ? 'winning' : 'losing'}">
-              <span class="competitor-name">${joker.targetName}</span>
-              <span class="competitor-elevation">${formatElevation(target.totalElevation)}</span>
-              ${!challengerWins ? '<span class="duel-badge">🎯 EN TÊTE</span>' : ''}
-            </div>
-          </div>
-          <div class="duel-stakes">Enjeu : 25% du D+ du perdant</div>
-        `;
-      }
-    } else if (joker.jokerId === 'multiplicateur') {
-      statusHtml = `<div class="joker-effect">×1.5 sur tout le D+ de ${joker.participantName}</div>`;
-    } else if (joker.jokerId === 'sabotage') {
-      statusHtml = `<div class="joker-effect">-25% du D+ de ${joker.targetName}</div>`;
-    } else if (joker.jokerId === 'bouclier') {
-      statusHtml = `<div class="joker-effect">${joker.participantName} est protégé contre l'élimination</div>`;
+/**
+ * Charge les utilisations de jokers depuis le serveur
+ * C'est LA source de vérité pour tout le calcul des jokers
+ */
+export async function loadJokersFromServer() {
+  try {
+    const response = await fetch(`${API_BASE}/jokers/all`);
+    if (!response.ok) {
+      console.warn('⚠️ Impossible de charger les jokers depuis le serveur');
+      return jokerUsageCache;
     }
 
-    html += `
-      <div class="joker-card ${statusClass}">
-        <div class="joker-card-header">
-          <span class="joker-card-icon">${jokerType.icon}</span>
-          <span class="joker-card-name">${jokerType.name}</span>
-          <span class="joker-card-user">par ${joker.participantName}</span>
-        </div>
-        <div class="joker-card-body">${statusHtml}</div>
-      </div>
-    `;
+    jokerUsageCache = await response.json();
+    cacheTimestamp = Date.now();
+
+    console.log(`🃏 ${jokerUsageCache.length} utilisations de jokers chargées depuis le serveur`);
+    return jokerUsageCache;
+  } catch (error) {
+    console.error('❌ Erreur chargement jokers:', error);
+    return jokerUsageCache;
+  }
+}
+
+/**
+ * Initialise l'état des jokers (appelé au démarrage de l'app)
+ */
+export async function initializeJokersState() {
+  await loadJokersFromServer();
+  console.log(`🃏 Jokers initialisés - ${PARTICIPANTS.length} participants, ${jokerUsageCache.length} utilisations`);
+}
+
+/**
+ * Rafraîchit les jokers depuis le serveur
+ */
+export async function refreshJokersFromServer() {
+  return await loadJokersFromServer();
+}
+
+/**
+ * Sauvegarde - NE FAIT RIEN car tout est géré côté serveur
+ */
+export function saveJokersState() {
+  // Les jokers sont gérés uniquement côté serveur
+  // Cette fonction existe pour compatibilité mais ne fait rien
+}
+
+// ============================================
+// CALCUL DU STOCK (basé sur les utilisations)
+// ============================================
+
+/**
+ * Compte combien de fois un joker a été utilisé par un participant
+ */
+export function getUsedJokerCount(participantId, jokerId) {
+  const pid = String(participantId);
+  return jokerUsageCache.filter(
+    u => String(u.athlete_id) === pid && u.joker_id === jokerId
+  ).length;
+}
+
+/**
+ * Calcule le stock restant d'un joker pour un participant
+ * Stock = INITIAL (2) - Utilisations
+ */
+export function getRemainingStock(participantId, jokerId) {
+  const used = getUsedJokerCount(participantId, jokerId);
+  return Math.max(0, INITIAL_STOCK - used);
+}
+
+/**
+ * Récupère le stock complet de jokers d'un participant
+ * Retourne { voleur: X, multiplicateur: X, bouclier: X, sabotage: X }
+ */
+export function getJokerStock(participantId) {
+  const stock = {};
+  Object.keys(JOKER_TYPES).forEach(jokerId => {
+    stock[jokerId] = getRemainingStock(participantId, jokerId);
   });
+  return stock;
+}
+
+// ============================================
+// ÉTAT DES JOKERS PAR ROUND
+// ============================================
+
+/**
+ * Récupère l'état complet des jokers d'un participant pour un round
+ * C'est LA fonction principale utilisée par l'UI
+ */
+export function getJokerStatusForRound(participantId, roundNumber) {
+  const pid = String(participantId);
+
+  // Filtrer les utilisations de ce participant
+  const myUsage = jokerUsageCache.filter(u => String(u.athlete_id) === pid);
+
+  // Jokers actifs ce round
+  const active = myUsage.filter(u => u.round_number === roundNumber && u.status === 'active');
 
   // Jokers programmés pour le prochain round
-  if (pendingJokers.length > 0) {
-    const nextRound = getRoundInSeason(new Date()) + 1;
-    html += `<div class="pending-jokers"><h4>⏰ Programmés pour le Round ${nextRound}</h4><div class="pending-list">`;
+  const pending = myUsage.filter(u => u.round_number === roundNumber + 1);
 
-    pendingJokers.forEach(joker => {
-      const jokerType = JOKER_TYPES[joker.jokerId];
-      if (!jokerType) return;
-      html += `<span class="pending-item">${jokerType.icon} ${joker.participantName}${joker.targetName ? ' → ' + joker.targetName : ''}</span>`;
-    });
-
-    html += '</div></div>';
-  }
-
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-// ============================================
-// RENDU DU CLASSEMENT
-// ============================================
-
-export function renderRanking(container, data) {
-  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount } = data;
-
-  if (seasonData?.seasonComplete) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p>🏆 Saison terminée ! Champion : ${seasonData.winner?.name || 'N/A'}</p>
-      </div>
-    `;
-    return;
-  }
-
-  if (!ranking || ranking.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p>Aucune donnée disponible</p></div>';
-    return;
-  }
-
-  let html = `
-    <div class="ranking-header">
-      <div>Pos.</div>
-      <div>Athlète</div>
-      <div>D+ Round</div>
-      <div>D+ Saison</div>
-      <div>Jokers</div>
-    </div>
-  `;
-
-  ranking.forEach((entry, i) => {
-    const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const rowClass = entry.isInDangerZone ? 'danger-zone' : (entry.isProtected ? 'protected' : '');
-    const seasonElev = seasonStats?.[entry.participant.id]?.elevation || 0;
-    const effects = entry.jokerEffects || { bonuses: {} };
-
-    // Générer les indicateurs de bonus sur l'avatar
-    const bonusIndicators = renderAvatarBonusIndicators(effects.bonuses);
-
-    html += `
-      <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
-        <div class="position ${posClass}">
-          ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
-        </div>
-        <div class="athlete-info">
-          <div class="athlete-avatar-wrapper">
-            <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
-              ${getAthleteInitials(entry.participant.id)}
-            </div>
-            ${bonusIndicators}
-          </div>
-          <div class="athlete-details">
-            <span class="athlete-name">${entry.participant.name}</span>
-            ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
-            ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
-          </div>
-        </div>
-        <div class="elevation-cell">
-          ${renderElevationWithBonuses(entry.totalElevation, effects.bonuses)}
-        </div>
-        <div class="elevation-secondary">${formatElevation(seasonElev)}</div>
-        <div class="jokers-cell">
-          ${renderJokerBadges(entry.participant.id, data.currentRoundNumber)}
-        </div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-// ============================================
-// RENDU DES INDICATEURS DE BONUS SUR AVATAR
-// ============================================
-
-function renderAvatarBonusIndicators(bonuses = {}) {
-  const indicators = [];
-
-  // Multiplicateur (×1.5)
-  if (bonuses.multiplier) {
-    indicators.push({ icon: '✨', class: 'multiplier', title: 'Multiplicateur ×1.5' });
-  }
-
-  // Bouclier
-  if (bonuses.shield) {
-    indicators.push({ icon: '🛡️', class: 'shield', title: 'Bouclier actif' });
-  }
-
-  // Duel gagné
-  if (bonuses.duelWon) {
-    indicators.push({ icon: '⚔️', class: 'duel-won', title: 'Duel gagné' });
-  }
-
-  // Duel perdu
-  if (bonuses.duelLost) {
-    indicators.push({ icon: '⚔️', class: 'duel-lost', title: 'Duel perdu' });
-  }
-
-  // Saboté (victime)
-  if (bonuses.sabotaged) {
-    indicators.push({ icon: '💣', class: 'sabotaged', title: 'Saboté' });
-  }
-
-  // Sabotage appliqué (celui qui sabote)
-  if (bonuses.sabotageApplied) {
-    indicators.push({ icon: '💣', class: 'saboteur', title: 'Sabotage actif' });
-  }
-
-  // Voleur actif
-  if (bonuses.thief) {
-    indicators.push({ icon: '🦹', class: 'thief', title: 'Vol actif' });
-  }
-
-  // Victime du vol
-  if (bonuses.stolen) {
-    indicators.push({ icon: '🦹', class: 'stolen', title: 'Activité volée' });
-  }
-
-  if (indicators.length === 0) return '';
-
-  return `
-    <div class="avatar-bonus-indicators">
-      ${indicators.map(ind => `
-        <span class="avatar-bonus-icon ${ind.class}" title="${ind.title}">${ind.icon}</span>
-      `).join('')}
-    </div>
-  `;
-}
-
-// ============================================
-// RENDU DES BADGES JOKERS
-// ============================================
-
-function renderJokerBadges(participantId, currentRoundNumber) {
-  const status = getJokerStatusForRound(participantId, currentRoundNumber);
-  const stock = status.stock;
-
-  let html = '';
-
-  Object.entries(JOKER_TYPES).forEach(([jokerId, jokerType]) => {
-    const count = stock[jokerId] || 0;
-    const isActive = status.active.some(j => j.jokerId === jokerId);
-    const isPending = status.pending.some(j => j.jokerId === jokerId);
-
-    let badgeClass = 'available';
-    if (isActive) badgeClass = 'active';
-    else if (isPending) badgeClass = 'pending';
-
-    if (count > 0 || isActive || isPending) {
-      html += `
-        <span class="joker-badge ${badgeClass}" title="${jokerType.name}: ${count} restant(s)">
-          ${jokerType.icon}${count > 0 ? `<sub>${count}</sub>` : ''}
-        </span>
-      `;
-    }
-  });
-
-  return html || '<span class="no-jokers">-</span>';
-}
-
-// ============================================
-// RENDU DU D+ AVEC BONUS
-// ============================================
-
-function renderElevationWithBonuses(totalElevation, bonuses = {}) {
-  let html = `<span class="elevation-primary">${formatElevation(totalElevation)}</span>`;
-
-  const tags = [];
-
-  if (bonuses.multiplier) {
-    tags.push(`<span class="bonus-tag multiplier">×1.5 +${formatElevation(bonuses.multiplier.amount, false)}</span>`);
-  }
-  if (bonuses.duelWon) {
-    tags.push(`<span class="bonus-tag duel-won">⚔️ +${formatElevation(bonuses.duelWon.amount, false)}</span>`);
-  }
-  if (bonuses.duelLost) {
-    tags.push(`<span class="bonus-tag duel-lost">⚔️ -${formatElevation(bonuses.duelLost.amount, false)}</span>`);
-  }
-  if (bonuses.sabotaged) {
-    tags.push(`<span class="bonus-tag sabotage">💣 -${formatElevation(bonuses.sabotaged.amount, false)}</span>`);
-  }
-  if (bonuses.sabotageApplied) {
-    tags.push(`<span class="bonus-tag sabotage-done">💣 → ${bonuses.sabotageApplied.to}</span>`);
-  }
-
-  if (tags.length > 0) {
-    html += `<div class="elevation-bonuses">${tags.join('')}</div>`;
-  }
-
-  return html;
-}
-
-// ============================================
-// RENDU DES PARTICIPANTS (CARDS)
-// ============================================
-
-export function renderParticipants(container, data) {
-  const { participants, stats, currentRoundNumber } = data;
-
-  let html = '<div class="participants-grid">';
-
-  participants.forEach(p => {
-    const pStats = stats?.[p.id] || { elevation: 0, activities: 0 };
-    const stock = getJokerStock(p.id);
-
-    html += `
-      <div class="participant-card" data-participant-id="${p.id}">
-        <div class="card-header">
-          <div class="avatar" style="background: ${getAthleteColor(p.id)}">
-            ${getAthleteInitials(p.id)}
-          </div>
-          <div class="info">
-            <span class="name">${p.name}</span>
-            <span class="stats">${pStats.activities} activités</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="elevation">${formatElevation(pStats.elevation)}</div>
-          <div class="jokers-row">
-            ${Object.entries(JOKER_TYPES).map(([id, j]) =>
-              `<span class="mini-joker" title="${j.name}">${j.icon}${stock[id] || 0}</span>`
-            ).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-  });
-
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-// ============================================
-// RENDU DU GUIDE DES JOKERS
-// ============================================
-
-export function renderJokersGuide(container) {
-  let html = `
-    <div class="jokers-guide-section">
-      <h2 class="section-title">🃏 Guide des Jokers</h2>
-      <p class="guide-intro">Chaque participant dispose de jokers stratégiques. Clic droit sur un athlète pour les utiliser.</p>
-
-      <div class="jokers-guide-grid">
-  `;
-
-  Object.entries(JOKER_TYPES).forEach(([id, joker]) => {
-    html += `
-      <div class="joker-guide-card ${id}">
-        <div class="joker-guide-icon">${joker.icon}</div>
-        <div class="joker-guide-content">
-          <h3>${joker.name}</h3>
-          <div class="joker-effect-desc">${joker.description}</div>
-          <div class="joker-details">${joker.effect}</div>
-          ${!joker.usableInFinal ? '<div class="joker-warning">⚠️ Non utilisable en finale</div>' : ''}
-        </div>
-      </div>
-    `;
-  });
-
-  html += `
-      </div>
-
-      <div class="joker-tips">
-        <h4>💡 Conseils stratégiques</h4>
-        <ul>
-          <li>Les jokers s'activent au round suivant leur utilisation</li>
-          <li>Le Duel peut retourner une situation défavorable</li>
-          <li>Le Bouclier est précieux - gardez-le pour les moments critiques</li>
-          <li>Combinez Multiplicateur et effort intense pour maximiser l'impact</li>
-        </ul>
-      </div>
-    </div>
-  `;
-
-  container.innerHTML = html;
-}
-
-// ============================================
-// RENDU DES NOTIFICATIONS
-// ============================================
-
-let notificationTimeout = null;
-
-export function showNotification(message, type = 'info') {
-  let notification = document.getElementById('notification');
-
-  if (!notification) {
-    notification = document.createElement('div');
-    notification.id = 'notification';
-    notification.className = 'notification';
-    document.body.appendChild(notification);
-  }
-
-  notification.textContent = message;
-  notification.className = `notification notification-${type} visible`;
-
-  if (notificationTimeout) clearTimeout(notificationTimeout);
-  notificationTimeout = setTimeout(() => {
-    notification.classList.remove('visible');
-  }, 3000);
-}
-
-// ============================================
-// RENDU DU MENU CONTEXTUEL JOKERS
-// ============================================
-
-let contextMenu = null;
-
-export function createContextMenu() {
-  if (contextMenu) return contextMenu;
-
-  contextMenu = document.createElement('div');
-  contextMenu.className = 'joker-context-menu';
-  contextMenu.innerHTML = `
-    <div class="context-menu-header">🃏 Utiliser un Joker</div>
-    <div class="context-menu-items"></div>
-  `;
-  document.body.appendChild(contextMenu);
-
-  // Fermer au clic ailleurs
-  document.addEventListener('click', (e) => {
-    if (!contextMenu.contains(e.target)) {
-      hideContextMenu();
-    }
-  });
-
-  return contextMenu;
-}
-
-export function showContextMenu(e, participantId, participantName, options = {}) {
-  e.preventDefault();
-  const menu = createContextMenu();
-
+  // Calculer le stock restant
   const stock = getJokerStock(participantId);
-  const status = getJokerStatusForRound(participantId, options.currentRoundNumber || 1);
-  const isAdmin = options.isAdmin || false;
 
-  let itemsHtml = '';
-
-  if (isAdmin) {
-    itemsHtml += '<div class="context-menu-section">Modifier le stock :</div>';
-    Object.entries(JOKER_TYPES).forEach(([jokerId, joker]) => {
-      const count = stock[jokerId] || 0;
-      itemsHtml += `
-        <div class="context-menu-item admin-joker" data-joker="${jokerId}" data-participant="${participantId}">
-          <span class="joker-icon">${joker.icon}</span>
-          <span class="joker-name">${joker.name}</span>
-          <span class="joker-controls">
-            <button class="joker-minus" data-action="remove">−</button>
-            <span class="joker-count">${count}</span>
-            <button class="joker-plus" data-action="add">+</button>
-          </span>
-        </div>
-      `;
-    });
-  } else {
-    itemsHtml += '<div class="context-menu-info">⏰ Activé au prochain round</div>';
-    Object.entries(JOKER_TYPES).forEach(([jokerId, joker]) => {
-      const count = stock[jokerId] || 0;
-      const alreadyPending = status.pending.some(j => j.jokerId === jokerId);
-      const disabled = count <= 0 || alreadyPending;
-
-      itemsHtml += `
-        <div class="context-menu-item ${disabled ? 'disabled' : ''}"
-             data-joker="${jokerId}"
-             data-participant="${participantId}"
-             data-name="${participantName}">
-          <span class="joker-icon">${joker.icon}</span>
-          <span class="joker-name">${joker.name}</span>
-          <span class="joker-count">${count}</span>
-          <span class="joker-disabled-reason">
-            ${alreadyPending ? '(programmé)' : count <= 0 ? '(épuisé)' : ''}
-          </span>
-        </div>
-      `;
-    });
-  }
-
-  itemsHtml += `
-    <div class="context-menu-divider"></div>
-    <div class="context-menu-item reset" data-action="reset" data-participant="${participantId}">
-      <span class="joker-icon">🔄</span>
-      <span class="joker-name">Reset jokers (démo)</span>
-    </div>
-  `;
-
-  menu.querySelector('.context-menu-header').textContent =
-    '🃏 ' + (isAdmin ? 'Gérer' : 'Jokers de') + ' ' + participantName;
-  menu.querySelector('.context-menu-items').innerHTML = itemsHtml;
-
-  // Positionner le menu
-  menu.style.left = Math.min(e.clientX, window.innerWidth - 280) + 'px';
-  menu.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
-  menu.classList.add('visible');
-
-  return menu;
+  return {
+    stock,
+    active,
+    pending,
+    allUsage: myUsage
+  };
 }
 
-export function hideContextMenu() {
-  if (contextMenu) {
-    contextMenu.classList.remove('visible');
-  }
+/**
+ * Récupère tous les jokers actifs pour un round donné (tous participants)
+ */
+export function getActiveJokersForRound(roundNumber) {
+  return jokerUsageCache
+    .filter(u => u.round_number === roundNumber && u.status === 'active')
+    .map(u => {
+      const participant = getParticipantById(u.athlete_id);
+      const jokerType = JOKER_TYPES[u.joker_id];
+      const target = u.target_athlete_id ? getParticipantById(u.target_athlete_id) : null;
+
+      return {
+        ...u,
+        participantId: String(u.athlete_id),
+        participantName: participant?.name || 'Inconnu',
+        jokerId: u.joker_id,
+        jokerName: jokerType?.name || u.joker_id,
+        jokerIcon: jokerType?.icon || '🃏',
+        targetId: u.target_athlete_id ? String(u.target_athlete_id) : null,
+        targetName: target?.name || null
+      };
+    });
+}
+
+/**
+ * Récupère les jokers programmés pour le prochain round
+ */
+export function getPendingJokersForNextRound(currentRoundNumber) {
+  return getActiveJokersForRound(currentRoundNumber + 1);
 }
 
 // ============================================
-// MODALE DE SÉLECTION DE CIBLE (DUEL/SABOTAGE)
+// UTILISATION D'UN JOKER (via API)
 // ============================================
 
-export function showTargetSelectionModal(options = {}) {
-  const { participantId, jokerId, participants, onSelect, onCancel } = options;
-
+/**
+ * Utilise un joker via l'API serveur
+ */
+export async function useJoker(participantId, jokerId, currentRoundNumber, currentDate, options = {}) {
   const jokerType = JOKER_TYPES[jokerId];
-  const currentParticipant = getParticipantById(participantId);
+  if (!jokerType) {
+    return { success: false, error: 'Joker inconnu' };
+  }
 
-  const modal = document.createElement('div');
-  modal.className = 'joker-modal';
-  modal.innerHTML = `
-    <div class="joker-modal-content">
-      <div class="joker-modal-header">
-        <span>${jokerType.icon} ${jokerType.name} - Choisir une cible</span>
-        <button class="joker-modal-close">&times;</button>
-      </div>
-      <div class="joker-modal-body">
-        <p>Sélectionnez l'adversaire à cibler :</p>
-        <div class="target-list">
-          ${participants
-            .filter(p => p.id !== participantId)
-            .map(p => `
-              <div class="target-option" data-target-id="${p.id}" data-target-name="${p.name}">
-                <div class="target-avatar" style="background: ${getAthleteColor(p.id)}">
-                  ${getAthleteInitials(p.id)}
-                </div>
-                <span class="target-name">${p.name}</span>
-              </div>
-            `).join('')}
-        </div>
-      </div>
-    </div>
-  `;
+  // Vérifier le stock
+  const remaining = getRemainingStock(participantId, jokerId);
+  if (remaining <= 0) {
+    return { success: false, error: 'Plus de joker disponible' };
+  }
 
-  document.body.appendChild(modal);
-
-  // Fermer
-  modal.querySelector('.joker-modal-close').onclick = () => {
-    document.body.removeChild(modal);
-    if (onCancel) onCancel();
-  };
-
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      document.body.removeChild(modal);
-      if (onCancel) onCancel();
+  try {
+    const token = localStorage.getItem('versant_token');
+    if (!token) {
+      return { success: false, error: 'Non authentifié' };
     }
-  };
 
-  // Sélection de cible
-  modal.querySelectorAll('.target-option').forEach(option => {
-    option.onclick = () => {
-      const targetId = option.dataset.targetId;
-      const targetName = option.dataset.targetName;
-      document.body.removeChild(modal);
-      if (onSelect) onSelect({ targetId, targetName });
+    const response = await fetch(`${API_BASE}/jokers/use`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        joker_id: jokerId,
+        target_athlete_id: options.targetId || null,
+        selected_day: options.selectedDay || null,
+        activate_now: options.activateNow || false,
+        round_number: options.activateNow ? currentRoundNumber : currentRoundNumber + 1
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, error: err.error || 'Erreur serveur' };
+    }
+
+    const result = await response.json();
+
+    // Ajouter au cache local pour mise à jour immédiate
+    jokerUsageCache.push(result.usage);
+
+    return {
+      success: true,
+      usage: result.usage,
+      activationRound: result.usage.round_number
     };
+
+  } catch (error) {
+    console.error('❌ Erreur utilisation joker:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================
+// APPLICATION DES EFFETS SUR LE CLASSEMENT
+// ============================================
+
+/**
+ * Applique les effets des jokers actifs sur le classement
+ * C'est cette fonction qui modifie les D+ en fonction des jokers
+ */
+export function applyJokerEffects(ranking, currentRoundNumber, activities = []) {
+  const activeJokers = getActiveJokersForRound(currentRoundNumber);
+
+  // Créer une copie du ranking pour ne pas modifier l'original
+  const modifiedRanking = ranking.map(entry => ({
+    ...entry,
+    originalElevation: entry.totalElevation,
+    jokerEffects: { bonuses: {} }
+  }));
+
+  // Appliquer chaque joker actif
+  activeJokers.forEach(joker => {
+    const participantEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
+    if (!participantEntry) return;
+
+    switch (joker.jokerId) {
+      case 'multiplicateur':
+        // ×1.5 sur le D+ du round
+        const bonus = Math.round(participantEntry.totalElevation * 0.5);
+        participantEntry.totalElevation += bonus;
+        participantEntry.jokerEffects.bonuses.multiplier = {
+          factor: 1.5,
+          amount: bonus
+        };
+        break;
+
+      case 'bouclier':
+        // Protection contre l'élimination
+        participantEntry.jokerEffects.hasShield = true;
+        participantEntry.jokerEffects.bonuses.shield = true;
+        break;
+
+      case 'sabotage':
+        // Retire 30% du D+ de la cible
+        if (joker.targetId) {
+          const targetEntry = modifiedRanking.find(e => String(e.participant.id) === joker.targetId);
+          if (targetEntry) {
+            const penalty = Math.round(targetEntry.totalElevation * 0.3);
+            targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - penalty);
+            targetEntry.jokerEffects.bonuses.sabotaged = {
+              by: joker.participantName,
+              amount: penalty
+            };
+            participantEntry.jokerEffects.bonuses.sabotageApplied = {
+              to: targetEntry.participant.name,
+              amount: penalty
+            };
+          }
+        }
+        break;
+
+      case 'voleur':
+        // Vole la meilleure activité de la cible
+        if (joker.targetId && activities.length > 0) {
+          const targetActivities = activities.filter(a =>
+            String(a.athlete_id || a.athlete?.id) === joker.targetId
+          );
+          if (targetActivities.length > 0) {
+            const bestActivity = targetActivities.reduce((best, current) =>
+              (current.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? current : best
+            );
+            const stolenElevation = Math.round(bestActivity.total_elevation_gain || 0);
+
+            const targetEntry = modifiedRanking.find(e => String(e.participant.id) === joker.targetId);
+            if (targetEntry && stolenElevation > 0) {
+              targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - stolenElevation);
+              participantEntry.totalElevation += stolenElevation;
+
+              targetEntry.jokerEffects.bonuses.stolen = {
+                by: joker.participantName,
+                amount: stolenElevation,
+                activity: bestActivity.name
+              };
+              participantEntry.jokerEffects.bonuses.thief = {
+                from: targetEntry.participant.name,
+                amount: stolenElevation,
+                activity: bestActivity.name
+              };
+            }
+          }
+        }
+        break;
+    }
   });
 
-  return modal;
+  // Retrier le classement après application des effets
+  modifiedRanking.sort((a, b) => b.totalElevation - a.totalElevation);
+
+  // Recalculer les positions
+  modifiedRanking.forEach((entry, index) => {
+    entry.position = index + 1;
+  });
+
+  return modifiedRanking;
+}
+
+// ============================================
+// FONCTIONS ADMIN (compatibilité)
+// ============================================
+
+/**
+ * Ces fonctions sont gardées pour compatibilité mais
+ * ne font que des modifications locales temporaires.
+ * Les vraies modifications doivent passer par le serveur.
+ */
+
+export function addJoker(participantId, jokerId) {
+  console.warn('⚠️ addJoker: Utilisez l\'API admin pour modifier les jokers de façon permanente');
+  return false;
+}
+
+export function removeJoker(participantId, jokerId) {
+  console.warn('⚠️ removeJoker: Utilisez l\'API admin pour modifier les jokers de façon permanente');
+  return false;
+}
+
+export function resetJokers(participantId) {
+  console.warn('⚠️ resetJokers: Utilisez l\'API admin /api/admin/jokers/reset-all');
+  return false;
+}
+
+// ============================================
+// DEBUG & DIAGNOSTIC
+// ============================================
+
+/**
+ * Retourne l'état complet du cache (pour debug)
+ */
+export function getAllJokersState() {
+  return {
+    usage: jokerUsageCache,
+    cacheTimestamp,
+    participantCount: PARTICIPANTS.length
+  };
+}
+
+/**
+ * Récupère l'état des jokers d'un participant (pour debug)
+ */
+export function getParticipantJokersState(participantId) {
+  return {
+    stock: getJokerStock(participantId),
+    usage: jokerUsageCache.filter(u => String(u.athlete_id) === String(participantId))
+  };
+}
+
+/**
+ * Vérifie la cohérence du cache
+ */
+export function validateJokersCache() {
+  const issues = [];
+
+  // Vérifier que tous les athlete_id correspondent à des participants existants
+  const unknownAthletes = jokerUsageCache.filter(u => !getParticipantById(u.athlete_id));
+  if (unknownAthletes.length > 0) {
+    issues.push(`${unknownAthletes.length} utilisations avec athlete_id inconnu`);
+  }
+
+  // Vérifier qu'aucun participant n'a utilisé plus de 2 fois le même joker
+  PARTICIPANTS.forEach(p => {
+    Object.keys(JOKER_TYPES).forEach(jokerId => {
+      const count = getUsedJokerCount(p.id, jokerId);
+      if (count > INITIAL_STOCK) {
+        issues.push(`${p.name} a utilisé ${count}x ${jokerId} (max: ${INITIAL_STOCK})`);
+      }
+    });
+  });
+
+  return {
+    valid: issues.length === 0,
+    issues
+  };
 }
