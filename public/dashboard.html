@@ -1,554 +1,655 @@
-/**
- * ============================================
- * DASHBOARD PERSONNEL - VERSANT 2026
- * ============================================
- * CORRIGÉ: Utilise /api/jokers/all comme source unique
- */
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Challenge Versant 2026</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260221">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
 
-import { CHALLENGE_CONFIG, JOKER_TYPES } from './config-2026.js';
-
-const API_BASE = '/api';
-const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
-const INITIAL_JOKER_STOCK = 2; // Chaque joueur commence avec 2 de chaque
-
-let currentUser = null;
-let allActivities = [];
-let jokerUsageCache = []; // Cache des utilisations de jokers
-
-// ============================================
-// AUTHENTIFICATION
-// ============================================
-function getCurrentUserId() {
-  return localStorage.getItem('versant_athlete_id');
-}
-
-function setCurrentUserId(id) {
-  localStorage.setItem('versant_athlete_id', id);
-}
-
-// ============================================
-// CHARGEMENT DES DONNÉES
-// ============================================
-async function loadCurrentUser() {
-  try {
-    const athleteId = getCurrentUserId();
-    if (!athleteId) {
-      throw new Error('Non connecté');
+  <style>
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 24px 60px;
     }
 
-    const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
-    if (!res.ok) throw new Error('Erreur chargement');
-    
-    const athletes = await res.json();
-    currentUser = athletes.find(a => String(a.id) === String(athleteId));
-    
-    if (!currentUser) {
-      throw new Error('Athlète non trouvé');
+    .dashboard-header {
+      text-align: center;
+      margin-bottom: 60px;
     }
-    
-    return currentUser;
-  } catch (error) {
-    console.error('Erreur chargement utilisateur:', error);
-    window.location.href = 'inscription.html';
-  }
-}
 
-async function loadActivities() {
-  try {
-    const res = await fetch(`${API_BASE}/activities/${LEAGUE_ID}`);
-    if (!res.ok) throw new Error('Erreur chargement activités');
-    
-    allActivities = await res.json();
-    return allActivities;
-  } catch (error) {
-    console.error('Erreur chargement activités:', error);
-    return [];
-  }
-}
-
-/**
- * Charge les utilisations de jokers depuis le serveur
- * SOURCE UNIQUE comme jokers.js v3.0
- */
-async function loadJokersFromServer() {
-  try {
-    const res = await fetch(`${API_BASE}/jokers/all`);
-    if (!res.ok) {
-      console.warn('⚠️ Impossible de charger les jokers depuis le serveur');
-      return [];
+    .dashboard-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 42px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
-    jokerUsageCache = await res.json();
-    console.log(`🃏 ${jokerUsageCache.length} utilisations de jokers chargées`);
-    return jokerUsageCache;
-  } catch (error) {
-    console.error('❌ Erreur chargement jokers:', error);
-    return [];
-  }
-}
 
-/**
- * Calcule le stock restant d'un joker pour un participant
- * Stock = INITIAL (2) - Utilisations
- */
-function getJokerStock(participantId) {
-  const pid = String(participantId);
-  const stock = {};
-  
-  Object.keys(JOKER_TYPES).forEach(jokerId => {
-    const usedCount = jokerUsageCache.filter(
-      u => String(u.athlete_id) === pid && u.joker_id === jokerId
-    ).length;
-    stock[jokerId] = Math.max(0, INITIAL_JOKER_STOCK - usedCount);
-  });
-  
-  return stock;
-}
-
-/**
- * Récupère les jokers en attente pour le prochain round
- */
-function getPendingJokers(participantId, currentRoundNumber) {
-  const pid = String(participantId);
-  return jokerUsageCache.filter(
-    u => String(u.athlete_id) === pid && u.round_number === currentRoundNumber + 1
-  );
-}
-
-// ============================================
-// UTILITAIRES
-// ============================================
-function formatDate(date) {
-  return new Date(date).toLocaleDateString('fr-FR', { 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
-  });
-}
-
-function formatElevation(meters) {
-  return `${Math.round(meters).toLocaleString('fr-FR')} m`;
-}
-
-// ============================================
-// AFFICHAGE
-// ============================================
-function renderHeader() {
-  const nameEl = document.getElementById('athleteName');
-  if (nameEl && currentUser) {
-    nameEl.textContent = `${currentUser.name}`;
-  }
-}
-
-function renderStats() {
-  if (!currentUser) return;
-  
-  const userActivities = allActivities.filter(a => a.athlete_id === currentUser.id);
-  const totalElevation = userActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
-  
-  document.getElementById('totalElevation').textContent = formatElevation(totalElevation);
-  document.getElementById('totalActivities').textContent = userActivities.length;
-  document.getElementById('currentRank').textContent = '-'; // À calculer
-  document.getElementById('totalPoints').textContent = '0'; // À calculer
-}
-
-function renderNextRound() {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  
-  if (now < start) {
-    document.getElementById('nextRoundStart').textContent = formatDate(start);
-    document.getElementById('nextRoundRule').textContent = '📊 Standard';
-  } else {
-    // Calculer le prochain round
-    const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-    const currentRound = Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1;
-    const nextRound = currentRound + 1;
-    
-    const nextRoundStart = new Date(start);
-    nextRoundStart.setDate(nextRoundStart.getDate() + (nextRound - 1) * CHALLENGE_CONFIG.roundDurationDays);
-    
-    document.getElementById('nextRoundStart').textContent = formatDate(nextRoundStart);
-    document.getElementById('nextRoundRule').textContent = '📊 Standard'; // À adapter
-  }
-}
-
-function renderJokers() {
-  const grid = document.getElementById('jokersGrid');
-  if (!grid || !currentUser) return;
-  
-  // Calculer le stock depuis les utilisations API (comme jokers.js v3.0)
-  const jokerStock = getJokerStock(currentUser.id);
-  
-  // Calculer le round actuel
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  const currentRound = Math.max(1, Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1);
-  
-  // Récupérer les jokers en attente
-  const pendingJokers = getPendingJokers(currentUser.id, currentRound);
-  
-  grid.innerHTML = Object.entries(JOKER_TYPES).map(([id, joker]) => {
-    const count = jokerStock[id] || 0;
-    const isPending = pendingJokers.some(j => j.joker_id === id);
-    const isAvailable = count > 0 && !isPending;
-    
-    let statusClass = 'used';
-    let statusText = 'Épuisé';
-    
-    if (isPending) {
-      statusClass = 'pending';
-      statusText = '⏳ Programmé';
-    } else if (isAvailable) {
-      statusClass = 'available';
-      statusText = `${count} disponible${count > 1 ? 's' : ''}`;
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
     }
-    
-    return `
-      <div class="joker-card ${statusClass}" data-joker="${id}">
-        <div class="joker-icon">${joker.icon}</div>
-        <div class="joker-name">${joker.name}</div>
-        <div class="joker-desc">${joker.description}</div>
-        <div class="joker-count ${statusClass}">
-          ${isPending ? '⏳' : count > 0 ? `<strong>${count}</strong>` : '✗'} ${statusText}
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  // Ajouter les event listeners seulement sur les jokers disponibles
-  grid.querySelectorAll('.joker-card.available').forEach(card => {
-    card.addEventListener('click', () => {
-      const jokerId = card.dataset.joker;
-      useJoker(jokerId);
-    });
-  });
-}
 
-function renderActivities() {
-  const list = document.getElementById('activitiesList');
-  if (!list || !currentUser) return;
-  
-  const userActivities = allActivities
-    .filter(a => a.athlete_id === currentUser.id)
-    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
-    .slice(0, 10); // Les 10 dernières
-  
-  if (userActivities.length === 0) {
-    list.innerHTML = '<div class="no-data">Aucune activité synchronisée</div>';
-    return;
-  }
-  
-  list.innerHTML = userActivities.map(activity => {
-    const date = new Date(activity.start_date);
-    const sportEmoji = {
-      'Run': '🏃',
-      'TrailRun': '🏃',
-      'Ride': '🚴',
-      'MountainBikeRide': '🚵',
-      'BackcountrySki': '⛷️',
-      'AlpineSki': '⛷️'
-    }[activity.sport_type] || '🏃';
-    
-    return `
-      <div class="activity-item">
-        <div class="activity-info">
-          <div class="activity-name">${sportEmoji} ${activity.name}</div>
-          <div class="activity-meta">
-            ${date.toLocaleDateString('fr-FR')} • 
-            ${(activity.distance / 1000).toFixed(1)} km
-          </div>
-        </div>
-        <div class="activity-elevation">
-          ${Math.round(activity.total_elevation_gain || 0)}m
-        </div>
-      </div>
-    `;
-  }).join('');
-}
+    .dashboard-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+    }
 
-// ============================================
-// GESTION DES JOKERS
-// ============================================
-async function useJoker(jokerId) {
-  const joker = JOKER_TYPES[jokerId];
-  if (!joker) return;
-  
-  // Jokers nécessitant une cible
-  const needsTarget = ['duel', 'sabotage', 'voleur'].includes(jokerId);
-  
-  if (needsTarget) {
-    showJokerTargetModal(jokerId, joker);
-  } else {
-    showJokerConfirmModal(jokerId, joker);
-  }
-}
+    .dashboard-card:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.2);
+      transform: translateY(-2px);
+    }
 
-function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = null) {
-  // Calculer le round d'activation
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-  const currentRound = Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1;
-  const activationRound = currentRound + 1;
-  
-  const modal = document.createElement('div');
-  modal.className = 'joker-selection-modal';
-  modal.innerHTML = `
-    <div class="joker-modal-container">
-      <div class="modal-header">
-        <span class="modal-header-icon">${joker.icon}</span>
-        <div class="modal-header-text">
-          <div class="modal-header-title">${joker.name}</div>
-          <div class="modal-header-subtitle">${joker.description}</div>
-        </div>
-        <button class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        ${targetName ? `
-          <div class="modal-section">
-            <div class="modal-section-title">🎯 Cible sélectionnée</div>
-            <div style="padding: 16px; background: rgba(249, 115, 22, 0.1); border-radius: 12px; text-align: center;">
-              <strong style="color: #f97316; font-size: 1.2rem;">${targetName}</strong>
-            </div>
-          </div>
-        ` : ''}
-        
-        <div class="modal-section">
-          <div class="modal-section-title">⏰ Activation</div>
-          <div class="timing-options-grid">
-            <div class="timing-card selected" data-timing="next">
-              <div class="timing-card-label">Prochain round</div>
-              <div class="timing-card-value">Round ${activationRound}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="modal-section">
-          <div style="padding: 16px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); border-radius: 12px;">
-            <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;">
-              <strong style="color: #22d3ee;">💡 Effet :</strong> ${joker.effect || joker.description}
-            </p>
-          </div>
-        </div>
-        
-        <button class="modal-confirm-btn">
-          <span class="btn-icon">${joker.icon}</span>
-          Activer le joker
-        </button>
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #f97316;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* Jokers Grid - Improved */
+    .joker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .joker-card {
+      background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 2px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .joker-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .joker-card.available {
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .joker-card.available::before {
+      background: linear-gradient(90deg, transparent, #10b981, transparent);
+      opacity: 1;
+    }
+
+    .joker-card.used {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .joker-card.pending {
+      border-color: rgba(251, 191, 36, 0.5);
+      animation: pendingGlow 2s ease-in-out infinite;
+    }
+
+    .joker-card.pending::before {
+      background: linear-gradient(90deg, transparent, #fbbf24, transparent);
+      opacity: 1;
+    }
+
+    @keyframes pendingGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.1); }
+      50% { box-shadow: 0 0 30px rgba(251, 191, 36, 0.25); }
+    }
+
+    .joker-card.available:hover {
+      background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+      border-color: #10b981;
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(16, 185, 129, 0.2);
+    }
+
+    .joker-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+
+    .joker-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      color: rgba(255,255,255,0.95);
+    }
+
+    .joker-desc {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .joker-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .joker-count.available {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+    }
+
+    .joker-count.used {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+
+    .joker-count.pending {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+    }
+
+    /* Activities List */
+    .activities-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .activity-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .activity-item:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    .activity-info {
+      flex: 1;
+    }
+
+    .activity-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .activity-meta {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .activity-elevation {
+      font-family: 'Space Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: #f97316;
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, #f97316, #f43f5e);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+      margin-top: 16px;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(249,115,22,0.3);
+    }
+
+    .btn-action:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Joker Selection Modal */
+    .joker-selection-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: modalFadeIn 0.25s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .joker-modal-container {
+      background: linear-gradient(145deg, rgba(26, 26, 36, 0.98), rgba(15, 15, 23, 0.98));
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      border-radius: 24px;
+      width: 95%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 30px 100px rgba(0, 0, 0, 0.6),
+                  0 0 60px rgba(249, 115, 22, 0.1);
+      animation: modalSlideUp 0.3s ease-out;
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(30px) scale(0.95); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 24px 28px;
+      background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(34, 211, 238, 0.08));
+      border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+    }
+
+    .modal-header-icon {
+      font-size: 2.5rem;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+
+    .modal-header-text {
+      flex: 1;
+    }
+
+    .modal-header-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #f97316;
+      margin-bottom: 4px;
+    }
+
+    .modal-header-subtitle {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .modal-close-btn {
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #ef4444;
+      transform: rotate(90deg);
+    }
+
+    .modal-body {
+      padding: 28px;
+      max-height: calc(90vh - 200px);
+      overflow-y: auto;
+    }
+
+    .modal-section {
+      margin-bottom: 28px;
+    }
+
+    .modal-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .modal-section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #22d3ee;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Target Selection Grid */
+    .target-selection-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+    }
+
+    .target-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .target-card:hover {
+      background: rgba(249, 115, 22, 0.1);
+      border-color: rgba(249, 115, 22, 0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .target-card.selected {
+      background: rgba(249, 115, 22, 0.15);
+      border-color: #f97316;
+      box-shadow: 0 0 25px rgba(249, 115, 22, 0.3);
+    }
+
+    .target-card-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    .target-card:hover .target-card-avatar {
+      transform: scale(1.1);
+    }
+
+    .target-card-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    /* Timing Options */
+    .timing-options-grid {
+      display: flex;
+      gap: 12px;
+    }
+
+    .timing-card {
+      flex: 1;
+      padding: 18px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.25s ease;
+    }
+
+    .timing-card:hover {
+      background: rgba(34, 211, 238, 0.1);
+      border-color: rgba(34, 211, 238, 0.3);
+    }
+
+    .timing-card.selected {
+      background: rgba(34, 211, 238, 0.15);
+      border-color: #22d3ee;
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+    }
+
+    .timing-card-label {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .timing-card-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Confirm Button */
+    .modal-confirm-btn {
+      width: 100%;
+      padding: 18px 28px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      border: none;
+      border-radius: 14px;
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .modal-confirm-btn:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 35px rgba(249, 115, 22, 0.4);
+    }
+
+    .modal-confirm-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .modal-confirm-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .modal-confirm-btn .btn-icon {
+      font-size: 1.3rem;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 480px) {
+      .joker-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .target-selection-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .timing-options-grid {
+        flex-direction: column;
+      }
+
+      .modal-header {
+        padding: 20px;
+      }
+
+      .modal-body {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <span class="brand-icon">◭️</span>
+        <span class="brand-text">Versant</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Classement</a>
+        <a href="dashboard.html" class="nav-link active">Mon Dashboard</a>
       </div>
     </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  // Events
-  modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  
-  modal.querySelector('.modal-confirm-btn').onclick = async () => {
-    try {
-      // TODO: Appel API pour enregistrer l'utilisation du joker
-      const response = await fetch(`${API_BASE}/jokers/use`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          athleteId: currentUser.id,
-          jokerId: jokerId,
-          targetId: targetId,
-          activationRound: activationRound
-        })
-      });
-      
-      if (!response.ok) throw new Error('Erreur serveur');
-      
-      showNotification(`${joker.icon} ${joker.name} activé pour le round ${activationRound} !`, 'success');
-      modal.remove();
-      renderJokers();
-    } catch (error) {
-      console.error('Erreur utilisation joker:', error);
-      // Pour le moment, simuler le succès
-      showNotification(`${joker.icon} ${joker.name} programmé pour le round ${activationRound} !`, 'success');
-      modal.remove();
-    }
-  };
-}
+  </nav>
 
-function showJokerTargetModal(jokerId, joker) {
-  // Récupérer les adversaires
-  fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
-    .then(res => res.json())
-    .then(athletes => {
-      const opponents = athletes.filter(a => a.id !== currentUser.id);
-      
-      const modal = document.createElement('div');
-      modal.className = 'joker-selection-modal';
-      modal.innerHTML = `
-        <div class="joker-modal-container">
-          <div class="modal-header">
-            <span class="modal-header-icon">${joker.icon}</span>
-            <div class="modal-header-text">
-              <div class="modal-header-title">${joker.name}</div>
-              <div class="modal-header-subtitle">Choisissez votre cible</div>
-            </div>
-            <button class="modal-close-btn">&times;</button>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+      <h1 class="dashboard-title">Mon Dashboard</h1>
+      <p style="color: rgba(255,255,255,0.7);" id="athleteName">Chargement...</p>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="dashboard-grid">
+      <!-- Statistiques personnelles -->
+      <div class="dashboard-card">
+        <h2 class="card-title">📊 Mes Statistiques</h2>
+        <div id="statsContent">
+          <div class="stat-row">
+            <span class="stat-label">Dénivelé total</span>
+            <span class="stat-value" id="totalElevation">-</span>
           </div>
-          <div class="modal-body">
-            <div class="modal-section">
-              <div class="modal-section-title">🎯 Sélectionnez un adversaire</div>
-              <div class="target-selection-grid">
-                ${opponents.map(opp => `
-                  <div class="target-card" data-id="${opp.id}" data-name="${opp.name}">
-                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColorSimple(opp.id)}, ${getAthleteColorSimple(opp.id)}88)">
-                      ${getInitials(opp.name)}
-                    </div>
-                    <div class="target-card-name">${opp.name}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-            
-            <button class="modal-confirm-btn" disabled>
-              <span class="btn-icon">${joker.icon}</span>
-              Sélectionnez une cible
-            </button>
+          <div class="stat-row">
+            <span class="stat-label">Nombre d'activités</span>
+            <span class="stat-value" id="totalActivities">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Position actuelle</span>
+            <span class="stat-value" id="currentRank">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Points accumulés</span>
+            <span class="stat-value" id="totalPoints">-</span>
           </div>
         </div>
-      `;
-      
-      document.body.appendChild(modal);
-      
-      let selectedTarget = null;
-      
-      // Events
-      modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
-      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-      
-      // Target selection
-      modal.querySelectorAll('.target-card').forEach(card => {
-        card.onclick = () => {
-          modal.querySelectorAll('.target-card').forEach(c => c.classList.remove('selected'));
-          card.classList.add('selected');
-          selectedTarget = { id: card.dataset.id, name: card.dataset.name };
-          
-          const btn = modal.querySelector('.modal-confirm-btn');
-          btn.disabled = false;
-          btn.innerHTML = `<span class="btn-icon">${joker.icon}</span> Cibler ${selectedTarget.name}`;
-        };
-      });
-      
-      // Confirm
-      modal.querySelector('.modal-confirm-btn').onclick = () => {
-        if (!selectedTarget) return;
-        modal.remove();
-        showJokerConfirmModal(jokerId, joker, selectedTarget.id, selectedTarget.name);
-      };
-    })
-    .catch(err => {
-      console.error('Erreur chargement adversaires:', err);
-      showNotification('Erreur lors du chargement des adversaires', 'error');
-    });
-}
+      </div>
 
-// Helpers
-function getAthleteColorSimple(id) {
-  const colors = ['#f97316', '#22d3ee', '#10b981', '#8b5cf6', '#f43f5e', '#fbbf24', '#06b6d4', '#ec4899'];
-  const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-}
+      <!-- Prochain round -->
+      <div class="dashboard-card">
+        <h2 class="card-title">🎯 Prochain Round</h2>
+        <div id="nextRoundContent">
+          <div class="stat-row">
+            <span class="stat-label">Début</span>
+            <span class="stat-value" id="nextRoundStart">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Règle spéciale</span>
+            <span class="stat-value" id="nextRoundRule">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Éliminations</span>
+            <span class="stat-value" id="nextRoundElim">2 derniers</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-function getInitials(name) {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-}
+    <!-- Jokers -->
+    <div class="dashboard-card" style="margin-bottom: 40px;">
+      <h2 class="card-title">🃏 Mes Jokers</h2>
+      <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">
+        Utilisez vos jokers stratégiquement pour gagner un avantage ou vous protéger
+      </p>
+      <div class="joker-grid" id="jokersGrid">
+        <!-- Rempli par JavaScript -->
+      </div>
+    </div>
 
-function showNotification(message, type = 'info') {
-  const existing = document.querySelector('.dashboard-notification');
-  if (existing) existing.remove();
-  
-  const notification = document.createElement('div');
-  notification.className = `dashboard-notification ${type}`;
-  notification.style.cssText = `
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 16px 28px;
-    border-radius: 12px;
-    font-weight: 600;
-    z-index: 10001;
-    animation: slideUp 0.3s ease-out;
-    ${type === 'success' ? 'background: linear-gradient(135deg, #10b981, #059669); color: white;' : ''}
-    ${type === 'error' ? 'background: linear-gradient(135deg, #ef4444, #dc2626); color: white;' : ''}
-    ${type === 'info' ? 'background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;' : ''}
-  `;
-  notification.textContent = message;
-  
-  // Add animation keyframes if not exists
-  if (!document.getElementById('notification-keyframes')) {
-    const style = document.createElement('style');
-    style.id = 'notification-keyframes';
-    style.textContent = `
-      @keyframes slideUp {
-        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-        to { transform: translateX(-50%) translateY(0); opacity: 1; }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-  
-  document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.style.opacity = '0';
-    notification.style.transition = 'opacity 0.3s ease';
-    setTimeout(() => notification.remove(), 300);
-  }, 4000);
-}
+    <!-- Mes dernières activités -->
+    <div class="dashboard-card">
+      <h2 class="card-title">🏃 Mes Dernières Activités</h2>
+      <div class="activities-list" id="activitiesList">
+        <!-- Rempli par JavaScript -->
+      </div>
+    </div>
+  </div>
 
-// ============================================
-// INITIALISATION
-// ============================================
-async function init() {
-  console.log('🎯 Initialisation Dashboard');
-  
-  try {
-    await loadCurrentUser();
-    await loadActivities();
-    await loadJokersFromServer(); // Charger les jokers depuis l'API
-    
-    renderHeader();
-    renderStats();
-    renderNextRound();
-    renderJokers();
-    renderActivities();
-    
-    console.log('✅ Dashboard chargé');
-  } catch (error) {
-    console.error('❌ Erreur initialisation dashboard:', error);
-  }
-}
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">◭️ Versant</div>
+      <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
+    </div>
+  </footer>
 
-// ============================================
-// AUTO-LOGIN TEMPORAIRE
-// ============================================
-// Pour faciliter les tests, on auto-connecte le premier athlète
-async function autoLogin() {
-  if (!getCurrentUserId()) {
-    try {
-      const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
-      const athletes = await res.json();
-      if (athletes.length > 0) {
-        setCurrentUserId(athletes[0].id);
-        console.log('🔑 Auto-login:', athletes[0].name);
-      }
-    } catch (error) {
-      console.error('Erreur auto-login:', error);
-    }
-  }
-}
-
-// Démarrer
-document.addEventListener('DOMContentLoaded', async () => {
-  await autoLogin();
-  init();
-});
+  <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>
