@@ -39,7 +39,14 @@ let cacheTimestamp = null;
  */
 export async function loadJokersFromServer() {
   try {
-    const response = await fetch(`${API_BASE}/jokers/all`);
+    // Ajouter un timestamp pour éviter le cache navigateur
+    const cacheBuster = Date.now();
+    const response = await fetch(`${API_BASE}/jokers/all?_=${cacheBuster}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
     if (!response.ok) {
       console.warn('⚠️ Impossible de charger les jokers depuis le serveur');
       return jokerUsageCache;

@@ -286,12 +286,24 @@ export let PARTICIPANTS = IS_DEMO ? [...PARTICIPANTS_2025] : [];
  * Charge les participants depuis l'API (pour mode production 2026)
  * À appeler au démarrage de l'application
  */
-// Helper pour fetch avec timeout (important pour mobile)
+// Helper pour fetch avec timeout et cache-busting (important pour mobile)
 async function fetchWithTimeout(url, timeout = 10000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  // Ajouter cache-buster pour éviter le cache mobile
+  const cacheBuster = Date.now();
+  const separator = url.includes('?') ? '&' : '?';
+  const urlWithCacheBuster = `${url}${separator}_=${cacheBuster}`;
+
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(urlWithCacheBuster, {
+      signal: controller.signal,
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
     clearTimeout(timeoutId);
     return response;
   } catch (error) {
