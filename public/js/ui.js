@@ -61,9 +61,6 @@ export function renderCombinedBanner(container, data) {
   const roundDates = getRoundDates(currentRoundNumber);
   const roundInSeason = getRoundInSeason(currentDate);
   
-  const seasonProgress = Math.min(100, Math.max(0, 
-    (currentDate - seasonDates.start) / (seasonDates.end - seasonDates.start) * 100
-  ));
   const isRoundActive = currentDate >= roundDates.start && currentDate <= roundDates.end;
 
   // Calcul du jour actuel dans le round (1 à 5)
@@ -79,44 +76,48 @@ export function renderCombinedBanner(container, data) {
 
   // Formater avec zéros devant
   const pad = (n) => String(n).padStart(2, '0');
-  const countdownDisplay = timeRemaining > 0
-    ? `${pad(days)}j ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
-    : '00j 00h 00m 00s';
 
   container.innerHTML = `
-    <div class="banner-left">
-      <div class="banner-season">
-        <span class="banner-label">Saison ${currentSeasonNumber}</span>
-        <span class="banner-dates">${formatDateRange(seasonDates.start, seasonDates.end)}</span>
+    <div class="banner-unified">
+      <div class="banner-block banner-season-block">
+        <span class="banner-label">SAISON</span>
+        <span class="banner-value">${currentSeasonNumber}</span>
       </div>
-      <div class="banner-stats">
-        <span class="stat-item"><strong>${seasonData?.active?.length || 0}</strong> en course</span>
-        <span class="stat-item"><strong>${seasonData?.eliminated?.length || 0}</strong> éliminés</span>
-      </div>
-    </div>
 
-    <div class="banner-center">
-      <div class="banner-round">
-        <span class="round-number">Round ${roundInSeason}</span>
-        ${isRoundActive ? `<span class="round-day">Journée ${dayInRound}/5</span>` : ''}
+      <div class="banner-separator"></div>
+
+      <div class="banner-block banner-round-block">
+        <span class="banner-label">ROUND</span>
+        <span class="banner-value">${roundInSeason}</span>
+        ${isRoundActive ? `<span class="banner-day">J${dayInRound}/5</span>` : ''}
       </div>
-      <div class="round-dates">${formatDateRange(roundDates.start, roundDates.end)}</div>
-      ${isRoundActive ? `
-        <div class="round-countdown">
-          <span class="countdown-timer" id="countdownTimer"
-                data-end="${roundDates.end.getTime()}">${countdownDisplay}</span>
+
+      <div class="banner-separator"></div>
+
+      <div class="banner-block banner-stats-block">
+        <div class="banner-stat">
+          <span class="banner-stat-value">${seasonData?.active?.length || 0}</span>
+          <span class="banner-stat-label">en course</span>
+        </div>
+        <div class="banner-stat">
+          <span class="banner-stat-value">${seasonData?.eliminated?.length || 0}</span>
+          <span class="banner-stat-label">éliminés</span>
+        </div>
+      </div>
+
+      ${isRoundActive && timeRemaining > 0 ? `
+        <div class="banner-separator"></div>
+
+        <div class="banner-block banner-countdown-block">
+          <span class="banner-label">FIN DU ROUND</span>
+          <div class="banner-countdown-timer" id="countdownTimer" data-end="${roundDates.end.getTime()}">
+            <span class="countdown-unit"><span class="countdown-num">${pad(days)}</span>j</span>
+            <span class="countdown-unit"><span class="countdown-num">${pad(hours)}</span>h</span>
+            <span class="countdown-unit"><span class="countdown-num">${pad(minutes)}</span>m</span>
+            <span class="countdown-unit"><span class="countdown-num">${pad(seconds)}</span>s</span>
+          </div>
         </div>
       ` : ''}
-    </div>
-
-    <div class="banner-right">
-      <div class="season-progress-container">
-        <div class="progress-label">Progression saison</div>
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width: ${seasonProgress}%"></div>
-        </div>
-        <div class="progress-percent">${Math.round(seasonProgress)}%</div>
-      </div>
     </div>
   `;
 
@@ -146,7 +147,12 @@ function startCountdownTimer(endTime) {
     const timeRemaining = endTime - now;
 
     if (timeRemaining <= 0) {
-      timerElement.textContent = '00j 00h 00m 00s';
+      timerElement.innerHTML = `
+        <span class="countdown-unit"><span class="countdown-num">00</span>j</span>
+        <span class="countdown-unit"><span class="countdown-num">00</span>h</span>
+        <span class="countdown-unit"><span class="countdown-num">00</span>m</span>
+        <span class="countdown-unit"><span class="countdown-num">00</span>s</span>
+      `;
       timerElement.classList.add('countdown-ended');
       clearInterval(countdownInterval);
       return;
@@ -158,7 +164,12 @@ function startCountdownTimer(endTime) {
     const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
 
     const pad = (n) => String(n).padStart(2, '0');
-    timerElement.textContent = `${pad(days)}j ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+    timerElement.innerHTML = `
+      <span class="countdown-unit"><span class="countdown-num">${pad(days)}</span>j</span>
+      <span class="countdown-unit"><span class="countdown-num">${pad(hours)}</span>h</span>
+      <span class="countdown-unit"><span class="countdown-num">${pad(minutes)}</span>m</span>
+      <span class="countdown-unit"><span class="countdown-num">${pad(seconds)}</span>s</span>
+    `;
   }, 1000);
 }
 
