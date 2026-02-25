@@ -151,17 +151,18 @@ export const JOKER_TYPES = {
     id: "sabotage",
     name: "Sabotage",
     icon: "💣",
-    description: "Retire 25% du D+ d'un adversaire",
+    description: "Retire 30% du D+ d'un adversaire",
     effect: "Ciblez un adversaire. Actif au round suivant.",
     usableInFinal: true,
     requiresTarget: true,
-    parameters: { penaltyPercentage: 25 }
+    parameters: { penaltyPercentage: 30 }
   }
 };
 
-// Stock initial de jokers par participant
+// Stock initial de jokers par participant (2 de chaque)
+// Note: le calcul du stock réel se fait dans jokers.js basé sur les utilisations serveur
 export const INITIAL_JOKERS = {
-  duel: 2,
+  voleur: 2,
   multiplicateur: 2,
   bouclier: 2,
   sabotage: 2
@@ -254,25 +255,25 @@ export const getSportIcon = (type) => {
 // ============================================
 // PARTICIPANTS
 // ============================================
-function createInitialJokers() {
-  return { ...INITIAL_JOKERS };
-}
+
+// Note: Les jokers ne sont PAS stockés dans PARTICIPANTS
+// Tout le stock/usage des jokers vient du serveur via jokers.js
 
 // Participants 2025 (pour demo - statique)
 const PARTICIPANTS_2025 = [
-  { id: "3953180", name: "Clement D", jokers: createInitialJokers() },
-  { id: "6635902", name: "Bapt I", jokers: createInitialJokers() },
-  { id: "3762537", name: "Bapt M", jokers: createInitialJokers() },
-  { id: "68391361", name: "Elo F", jokers: createInitialJokers() },
-  { id: "5231535", name: "Franck P", jokers: createInitialJokers() },
-  { id: "87904944", name: "Guillaume B", jokers: createInitialJokers() },
-  { id: "1841009", name: "Mana S", jokers: createInitialJokers() },
-  { id: "106477520", name: "Matt X", jokers: createInitialJokers() },
-  { id: "119310419", name: "Max 2Peuf", jokers: createInitialJokers() },
-  { id: "19523416", name: "Morguy D", jokers: createInitialJokers() },
-  { id: "110979265", name: "Pef B", jokers: createInitialJokers() },
-  { id: "84388438", name: "Remi S", jokers: createInitialJokers() },
-  { id: "25332977", name: "Thomas G", jokers: createInitialJokers() }
+  { id: "3953180", name: "Clement D" },
+  { id: "6635902", name: "Bapt I" },
+  { id: "3762537", name: "Bapt M" },
+  { id: "68391361", name: "Elo F" },
+  { id: "5231535", name: "Franck P" },
+  { id: "87904944", name: "Guillaume B" },
+  { id: "1841009", name: "Mana S" },
+  { id: "106477520", name: "Matt X" },
+  { id: "119310419", name: "Max 2Peuf" },
+  { id: "19523416", name: "Morguy D" },
+  { id: "110979265", name: "Pef B" },
+  { id: "84388438", name: "Remi S" },
+  { id: "25332977", name: "Thomas G" }
 ];
 
 // Participants 2026 (tableau mutable, chargé depuis l'API)
@@ -307,38 +308,38 @@ export async function loadParticipants() {
     console.log('📋 Mode démo: utilisation des participants 2025 statiques');
     return PARTICIPANTS_2025;
   }
-  
+
   try {
     console.log('📋 Chargement des participants depuis l\'API...');
-    
+
     // Utiliser le même endpoint que l'admin : /api/athletes/versant-2026
     // Timeout de 8 secondes pour éviter blocage sur mobile
     const response = await fetchWithTimeout(`/api/athletes/${CHALLENGE_CONFIG.leagueId}`, 8000);
-    
+
     if (!response.ok) {
       throw new Error(`Erreur API: ${response.status}`);
     }
-    
+
     const athletes = await response.json();
-    
+
     if (athletes && athletes.length > 0) {
       // Transformer le format API en format PARTICIPANTS
+      // Note: pas de jokers ici - ils viennent du serveur via jokers.js
       const loadedParticipants = athletes.map(a => ({
         id: String(a.id),
-        name: a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim(),
-        jokers: createInitialJokers()
+        name: a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim()
       }));
-      
+
       // Mettre à jour la liste globale
       PARTICIPANTS.length = 0;
       PARTICIPANTS.push(...loadedParticipants);
-      
+
       console.log(`✅ ${PARTICIPANTS.length} participants chargés depuis l'API`);
     } else {
       console.warn('⚠️ Aucun participant dans athletes.json, tentative d\'extraction depuis les activités...');
       await loadParticipantsFromActivities();
     }
-    
+
     return PARTICIPANTS;
   } catch (error) {
     console.error('❌ Erreur chargement participants:', error);
@@ -356,29 +357,28 @@ async function loadParticipantsFromActivities() {
   try {
     const response = await fetchWithTimeout(`/api/activities/${CHALLENGE_CONFIG.leagueId}`, 10000);
     if (!response.ok) return;
-    
+
     const activities = await response.json();
     if (!activities || activities.length === 0) return;
-    
+
     // Extraire les participants uniques
     const participantsMap = new Map();
-    
+
     for (const activity of activities) {
       const athleteId = String(activity.athlete?.id || activity.athlete_id);
       if (!athleteId || participantsMap.has(athleteId)) continue;
-      
-      const name = activity.athlete_name || 
-                   (activity.athlete?.firstname && activity.athlete?.lastname 
+
+      const name = activity.athlete_name ||
+                   (activity.athlete?.firstname && activity.athlete?.lastname
                      ? `${activity.athlete.firstname} ${activity.athlete.lastname.charAt(0)}.`
                      : `Athlète ${athleteId}`);
-      
+
       participantsMap.set(athleteId, {
         id: athleteId,
-        name: name,
-        jokers: createInitialJokers()
+        name: name
       });
     }
-    
+
     if (participantsMap.size > 0) {
       PARTICIPANTS.length = 0;
       PARTICIPANTS.push(...participantsMap.values());
@@ -474,23 +474,23 @@ export function generateRoundsSchedule() {
   const totalSeasons = getTotalSeasons();
   const totalRounds = roundsPerSeason * totalSeasons;
   const specialRules = Object.keys(ROUND_RULES).filter(k => ROUND_RULES[k].isSpecial);
-  
+
   for (let i = 1; i <= totalRounds; i++) {
     const seasonNumber = Math.ceil(i / roundsPerSeason);
     const roundInSeason = ((i - 1) % roundsPerSeason) + 1;
     let rule = 'standard';
-    
+
     // Règle spéciale tous les X rounds (sauf finale)
     if (roundInSeason % CHALLENGE_CONFIG.specialRuleFrequency === 0 && roundInSeason !== roundsPerSeason) {
       const ruleIndex = Math.floor(i / CHALLENGE_CONFIG.specialRuleFrequency) % specialRules.length;
       rule = specialRules[ruleIndex];
-      
+
       // Handicap pas en saison 1
       if (rule === 'handicap' && seasonNumber === 1) {
         rule = 'combinado';
       }
     }
-    
+
     schedule.push({
       number: i,
       season: seasonNumber,
@@ -499,7 +499,7 @@ export function generateRoundsSchedule() {
       dates: getRoundDates(i)
     });
   }
-  
+
   return schedule;
 }
 

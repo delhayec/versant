@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260221">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️️</text></svg>">
-  
+
   <style>
     /* Styles pour la section règles */
     .rules-section {
@@ -19,12 +19,12 @@
       border-top: 1px solid rgba(255,255,255,0.1);
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    
+
     .rules-header {
       text-align: center;
       margin-bottom: 60px;
     }
-    
+
     .rules-title {
       font-family: 'Syne', sans-serif;
       font-size: 48px;
@@ -34,21 +34,21 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    
+
     .rules-subtitle {
       font-size: 18px;
       color: rgba(255,255,255,0.7);
       max-width: 800px;
       margin: 0 auto;
     }
-    
+
     .rules-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 32px;
       margin-bottom: 60px;
     }
-    
+
     .rule-card {
       display: flex;
       flex-direction: column;
@@ -59,19 +59,19 @@
       transition: all 0.3s ease;
       margin-bottom: 60px;
     }
-    
+
     .rule-card:hover {
       background: rgba(255,255,255,0.05);
       border-color: rgba(249,115,22,0.3);
       transform: translateY(-4px);
     }
-    
+
     .rule-icon {
       font-size: 48px;
       margin-bottom: 16px;
       display: block;
     }
-    
+
     .rule-title {
       font-family: 'Syne', sans-serif;
       font-size: 24px;
@@ -81,20 +81,20 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    
+
      .rule-description {
        width: 90%;           /* Prend toute la largeur */
        flex-grow: 0.9;          /* Remplit l'espace disponible */
        text-align: justify;   /* Justifie le texte pour un rendu plus propre */
        margin: 20px;
     }
-    
+
     .rule-list {
       list-style: none;
       padding: 0;
       margin: 20px;
     }
-    
+
     .rule-list li {
       padding: 8px 0;
       padding-left: 28px;
@@ -102,14 +102,14 @@
       color: rgba(255,255,255,0.7);
       font-size: 14px;
     }
-    
+
     .rule-list li:before {
       content: "→";
       position: absolute;
       left: 8px;
       color: #90a17f;
     }
-    
+
     .timeline-section {
       background: rgba(255,255,255,0.02);
       border: 1px solid rgba(255,255,255,0.1);
@@ -117,7 +117,7 @@
       padding: 40px;
       margin-bottom: 60px;
     }
-    
+
     .timeline-title {
       font-family: 'Syne', sans-serif;
       font-size: 28px;
@@ -128,7 +128,7 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    
+
     .timeline {
       display: flex;
       justify-content: space-between;
@@ -436,9 +436,9 @@
         <p style="margin-bottom: 24px; color: rgba(255,255,255,0.8); text-align: center;">
           À la fin de chaque saison, des points sont attribués selon votre performance dans les deux challenges.
         </p>
-        
+
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px;">
-          
+
           <!-- Challenge Principal -->
           <div style="background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 24px;">
             <h4 style="font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #f97316; text-align: center;">
@@ -450,55 +450,63 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥇 1er (vainqueur)</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #fbbf24;">18 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #fbbf24;">24 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥈 2ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #d1d5db;">15 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #d1d5db;">21 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥉 3ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #cd7f32;">12 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #cd7f32;">18 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">4ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">10 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">15 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">5ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">8 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">12 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">6ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">6 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">10 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">7ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">5 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">8 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">8ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">4 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">6 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">9ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">3 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">5 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">10ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">2 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">4 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">11ème</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">3 pts</td>
+              </tr>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">12ème</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">2 pts</td>
+              </tr>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">13ème</td>
                 <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">1 pt</td>
               </tr>
               <tr>
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">12ème et +</td>
+                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">14ème et +</td>
                 <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.5);">0 pt</td>
               </tr>
             </table>
           </div>
-          
+
           <!-- Challenge des Éliminés -->
           <div style="background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3); border-radius: 12px; padding: 24px;">
             <h4 style="font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #22d3ee; text-align: center;">
@@ -510,37 +518,49 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥇 1ère place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #fbbf24;">9 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #fbbf24;">10 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥈 2ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #d1d5db;">6 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #d1d5db;">8 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥉 3ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #cd7f32;">3 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #cd7f32;">6 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">4ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">2 pts</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">5 pts</td>
               </tr>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">5ème place</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">4 pts</td>
+              </tr>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">6ème place</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">3 pts</td>
+              </tr>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">7ème place</td>
+                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">2 pts</td>
+              </tr>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">8ème place</td>
                 <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">1 pt</td>
               </tr>
               <tr>
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">6ème place et +</td>
+                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">9ème place et +</td>
                 <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.5);">0 pt</td>
               </tr>
             </table>
           </div>
-          
+
         </div>
-        
+
         <div style="margin-top: 24px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
           <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin: 0;">
-            <strong style="color: #f97316;">💡 Astuce :</strong> 
-            Être éliminé tôt donne plus de temps pour accumuler du D+ dans le challenge des éliminés. 
+            <strong style="color: #f97316;">💡 Astuce :</strong>
+            Être éliminé tôt donne plus de temps pour accumuler du D+ dans le challenge des éliminés.
             Un bon score au challenge des éliminés peut compenser une élimination précoce.
           </p>
         </div>
@@ -550,32 +570,54 @@
     <!-- Bonus & Règles Spéciales -->
     <div style="margin-bottom: 40px;">
       <h3 style="font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 600; margin-bottom: 24px; text-align: center; color: rgba(255,255,255,0.9);">
-         Règles Spéciales & Bonus
+        🃏 Les Jokers
+      </h3>
+      <p style="text-align: center; color: rgba(255,255,255,0.7); margin-bottom: 24px;">
+        Chaque athlète dispose de <strong style="color: #f97316;">8 jokers</strong> (2 de chaque type) à utiliser stratégiquement durant la ligue.
+      </p>
+
+      <div class="bonus-grid">
+        <div class="bonus-card">
+          <div class="bonus-icon">🦹</div>
+          <div class="bonus-name">Voleur</div>
+          <div class="bonus-desc">Volez la meilleure activité (plus gros D+) d'un adversaire. Actif au round suivant.</div>
+        </div>
+
+        <div class="bonus-card">
+          <div class="bonus-icon">✖️</div>
+          <div class="bonus-name">Multiplicateur</div>
+          <div class="bonus-desc">Multiplie votre D+ du round par ×1.5. Actif au round suivant.</div>
+        </div>
+
+        <div class="bonus-card">
+          <div class="bonus-icon">🛡️</div>
+          <div class="bonus-name">Bouclier</div>
+          <div class="bonus-desc">Évitez l'élimination même si vous êtes dernier. Activable immédiatement (J1-J2) ou au round suivant. NON utilisable en finale.</div>
+        </div>
+
+        <div class="bonus-card">
+          <div class="bonus-icon">💣</div>
+          <div class="bonus-name">Sabotage</div>
+          <div class="bonus-desc">Retire 30% du D+ d'un adversaire ciblé. Actif au round suivant.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rounds Spéciaux -->
+    <div style="margin-bottom: 40px;">
+      <h3 style="font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 600; margin-bottom: 24px; text-align: center; color: rgba(255,255,255,0.9);">
+         Rounds Spéciaux
       </h3>
 
       <div class="bonus-grid">
         <div class="bonus-card">
-          <div class="joker-name">Jokers</div>
-          <div class="bonus-icon"></div>
-          <div class="bonus-desc">Chaque athlète dispose de 4 jokers stratégiques à utiliser durant la ligue</div>
+          <div class="bonus-name">⛰️ Pente Raide</div>
+          <div class="bonus-desc">Seul le D+ réalisé sur des pentes > 15% est comptabilisé</div>
         </div>
 
         <div class="bonus-card">
-          <div class="bonus-name">Round spéciaux: Pente Raide</div>
-          <div class="bonus-icon"></div>
-          <div class="bonus-desc">Certains rounds comptent uniquement le D+ sur des pentes > 15%</div>
-        </div>
-
-        <div class="bonus-card">
-          <div class="bonus-name">Round spéciaux: Hors Sentiers</div>
-          <div class="bonus-icon"></div>
-          <div class="bonus-desc">Bonus de D+ pour les activités hors chemins balisés</div>
-        </div>
-
-        <div class="bonus-card">
-          <div class="bonus-name">Round Final</div>
-          <div class="bonus-icon"></div>
-          <div class="bonus-desc">Le dernier round de la saison compte double</div>
+          <div class="bonus-name">🏁 Round Final</div>
+          <div class="bonus-desc">Le dernier round de la saison : pas d'élimination, seul le vainqueur est désigné</div>
         </div>
       </div>
     </div>
