@@ -923,17 +923,20 @@ function renderCurrentSeasonHistory(container) {
     const ranking = calculateRanking(roundActivities, activeAtRound);
     const rankingWithEffects = applyJokerEffects(ranking, globalRound, roundActivities);
 
-    // Trouver le premier non-éliminé (pour calculer l'écart)
-    const firstNonEliminated = rankingWithEffects.find(e =>
+    // Trouver le DERNIER non-éliminé (celui qui s'est maintenu de justesse)
+    // Le classement est trié par D+ décroissant, donc on cherche depuis la fin
+    const nonEliminatedEntries = rankingWithEffects.filter(e =>
       !roundEliminated.some(elim => elim.id === e.participant.id)
     );
-    const firstNonEliminatedElevation = firstNonEliminated?.totalElevation || 0;
+    // Le dernier de la liste des non-éliminés = celui qui s'est maintenu de justesse
+    const lastSurvivor = nonEliminatedEntries[nonEliminatedEntries.length - 1];
+    const lastSurvivorElevation = lastSurvivor?.totalElevation || 0;
 
-    // Construire la liste des éliminés avec leur écart
+    // Construire la liste des éliminés avec leur écart par rapport au maintien
     const eliminatedDetails = roundEliminated.map(elim => {
       const elimEntry = rankingWithEffects.find(e => e.participant.id === elim.id);
       const elimElevation = elimEntry?.totalElevation || 0;
-      const gap = firstNonEliminatedElevation - elimElevation;
+      const gap = lastSurvivorElevation - elimElevation;
       return {
         name: elim.name,
         elevation: elimElevation,
