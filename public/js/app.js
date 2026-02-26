@@ -879,34 +879,143 @@ function renderHistorySection(container) {
 
   const renderSeasonHistory = (seasonNum) => {
     if (seasonNum === 'current') {
-      if (!seasonData?.eliminated?.length) {
-        content.innerHTML = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
-        return;
-      }
-      const byRound = {};
-      seasonData.eliminated.forEach(p => {
-        const round = p.eliminatedRound;
-        if (!byRound[round]) byRound[round] = [];
-        byRound[round].push(p);
-      });
-      content.innerHTML = Object.keys(byRound).sort((a, b) => a - b).map(r =>
-        `<div class="history-item"><div class="history-round">Round ${r}</div><div class="history-title">Éliminé(s) : ${byRound[r].map(p => p.name).join(', ')}</div></div>`
-      ).join('');
+      renderCurrentSeasonHistory(content);
     } else {
       const summary = getSeasonSummary(allActivities, parseInt(seasonNum), getCurrentDate());
-      let h = `<div class="history-season-summary"><h3>🏆 Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
-      summary.rounds.forEach(r => {
-        h += `<div class="history-item">
-          <div class="history-round">Round ${r.roundInSeason}</div>
-          <div class="history-title">${r.eliminated.length ? 'Éliminé(s) : '+r.eliminated.join(', ') : 'Aucun éliminé'}</div>
-        </div>`;
-      });
-      content.innerHTML = h;
+      renderCompletedSeasonHistory(content, summary);
     }
   };
 
   select.addEventListener('change', (e) => renderSeasonHistory(e.target.value));
   renderSeasonHistory('current');
+}
+
+/**
+ * Affiche l'historique de la saison en cours avec détails
+ */
+function renderCurrentSeasonHistory(container) {
+  if (!seasonData?.eliminated?.length && !seasonData?.roundResults?.length) {
+    container.innerHTML = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
+    return;
+  }
+
+  const roundsPerSeason = getRoundsPerSeason();
+  let html = '';
+
+  // Parcourir les rounds terminés
+  for (let r = 1; r <= roundsPerSeason; r++) {
+    const globalRound = (currentSeasonNumber - 1) * roundsPerSeason + r;
+    const roundDates = getRoundDates(globalRound);
+    const today = getCurrentDate();
+
+    // Round pas encore terminé ?
+    if (today <= roundDates.end) continue;
+
+    // Récupérer les éliminés de ce round
+    const roundEliminated = seasonData.eliminated.filter(e => e.eliminatedRound === r);
+    if (roundEliminated.length === 0) continue;
+
+    // Calculer le classement de ce round pour avoir les D+
+    const roundActivities = filterByPeriod(allActivities, roundDates.start, roundDates.end);
+    const activeAtRound = PARTICIPANTS.filter(p =>
+      !seasonData.eliminated.some(e => e.eliminatedRound < r && e.id === p.id)
+    );
+    const ranking = calculateRanking(roundActivities, activeAtRound);
+    const rankingWithEffects = applyJokerEffects(ranking, globalRound, roundActivities);
+
+    // Trouver le premier non-éliminé (pour calculer l'écart)
+    const firstNonEliminated = rankingWithEffects.find(e =>
+      !roundEliminated.some(elim => elim.id === e.participant.id)
+    );
+    const firstNonEliminatedElevation = firstNonEliminated?.totalElevation || 0;
+
+    // Construire la liste des éliminés avec leur écart
+    const eliminatedDetails = roundEliminated.map(elim => {
+      const elimEntry = rankingWithEffects.find(e => e.participant.id === elim.id);
+      const elimElevation = elimEntry?.totalElevation || 0;
+      const gap = firstNonEliminatedElevation - elimElevation;
+      return {
+        name: elim.name,
+        elevation: elimElevation,
+        gap: gap
+      };
+    }).sort((a, b) => b.elevation - a.elevation); // Trier par D+ décroissant
+
+    // Récupérer les jokers actifs ce round
+    const activeJokers = getActiveJokersForRound(globalRound);
+
+    // Construire le HTML
+    html += `<div class="history-item">
+      <div class="history-round">Round ${r}</div>
+      <div class="history-eliminated">
+        <span class="history-label">Éliminé(s) :</span>
+        ${eliminatedDetails.map(e =>
+          `<span class="eliminated-name">${e.name}</span> <span class="eliminated-gap">(${formatElevation(e.elevation, false)} D+, à ${formatElevation(e.gap, false)} du maintien)</span>`
+        ).join(', ')}
+      </div>`;
+
+    // Afficher les jokers utilisés
+    if (activeJokers.length > 0) {
+      const jokerDescriptions = activeJokers.map(joker => {
+        const targetEntry = joker.targetId ? rankingWithEffects.find(e => e.participant.id === joker.targetId) : null;
+
+        switch(joker.jokerId) {
+          case 'sabotage':
+            const sabotageAmount = targetEntry?.jokerEffects?.bonuses?.sabotaged?.amount || 0;
+            return `${joker.jokerIcon} ${joker.participantName} a saboté ${joker.targetName} (-${formatElevation(sabotageAmount, false)})`;
+          case 'voleur':
+            const stolenAmount = targetEntry?.jokerEffects?.bonuses?.stolen?.amount || 0;
+            return `${joker.jokerIcon} ${joker.participantName} a volé ${joker.targetName} (-${formatElevation(stolenAmount, false)})`;
+          case 'multiplicateur':
+            const bonusAmount = rankingWithEffects.find(e => e.participant.id === joker.participantId)?.jokerEffects?.bonuses?.multiplier?.amount || 0;
+            return `${joker.jokerIcon} ${joker.participantName} a utilisé le multiplicateur (+${formatElevation(bonusAmount, false)})`;
+          case 'bouclier':
+            return `${joker.jokerIcon} ${joker.participantName} a utilisé le bouclier (protection)`;
+          default:
+            return `${joker.jokerIcon} ${joker.participantName} a utilisé ${joker.jokerName}`;
+        }
+      });
+
+      html += `<div class="history-jokers">
+        <span class="history-label">Jokers :</span> ${jokerDescriptions.join(' • ')}
+      </div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  if (!html) {
+    html = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
+  }
+
+  container.innerHTML = html;
+}
+
+/**
+ * Affiche l'historique d'une saison terminée
+ */
+function renderCompletedSeasonHistory(container, summary) {
+  let html = `<div class="history-season-summary"><h3>🏆 Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
+
+  summary.rounds.forEach(r => {
+    if (!r.eliminated.length) {
+      html += `<div class="history-item">
+        <div class="history-round">Round ${r.roundInSeason}</div>
+        <div class="history-title">Aucun éliminé</div>
+      </div>`;
+      return;
+    }
+
+    // Pour les saisons passées, on affiche une version simplifiée
+    html += `<div class="history-item">
+      <div class="history-round">Round ${r.roundInSeason}</div>
+      <div class="history-eliminated">
+        <span class="history-label">Éliminé(s) :</span> ${r.eliminated.join(', ')}
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
 }
 
 // ============================================

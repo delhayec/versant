@@ -1785,6 +1785,44 @@ body {
   margin-bottom: 8px;
 }
 
+.history-eliminated {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.history-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.eliminated-name {
+  font-weight: 600;
+  color: var(--accent-danger);
+}
+
+.eliminated-gap {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.history-jokers {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.history-jokers .history-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-warning);
+}
+
 .history-details {
   color: var(--text-secondary);
   font-size: 0.9rem;

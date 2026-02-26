@@ -210,13 +210,16 @@ function renderJokers() {
 
     let statusClass = 'used';
     let statusText = 'Épuisé';
+    let statusIcon = '✗';
 
     if (isPending) {
       statusClass = 'pending';
-      statusText = '⏳ Programmé';
+      statusText = 'Programmé';
+      statusIcon = '⏳';
     } else if (isAvailable) {
       statusClass = 'available';
-      statusText = `${count} disponible${count > 1 ? 's' : ''}`;
+      statusText = `disponible${count > 1 ? 's' : ''}`;
+      statusIcon = count;
     }
 
     return `
@@ -225,7 +228,7 @@ function renderJokers() {
         <div class="joker-name">${joker.name}</div>
         <div class="joker-desc">${joker.description}</div>
         <div class="joker-count ${statusClass}">
-          ${isPending ? '⏳' : count > 0 ? `<strong>${count}</strong>` : '✗'} ${statusText}
+          <strong>${statusIcon}</strong> ${statusText}
         </div>
       </div>
     `;
