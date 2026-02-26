@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Versant - Challenge à Élimination </title>
   
-  <!-- CACHE CONTROL - Forcer rechargement -->
+  <!-- CACHE CONTROL -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -13,23 +13,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260225b">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
-
-  <!-- CSS avec version timestamp -->
-  <script>
-    // Version unique basée sur la date de build - CHANGER À CHAQUE DÉPLOIEMENT
-    window.VERSANT_VERSION = '20260225-2130';
-
-    // Fonction pour ajouter version aux URLs
-    window.addVersion = function(url) {
-      const separator = url.includes('?') ? '&' : '?';
-      return url + separator + 'v=' + window.VERSANT_VERSION;
-    };
-  </script>
-  <link rel="stylesheet" id="mainStylesheet">
-  <script>
-    document.getElementById('mainStylesheet').href = 'css/style.css?v=' + window.VERSANT_VERSION;
-  </script>
 </head>
 <body>
   <!-- Loading Screen -->
@@ -185,48 +170,7 @@
     }, 12000);
   </script>
 
-  <!-- Clear cache on load for mobile -->
-  <script>
-    (function() {
-      // Vérifier si la version a changé
-      var storedVersion = localStorage.getItem('versant_app_version');
-      var currentVersion = window.VERSANT_VERSION;
-
-      if (storedVersion !== currentVersion) {
-        console.log('🔄 Nouvelle version détectée:', currentVersion, '(ancienne:', storedVersion, ')');
-
-        // Nettoyer les anciens caches
-        if ('caches' in window) {
-          caches.keys().then(function(names) {
-            names.forEach(function(name) {
-              caches.delete(name);
-              console.log('🗑️ Cache supprimé:', name);
-            });
-          });
-        }
-
-        // Sauvegarder la nouvelle version
-        localStorage.setItem('versant_app_version', currentVersion);
-
-        // Forcer le rechargement si c'est pas le premier chargement
-        if (storedVersion && storedVersion !== currentVersion) {
-          console.log('🔄 Rechargement forcé pour nouvelle version...');
-          // Petit délai pour laisser le cache se vider
-          setTimeout(function() {
-            location.reload(true);
-          }, 100);
-        }
-      }
-    })();
-  </script>
-
-  <!-- App JS avec version -->
-  <script type="module">
-    // Import dynamique avec version pour contourner le cache
-    const version = window.VERSANT_VERSION;
-    import('./js/app.js?v=' + version).catch(err => {
-      console.error('❌ Erreur chargement app.js:', err);
-    });
-  </script>
+  <!-- App JS - Version simple avec query string -->
+  <script type="module" src="js/app.js?v=20260225b"></script>
 </body>
 </html>
