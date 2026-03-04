@@ -335,19 +335,46 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
     // Appliquer les effets des jokers
     const rankingWithEffects = applyJokerEffects(ranking, globalRound);
 
-    // Éliminer les derniers (sauf bouclier)
-    const elimCount = isFinaleRound(roundInSeason) ? active.length - 1 : CHALLENGE_CONFIG.eliminationsPerRound;
+    // NOUVELLE RÈGLE: Éliminer TOUS les joueurs à 0 D+ + les 2 derniers habituels
     const toEliminate = [];
 
-    for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < elimCount; i--) {
-      const entry = rankingWithEffects[i];
-      // Protégé par un bouclier ?
-      if (entry.jokerEffects?.hasShield) continue;
-      toEliminate.push(entry.participant);
+    // 1. D'abord, identifier tous les joueurs à 0 D+ (sauf bouclier)
+    const zeroElevationPlayers = rankingWithEffects.filter(entry =>
+      entry.totalElevation === 0 && !entry.jokerEffects?.hasShield
+    );
+
+    // Ajouter tous les 0 D+ à la liste d'élimination
+    zeroElevationPlayers.forEach(entry => {
+      toEliminate.push({
+        ...entry.participant,
+        zeroElimination: true // Marquer comme éliminé pour 0 D+
+      });
+    });
+
+    // 2. Ensuite, éliminer les derniers restants (règle normale)
+    // Seulement si on n'a pas déjà éliminé assez de monde
+    const normalElimCount = isFinaleRound(roundInSeason) ? active.length - 1 : CHALLENGE_CONFIG.eliminationsPerRound;
+    const remainingToEliminate = Math.max(0, normalElimCount - toEliminate.length);
+
+    if (remainingToEliminate > 0) {
+      // Parcourir depuis la fin du classement (hors ceux déjà éliminés pour 0 D+)
+      for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.filter(p => !p.zeroElimination).length < remainingToEliminate; i--) {
+        const entry = rankingWithEffects[i];
+        // Déjà éliminé pour 0 D+ ?
+        if (zeroElevationPlayers.some(z => z.participant.id === entry.participant.id)) continue;
+        // Protégé par un bouclier ?
+        if (entry.jokerEffects?.hasShield) continue;
+        toEliminate.push(entry.participant);
+      }
     }
 
     toEliminate.forEach(p => {
-      eliminated.push({ ...p, eliminatedRound: roundInSeason, eliminatedSeason: seasonNumber });
+      eliminated.push({
+        ...p,
+        eliminatedRound: roundInSeason,
+        eliminatedSeason: seasonNumber,
+        zeroElimination: p.zeroElimination || false
+      });
       active = active.filter(a => a.id !== p.id);
     });
 
@@ -355,7 +382,8 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       round: roundInSeason,
       status: 'completed',
       ranking: rankingWithEffects,
-      eliminated: toEliminate.map(p => p.id)
+      eliminated: toEliminate.map(p => p.id),
+      zeroEliminations: zeroElevationPlayers.length
     });
 
     // Finale ?
@@ -463,7 +491,27 @@ function calculateYearlyStandings(activities, currentDate) {
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        mainPts = getMainChallengePoints(PARTICIPANTS.length - sData.eliminated.findIndex(e => e.id === p.id));
+        // NOUVELLE RÈGLE: Les éliminés à 0 D+ sont tous à égalité en dernière position
+        if (elim.zeroElimination) {
+          // Tous les 0 D+ du même round = dernière position = minimum de points
+          mainPts = getMainChallengePoints(PARTICIPANTS.length);
+        } else {
+          // Position normale basée sur l'ordre d'élimination
+          // Trouver combien d'éliminés à 0 D+ il y avait avant ce round
+          const elimsBeforeThisRound = sData.eliminated.filter(e => e.eliminatedRound < elim.eliminatedRound);
+          const zeroElimsInSameRound = sData.eliminated.filter(e =>
+            e.eliminatedRound === elim.eliminatedRound && e.zeroElimination
+          ).length;
+
+          // Position = nombre total - index parmi les éliminés normaux (non 0 D+)
+          const normalElimsUpToThisRound = sData.eliminated.filter(e =>
+            !e.zeroElimination &&
+            (e.eliminatedRound < elim.eliminatedRound ||
+             (e.eliminatedRound === elim.eliminatedRound && sData.eliminated.indexOf(e) <= sData.eliminated.indexOf(elim)))
+          );
+          const position = PARTICIPANTS.length - elimsBeforeThisRound.length - normalElimsUpToThisRound.length + 1;
+          mainPts = getMainChallengePoints(Math.max(1, position));
+        }
         elimPts = elimPointsMap[p.id] || 0;
       } else if (sData.winner?.id === p.id) {
         mainPts = getMainChallengePoints(1);
@@ -937,12 +985,17 @@ function renderCurrentSeasonHistory(container) {
       const elimEntry = rankingWithEffects.find(e => e.participant.id === elim.id);
       const elimElevation = elimEntry?.totalElevation || 0;
       const gap = lastSurvivorElevation - elimElevation;
+      const isZeroElim = elimElevation === 0;
       return {
         name: elim.name,
         elevation: elimElevation,
-        gap: gap
+        gap: gap,
+        isZeroElim: isZeroElim
       };
     }).sort((a, b) => b.elevation - a.elevation); // Trier par D+ décroissant
+
+    // Compter les éliminations à 0 D+
+    const zeroElimCount = eliminatedDetails.filter(e => e.isZeroElim).length;
 
     // Récupérer les jokers actifs ce round
     const activeJokers = getActiveJokersForRound(globalRound);
@@ -952,10 +1005,15 @@ function renderCurrentSeasonHistory(container) {
       <div class="history-round">Round ${r}</div>
       <div class="history-eliminated">
         <span class="history-label">Éliminé(s) :</span>
-        ${eliminatedDetails.map(e =>
-          `<span class="eliminated-name">${e.name}</span> <span class="eliminated-gap">(${formatElevation(e.elevation, false)} D+, à ${formatElevation(e.gap, false)} du maintien)</span>`
-        ).join(', ')}
-      </div>`;
+        ${eliminatedDetails.map(e => {
+          if (e.isZeroElim) {
+            return `<span class="eliminated-name eliminated-zero">${e.name}</span> <span class="eliminated-gap">(0 D+ - inactif)</span>`;
+          } else {
+            return `<span class="eliminated-name">${e.name}</span> <span class="eliminated-gap">(${formatElevation(e.elevation, false)} D+, à ${formatElevation(e.gap, false)} du maintien)</span>`;
+          }
+        }).join(', ')}
+      </div>
+      ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité (0 D+)</div>` : ''}`;
 
     // Afficher les jokers utilisés
     if (activeJokers.length > 0) {

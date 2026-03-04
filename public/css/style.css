@@ -1802,10 +1802,25 @@ body {
   color: var(--accent-danger);
 }
 
+.eliminated-name.eliminated-zero {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
 .eliminated-gap {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.history-zero-warning {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--accent-warning);
 }
 
 .history-jokers {
