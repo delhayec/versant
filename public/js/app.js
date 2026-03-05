@@ -505,17 +505,6 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
     actualRoundsPlayed: roundResults.length
   };
 }
-    }
-  }
-
-  return {
-    seasonComplete: false,
-    active,
-    eliminated,
-    roundResults,
-    actualRoundsPlayed: roundResults.length
-  };
-}
 
 // ============================================
 // CHALLENGE DES ÉLIMINÉS
