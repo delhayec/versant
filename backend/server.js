@@ -1040,6 +1040,152 @@ app.get('/api/admin/activities/:leagueId/download', async (req, res) => {
 });
 
 // ============================================
+// FROZEN RESULTS MODULE
+// ============================================
+const frozenResults = require('./frozen-results.js');
+
+// Configuration pour frozen-results (doit correspondre au frontend)
+const CHALLENGE_CONFIG = {
+  yearStartDate: '2026-02-02',
+  yearEndDate: '2026-12-31',
+  roundDurationDays: 5,
+  eliminationsPerRound: 2
+};
+
+// ============================================
+// FROZEN RESULTS ROUTES
+// ============================================
+
+// Récupérer tous les résultats figés
+app.get('/api/frozen-results', async (req, res) => {
+  try {
+    const results = await frozenResults.getAllFrozenResults();
+    res.json(results);
+  } catch (error) {
+    console.error('Erreur frozen-results:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Récupérer les résultats d'un round spécifique
+app.get('/api/frozen-results/round/:roundNumber', async (req, res) => {
+  try {
+    const round = await frozenResults.getFrozenRoundResult(parseInt(req.params.roundNumber));
+    if (!round) {
+      return res.status(404).json({ error: 'Round non trouvé ou pas encore figé' });
+    }
+    res.json(round);
+  } catch (error) {
+    console.error('Erreur frozen-results:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Vérifier si un round est figé
+app.get('/api/frozen-results/check/:roundNumber', async (req, res) => {
+  try {
+    const isFrozen = await frozenResults.isRoundFrozen(parseInt(req.params.roundNumber));
+    res.json({ roundNumber: parseInt(req.params.roundNumber), frozen: isFrozen });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Récupérer le classement annuel basé sur les résultats figés
+app.get('/api/frozen-results/standings/:leagueId', async (req, res) => {
+  try {
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletes.filter(a => a.league_id === req.params.leagueId && a.active);
+    const standings = await frozenResults.calculateYearlyStandings(leagueAthletes);
+    res.json(standings);
+  } catch (error) {
+    console.error('Erreur standings:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Admin: Figer manuellement un round
+app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  
+  try {
+    const roundNumber = parseInt(req.params.roundNumber);
+    const leagueId = req.body.leagueId || 'versant-2026';
+    
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activities = await safeReadJSON(activitiesFile, []);
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    
+    const result = await frozenResults.freezeRoundResults(
+      roundNumber,
+      activities,
+      leagueAthletes,
+      jokerUsage,
+      CHALLENGE_CONFIG
+    );
+    
+    res.json({ success: true, round: result });
+  } catch (error) {
+    console.error('Erreur freeze:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Auto-figer tous les rounds terminés
+app.post('/api/admin/auto-freeze', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  
+  try {
+    const leagueId = req.body.leagueId || 'versant-2026';
+    
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activities = await safeReadJSON(activitiesFile, []);
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    
+    const frozen = await frozenResults.autoFreezeCompletedRounds(
+      activities,
+      leagueAthletes,
+      jokerUsage,
+      CHALLENGE_CONFIG
+    );
+    
+    res.json({ success: true, frozenCount: frozen.length, rounds: frozen });
+  } catch (error) {
+    console.error('Erreur auto-freeze:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Défiger un round spécifique
+app.post('/api/admin/unfreeze-round/:roundNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  
+  try {
+    const roundNumber = parseInt(req.params.roundNumber);
+    const success = await frozenResults.unfreezeRound(roundNumber);
+    res.json({ success, roundNumber });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Réinitialiser tous les résultats figés
+app.post('/api/admin/reset-frozen', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  
+  try {
+    await frozenResults.resetAllFrozenResults();
+    res.json({ success: true, message: 'Tous les résultats figés ont été supprimés' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // GITHUB WEBHOOK
 // ============================================
 app.post('/api/webhook/github', (req, res) => {
@@ -1053,13 +1199,34 @@ app.post('/api/webhook/github', (req, res) => {
 });
 
 // ============================================
-// CRON
+// CRON - Ajout auto-freeze
 // ============================================
 cron.schedule('0 6 * * *', () => { console.log('🕐 Sync 6h'); autoSyncAllLeagues(); });
 cron.schedule('0 10 * * *', () => { console.log('🕐 Sync 10h'); autoSyncAllLeagues(); });
 cron.schedule('0 14 * * *', () => { console.log('🕐 Sync 14h'); autoSyncAllLeagues(); });
 cron.schedule('0 18 * * *', () => { console.log('🕐 Sync 18h'); autoSyncAllLeagues(); });
 cron.schedule('0 22 * * *', () => { console.log('🕐 Sync 22h'); autoSyncAllLeagues(); });
+
+// Auto-freeze des rounds terminés à 00h05 (après minuit)
+cron.schedule('5 0 * * *', async () => {
+  console.log('❄️ Auto-freeze des rounds terminés...');
+  try {
+    const leagueId = 'versant-2026';
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activities = await safeReadJSON(activitiesFile, []);
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    
+    const frozen = await frozenResults.autoFreezeCompletedRounds(
+      activities, leagueAthletes, jokerUsage, CHALLENGE_CONFIG
+    );
+    
+    console.log(`❄️ ${frozen.length} round(s) figé(s)`);
+  } catch (error) {
+    console.error('❌ Erreur auto-freeze:', error);
+  }
+});
 
 cron.schedule('0 20 * * *', async () => {
   console.log('🕐 Tâches 20h');
@@ -1079,10 +1246,11 @@ initializeServer().then(() => {
   app.listen(PORT, () => {
     console.log('');
     console.log('╔════════════════════════════════════════╗');
-    console.log('║     🚀 VERSANT SERVER v2.4             ║');
+    console.log('║     🚀 VERSANT SERVER v2.5             ║');
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Port: ${PORT}                             ║`);
     console.log('║  Syncs: 6h, 10h, 14h, 18h, 22h         ║');
+    console.log('║  Auto-freeze: 00h05                    ║');
     console.log('║  Refresh tokens: toutes les 2h        ║');
     console.log('╚════════════════════════════════════════╝');
     console.log('');
