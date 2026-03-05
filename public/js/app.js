@@ -405,8 +405,7 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       round: roundInSeason,
       status: 'completed',
       ranking: rankingWithEffects,
-      eliminated: toEliminate.map(p => p.id),
-      zeroEliminations: zeroElevationPlayers.length
+      eliminated: toEliminate.map(p => p.id)
     });
 
     // Vérifier si la saison est terminée (un seul joueur restant)
