@@ -367,49 +367,28 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
     // Appliquer les effets des jokers
     const rankingWithEffects = applyJokerEffects(ranking, globalRound);
 
-    // RÈGLE D'ÉLIMINATION:
-    // - Cas normal: Éliminer les 2 derniers du classement
-    // - Exception: Si ≥2 joueurs sont à 0 D+ → Éliminer SEULEMENT ces joueurs (pas les 2 derniers en plus)
-    // - En finale: Éliminer tous sauf 1
+    // RÈGLE D'ÉLIMINATION SIMPLE:
+    // - Round normal: Éliminer les 2 derniers du classement
+    // - Finale: Éliminer tous sauf 1
     const toEliminate = [];
 
-    // 1. Identifier tous les joueurs à 0 D+ (sauf bouclier)
-    const zeroElevationPlayers = rankingWithEffects.filter(entry =>
-      entry.totalElevation === 0 && !entry.jokerEffects?.hasShield
-    );
-
-    // 2. Déterminer si c'est une finale
+    // Déterminer si c'est une finale
     const isCurrentRoundFinale = active.length <= CHALLENGE_CONFIG.eliminationsPerRound + 1;
 
-    if (isCurrentRoundFinale) {
-      // FINALE: Éliminer tous sauf 1
-      for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < active.length - 1; i--) {
-        const entry = rankingWithEffects[i];
-        if (entry.jokerEffects?.hasShield) continue;
-        toEliminate.push({
-          ...entry.participant,
-          zeroElimination: entry.totalElevation === 0
-        });
-      }
-    } else if (zeroElevationPlayers.length >= 2) {
-      // EXCEPTION: ≥2 joueurs à 0 D+ → Éliminer SEULEMENT ces joueurs
-      zeroElevationPlayers.forEach(entry => {
-        toEliminate.push({
-          ...entry.participant,
-          zeroElimination: true
-        });
+    // Nombre d'éliminations à faire
+    const eliminationsNeeded = isCurrentRoundFinale 
+      ? active.length - 1  // Finale: tous sauf 1
+      : CHALLENGE_CONFIG.eliminationsPerRound;  // Normal: 2
+
+    // Éliminer depuis la fin du classement
+    for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
+      const entry = rankingWithEffects[i];
+      // Protégé par un bouclier ? Skip
+      if (entry.jokerEffects?.hasShield) continue;
+      toEliminate.push({
+        ...entry.participant,
+        zeroElimination: entry.totalElevation === 0
       });
-    } else {
-      // CAS NORMAL: Éliminer les 2 derniers
-      let eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound;
-      for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
-        const entry = rankingWithEffects[i];
-        if (entry.jokerEffects?.hasShield) continue;
-        toEliminate.push({
-          ...entry.participant,
-          zeroElimination: entry.totalElevation === 0
-        });
-      }
     }
 
     toEliminate.forEach(p => {
@@ -544,42 +523,23 @@ function calculateYearlyStandings(activities, currentDate) {
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        // RÈGLE DE POINTS:
-        // La position = nombre d'actifs au début du round d'élimination
-        // - Round 1: 15 actifs → éliminés ont positions 15, 14, etc.
-        // - Round 2 (après 3 élims R1): 12 actifs → éliminés ont positions 12, 11
-        // - Les 0 D+ quand ≥2 → tous la même dernière position
+        // RÈGLE DE POINTS SIMPLE:
+        // Position = nombre d'actifs au début du round d'élimination
+        // Avec 2 éliminés par round: positions N et N-1
         
-        // Compter les éliminés AVANT ce round pour savoir combien d'actifs il y avait
         const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
         const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
         
-        if (elim.zeroElimination) {
-          // Tous les 0 D+ (si ≥2 éliminés pour cette raison) → dernière position parmi les actifs
-          mainPts = getMainChallengePoints(activeAtRoundStart);
-        } else {
-          // Éliminé normal (parmi les 2 derniers)
-          // Trouver les éliminés "normaux" du même round (pas 0 D+)
-          const normalElimsThisRound = sData.eliminated.filter(e => 
-            e.eliminatedRound === elim.eliminatedRound && !e.zeroElimination
-          );
-          
-          // Position dans l'ordre d'élimination (le dernier éliminé = pire position)
-          const indexInNormalElims = normalElimsThisRound.findIndex(e => e.id === elim.id);
-          
-          // Si 2 éliminés normaux: 
-          // - index 0 (avant-dernier) → position activeAtRoundStart - 1
-          // - index 1 (dernier) → position activeAtRoundStart
-          // Mais s'il y a aussi des 0 D+ éliminés, ils prennent les dernières positions
-          const zeroElimsThisRound = sData.eliminated.filter(e =>
-            e.eliminatedRound === elim.eliminatedRound && e.zeroElimination
-          ).length;
-          
-          // Position = activeAtRoundStart - zeroElimsThisRound - (normalElimsThisRound.length - 1 - indexInNormalElims)
-          const position = activeAtRoundStart - zeroElimsThisRound - (normalElimsThisRound.length - 1 - indexInNormalElims);
-          
-          mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
-        }
+        // Trouver tous les éliminés du même round
+        const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
+        const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
+        
+        // Position: le premier éliminé = avant-dernier, le dernier = dernier
+        // index 0 → position activeAtRoundStart - 1
+        // index 1 → position activeAtRoundStart
+        const position = activeAtRoundStart - (sameRoundElims.length - 1 - indexInRound);
+        
+        mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
         elimPts = elimPointsMap[p.id] || 0;
       } else if (sData.winner?.id === p.id) {
         mainPts = getMainChallengePoints(1);

@@ -138,6 +138,36 @@
           </div>
         </div>
 
+        <!-- Résultats Figés -->
+        <div class="info-box">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            ❄️ Résultats Figés
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
+            Les résultats sont figés définitivement à la fin de chaque round.
+          </p>
+          <div id="frozenStatus" style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
+            Statut: <span style="color: #fbbf24;">Chargement...</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button id="autoFreezeBtn" style="width: 100%; padding: 12px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              ❄️ Auto-figer tous les rounds terminés
+            </button>
+            <div style="display: flex; gap: 8px;">
+              <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1" max="50" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+              <button id="freezeRoundBtn" style="padding: 10px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Figer
+              </button>
+              <button id="unfreezeRoundBtn" style="padding: 10px 16px; background: #f97316; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Défiger
+              </button>
+            </div>
+            <button id="resetFrozenBtn" style="width: 100%; padding: 12px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-weight: 600; cursor: pointer;">
+              🗑️ Réinitialiser TOUS les résultats
+            </button>
+          </div>
+        </div>
+
         <!-- Téléchargements -->
         <div class="info-box">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
@@ -155,6 +185,9 @@
             </button>
             <button class="download-btn" data-file="jokers" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
               🃏 jokers_usage.json
+            </button>
+            <button class="download-btn" data-file="frozen" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
+              ❄️ frozen_results.json
             </button>
           </div>
         </div>
@@ -360,6 +393,9 @@
 
         // Charger les données des jokers
         loadJokersData();
+
+        // Charger le statut des résultats figés
+        loadFrozenStatus();
 
         // Définir les dates par défaut pour la sync
         const today = new Date();
@@ -702,6 +738,9 @@
           } else if (fileType === 'jokers') {
             url = `${API_BASE}/admin/jokers/download`;
             filename = 'jokers_usage.json';
+          } else if (fileType === 'frozen') {
+            url = `${API_BASE}/frozen-results`;
+            filename = 'frozen_results.json';
           }
 
           const response = await fetch(url, {
@@ -955,6 +994,153 @@
     document.getElementById('refreshJokersBtn')?.addEventListener('click', loadJokersData);
     document.getElementById('resetJokersBtn')?.addEventListener('click', resetAllJokers);
     document.getElementById('resetAllJokersBtn')?.addEventListener('click', resetAllJokers);
+
+    // ============================================
+    // RÉSULTATS FIGÉS
+    // ============================================
+    async function loadFrozenStatus() {
+      const statusDiv = document.getElementById('frozenStatus');
+      try {
+        const response = await fetch(`${API_BASE}/frozen-results`);
+        const data = await response.json();
+        
+        const frozenRounds = Object.keys(data.rounds || {}).length;
+        const roundsList = Object.keys(data.rounds || {}).sort((a, b) => parseInt(a) - parseInt(b)).join(', ');
+        
+        if (frozenRounds > 0) {
+          statusDiv.innerHTML = `
+            <div style="color: #22d3ee;">❄️ ${frozenRounds} round(s) figé(s)</div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">Rounds: ${roundsList}</div>
+          `;
+        } else {
+          statusDiv.innerHTML = `<span style="color: #fbbf24;">⚠️ Aucun round figé</span>`;
+        }
+        
+        addLog(`❄️ ${frozenRounds} round(s) figé(s)`);
+      } catch (error) {
+        statusDiv.innerHTML = `<span style="color: #ef4444;">❌ Erreur chargement</span>`;
+      }
+    }
+
+    async function autoFreezeRounds() {
+      const btn = document.getElementById('autoFreezeBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Figement en cours...';
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/auto-freeze`, {
+          method: 'POST',
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        
+        if (!response.ok) throw new Error('Erreur auto-freeze');
+        
+        const data = await response.json();
+        addLog(`❄️ Auto-freeze: ${data.frozenCount || 0} round(s) figé(s)`);
+        
+        if (data.frozenCount > 0) {
+          alert(`✅ ${data.frozenCount} round(s) figé(s) avec succès !`);
+        } else {
+          alert('ℹ️ Aucun nouveau round à figer.');
+        }
+        
+        loadFrozenStatus();
+      } catch (error) {
+        addLog(`❌ Erreur auto-freeze: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '❄️ Auto-figer tous les rounds terminés';
+      }
+    }
+
+    async function freezeRound() {
+      const roundNumber = parseInt(document.getElementById('freezeRoundNumber').value);
+      if (!roundNumber || roundNumber < 1) {
+        alert('Veuillez entrer un numéro de round valide');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/freeze-round/${roundNumber}`, {
+          method: 'POST',
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Erreur');
+        }
+        
+        const data = await response.json();
+        addLog(`❄️ Round ${roundNumber} figé: ${data.eliminations?.length || 0} éliminé(s)`);
+        alert(`✅ Round ${roundNumber} figé avec succès !`);
+        loadFrozenStatus();
+      } catch (error) {
+        addLog(`❌ Erreur: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      }
+    }
+
+    async function unfreezeRound() {
+      const roundNumber = parseInt(document.getElementById('freezeRoundNumber').value);
+      if (!roundNumber || roundNumber < 1) {
+        alert('Veuillez entrer un numéro de round valide');
+        return;
+      }
+      
+      if (!confirm(`⚠️ Défiger le round ${roundNumber} ?\n\nCela permettra de recalculer ses résultats.`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/unfreeze-round/${roundNumber}`, {
+          method: 'POST',
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        
+        if (!response.ok) throw new Error('Erreur unfreeze');
+        
+        addLog(`🔓 Round ${roundNumber} défigé`);
+        alert(`✅ Round ${roundNumber} défigé`);
+        loadFrozenStatus();
+      } catch (error) {
+        addLog(`❌ Erreur: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      }
+    }
+
+    async function resetAllFrozen() {
+      if (!confirm('⚠️ ATTENTION !\n\nRéinitialiser TOUS les résultats figés ?\n\nCette action est IRRÉVERSIBLE et supprimera l\'historique de tous les rounds.')) {
+        return;
+      }
+      
+      if (!confirm('🚨 DERNIÈRE CONFIRMATION\n\nÊtes-vous VRAIMENT sûr ? Tous les résultats seront perdus.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/reset-frozen`, {
+          method: 'POST',
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        
+        if (!response.ok) throw new Error('Erreur reset');
+        
+        addLog(`🗑️ Tous les résultats figés supprimés`);
+        alert('✅ Tous les résultats ont été réinitialisés');
+        loadFrozenStatus();
+      } catch (error) {
+        addLog(`❌ Erreur: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      }
+    }
+
+    // Event listeners frozen
+    document.getElementById('autoFreezeBtn')?.addEventListener('click', autoFreezeRounds);
+    document.getElementById('freezeRoundBtn')?.addEventListener('click', freezeRound);
+    document.getElementById('unfreezeRoundBtn')?.addEventListener('click', unfreezeRound);
+    document.getElementById('resetFrozenBtn')?.addEventListener('click', resetAllFrozen);
 
     // ============================================
     // INIT

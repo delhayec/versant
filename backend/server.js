@@ -1,12 +1,11 @@
 /**
  * ============================================
- * VERSANT - SERVEUR BACKEND v2.4
+ * VERSANT - SERVEUR BACKEND v2.6
  * ============================================
  * FIXES:
- * - Webhook avec délai entre traitements
- * - Endpoint /api/jokers/all pour le frontend
- * - Reset jokers pour tous les athlètes
- * - Meilleur logging
+ * - Import jokers-routes pour gestion admin des jokers
+ * - Règle d'élimination corrigée (2 derniers OU ≥2 à 0 D+)
+ * - Routes frozen-results complètes
  */
 require('dotenv').config();
 
@@ -19,6 +18,9 @@ const fs = require('fs').promises;
 const path = require('path');
 const cron = require('node-cron');
 const crypto = require('crypto');
+
+// Import du module jokers
+const { createJokersRoutes } = require('./jokers-routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -191,6 +193,15 @@ function checkAdmin(req, res) {
   }
   return true;
 }
+
+// Monter le router jokers
+const jokersRouter = createJokersRoutes({ 
+  ATHLETES_FILE, 
+  JOKERS_FILE, 
+  ADMIN_PASSWORD, 
+  requireAuth 
+});
+app.use('/api', jokersRouter);
 
 // ============================================
 // AUTH ROUTES
@@ -1246,7 +1257,7 @@ initializeServer().then(() => {
   app.listen(PORT, () => {
     console.log('');
     console.log('╔════════════════════════════════════════╗');
-    console.log('║     🚀 VERSANT SERVER v2.5             ║');
+    console.log('║     🚀 VERSANT SERVER v2.6             ║');
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Port: ${PORT}                             ║`);
     console.log('║  Syncs: 6h, 10h, 14h, 18h, 22h         ║');
