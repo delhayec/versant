@@ -427,28 +427,41 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       // Appliquer les effets des jokers
       const rankingWithEffects = applyJokerEffects(ranking, globalRound);
 
-      // RÈGLES D'ÉLIMINATION:
-      // - Round 1: 1 seul éliminé (TEMPORAIRE)
-      // - Rounds normaux: 2 derniers éliminés
-      // - Finale: Tous sauf 1
+      // RÈGLES SIMPLES D'ÉLIMINATION:
+      // - Round 1: Les inscriptions tardives sont éliminées d'office (comptent dans le quota de 2)
+      // - Rounds normaux: Éliminer les 2 derniers du classement
+      // - Finale: Éliminer tous sauf 1
       const toEliminate = [];
 
       // Déterminer si c'est une finale
       const isCurrentRoundFinale = active.length <= CHALLENGE_CONFIG.eliminationsPerRound + 1;
 
-      // Nombre d'éliminations
-      let eliminationsNeeded;
-      if (roundInSeason === 1) {
-        eliminationsNeeded = 1; // TEMPORAIRE: 1 seul éliminé au R1
-      } else if (isCurrentRoundFinale) {
-        eliminationsNeeded = active.length - 1; // Finale: tous sauf 1
-      } else {
-        eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound; // Normal: 2
+      // Nombre d'éliminations à faire ce round
+      const eliminationsNeeded = isCurrentRoundFinale 
+        ? active.length - 1  // Finale: tous sauf 1
+        : CHALLENGE_CONFIG.eliminationsPerRound;  // Normal: 2
+
+      // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
+      if (roundInSeason === 1 && lateRegistrations.length > 0) {
+        lateRegistrations.forEach(p => {
+          // Vérifier qu'on n'a pas déjà atteint le quota
+          if (toEliminate.length < eliminationsNeeded && active.find(a => a.id === p.id)) {
+            toEliminate.push({
+              ...p,
+              zeroElimination: false,
+              lateRegistration: true
+            });
+            console.log(`⚠️ ${p.name} - Inscription tardive → éliminé d'office au R1 (${toEliminate.length}/${eliminationsNeeded})`);
+          }
+        });
       }
 
-      // Éliminer depuis la fin du classement
+      // Compléter avec les derniers du classement si le quota n'est pas atteint
       for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
         const entry = rankingWithEffects[i];
+        // Skip si déjà dans toEliminate (inscription tardive)
+        if (toEliminate.find(e => e.id === entry.participant.id)) continue;
+        // Skip si protégé par bouclier
         if (entry.jokerEffects?.hasShield) continue;
         
         toEliminate.push({
