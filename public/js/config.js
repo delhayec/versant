@@ -336,10 +336,11 @@ export async function loadParticipants() {
 
     if (athletes && athletes.length > 0) {
       // Transformer le format API en format PARTICIPANTS
-      // Note: pas de jokers ici - ils viennent du serveur via jokers.js
+      // Inclure registered_at pour gérer les inscriptions tardives
       const loadedParticipants = athletes.map(a => ({
         id: String(a.id),
-        name: a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim()
+        name: a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim(),
+        registeredAt: a.registered_at || a.registeredAt || null
       }));
 
       // Mettre à jour la liste globale
@@ -522,6 +523,43 @@ export function getRoundInfo(globalRoundNumber) {
   if (!schedule) return null;
   const rule = ROUND_RULES[schedule.rule] || ROUND_RULES.standard;
   return { ...schedule, ruleDetails: rule };
+}
+
+// ============================================
+// GESTION DES INSCRIPTIONS TARDIVES
+// ============================================
+
+/**
+ * Vérifie si un participant était inscrit avant le début du challenge
+ * @param {Object} participant - Le participant avec sa date d'inscription
+ * @returns {boolean} true si inscrit à temps pour le challenge principal
+ */
+export function wasRegisteredBeforeStart(participant) {
+  if (!participant.registeredAt) {
+    // Si pas de date d'inscription, on considère qu'il était là au début
+    return true;
+  }
+  
+  const registrationDate = new Date(participant.registeredAt);
+  const challengeStart = new Date(CHALLENGE_CONFIG.yearStartDate);
+  
+  return registrationDate < challengeStart;
+}
+
+/**
+ * Retourne la liste des participants éligibles au challenge principal
+ * (ceux inscrits AVANT le début du challenge)
+ */
+export function getEligibleParticipants() {
+  return PARTICIPANTS.filter(p => wasRegisteredBeforeStart(p));
+}
+
+/**
+ * Retourne la liste des participants inscrits en retard
+ * (directement dans le challenge des éliminés)
+ */
+export function getLateRegistrations() {
+  return PARTICIPANTS.filter(p => !wasRegisteredBeforeStart(p));
 }
 
 // ============================================

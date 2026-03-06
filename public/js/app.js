@@ -15,7 +15,8 @@ import {
   getParticipantById, getRoundDates, getSeasonNumber, getSeasonDates,
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getMainChallengePoints, getEliminatedChallengePoints,
-  getAthleteColor, getAthleteInitials, loadParticipants
+  getAthleteColor, getAthleteInitials, loadParticipants,
+  getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart
 } from './config.js';
 
 import {
@@ -352,12 +353,22 @@ function calculateRanking(activities, activeParticipants) {
 
 function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
   const seasonDates = getSeasonDates(seasonNumber);
-  let active = [...PARTICIPANTS];
+  
+  // IMPORTANT: Utiliser seulement les participants éligibles (inscrits avant le début)
+  const eligibleParticipants = getEligibleParticipants();
+  let active = [...eligibleParticipants];
   const eliminated = [];
   const roundResults = [];
+  
+  // Log des inscriptions tardives
+  const lateRegistrations = getLateRegistrations();
+  if (lateRegistrations.length > 0) {
+    console.log(`⚠️ ${lateRegistrations.length} inscription(s) tardive(s) → directement dans le challenge des éliminés:`, 
+      lateRegistrations.map(p => p.name).join(', '));
+  }
 
-  // Calculer le nombre MAXIMUM de rounds (basé sur élimination standard de 2 par round)
-  const maxRoundsPerSeason = Math.ceil((PARTICIPANTS.length - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
+  // Calculer le nombre MAXIMUM de rounds (basé sur les participants ÉLIGIBLES)
+  const maxRoundsPerSeason = Math.ceil((eligibleParticipants.length - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
 
   for (let roundInSeason = 1; roundInSeason <= maxRoundsPerSeason; roundInSeason++) {
     // VÉRIFICATION: Si plus qu'un seul joueur actif, la saison est finie
@@ -414,55 +425,34 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       });
 
     } else {
-      // CALCULER LES RÉSULTATS (round non figé - nouvelles règles)
+      // CALCULER LES RÉSULTATS (round non figé - RÈGLES SIMPLES)
       const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
       const ranking = calculateRanking(roundActivities, active);
 
       // Appliquer les effets des jokers
       const rankingWithEffects = applyJokerEffects(ranking, globalRound);
 
-      // NOUVELLES RÈGLES D'ÉLIMINATION:
-      // - Cas normal: Éliminer les 2 derniers du classement
-      // - Exception: Si ≥2 joueurs à 0 D+ → Éliminer SEULEMENT ces joueurs (pas 2 en plus)
+      // RÈGLES SIMPLES D'ÉLIMINATION:
+      // - Round normal: Éliminer les 2 derniers du classement
       // - Finale: Éliminer tous sauf 1
       const toEliminate = [];
 
-      // 1. Identifier tous les joueurs à 0 D+ (sauf bouclier)
-      const zeroElevationPlayers = rankingWithEffects.filter(entry =>
-        entry.totalElevation === 0 && !entry.jokerEffects?.hasShield
-      );
-
-      // 2. Déterminer si c'est une finale (dynamique selon les actifs restants)
+      // Déterminer si c'est une finale
       const isCurrentRoundFinale = active.length <= CHALLENGE_CONFIG.eliminationsPerRound + 1;
 
-      if (isCurrentRoundFinale) {
-        // FINALE: Éliminer tous sauf 1
-        for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < active.length - 1; i--) {
-          const entry = rankingWithEffects[i];
-          if (entry.jokerEffects?.hasShield) continue;
-          toEliminate.push({
-            ...entry.participant,
-            zeroElimination: entry.totalElevation === 0
-          });
-        }
-      } else if (zeroElevationPlayers.length >= 2) {
-        // EXCEPTION: ≥2 joueurs à 0 D+ → Éliminer SEULEMENT ces joueurs
-        zeroElevationPlayers.forEach(entry => {
-          toEliminate.push({
-            ...entry.participant,
-            zeroElimination: true
-          });
+      // Nombre d'éliminations à faire
+      const eliminationsNeeded = isCurrentRoundFinale 
+        ? active.length - 1  // Finale: tous sauf 1
+        : CHALLENGE_CONFIG.eliminationsPerRound;  // Normal: 2
+
+      // Éliminer depuis la fin du classement
+      for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
+        const entry = rankingWithEffects[i];
+        if (entry.jokerEffects?.hasShield) continue;
+        toEliminate.push({
+          ...entry.participant,
+          zeroElimination: entry.totalElevation === 0
         });
-      } else {
-        // CAS NORMAL: Éliminer les 2 derniers
-        for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < CHALLENGE_CONFIG.eliminationsPerRound; i--) {
-          const entry = rankingWithEffects[i];
-          if (entry.jokerEffects?.hasShield) continue;
-          toEliminate.push({
-            ...entry.participant,
-            zeroElimination: entry.totalElevation === 0
-          });
-        }
       }
 
       toEliminate.forEach(p => {
@@ -479,8 +469,7 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
         round: roundInSeason,
         status: 'completed',
         ranking: rankingWithEffects,
-        eliminated: toEliminate.map(p => p.id),
-        zeroEliminations: zeroElevationPlayers.length
+        eliminated: toEliminate.map(p => p.id)
       });
     }
 
@@ -572,7 +561,10 @@ function countEliminationsBeforeRound(eliminatedList, roundInSeason) {
 function calculateYearlyStandings(activities, currentDate) {
   const currentSeason = getSeasonNumber(currentDate);
   const totals = {};
+  const eligibleParticipants = getEligibleParticipants();
+  const lateRegistrations = getLateRegistrations();
 
+  // Initialiser pour TOUS les participants (éligibles + tardifs)
   PARTICIPANTS.forEach(p => {
     totals[p.id] = {
       participant: p,
@@ -580,7 +572,8 @@ function calculateYearlyStandings(activities, currentDate) {
       totalEliminatedPoints: 0,
       totalPoints: 0,
       wins: 0,
-      seasonsPlayed: 0
+      seasonsPlayed: 0,
+      isLateRegistration: !wasRegisteredBeforeStart(p)
     };
   });
 
@@ -589,41 +582,43 @@ function calculateYearlyStandings(activities, currentDate) {
     if (currentDate < seasonDates.start) continue;
 
     const sData = simulateSeasonEliminations(activities, s, currentDate);
-    const elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, sData.seasonComplete ? seasonDates.end : currentDate);
+    
+    // Ajouter les inscriptions tardives au challenge des éliminés
+    const allEliminated = [...sData.eliminated];
+    lateRegistrations.forEach(p => {
+      if (!allEliminated.find(e => e.id === p.id)) {
+        allEliminated.push({
+          ...p,
+          eliminatedRound: 0, // Round 0 = inscription tardive
+          eliminatedSeason: s,
+          zeroElimination: false,
+          lateRegistration: true
+        });
+      }
+    });
+    
+    const elimRanking = calculateEliminatedChallenge(activities, allEliminated, seasonDates, sData.seasonComplete ? seasonDates.end : currentDate);
     const elimPointsMap = {};
     elimRanking.forEach(e => elimPointsMap[e.participant.id] = e.points);
 
-    PARTICIPANTS.forEach(p => {
+    // Calcul des points pour les participants ÉLIGIBLES
+    eligibleParticipants.forEach(p => {
       const elim = sData.eliminated.find(e => e.id === p.id);
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        // RÈGLE DE POINTS avec nouvelles règles:
+        // RÈGLE DE POINTS SIMPLE:
         // Position = nombre d'actifs au début du round d'élimination
-        // - Si éliminé pour 0 D+ (quand ≥2 à 0) → tous la même dernière position
-        // - Sinon → positions N, N-1, etc.
-        
         const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-        const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+        const activeAtRoundStart = eligibleParticipants.length - elimsBeforeThisRound;
         
         // Trouver tous les éliminés du même round
         const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
+        const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
         
-        // Compter les 0 D+ de ce round
-        const zeroElimsThisRound = sameRoundElims.filter(e => e.zeroElimination);
-        
-        if (elim.zeroElimination && zeroElimsThisRound.length >= 2) {
-          // Tous les 0 D+ éliminés ensemble → dernière position
-          mainPts = getMainChallengePoints(activeAtRoundStart);
-        } else {
-          // Élimination normale ou 0 D+ seul parmi les 2 derniers
-          const normalElims = sameRoundElims.filter(e => !e.zeroElimination || zeroElimsThisRound.length < 2);
-          const indexInRound = normalElims.findIndex(e => e.id === elim.id);
-          
-          // Position basée sur l'index dans les éliminés normaux
-          const position = activeAtRoundStart - (normalElims.length - 1 - indexInRound);
-          mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
-        }
+        // Position basée sur l'index dans les éliminés du round
+        const position = activeAtRoundStart - (sameRoundElims.length - 1 - indexInRound);
+        mainPts = getMainChallengePoints(Math.max(1, Math.min(position, eligibleParticipants.length)));
         elimPts = elimPointsMap[p.id] || 0;
       } else if (sData.winner?.id === p.id) {
         mainPts = getMainChallengePoints(1);
@@ -632,17 +627,25 @@ function calculateYearlyStandings(activities, currentDate) {
         mainPts = getMainChallengePoints(2);
       }
 
-            if (sData.seasonComplete || elim) {
+      if (sData.seasonComplete || elim) {
         totals[p.id].totalMainPoints += mainPts;
-        // Points éliminés uniquement attribués en fin de saison
         if (sData.seasonComplete) {
           totals[p.id].totalEliminatedPoints += elimPts;
           totals[p.id].totalPoints += mainPts + elimPts;
           totals[p.id].seasonsPlayed++;
         } else {
-          // Saison en cours : seulement les points du challenge principal
           totals[p.id].totalPoints += mainPts;
         }
+      }
+    });
+    
+    // Les inscriptions tardives n'ont que des points du challenge éliminés
+    lateRegistrations.forEach(p => {
+      const elimPts = elimPointsMap[p.id] || 0;
+      if (sData.seasonComplete) {
+        totals[p.id].totalEliminatedPoints += elimPts;
+        totals[p.id].totalPoints += elimPts;
+        totals[p.id].seasonsPlayed++;
       }
     });
   }
