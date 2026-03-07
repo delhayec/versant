@@ -144,25 +144,36 @@
             ❄️ Résultats Figés
           </h3>
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
-            Les résultats sont figés définitivement à la fin de chaque round.
+            Les résultats sont calculés par le frontend puis sauvegardés.
           </p>
           <div id="frozenStatus" style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
             Statut: <span style="color: #fbbf24;">Chargement...</span>
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button id="autoFreezeBtn" style="width: 100%; padding: 12px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-              ❄️ Auto-figer tous les rounds terminés
+            <button id="freezeFromFrontendBtn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #22d3ee, #10b981); color: #0a0a0f; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              ❄️ Figer depuis le calcul frontend (RECOMMANDÉ)
             </button>
             <div style="display: flex; gap: 8px;">
               <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1" max="50" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
-              <button id="freezeRoundBtn" style="padding: 10px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                Figer
+              <button id="freezeSingleRoundBtn" style="padding: 10px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Figer 1 round
               </button>
               <button id="unfreezeRoundBtn" style="padding: 10px 16px; background: #f97316; color: white; border: none; border-radius: 6px; cursor: pointer;">
                 Défiger
               </button>
             </div>
-            <button id="resetFrozenBtn" style="width: 100%; padding: 12px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-weight: 600; cursor: pointer;">
+            <details style="margin-top: 10px;">
+              <summary style="color: rgba(255,255,255,0.6); cursor: pointer; font-size: 13px;">⚙️ Options avancées (ancienne méthode)</summary>
+              <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+                <button id="autoFreezeBtn" style="width: 100%; padding: 10px; background: rgba(34,211,238,0.2); color: #22d3ee; border: 1px solid rgba(34,211,238,0.3); border-radius: 6px; font-size: 13px; cursor: pointer;">
+                  Auto-figer (recalcul backend)
+                </button>
+                <button id="freezeRoundBtn" style="width: 100%; padding: 10px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 6px; font-size: 13px; cursor: pointer;">
+                  Figer round (recalcul backend)
+                </button>
+              </div>
+            </details>
+            <button id="resetFrozenBtn" style="width: 100%; padding: 12px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px;">
               🗑️ Réinitialiser TOUS les résultats
             </button>
           </div>
@@ -1136,7 +1147,144 @@
       }
     }
 
+    // ============================================
+    // FREEZE DEPUIS LE FRONTEND (NOUVELLE MÉTHODE)
+    // ============================================
+    
+    let frontendIframe = null;
+    let frontendReady = false;
+    
+    function loadFrontendCalculator() {
+      return new Promise((resolve, reject) => {
+        if (frontendReady && frontendIframe?.contentWindow?.versant) {
+          resolve(frontendIframe.contentWindow.versant);
+          return;
+        }
+        
+        // Créer une iframe cachée pour charger index.html
+        if (!frontendIframe) {
+          frontendIframe = document.createElement('iframe');
+          frontendIframe.style.display = 'none';
+          frontendIframe.src = 'index.html';
+          document.body.appendChild(frontendIframe);
+        }
+        
+        // Attendre que le frontend soit chargé
+        let attempts = 0;
+        const checkReady = setInterval(() => {
+          attempts++;
+          if (frontendIframe.contentWindow?.versant?.getRoundDataForFreeze) {
+            clearInterval(checkReady);
+            frontendReady = true;
+            resolve(frontendIframe.contentWindow.versant);
+          } else if (attempts > 50) { // 10 secondes max
+            clearInterval(checkReady);
+            reject(new Error('Timeout: le frontend n\'a pas chargé'));
+          }
+        }, 200);
+      });
+    }
+    
+    async function freezeFromFrontend() {
+      const btn = document.getElementById('freezeFromFrontendBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Chargement du frontend...';
+      
+      try {
+        addLog('🔄 Chargement du calculateur frontend...');
+        const versant = await loadFrontendCalculator();
+        
+        btn.textContent = '⏳ Calcul des rounds...';
+        addLog('📊 Récupération des données calculées...');
+        
+        const allRoundsData = versant.getAllCompletedRoundsData();
+        
+        if (!allRoundsData || allRoundsData.length === 0) {
+          throw new Error('Aucun round terminé à figer');
+        }
+        
+        btn.textContent = `⏳ Sauvegarde de ${allRoundsData.length} round(s)...`;
+        
+        let savedCount = 0;
+        for (const roundData of allRoundsData) {
+          addLog(`❄️ Sauvegarde round ${roundData.roundNumber}...`);
+          
+          const response = await fetch(`${API_BASE}/admin/save-round-from-frontend`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Admin-Password': adminPassword
+            },
+            body: JSON.stringify(roundData)
+          });
+          
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(`Round ${roundData.roundNumber}: ${err.error}`);
+          }
+          
+          savedCount++;
+        }
+        
+        addLog(`✅ ${savedCount} round(s) figé(s) depuis le frontend`);
+        alert(`✅ ${savedCount} round(s) figé(s) avec succès !\n\nLes règles du frontend ont été utilisées.`);
+        loadFrozenStatus();
+        
+      } catch (error) {
+        addLog(`❌ Erreur: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '❄️ Figer depuis le calcul frontend (RECOMMANDÉ)';
+      }
+    }
+    
+    async function freezeSingleRoundFromFrontend() {
+      const roundNumber = parseInt(document.getElementById('freezeRoundNumber').value);
+      if (!roundNumber || roundNumber < 1) {
+        alert('Veuillez entrer un numéro de round valide');
+        return;
+      }
+      
+      try {
+        addLog(`🔄 Chargement du frontend pour round ${roundNumber}...`);
+        const versant = await loadFrontendCalculator();
+        
+        const roundData = versant.getRoundDataForFreeze(roundNumber);
+        
+        if (!roundData) {
+          throw new Error(`Le round ${roundNumber} n'est pas terminé ou n'existe pas`);
+        }
+        
+        addLog(`❄️ Sauvegarde round ${roundNumber}...`);
+        
+        const response = await fetch(`${API_BASE}/admin/save-round-from-frontend`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify(roundData)
+        });
+        
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error);
+        }
+        
+        addLog(`✅ Round ${roundNumber} figé (${roundData.eliminations.length} éliminé(s))`);
+        alert(`✅ Round ${roundNumber} figé avec succès !`);
+        loadFrozenStatus();
+        
+      } catch (error) {
+        addLog(`❌ Erreur: ${error.message}`);
+        alert('Erreur: ' + error.message);
+      }
+    }
+
     // Event listeners frozen
+    document.getElementById('freezeFromFrontendBtn')?.addEventListener('click', freezeFromFrontend);
+    document.getElementById('freezeSingleRoundBtn')?.addEventListener('click', freezeSingleRoundFromFrontend);
     document.getElementById('autoFreezeBtn')?.addEventListener('click', autoFreezeRounds);
     document.getElementById('freezeRoundBtn')?.addEventListener('click', freezeRound);
     document.getElementById('unfreezeRoundBtn')?.addEventListener('click', unfreezeRound);

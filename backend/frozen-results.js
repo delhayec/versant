@@ -6,6 +6,9 @@
  * Ce module stocke les résultats de chaque round de façon DÉFINITIVE.
  * Une fois un round terminé, ses résultats ne changent JAMAIS.
  * 
+ * RÈGLES D'ÉLIMINATION: Importées depuis /shared/elimination-rules.js
+ * Modifier ce fichier pour changer les règles partout (frontend + backend)
+ * 
  * Structure du fichier frozen_results.json:
  * {
  *   "rounds": {
@@ -33,6 +36,10 @@
 
 const fs = require('fs').promises;
 const path = require('path');
+
+// NOTE: Les règles d'élimination sont UNIQUEMENT dans le frontend (app.js)
+// Le backend ne recalcule plus - il reçoit les données calculées du frontend
+// via la route POST /api/admin/save-round-from-frontend
 
 // Configuration
 const DATA_DIR = path.join(__dirname, 'data');
@@ -175,41 +182,56 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     entry.position = index + 1;
   });
   
-  // NOUVELLES RÈGLES D'ÉLIMINATION:
-  // - Cas normal: Éliminer les 2 derniers du classement
-  // - Exception: Si ≥2 joueurs à 0 D+ → Éliminer SEULEMENT ces joueurs
-  // - Finale: Éliminer tous sauf 1
+  // ============================================
+  // RÈGLES D'ÉLIMINATION (FALLBACK BACKEND)
+  // Note: La méthode recommandée est d'utiliser le frontend
+  // qui a les règles les plus à jour dans app.js
+  // ============================================
+  
   const eliminations = [];
+  const eligible = ranking.filter(e => !e.hasShield);
+  const zeroElevationPlayers = eligible.filter(e => e.elevation === 0);
   
-  // Identifier les joueurs à 0 D+ (sans bouclier)
-  const zeroElevationPlayers = ranking.filter(entry => 
-    entry.elevation === 0 && !entry.hasShield
-  );
+  let eliminationReason = 'normal';
   
-  // Joueurs éligibles (sans bouclier)
-  const eligibleForElimination = ranking.filter(e => !e.hasShield);
-  
-  // Déterminer le nombre d'éliminations
-  let eliminationsNeeded;
   if (isFinale) {
-    eliminationsNeeded = eligibleForElimination.length - 1; // Finale: tous sauf 1
-  } else if (roundInSeason === 1) {
-    eliminationsNeeded = 1; // TEMPORAIRE: 1 seul éliminé au R1
-  } else {
-    eliminationsNeeded = config.eliminationsPerRound; // Normal: 2
-  }
-  
-  // Éliminer depuis la fin du classement
-  const toEliminate = eligibleForElimination.slice(-eliminationsNeeded);
-  toEliminate.forEach(entry => {
-    eliminations.push({
-      id: entry.id,
-      name: entry.name,
-      elevation: entry.elevation,
-      reason: entry.elevation === 0 ? 'zero_elevation' : 'last_position',
-      position: entry.position
+    // FINALE: Éliminer tous sauf 1
+    const toEliminate = eligible.slice(1);
+    toEliminate.forEach(entry => {
+      eliminations.push({
+        id: entry.id,
+        name: entry.name,
+        elevation: entry.elevation,
+        reason: entry.elevation === 0 ? 'zero_elevation' : 'last_position',
+        position: entry.position
+      });
     });
-  });
+    eliminationReason = 'finale';
+  } else if (zeroElevationPlayers.length >= 2) {
+    // EXCEPTION: ≥2 joueurs à 0 D+ → Éliminer SEULEMENT ces joueurs
+    zeroElevationPlayers.forEach(entry => {
+      eliminations.push({
+        id: entry.id,
+        name: entry.name,
+        elevation: 0,
+        reason: 'zero_elevation',
+        position: entry.position
+      });
+    });
+    eliminationReason = 'zero_elevation_rule';
+  } else {
+    // CAS NORMAL: Éliminer les 2 derniers
+    const toEliminate = eligible.slice(-config.eliminationsPerRound);
+    toEliminate.forEach(entry => {
+      eliminations.push({
+        id: entry.id,
+        name: entry.name,
+        elevation: entry.elevation,
+        reason: entry.elevation === 0 ? 'zero_elevation' : 'last_position',
+        position: entry.position
+      });
+    });
+  }
   
   // Calculer les points pour chaque participant
   const activeAtRoundStart = activeParticipants.length;
@@ -218,11 +240,17 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
     
     if (eliminationEntry) {
-      // Position basée sur l'index dans les éliminés
-      const indexInElims = eliminations.findIndex(e => e.id === entry.id);
-      const position = activeAtRoundStart - (eliminations.length - 1 - indexInElims);
-      entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
-      entry.eliminatedPosition = position;
+      if (eliminationReason === 'zero_elevation_rule') {
+        // Tous les 0 D+ → dernière position
+        entry.mainPoints = getMainPoints(activeAtRoundStart);
+        entry.eliminatedPosition = activeAtRoundStart;
+      } else {
+        // Position normale basée sur l'index
+        const indexInElims = eliminations.findIndex(e => e.id === entry.id);
+        const position = activeAtRoundStart - (eliminations.length - 1 - indexInElims);
+        entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
+        entry.eliminatedPosition = position;
+      }
     } else if (isFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
       // Gagnant de la saison
       entry.mainPoints = getMainPoints(1);
@@ -246,6 +274,8 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     activeParticipants,
     ranking,
     eliminations,
+    eliminationReason,
+    zeroElevationCount: zeroElevationPlayers.length,
     jokersUsed: activeJokers.map(j => ({
       athleteId: j.athlete_id,
       athleteName: j.athlete_name,
@@ -256,7 +286,8 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     stats: {
       totalActivities: roundActivities.length,
       totalElevation: ranking.reduce((sum, e) => sum + e.elevation, 0),
-      eliminationsCount: eliminations.length
+      eliminationsCount: eliminations.length,
+      rulesVersion: '2.7-backend-fallback'
     }
   };
 }
@@ -475,6 +506,33 @@ async function unfreezeRound(roundNumber) {
   return false;
 }
 
+/**
+ * Sauvegarde directement les résultats calculés par le frontend
+ * PAS DE RECALCUL - on fait confiance au frontend
+ */
+async function saveRoundFromFrontend(roundData) {
+  const data = await loadFrozenResults();
+  
+  // Valider les données minimales
+  if (!roundData.roundNumber || !roundData.ranking || !roundData.eliminations) {
+    throw new Error('Données incomplètes: roundNumber, ranking et eliminations requis');
+  }
+  
+  // Ajouter les métadonnées
+  const roundToSave = {
+    ...roundData,
+    frozen: true,
+    frozenAt: new Date().toISOString(),
+    savedFrom: 'frontend'
+  };
+  
+  data.rounds[String(roundData.roundNumber)] = roundToSave;
+  await saveFrozenResults(data);
+  
+  console.log(`❄️ Round ${roundData.roundNumber} sauvegardé depuis le frontend: ${roundData.eliminations.length} éliminé(s)`);
+  return roundToSave;
+}
+
 module.exports = {
   getAllFrozenResults,
   getFrozenRoundResult,
@@ -486,5 +544,6 @@ module.exports = {
   unfreezeRound,
   getRoundDates,
   getSeasonNumber,
-  getRoundInSeason
+  getRoundInSeason,
+  saveRoundFromFrontend
 };
