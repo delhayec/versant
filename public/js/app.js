@@ -416,15 +416,22 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       const frozenEliminationReason = frozenRound.eliminationReason || 'normal';
       
       // Appliquer les éliminations depuis les données figées
-      frozenRound.eliminations.forEach(elim => {
+      frozenRound.eliminations.forEach((elim, index) => {
         const participant = PARTICIPANTS.find(p => String(p.id) === String(elim.id));
+        // Chercher les mainPoints dans le ranking du frozen
+        const rankingEntry = frozenRound.ranking.find(r => String(r.id) === String(elim.id));
+        
         if (participant) {
           eliminated.push({
             ...participant,
             eliminatedRound: roundInSeason,
             eliminatedSeason: seasonNumber,
             zeroElimination: elim.reason === 'zero_elevation',
-            eliminationReason: frozenEliminationReason
+            eliminationReason: frozenEliminationReason,
+            // IMPORTANT: Utiliser les points du frozen results
+            frozenMainPoints: rankingEntry?.mainPoints ?? null,
+            frozenPosition: rankingEntry?.eliminatedPosition ?? elim.position,
+            indexInElims: index
           });
           active = active.filter(a => String(a.id) !== String(elim.id));
         }
@@ -622,29 +629,35 @@ function calculateYearlyStandings(activities, currentDate) {
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-        const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-        const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
-        
-        // Calculer la position selon la règle d'élimination
-        let position;
-        
-        // Vérifier si c'est une élimination par règle 0 D+
-        const isZeroElevationRule = elim.eliminationReason === 'zero_elevation_rule' || 
-          (elim.zeroElimination && sameRoundElims.filter(e => e.zeroElimination).length >= 2);
-        
-        if (isZeroElevationRule) {
-          // Tous les 0 D+ éliminés ensemble → dernière position
-          position = activeAtRoundStart;
+        // Si on a des points figés, les utiliser directement
+        if (elim.frozenMainPoints !== null && elim.frozenMainPoints !== undefined) {
+          mainPts = elim.frozenMainPoints;
         } else {
-          // Les éliminés viennent de slice(-n) donc sont dans l'ordre [avant-dernier, dernier]
-          // index 0 = avant-dernier → position = activeAtRoundStart - (n-1)
-          // index n-1 = dernier → position = activeAtRoundStart
-          const indexInElims = sameRoundElims.findIndex(e => e.id === elim.id);
-          const nbElims = sameRoundElims.length;
-          position = activeAtRoundStart - (nbElims - 1) + indexInElims;
+          // Sinon, calculer les points
+          const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
+          const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+          const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
+          
+          // Calculer la position selon la règle d'élimination
+          let position;
+          
+          // Vérifier si c'est une élimination par règle 0 D+
+          const isZeroElevationRule = elim.eliminationReason === 'zero_elevation_rule' || 
+            (elim.zeroElimination && sameRoundElims.filter(e => e.zeroElimination).length >= 2);
+          
+          if (isZeroElevationRule) {
+            // Tous les 0 D+ éliminés ensemble → dernière position
+            position = activeAtRoundStart;
+          } else {
+            // Les éliminés viennent de slice(-n) donc sont dans l'ordre [avant-dernier, dernier]
+            // index 0 = avant-dernier → position = activeAtRoundStart - (n-1)
+            // index n-1 = dernier → position = activeAtRoundStart
+            const indexInElims = sameRoundElims.findIndex(e => e.id === elim.id);
+            const nbElims = sameRoundElims.length;
+            position = activeAtRoundStart - (nbElims - 1) + indexInElims;
+          }
+          mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
         }
-        mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
         elimPts = elimPointsMap[p.id] || 0;
       } else if (sData.winner?.id === p.id) {
         mainPts = getMainChallengePoints(1);
