@@ -1184,25 +1184,6 @@ app.post('/api/admin/unfreeze-round/:roundNumber', async (req, res) => {
   }
 });
 
-// Admin: Sauvegarder un round directement depuis le frontend (SANS RECALCUL)
-app.post('/api/admin/save-round-from-frontend', async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  
-  try {
-    const roundData = req.body;
-    
-    if (!roundData || !roundData.roundNumber) {
-      return res.status(400).json({ error: 'Données de round manquantes' });
-    }
-    
-    const result = await frozenResults.saveRoundFromFrontend(roundData);
-    res.json({ success: true, round: result });
-  } catch (error) {
-    console.error('Erreur save-round-from-frontend:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Admin: Réinitialiser tous les résultats figés
 app.post('/api/admin/reset-frozen', async (req, res) => {
   if (!checkAdmin(req, res)) return;
