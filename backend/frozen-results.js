@@ -183,9 +183,9 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   });
   
   // ============================================
-  // RÈGLES D'ÉLIMINATION v2.8 (SIMPLES)
-  // - Round 1: 1 seul éliminé (TEMPORAIRE)
-  // - Rounds normaux: 2 derniers éliminés
+  // RÈGLES D'ÉLIMINATION v2.8
+  // - Round 1: 1 seul éliminé
+  // - Rounds 2+: 2 derniers éliminés
   // - Finale: Tous sauf 1
   // ============================================
   
@@ -194,26 +194,29 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   
   let eliminationReason = 'normal';
   
-  // Nombre d'éliminations
+  // Nombre d'éliminations selon les règles v2.8
   let eliminationsNeeded;
   if (roundInSeason === 1) {
-    eliminationsNeeded = 1; // TEMPORAIRE: 1 seul éliminé au R1
+    eliminationsNeeded = 1; // Round 1: 1 seul éliminé
   } else if (isFinale) {
     eliminationsNeeded = eligible.length - 1; // Finale: tous sauf 1
     eliminationReason = 'finale';
   } else {
-    eliminationsNeeded = config.eliminationsPerRound; // Normal: 2
+    eliminationsNeeded = config.eliminationsPerRound; // Rounds 2+: 2
   }
   
-  // Éliminer depuis la fin du classement
+  // Éliminer depuis la fin du classement (trié par D+ décroissant)
+  // slice(-n) donne [avant-dernier, ..., dernier]
+  // Donc index 0 = celui avec le plus de D+ parmi les éliminés = meilleure position
   const toEliminate = eligible.slice(-eliminationsNeeded);
-  toEliminate.forEach(entry => {
+  toEliminate.forEach((entry, index) => {
     eliminations.push({
       id: entry.id,
       name: entry.name,
       elevation: entry.elevation,
       reason: entry.elevation === 0 ? 'zero_elevation' : 'last_position',
-      position: entry.position
+      position: entry.position,
+      elimIndex: index  // Pour calculer la position
     });
   });
   
@@ -224,20 +227,15 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
     
     if (eliminationEntry) {
-      if (eliminationReason === 'zero_elevation_rule') {
-        // Tous les 0 D+ → dernière position
-        entry.mainPoints = getMainPoints(activeAtRoundStart);
-        entry.eliminatedPosition = activeAtRoundStart;
-      } else {
-        // Les éliminés viennent de slice(-n) donc sont dans l'ordre [avant-dernier, dernier]
-        // index 0 = avant-dernier → position = activeAtRoundStart - (n-1)
-        // index n-1 = dernier → position = activeAtRoundStart
-        const indexInElims = eliminations.findIndex(e => e.id === entry.id);
-        const nbElims = eliminations.length;
-        const position = activeAtRoundStart - (nbElims - 1) + indexInElims;
-        entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
-        entry.eliminatedPosition = position;
-      }
+      // Position: 
+      // - activeAtRoundStart - nbElims + 1 = meilleure position (celui avec le plus de D+)
+      // - activeAtRoundStart = pire position (celui avec le moins de D+)
+      // Avec slice(-n), index 0 = plus de D+ = meilleure position
+      const indexInElims = eliminationEntry.elimIndex;
+      const nbElims = eliminations.length;
+      const position = activeAtRoundStart - (nbElims - 1) + indexInElims;
+      entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
+      entry.eliminatedPosition = position;
     } else if (isFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
       // Gagnant de la saison
       entry.mainPoints = getMainPoints(1);
