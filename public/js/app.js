@@ -475,12 +475,17 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       let eliminationsNeeded;
       if (roundInSeason === 1) {
         eliminationsNeeded = 1; // Round 1: 1 seul éliminé
+        console.log(`🔴 ROUND 1 (globalRound=${globalRound}): eliminationsNeeded = 1`);
       } else if (isCurrentRoundFinale) {
         eliminationsNeeded = active.length - 1; // Finale: tous sauf 1
         eliminationReason = 'finale';
+        console.log(`🔴 FINALE (globalRound=${globalRound}): eliminationsNeeded = ${eliminationsNeeded}`);
       } else {
         eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound; // Rounds 2+: 2
+        console.log(`🔴 ROUND ${roundInSeason} (globalRound=${globalRound}): eliminationsNeeded = ${eliminationsNeeded}`);
       }
+      
+      console.log(`🔴 Round ${roundInSeason}: ${eliminationsNeeded} élimination(s), ${eligible.length} éligibles`);
 
       // Éliminer depuis la fin du classement (trié par D+ décroissant)
       // slice(-n) donne [avant-dernier, ..., dernier]
