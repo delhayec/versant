@@ -229,11 +229,12 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
         entry.mainPoints = getMainPoints(activeAtRoundStart);
         entry.eliminatedPosition = activeAtRoundStart;
       } else {
-        // Les éliminés sont dans l'ordre du pire au meilleur (index 0 = dernier, index n-1 = avant-dernier)
+        // Les éliminés viennent de slice(-n) donc sont dans l'ordre [avant-dernier, dernier]
+        // index 0 = avant-dernier → position = activeAtRoundStart - (n-1)
+        // index n-1 = dernier → position = activeAtRoundStart
         const indexInElims = eliminations.findIndex(e => e.id === entry.id);
-        // index 0 (premier ajouté = dernier du classement) → position = activeAtRoundStart
-        // index 1 (second ajouté = avant-dernier) → position = activeAtRoundStart - 1
-        const position = activeAtRoundStart - indexInElims;
+        const nbElims = eliminations.length;
+        const position = activeAtRoundStart - (nbElims - 1) + indexInElims;
         entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
         entry.eliminatedPosition = position;
       }

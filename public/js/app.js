@@ -475,12 +475,14 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       }
 
       // Éliminer depuis la fin du classement
-      for (let i = eligible.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
+      // On prend les derniers dans l'ordre [avant-dernier, dernier] pour cohérence avec slice(-n)
+      const lastEligible = eligible.slice(-eliminationsNeeded);
+      lastEligible.forEach(entry => {
         toEliminate.push({
-          ...eligible[i].participant,
-          zeroElimination: eligible[i].totalElevation === 0
+          ...entry.participant,
+          zeroElimination: entry.totalElevation === 0
         });
-      }
+      });
 
       toEliminate.forEach(p => {
         eliminated.push({
@@ -635,12 +637,12 @@ function calculateYearlyStandings(activities, currentDate) {
           // Tous les 0 D+ éliminés ensemble → dernière position
           position = activeAtRoundStart;
         } else {
-          // Les éliminés sont dans l'ordre du pire au meilleur (index 0 = dernier, index n-1 = avant-dernier)
-          // Car la boucle parcourt le classement de la fin vers le début
+          // Les éliminés viennent de slice(-n) donc sont dans l'ordre [avant-dernier, dernier]
+          // index 0 = avant-dernier → position = activeAtRoundStart - (n-1)
+          // index n-1 = dernier → position = activeAtRoundStart
           const indexInElims = sameRoundElims.findIndex(e => e.id === elim.id);
-          // index 0 (premier ajouté = dernier du classement) → position = activeAtRoundStart
-          // index 1 (second ajouté = avant-dernier) → position = activeAtRoundStart - 1
-          position = activeAtRoundStart - indexInElims;
+          const nbElims = sameRoundElims.length;
+          position = activeAtRoundStart - (nbElims - 1) + indexInElims;
         }
         mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
         elimPts = elimPointsMap[p.id] || 0;
