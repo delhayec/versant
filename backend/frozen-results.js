@@ -299,28 +299,49 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     entry.position = index + 1;
   });
 
-  // RÈGLES D'ÉLIMINATION
+  // ============================================
+  // NOUVELLES RÈGLES D'ÉLIMINATION (à partir du R7)
+  // ============================================
+  // - Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+ (et seulement eux)
+  // - Sinon → éliminer les 2 derniers (règle normale)
+  // - Finale: éliminer tous sauf 1
+  //
+  // Note: Les rounds 1-6 utilisent les anciennes règles (2 derniers toujours)
+  // pour ne pas casser les résultats déjà figés
+  // ============================================
+
   const eliminations = [];
 
   // Joueurs éligibles (sans bouclier)
   const eligibleForElimination = ranking.filter(e => !e.hasShield);
 
-  // Déterminer le nombre d'éliminations
-  let eliminationsNeeded;
+  // Joueurs à 0 D+ (éligibles uniquement)
+  const zeroElevationPlayers = eligibleForElimination.filter(e => e.elevation === 0);
+
+  // Déterminer qui éliminer
+  let toEliminate = [];
+
+  // Appliquer les nouvelles règles seulement à partir du R7
+  const useNewRules = roundNumber >= 7;
+
   if (isFinale) {
-    eliminationsNeeded = eligibleForElimination.length - 1;
+    // FINALE: éliminer tous sauf 1
+    toEliminate = eligibleForElimination.slice(1); // Garder seulement le premier
+  } else if (useNewRules && zeroElevationPlayers.length >= 2) {
+    // NOUVELLE RÈGLE: Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+
+    toEliminate = zeroElevationPlayers;
+    console.log(`📋 Round ${roundNumber}: ${zeroElevationPlayers.length} joueurs à 0 D+ → tous éliminés`);
   } else {
-    eliminationsNeeded = config.eliminationsPerRound;
+    // RÈGLE NORMALE: éliminer les 2 derniers
+    const eliminationsNeeded = config.eliminationsPerRound;
+    toEliminate = eligibleForElimination.slice(-eliminationsNeeded);
   }
 
-  // Éliminer depuis la fin du classement
-  // slice(-2) donne [avant-dernier, dernier] dans cet ordre
-  const toEliminate = eligibleForElimination.slice(-eliminationsNeeded);
+  // Trier par position (du pire au meilleur) pour l'attribution des points
+  // Le dernier du classement doit être en premier dans eliminations
+  toEliminate.sort((a, b) => b.position - a.position);
 
-  // On les ajoute dans l'ordre inverse (dernier d'abord) pour que:
-  // - eliminations[0] = dernier (pire position, moins de points)
-  // - eliminations[1] = avant-dernier (meilleure position, plus de points)
-  toEliminate.reverse().forEach(entry => {
+  toEliminate.forEach(entry => {
     eliminations.push({
       id: entry.id,
       name: entry.name,

@@ -427,47 +427,76 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       // Appliquer les effets des jokers
       const rankingWithEffects = applyJokerEffects(ranking, globalRound);
 
-      // RÈGLES SIMPLES D'ÉLIMINATION:
-      // - Round 1: Les inscriptions tardives sont éliminées d'office (comptent dans le quota de 2)
-      // - Rounds normaux: Éliminer les 2 derniers du classement
+      // ============================================
+      // RÈGLES D'ÉLIMINATION
+      // ============================================
+      // Anciennes règles (R1-R6): Éliminer les 2 derniers du classement
+      // Nouvelles règles (R7+):
+      // - Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+ (et seulement eux)
+      // - Sinon → éliminer les 2 derniers
       // - Finale: Éliminer tous sauf 1
+      // ============================================
+
       const toEliminate = [];
 
-      // Déterminer si c'est une finale
+      // Déterminer si c'est une finale (3 joueurs ou moins restants)
       const isCurrentRoundFinale = active.length <= CHALLENGE_CONFIG.eliminationsPerRound + 1;
 
-      // Nombre d'éliminations à faire ce round
-      const eliminationsNeeded = isCurrentRoundFinale 
-        ? active.length - 1  // Finale: tous sauf 1
-        : CHALLENGE_CONFIG.eliminationsPerRound;  // Normal: 2
+      // Joueurs éligibles (sans bouclier)
+      const eligibleForElimination = rankingWithEffects.filter(e => !e.jokerEffects?.hasShield);
 
-      // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
-      if (roundInSeason === 1 && lateRegistrations.length > 0) {
-        lateRegistrations.forEach(p => {
-          // Vérifier qu'on n'a pas déjà atteint le quota
-          if (toEliminate.length < eliminationsNeeded && active.find(a => a.id === p.id)) {
-            toEliminate.push({
-              ...p,
-              zeroElimination: false,
-              lateRegistration: true
-            });
-            console.log(`⚠️ ${p.name} - Inscription tardive → éliminé d'office au R1 (${toEliminate.length}/${eliminationsNeeded})`);
-          }
-        });
-      }
+      // Joueurs à 0 D+ (éligibles uniquement)
+      const zeroElevationPlayers = eligibleForElimination.filter(e => e.totalElevation === 0);
 
-      // Compléter avec les derniers du classement si le quota n'est pas atteint
-      for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
-        const entry = rankingWithEffects[i];
-        // Skip si déjà dans toEliminate (inscription tardive)
-        if (toEliminate.find(e => e.id === entry.participant.id)) continue;
-        // Skip si protégé par bouclier
-        if (entry.jokerEffects?.hasShield) continue;
-        
-        toEliminate.push({
-          ...entry.participant,
-          zeroElimination: entry.totalElevation === 0
+      // Appliquer les nouvelles règles seulement à partir du R7
+      const useNewRules = globalRound >= 7;
+
+      if (isCurrentRoundFinale) {
+        // FINALE: éliminer tous sauf 1
+        eligibleForElimination.slice(1).forEach(entry => {
+          toEliminate.push({
+            ...entry.participant,
+            zeroElimination: entry.totalElevation === 0
+          });
         });
+      } else if (useNewRules && zeroElevationPlayers.length >= 2) {
+        // NOUVELLE RÈGLE (R7+): Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+
+        zeroElevationPlayers.forEach(entry => {
+          toEliminate.push({
+            ...entry.participant,
+            zeroElimination: true
+          });
+        });
+        console.log(`📋 Round ${globalRound}: ${zeroElevationPlayers.length} joueurs à 0 D+ → tous éliminés`);
+      } else {
+        // RÈGLE NORMALE: éliminer les 2 derniers
+        const eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound;
+
+        // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
+        if (roundInSeason === 1 && lateRegistrations.length > 0) {
+          lateRegistrations.forEach(p => {
+            if (toEliminate.length < eliminationsNeeded && active.find(a => a.id === p.id)) {
+              toEliminate.push({
+                ...p,
+                zeroElimination: false,
+                lateRegistration: true
+              });
+              console.log(`⚠️ ${p.name} - Inscription tardive → éliminé d'office au R1`);
+            }
+          });
+        }
+
+        // Compléter avec les derniers du classement
+        for (let i = eligibleForElimination.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
+          const entry = eligibleForElimination[i];
+          // Skip si déjà dans toEliminate (inscription tardive)
+          if (toEliminate.find(e => e.id === entry.participant.id)) continue;
+
+          toEliminate.push({
+            ...entry.participant,
+            zeroElimination: entry.totalElevation === 0
+          });
+        }
       }
 
       toEliminate.forEach(p => {
