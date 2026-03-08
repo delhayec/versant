@@ -606,17 +606,19 @@ function calculateYearlyStandings(activities, currentDate) {
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        // RÈGLE DE POINTS SIMPLE:
-        // Position = nombre d'actifs au début du round d'élimination
+        // RÈGLE DE POINTS:
+        // Position = nombre d'actifs au début du round - index dans les éliminés
+        // Les éliminés sont triés du pire au meilleur (dernier du classement = index 0)
+        // Donc: dernier → position la plus basse, avant-dernier → position légèrement meilleure
         const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
         const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-        
+
         // Trouver tous les éliminés du même round
         const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
         const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
-        
-        // Position basée sur l'index dans les éliminés du round
-        const position = activeAtRoundStart - (sameRoundElims.length - 1 - indexInRound);
+
+        // Position = actifs au début - index (dernier = position la plus basse)
+        const position = activeAtRoundStart - indexInRound;
         mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
         elimPts = elimPointsMap[p.id] || 0;
       } else if (sData.winner?.id === p.id) {

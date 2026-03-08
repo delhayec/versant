@@ -175,30 +175,23 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     entry.position = index + 1;
   });
   
-  // NOUVELLES RÈGLES D'ÉLIMINATION:
-  // - Cas normal: Éliminer les 2 derniers du classement
-  // - Exception: Si ≥2 joueurs à 0 D+ → Éliminer SEULEMENT ces joueurs
+  // RÈGLES D'ÉLIMINATION:
+  // - Cas normal: Éliminer les N derniers du classement (N = eliminationsPerRound, typiquement 2)
+  // - Les joueurs avec bouclier sont protégés
   // - Finale: Éliminer tous sauf 1
   const eliminations = [];
-  
-  // Identifier les joueurs à 0 D+ (sans bouclier)
-  const zeroElevationPlayers = ranking.filter(entry => 
-    entry.elevation === 0 && !entry.hasShield
-  );
-  
+
   // Joueurs éligibles (sans bouclier)
   const eligibleForElimination = ranking.filter(e => !e.hasShield);
-  
+
   // Déterminer le nombre d'éliminations
   let eliminationsNeeded;
   if (isFinale) {
     eliminationsNeeded = eligibleForElimination.length - 1; // Finale: tous sauf 1
-  } else if (roundInSeason === 1) {
-    eliminationsNeeded = 1; // TEMPORAIRE: 1 seul éliminé au R1
   } else {
-    eliminationsNeeded = config.eliminationsPerRound; // Normal: 2
+    eliminationsNeeded = config.eliminationsPerRound; // Normal: 2 (défini dans config)
   }
-  
+
   // Éliminer depuis la fin du classement
   const toEliminate = eligibleForElimination.slice(-eliminationsNeeded);
   toEliminate.forEach(entry => {
@@ -210,17 +203,20 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
       position: entry.position
     });
   });
-  
+
   // Calculer les points pour chaque participant
   const activeAtRoundStart = activeParticipants.length;
-  
+
   ranking.forEach(entry => {
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
-    
+
     if (eliminationEntry) {
       // Position basée sur l'index dans les éliminés
+      // Les éliminés sont triés du pire au meilleur (dernier du classement = index 0)
+      // Donc: dernier → position la plus basse, avant-dernier → position légèrement meilleure
       const indexInElims = eliminations.findIndex(e => e.id === entry.id);
-      const position = activeAtRoundStart - (eliminations.length - 1 - indexInElims);
+      // Position = nombre d'actifs - index (dernier = position 12, avant-dernier = position 11)
+      const position = activeAtRoundStart - indexInElims;
       entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
       entry.eliminatedPosition = position;
     } else if (isFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
@@ -232,7 +228,7 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
       entry.mainPoints = 0;
     }
   });
-  
+
   return {
     roundNumber,
     seasonNumber,
@@ -264,13 +260,13 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
 function countPreviousEliminations(previousRounds, seasonNumber, roundsPerSeason) {
   const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
   let count = 0;
-  
+
   Object.values(previousRounds).forEach(round => {
     if (round.roundNumber >= seasonStartRound && round.eliminations) {
       count += round.eliminations.length;
     }
   });
-  
+
   return count;
 }
 
@@ -287,32 +283,32 @@ function applyJokerEffects(ranking, activeJokers, activities, athletes) {
       target.sabotageReceived = { by: joker.athlete_name, amount: penalty };
     }
   });
-  
+
   // Vols (meilleure activité)
   activeJokers.filter(j => j.joker_id === 'voleur').forEach(joker => {
     const target = ranking.find(e => e.id === String(joker.target_athlete_id));
     const thief = ranking.find(e => e.id === String(joker.athlete_id));
-    
+
     if (target && thief) {
-      const targetActivities = activities.filter(a => 
+      const targetActivities = activities.filter(a =>
         String(a.athlete?.id || a.athlete_id) === target.id
       );
-      
+
       if (targetActivities.length > 0) {
         const bestActivity = targetActivities.reduce((best, curr) =>
           (curr.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? curr : best
         );
-        
+
         const stolen = Math.round(bestActivity.total_elevation_gain || 0);
         target.elevation = Math.max(0, target.elevation - stolen);
         thief.elevation += stolen;
-        
+
         target.theftReceived = { by: joker.athlete_name, amount: stolen, activity: bestActivity.name };
         thief.theftDone = { from: target.name, amount: stolen, activity: bestActivity.name };
       }
     }
   });
-  
+
   // Multiplicateurs (x1.5)
   activeJokers.filter(j => j.joker_id === 'multiplicateur').forEach(joker => {
     const participant = ranking.find(e => e.id === String(joker.athlete_id));
@@ -322,7 +318,7 @@ function applyJokerEffects(ranking, activeJokers, activities, athletes) {
       participant.multiplierBonus = bonus;
     }
   });
-  
+
   // Boucliers
   activeJokers.filter(j => j.joker_id === 'bouclier').forEach(joker => {
     const participant = ranking.find(e => e.id === String(joker.athlete_id));
@@ -356,25 +352,25 @@ async function getFrozenRoundResult(roundNumber) {
  */
 async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage, config) {
   const data = await loadFrozenResults();
-  
+
   // Ne pas re-figer un round déjà figé
   if (data.rounds[String(roundNumber)]?.frozen) {
     console.log(`⚠️ Round ${roundNumber} déjà figé`);
     return data.rounds[String(roundNumber)];
   }
-  
+
   const results = calculateRoundResults(
-    roundNumber, 
-    activities, 
-    athletes, 
-    jokerUsage, 
+    roundNumber,
+    activities,
+    athletes,
+    jokerUsage,
     config,
     data.rounds
   );
-  
+
   data.rounds[String(roundNumber)] = results;
   await saveFrozenResults(data);
-  
+
   console.log(`❄️ Round ${roundNumber} figé: ${results.eliminations.length} éliminé(s)`);
   return results;
 }
@@ -386,12 +382,12 @@ async function autoFreezeCompletedRounds(activities, athletes, jokerUsage, confi
   const now = new Date();
   const data = await loadFrozenResults();
   const frozenRounds = [];
-  
+
   // Calculer le nombre de rounds depuis le début
   const yearStart = new Date(config.yearStartDate);
   const daysSinceStart = Math.floor((now - yearStart) / (1000 * 60 * 60 * 24));
   const currentRound = Math.floor(daysSinceStart / config.roundDurationDays) + 1;
-  
+
   // Figer tous les rounds terminés (jusqu'au round précédent)
   for (let r = 1; r < currentRound; r++) {
     if (!data.rounds[String(r)]?.frozen) {
@@ -399,7 +395,7 @@ async function autoFreezeCompletedRounds(activities, athletes, jokerUsage, confi
       frozenRounds.push(result);
     }
   }
-  
+
   return frozenRounds;
 }
 
@@ -409,7 +405,7 @@ async function autoFreezeCompletedRounds(activities, athletes, jokerUsage, confi
 async function calculateYearlyStandings(athletes) {
   const data = await loadFrozenResults();
   const standings = {};
-  
+
   // Initialiser tous les participants
   athletes.forEach(a => {
     standings[String(a.id)] = {
@@ -422,11 +418,11 @@ async function calculateYearlyStandings(athletes) {
       seasonsPlayed: 0
     };
   });
-  
+
   // Parcourir les rounds figés
   Object.values(data.rounds).forEach(round => {
     if (!round.frozen) return;
-    
+
     round.ranking.forEach(entry => {
       if (standings[entry.id]) {
         standings[entry.id].totalMainPoints += entry.mainPoints || 0;
@@ -436,12 +432,12 @@ async function calculateYearlyStandings(athletes) {
       }
     });
   });
-  
+
   // Convertir en tableau et trier
   const standingsArray = Object.values(standings);
   standingsArray.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
   standingsArray.forEach((e, i) => e.rank = i + 1);
-  
+
   return standingsArray;
 }
 
