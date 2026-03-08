@@ -50,18 +50,10 @@ let frozenResultsCache = null; // Cache des résultats figés
 // ============================================
 async function loadFrozenResults() {
   try {
-    console.log('❄️ Chargement des résultats figés...');
     const response = await fetch('/api/frozen-results');
     if (response.ok) {
       frozenResultsCache = await response.json();
-      const roundCount = Object.keys(frozenResultsCache.rounds || {}).length;
-      console.log(`❄️ ${roundCount} rounds figés chargés`);
-      if (roundCount > 0) {
-        console.log('❄️ Rounds figés:', Object.keys(frozenResultsCache.rounds).join(', '));
-      }
-    } else {
-      console.warn('⚠️ API frozen-results a retourné:', response.status);
-      frozenResultsCache = { rounds: {} };
+      console.log(`❄️ ${Object.keys(frozenResultsCache.rounds || {}).length} rounds figés chargés`);
     }
   } catch (error) {
     console.warn('⚠️ Impossible de charger les résultats figés:', error);
@@ -70,15 +62,8 @@ async function loadFrozenResults() {
 }
 
 function getFrozenRound(globalRoundNumber) {
-  if (!frozenResultsCache?.rounds) {
-    console.log(`❄️ getFrozenRound(${globalRoundNumber}): pas de cache`);
-    return null;
-  }
-  const frozen = frozenResultsCache.rounds[String(globalRoundNumber)] || null;
-  if (frozen) {
-    console.log(`❄️ getFrozenRound(${globalRoundNumber}): trouvé, ${frozen.eliminations?.length || 0} éliminations`);
-  }
-  return frozen;
+  if (!frozenResultsCache?.rounds) return null;
+  return frozenResultsCache.rounds[String(globalRoundNumber)] || null;
 }
 
 // ============================================
@@ -412,27 +397,15 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       // UTILISER LES RÉSULTATS FIGÉS
       console.log(`❄️ Round ${globalRound} - Utilisation des résultats figés`);
       
-      // Récupérer la raison d'élimination du round figé
-      const frozenEliminationReason = frozenRound.eliminationReason || 'normal';
-      
       // Appliquer les éliminations depuis les données figées
-      frozenRound.eliminations.forEach((elim, index) => {
+      frozenRound.eliminations.forEach(elim => {
         const participant = PARTICIPANTS.find(p => String(p.id) === String(elim.id));
-        // Chercher les mainPoints et elevation dans le ranking du frozen
-        const rankingEntry = frozenRound.ranking.find(r => String(r.id) === String(elim.id));
-        
         if (participant) {
           eliminated.push({
             ...participant,
             eliminatedRound: roundInSeason,
             eliminatedSeason: seasonNumber,
-            totalElevation: elim.elevation ?? rankingEntry?.elevation ?? 0,  // IMPORTANT: D+
-            zeroElimination: elim.reason === 'zero_elevation',
-            eliminationReason: frozenEliminationReason,
-            // IMPORTANT: Utiliser les points du frozen results
-            frozenMainPoints: rankingEntry?.mainPoints ?? null,
-            frozenPosition: rankingEntry?.eliminatedPosition ?? elim.position,
-            indexInElims: index
+            zeroElimination: elim.reason === 'zero_elevation'
           });
           active = active.filter(a => String(a.id) !== String(elim.id));
         }
@@ -443,68 +416,67 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
         status: 'completed',
         ranking: frozenRound.ranking,
         eliminated: frozenRound.eliminations.map(e => e.id),
-        eliminationReason: frozenEliminationReason,
         frozen: true
       });
 
     } else {
-      // CALCULER LES RÉSULTATS (round non figé)
+      // CALCULER LES RÉSULTATS (round non figé - RÈGLES SIMPLES)
       const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
       const ranking = calculateRanking(roundActivities, active);
 
       // Appliquer les effets des jokers
       const rankingWithEffects = applyJokerEffects(ranking, globalRound);
 
-      // ============================================
-      // RÈGLES D'ÉLIMINATION v2.8
-      // - Round 1: 1 seul éliminé
-      // - Rounds 2+: 2 derniers éliminés
-      // - Finale: Tous sauf 1
-      // ============================================
-      
+      // RÈGLES SIMPLES D'ÉLIMINATION:
+      // - Round 1: Les inscriptions tardives sont éliminées d'office (comptent dans le quota de 2)
+      // - Rounds normaux: Éliminer les 2 derniers du classement
+      // - Finale: Éliminer tous sauf 1
       const toEliminate = [];
-      let eliminationReason = 'normal';
-      
-      // Joueurs éligibles (sans bouclier)
-      const eligible = rankingWithEffects.filter(e => !e.jokerEffects?.hasShield);
-      
+
       // Déterminer si c'est une finale
       const isCurrentRoundFinale = active.length <= CHALLENGE_CONFIG.eliminationsPerRound + 1;
-      
-      // Nombre d'éliminations selon les règles
-      // - Tous les rounds : 2 éliminations
-      // - Finale : tous sauf 1
-      let eliminationsNeeded;
-      if (isCurrentRoundFinale) {
-        eliminationsNeeded = active.length - 1; // Finale: tous sauf 1
-        eliminationReason = 'finale';
-        console.log(`🔴 FINALE (globalRound=${globalRound}): eliminationsNeeded = ${eliminationsNeeded}`);
-      } else {
-        eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound; // Toujours 2
-        console.log(`🔴 ROUND ${roundInSeason} (globalRound=${globalRound}): eliminationsNeeded = ${eliminationsNeeded}`);
-      }
-      
-      console.log(`🔴 Round ${roundInSeason}: ${eliminationsNeeded} élimination(s), ${eligible.length} éligibles`);
 
-      // Éliminer depuis la fin du classement (trié par D+ décroissant)
-      // slice(-n) donne [avant-dernier, ..., dernier]
-      // Donc index 0 = celui avec le plus de D+ parmi les éliminés = meilleure position
-      const lastEligible = eligible.slice(-eliminationsNeeded);
-      lastEligible.forEach((entry, index) => {
+      // Nombre d'éliminations à faire ce round
+      const eliminationsNeeded = isCurrentRoundFinale 
+        ? active.length - 1  // Finale: tous sauf 1
+        : CHALLENGE_CONFIG.eliminationsPerRound;  // Normal: 2
+
+      // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
+      if (roundInSeason === 1 && lateRegistrations.length > 0) {
+        lateRegistrations.forEach(p => {
+          // Vérifier qu'on n'a pas déjà atteint le quota
+          if (toEliminate.length < eliminationsNeeded && active.find(a => a.id === p.id)) {
+            toEliminate.push({
+              ...p,
+              zeroElimination: false,
+              lateRegistration: true
+            });
+            console.log(`⚠️ ${p.name} - Inscription tardive → éliminé d'office au R1 (${toEliminate.length}/${eliminationsNeeded})`);
+          }
+        });
+      }
+
+      // Compléter avec les derniers du classement si le quota n'est pas atteint
+      for (let i = rankingWithEffects.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
+        const entry = rankingWithEffects[i];
+        // Skip si déjà dans toEliminate (inscription tardive)
+        if (toEliminate.find(e => e.id === entry.participant.id)) continue;
+        // Skip si protégé par bouclier
+        if (entry.jokerEffects?.hasShield) continue;
+        
         toEliminate.push({
           ...entry.participant,
-          totalElevation: entry.totalElevation,
-          zeroElimination: entry.totalElevation === 0,
-          elimIndex: index  // Pour calculer la position
+          zeroElimination: entry.totalElevation === 0
         });
-      });
+      }
 
       toEliminate.forEach(p => {
         eliminated.push({
           ...p,
           eliminatedRound: roundInSeason,
           eliminatedSeason: seasonNumber,
-          eliminationReason: eliminationReason
+          zeroElimination: p.zeroElimination || false,
+          lateRegistration: p.lateRegistration || false
         });
         active = active.filter(a => a.id !== p.id);
       });
@@ -513,8 +485,7 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
         round: roundInSeason,
         status: 'completed',
         ranking: rankingWithEffects,
-        eliminated: toEliminate.map(p => p.id),
-        eliminationReason: eliminationReason
+        eliminated: toEliminate.map(p => p.id)
       });
     }
 
@@ -635,35 +606,18 @@ function calculateYearlyStandings(activities, currentDate) {
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        // Si on a des points figés, les utiliser directement
-        if (elim.frozenMainPoints !== null && elim.frozenMainPoints !== undefined) {
-          mainPts = elim.frozenMainPoints;
-        } else {
-          // Calculer les points
-          const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-          const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-          const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
-          
-          // Utiliser elimIndex si disponible, sinon calculer depuis totalElevation
-          let indexInElims;
-          if (elim.elimIndex !== undefined) {
-            indexInElims = elim.elimIndex;
-          } else {
-            // Trier par D+ décroissant et trouver l'index
-            const sorted = [...sameRoundElims].sort((a, b) => (b.totalElevation || 0) - (a.totalElevation || 0));
-            indexInElims = sorted.findIndex(e => e.id === elim.id);
-            if (indexInElims === -1) indexInElims = 0;
-          }
-          
-          // Position: 
-          // - activeAtRoundStart - nbElims + 1 = meilleure position (celui avec le plus de D+)
-          // - activeAtRoundStart = pire position (celui avec le moins de D+)
-          // Avec slice(-n), index 0 = plus de D+ = meilleure position
-          const nbElims = sameRoundElims.length;
-          const position = activeAtRoundStart - (nbElims - 1) + indexInElims;
-          
-          mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
-        }
+        // RÈGLE DE POINTS SIMPLE:
+        // Position = nombre d'actifs au début du round d'élimination
+        const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
+        const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+        
+        // Trouver tous les éliminés du même round
+        const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
+        const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
+        
+        // Position basée sur l'index dans les éliminés du round
+        const position = activeAtRoundStart - (sameRoundElims.length - 1 - indexInRound);
+        mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
         elimPts = elimPointsMap[p.id] || 0;
       } else if (sData.winner?.id === p.id) {
         mainPts = getMainChallengePoints(1);
@@ -1501,119 +1455,6 @@ export function setAdminMode(enabled) {
   isAdminMode = enabled;
 }
 
-/**
- * Génère les données d'un round pour le figer
- * Utilisé par admin.html pour envoyer les données calculées au backend
- */
-function getRoundDataForFreeze(roundNumber) {
-  const currentDate = getCurrentDate();
-  const seasonNumber = getSeasonNumber(currentDate);
-  const roundInSeason = getRoundInSeason(roundNumber);
-  const roundDates = getRoundDates(roundNumber);
-  
-  // Simuler jusqu'au round demandé
-  const sData = simulateSeasonEliminations(allActivities, seasonNumber, currentDate);
-  
-  // Trouver le round dans les résultats
-  const roundResult = sData.roundResults.find(r => r.round === roundInSeason);
-  
-  if (!roundResult || roundResult.status !== 'completed') {
-    return null;
-  }
-  
-  // Déterminer les participants actifs au début du round
-  const elimsBeforeThisRound = sData.eliminated.filter(e => e.eliminatedRound < roundInSeason);
-  const activeParticipants = PARTICIPANTS.filter(p => 
-    !elimsBeforeThisRound.some(e => e.id === p.id)
-  ).map(p => p.id);
-  
-  // Construire les données du round
-  const ranking = roundResult.ranking.map(entry => ({
-    id: entry.participant.id,
-    name: entry.participant.name,
-    elevation: entry.totalElevation,
-    distance: entry.totalDistance || 0,
-    activities: entry.activityCount || 0,
-    position: entry.position,
-    hasShield: entry.jokerEffects?.hasShield || false,
-    mainPoints: 0 // Sera calculé après
-  }));
-  
-  // Trouver les éliminés de ce round
-  const eliminatedThisRound = sData.eliminated.filter(e => e.eliminatedRound === roundInSeason);
-  const eliminations = eliminatedThisRound.map(e => {
-    const rankEntry = ranking.find(r => r.id === e.id);
-    return {
-      id: e.id,
-      name: e.name,
-      elevation: rankEntry?.elevation || 0,
-      reason: e.zeroElimination ? 'zero_elevation' : 'last_position',
-      position: rankEntry?.position || 0
-    };
-  });
-  
-  // Calculer les points pour les éliminés
-  const activeAtRoundStart = activeParticipants.length;
-  const eliminationReason = roundResult.eliminationReason || 'normal';
-  
-  ranking.forEach(entry => {
-    const elim = eliminations.find(e => e.id === entry.id);
-    if (elim) {
-      if (eliminationReason === 'zero_elevation_rule') {
-        entry.mainPoints = getMainChallengePoints(activeAtRoundStart);
-        entry.eliminatedPosition = activeAtRoundStart;
-      } else {
-        const indexInElims = eliminations.findIndex(e => e.id === entry.id);
-        const position = activeAtRoundStart - (eliminations.length - 1 - indexInElims);
-        entry.mainPoints = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
-        entry.eliminatedPosition = position;
-      }
-    }
-  });
-  
-  return {
-    roundNumber,
-    seasonNumber,
-    roundInSeason,
-    dates: {
-      start: roundDates.start.toISOString(),
-      end: roundDates.end.toISOString()
-    },
-    activeParticipants,
-    ranking,
-    eliminations,
-    eliminationReason,
-    zeroElevationCount: roundResult.zeroElevationCount || 0,
-    stats: {
-      eliminationsCount: eliminations.length,
-      totalParticipants: PARTICIPANTS.length
-    }
-  };
-}
-
-/**
- * Génère les données de tous les rounds terminés pour les figer
- */
-function getAllCompletedRoundsData() {
-  const currentDate = getCurrentDate();
-  const seasonNumber = getSeasonNumber(currentDate);
-  const sData = simulateSeasonEliminations(allActivities, seasonNumber, currentDate);
-  
-  const roundsData = [];
-  
-  for (const roundResult of sData.roundResults) {
-    if (roundResult.status === 'completed') {
-      const globalRound = (seasonNumber - 1) * getRoundsPerSeason() + roundResult.round;
-      const data = getRoundDataForFreeze(globalRound);
-      if (data) {
-        roundsData.push(data);
-      }
-    }
-  }
-  
-  return roundsData;
-}
-
 window.versant = {
   getCurrentDate,
   setSimulatedDate,
@@ -1623,8 +1464,5 @@ window.versant = {
   removeJoker,
   getJokerStock,
   setAdminMode,
-  getActiveJokersForRound,
-  // Nouvelles fonctions pour le freeze
-  getRoundDataForFreeze,
-  getAllCompletedRoundsData
+  getActiveJokersForRound
 };

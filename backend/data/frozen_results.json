@@ -1,1 +1,6 @@
-{"version":"1.0","rounds":{},"lastUpdated":null}
+{
+  "version": "1.0",
+  "description": "Résultats figés par round - ne change jamais une fois le round terminé",
+  "rounds": {},
+  "lastUpdated": null
+}
