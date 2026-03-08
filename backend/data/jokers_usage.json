@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "3953180-bouclier-4-manual",
+    "athlete_id": "3953180",
+    "athlete_name": "Clement D",
+    "joker_id": "bouclier",
+    "joker_name": "Bouclier",
+    "target_athlete_id": null,
+    "target_athlete_name": null,
+    "round_number": 4,
+    "criteria_id": null,
+    "day_index": null,
+    "used_at": "2026-02-17T00:00:00.000Z",
+    "status": "active",
+    "resolved": true,
+    "result": "protection_applied"
+  }
+]

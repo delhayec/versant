@@ -21,6 +21,18 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, 'data');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
 
+// Sports valides pour le challenge (doit correspondre à config.js frontend)
+const VALID_SPORTS = [
+  'Run', 'TrailRun',
+  'Hike', 'Walk', 'Snowshoe',
+  'Ride', 'MountainBikeRide', 'GravelRide',
+  'BackcountrySki', 'NordicSki'
+];
+
+function isValidSport(type) {
+  return !type || VALID_SPORTS.includes(type);
+}
+
 // Points par position dans le challenge principal
 const MAIN_CHALLENGE_POINTS = {
   1: 24, 2: 21, 3: 18, 4: 15, 5: 12, 6: 10, 7: 8, 8: 6, 9: 5, 10: 4, 11: 3, 12: 2, 13: 1
@@ -237,13 +249,20 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     }
   }
 
-  // Filtrer les activités du round
+  // Filtrer les activités du round (date ET type de sport valide)
   const roundStart = roundDates.start.getTime();
   const roundEnd = roundDates.end.getTime();
 
   const roundActivities = activities.filter(a => {
+    // Vérifier la date
     const actDate = new Date(a.start_date).getTime();
-    return actDate >= roundStart && actDate <= roundEnd;
+    if (actDate < roundStart || actDate > roundEnd) return false;
+
+    // Vérifier le type de sport (AlpineSki, Snowboard, etc. sont exclus)
+    const sportType = a.sport_type || a.type;
+    if (!isValidSport(sportType)) return false;
+
+    return true;
   });
 
   // Calculer le D+ de chaque participant actif

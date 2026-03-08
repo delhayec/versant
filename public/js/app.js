@@ -1284,8 +1284,8 @@ async function init() {
     // Charger les résultats figés AVANT tout calcul
     await loadFrozenResults();
 
-    // Initialiser les jokers
-    initializeJokersState();
+    // Initialiser les jokers (AWAIT AJOUTÉ - important pour charger avant le calcul)
+    await initializeJokersState();
 
     // Charger les données
     await loadActivities();
