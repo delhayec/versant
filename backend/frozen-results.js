@@ -183,9 +183,8 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   });
   
   // ============================================
-  // RÈGLES D'ÉLIMINATION v2.8
-  // - Round 1: 1 seul éliminé
-  // - Rounds 2+: 2 derniers éliminés
+  // RÈGLES D'ÉLIMINATION
+  // - Tous les rounds: 2 derniers éliminés
   // - Finale: Tous sauf 1
   // ============================================
   
@@ -194,15 +193,13 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   
   let eliminationReason = 'normal';
   
-  // Nombre d'éliminations selon les règles v2.8
+  // Nombre d'éliminations selon les règles
   let eliminationsNeeded;
-  if (roundInSeason === 1) {
-    eliminationsNeeded = 1; // Round 1: 1 seul éliminé
-  } else if (isFinale) {
+  if (isFinale) {
     eliminationsNeeded = eligible.length - 1; // Finale: tous sauf 1
     eliminationReason = 'finale';
   } else {
-    eliminationsNeeded = config.eliminationsPerRound; // Rounds 2+: 2
+    eliminationsNeeded = config.eliminationsPerRound; // Toujours 2
   }
   
   // Éliminer depuis la fin du classement (trié par D+ décroissant)

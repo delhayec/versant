@@ -471,17 +471,16 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
       // Déterminer si c'est une finale
       const isCurrentRoundFinale = active.length <= CHALLENGE_CONFIG.eliminationsPerRound + 1;
       
-      // Nombre d'éliminations selon les règles v2.8
+      // Nombre d'éliminations selon les règles
+      // - Tous les rounds : 2 éliminations
+      // - Finale : tous sauf 1
       let eliminationsNeeded;
-      if (roundInSeason === 1) {
-        eliminationsNeeded = 1; // Round 1: 1 seul éliminé
-        console.log(`🔴 ROUND 1 (globalRound=${globalRound}): eliminationsNeeded = 1`);
-      } else if (isCurrentRoundFinale) {
+      if (isCurrentRoundFinale) {
         eliminationsNeeded = active.length - 1; // Finale: tous sauf 1
         eliminationReason = 'finale';
         console.log(`🔴 FINALE (globalRound=${globalRound}): eliminationsNeeded = ${eliminationsNeeded}`);
       } else {
-        eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound; // Rounds 2+: 2
+        eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound; // Toujours 2
         console.log(`🔴 ROUND ${roundInSeason} (globalRound=${globalRound}): eliminationsNeeded = ${eliminationsNeeded}`);
       }
       
