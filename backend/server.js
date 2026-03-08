@@ -1051,6 +1051,46 @@ app.get('/api/admin/activities/:leagueId/download', async (req, res) => {
 });
 
 // ============================================
+// EXCLUSION D'ACTIVITÉS
+// ============================================
+
+// Exclure/réintégrer une activité
+app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  try {
+    const { leagueId, activityId } = req.params;
+    const { exclude } = req.body;
+
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    let activities = await safeReadJSON(activitiesFile, []);
+
+    const activityIndex = activities.findIndex(a => String(a.id) === String(activityId));
+    if (activityIndex < 0) {
+      return res.status(404).json({ error: 'Activité non trouvée' });
+    }
+
+    activities[activityIndex].excluded = exclude;
+    activities[activityIndex].excluded_at = exclude ? new Date().toISOString() : null;
+    activities[activityIndex].excluded_reason = exclude ? 'Exclu par admin' : null;
+
+    await safeWriteJSON(activitiesFile, activities);
+
+    console.log(`${exclude ? '🚫' : '↩️'} Activité ${activityId} ${exclude ? 'exclue' : 'réintégrée'}`);
+
+    res.json({
+      success: true,
+      activity_id: activityId,
+      excluded: exclude,
+      activity: activities[activityIndex]
+    });
+  } catch (error) {
+    console.error('Erreur exclusion activité:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // FROZEN RESULTS MODULE
 // ============================================
 const frozenResults = require('./frozen-results.js');
@@ -1118,17 +1158,17 @@ app.get('/api/frozen-results/standings/:leagueId', async (req, res) => {
 // Admin: Figer manuellement un round
 app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
   if (!checkAdmin(req, res)) return;
-  
+
   try {
     const roundNumber = parseInt(req.params.roundNumber);
     const leagueId = req.body.leagueId || 'versant-2026';
-    
+
     const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
     const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
-    
+
     const result = await frozenResults.freezeRoundResults(
       roundNumber,
       activities,
@@ -1136,7 +1176,7 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
       jokerUsage,
       CHALLENGE_CONFIG
     );
-    
+
     res.json({ success: true, round: result });
   } catch (error) {
     console.error('Erreur freeze:', error);
@@ -1147,23 +1187,23 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
 // Admin: Auto-figer tous les rounds terminés
 app.post('/api/admin/auto-freeze', async (req, res) => {
   if (!checkAdmin(req, res)) return;
-  
+
   try {
     const leagueId = req.body.leagueId || 'versant-2026';
-    
+
     const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
     const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
-    
+
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activities,
       leagueAthletes,
       jokerUsage,
       CHALLENGE_CONFIG
     );
-    
+
     res.json({ success: true, frozenCount: frozen.length, rounds: frozen });
   } catch (error) {
     console.error('Erreur auto-freeze:', error);
@@ -1174,7 +1214,7 @@ app.post('/api/admin/auto-freeze', async (req, res) => {
 // Admin: Défiger un round spécifique
 app.post('/api/admin/unfreeze-round/:roundNumber', async (req, res) => {
   if (!checkAdmin(req, res)) return;
-  
+
   try {
     const roundNumber = parseInt(req.params.roundNumber);
     const success = await frozenResults.unfreezeRound(roundNumber);
@@ -1187,7 +1227,7 @@ app.post('/api/admin/unfreeze-round/:roundNumber', async (req, res) => {
 // Admin: Réinitialiser tous les résultats figés
 app.post('/api/admin/reset-frozen', async (req, res) => {
   if (!checkAdmin(req, res)) return;
-  
+
   try {
     await frozenResults.resetAllFrozenResults();
     res.json({ success: true, message: 'Tous les résultats figés ont été supprimés' });

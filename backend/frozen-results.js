@@ -258,6 +258,9 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     const actDate = new Date(a.start_date).getTime();
     if (actDate < roundStart || actDate > roundEnd) return false;
 
+    // Ignorer les activités exclues par l'admin
+    if (a.excluded) return false;
+
     // Vérifier le type de sport (AlpineSki, Snowboard, etc. sont exclus)
     const sportType = a.sport_type || a.type;
     if (!isValidSport(sportType)) return false;

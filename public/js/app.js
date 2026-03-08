@@ -301,6 +301,8 @@ function filterByPeriod(activities, startDate, endDate) {
   const start = new Date(startDate).setHours(0, 0, 0, 0);
   const end = new Date(endDate).setHours(23, 59, 59, 999);
   return activities.filter(a => {
+    // Ignorer les activités exclues par l'admin
+    if (a.excluded) return false;
     const date = new Date(a.start_date).getTime();
     return date >= start && date <= end;
   });
@@ -353,15 +355,15 @@ function calculateRanking(activities, activeParticipants) {
 
 function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
   const seasonDates = getSeasonDates(seasonNumber);
-  
+
   // TOUS les participants (éligibles + tardifs) pour le calcul du nombre de rounds
   let active = [...PARTICIPANTS];
   const eliminated = [];
   const roundResults = [];
-  
+
   // Inscriptions tardives = éliminées d'office au Round 1 (comptent dans le quota)
   const lateRegistrations = getLateRegistrations();
-  
+
   // Calculer le nombre MAXIMUM de rounds (basé sur TOUS les participants)
   const maxRoundsPerSeason = Math.ceil((PARTICIPANTS.length - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
 
@@ -392,11 +394,11 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
     // VÉRIFIER SI LE ROUND EST FIGÉ
     // ============================================
     const frozenRound = getFrozenRound(globalRound);
-    
+
     if (frozenRound && frozenRound.frozen) {
       // UTILISER LES RÉSULTATS FIGÉS
       console.log(`❄️ Round ${globalRound} - Utilisation des résultats figés`);
-      
+
       // Appliquer les éliminations depuis les données figées
       frozenRound.eliminations.forEach(elim => {
         const participant = PARTICIPANTS.find(p => String(p.id) === String(elim.id));
