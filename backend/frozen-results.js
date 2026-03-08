@@ -314,8 +314,13 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   }
 
   // Éliminer depuis la fin du classement
+  // slice(-2) donne [avant-dernier, dernier] dans cet ordre
   const toEliminate = eligibleForElimination.slice(-eliminationsNeeded);
-  toEliminate.forEach(entry => {
+
+  // On les ajoute dans l'ordre inverse (dernier d'abord) pour que:
+  // - eliminations[0] = dernier (pire position, moins de points)
+  // - eliminations[1] = avant-dernier (meilleure position, plus de points)
+  toEliminate.reverse().forEach(entry => {
     eliminations.push({
       id: entry.id,
       name: entry.name,
@@ -332,10 +337,10 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
 
     if (eliminationEntry) {
+      // indexInElims: 0 = dernier, 1 = avant-dernier, etc.
       const indexInElims = eliminations.findIndex(e => e.id === entry.id);
-      // CORRIGÉ: position = activeAtRoundStart - indexInElims
-      // Dernier (index 0) → position la plus haute (ex: 12)
-      // Avant-dernier (index 1) → position 11
+      // Position: dernier = activeAtRoundStart, avant-dernier = activeAtRoundStart - 1
+      // Exemple avec 11 actifs: dernier → 11 (2 pts), avant-dernier → 10 (4 pts)
       const position = activeAtRoundStart - indexInElims;
       entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
       entry.eliminatedPosition = position;
