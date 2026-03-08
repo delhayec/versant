@@ -1196,6 +1196,61 @@ app.post('/api/admin/reset-frozen', async (req, res) => {
   }
 });
 
+// Admin: Figer un round avec des données pré-calculées du frontend
+// Cette route accepte les données exactes affichées sur la page principale
+app.post('/api/admin/freeze-round-with-data/:roundNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  try {
+    const roundNumber = parseInt(req.params.roundNumber);
+    const { roundData, force } = req.body;
+
+    if (!roundData) {
+      return res.status(400).json({ error: 'roundData manquant dans le body' });
+    }
+
+    const result = await frozenResults.freezeRoundWithData(
+      roundNumber,
+      roundData,
+      { force: force === true }
+    );
+
+    if (result.success) {
+      res.json({ success: true, round: result.round, method: result.method });
+    } else {
+      res.status(400).json({ success: false, error: result.error, existing: result.existing });
+    }
+  } catch (error) {
+    console.error('Erreur freeze with data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Importer un fichier frozen_results.json complet
+app.post('/api/admin/import-frozen-results', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  try {
+    const { data, merge } = req.body;
+
+    if (!data || !data.rounds) {
+      return res.status(400).json({ error: 'Format invalide - objet avec "rounds" attendu' });
+    }
+
+    const result = await frozenResults.importFrozenResults(data, { merge: merge !== false });
+
+    res.json({
+      success: true,
+      imported: result.imported,
+      skipped: result.skipped,
+      totalRounds: result.totalRounds
+    });
+  } catch (error) {
+    console.error('Erreur import:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // GITHUB WEBHOOK
 // ============================================

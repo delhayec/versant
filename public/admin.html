@@ -144,14 +144,37 @@
             ❄️ Résultats Figés
           </h3>
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
-            Les résultats sont figés définitivement à la fin de chaque round.
+            Les résultats sont figés définitivement à la fin de chaque round.<br>
+            <strong style="color: #22d3ee;">NOUVEAU:</strong> Importez un fichier JSON pour figer avec les données exactes de la page principale.
           </p>
           <div id="frozenStatus" style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
             Statut: <span style="color: #fbbf24;">Chargement...</span>
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button id="autoFreezeBtn" style="width: 100%; padding: 12px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-              ❄️ Auto-figer tous les rounds terminés
+
+            <!-- Import JSON (NOUVEAU) -->
+            <div style="padding: 12px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.3); border-radius: 8px; margin-bottom: 8px;">
+              <label style="color: #22d3ee; font-weight: 600; display: block; margin-bottom: 8px;">
+                📥 Importer frozen_results.json
+              </label>
+              <input type="file" id="importFrozenFile" accept=".json" style="display: none;">
+              <div style="display: flex; gap: 8px;">
+                <button id="importFrozenBtn" style="flex: 1; padding: 10px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                  📂 Choisir fichier
+                </button>
+                <select id="importMode" style="padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+                  <option value="merge">Fusionner</option>
+                  <option value="replace">Remplacer tout</option>
+                </select>
+              </div>
+              <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 8px;">
+                Fusionner = garde les rounds existants et ajoute les nouveaux<br>
+                Remplacer = écrase tout avec le fichier importé
+              </p>
+            </div>
+
+            <button id="autoFreezeBtn" style="width: 100%; padding: 12px; background: rgba(34, 211, 238, 0.5); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              ❄️ Auto-figer (recalcule depuis les données brutes)
             </button>
             <div style="display: flex; gap: 8px;">
               <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1" max="50" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
@@ -1003,10 +1026,10 @@
       try {
         const response = await fetch(`${API_BASE}/frozen-results`);
         const data = await response.json();
-        
+
         const frozenRounds = Object.keys(data.rounds || {}).length;
         const roundsList = Object.keys(data.rounds || {}).sort((a, b) => parseInt(a) - parseInt(b)).join(', ');
-        
+
         if (frozenRounds > 0) {
           statusDiv.innerHTML = `
             <div style="color: #22d3ee;">❄️ ${frozenRounds} round(s) figé(s)</div>
@@ -1015,7 +1038,7 @@
         } else {
           statusDiv.innerHTML = `<span style="color: #fbbf24;">⚠️ Aucun round figé</span>`;
         }
-        
+
         addLog(`❄️ ${frozenRounds} round(s) figé(s)`);
       } catch (error) {
         statusDiv.innerHTML = `<span style="color: #ef4444;">❌ Erreur chargement</span>`;
@@ -1026,24 +1049,24 @@
       const btn = document.getElementById('autoFreezeBtn');
       btn.disabled = true;
       btn.textContent = '⏳ Figement en cours...';
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/auto-freeze`, {
           method: 'POST',
           headers: { 'X-Admin-Password': adminPassword }
         });
-        
+
         if (!response.ok) throw new Error('Erreur auto-freeze');
-        
+
         const data = await response.json();
         addLog(`❄️ Auto-freeze: ${data.frozenCount || 0} round(s) figé(s)`);
-        
+
         if (data.frozenCount > 0) {
           alert(`✅ ${data.frozenCount} round(s) figé(s) avec succès !`);
         } else {
           alert('ℹ️ Aucun nouveau round à figer.');
         }
-        
+
         loadFrozenStatus();
       } catch (error) {
         addLog(`❌ Erreur auto-freeze: ${error.message}`);
@@ -1060,18 +1083,18 @@
         alert('Veuillez entrer un numéro de round valide');
         return;
       }
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/freeze-round/${roundNumber}`, {
           method: 'POST',
           headers: { 'X-Admin-Password': adminPassword }
         });
-        
+
         if (!response.ok) {
           const err = await response.json();
           throw new Error(err.error || 'Erreur');
         }
-        
+
         const data = await response.json();
         addLog(`❄️ Round ${roundNumber} figé: ${data.eliminations?.length || 0} éliminé(s)`);
         alert(`✅ Round ${roundNumber} figé avec succès !`);
@@ -1088,19 +1111,19 @@
         alert('Veuillez entrer un numéro de round valide');
         return;
       }
-      
+
       if (!confirm(`⚠️ Défiger le round ${roundNumber} ?\n\nCela permettra de recalculer ses résultats.`)) {
         return;
       }
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/unfreeze-round/${roundNumber}`, {
           method: 'POST',
           headers: { 'X-Admin-Password': adminPassword }
         });
-        
+
         if (!response.ok) throw new Error('Erreur unfreeze');
-        
+
         addLog(`🔓 Round ${roundNumber} défigé`);
         alert(`✅ Round ${roundNumber} défigé`);
         loadFrozenStatus();
@@ -1114,19 +1137,19 @@
       if (!confirm('⚠️ ATTENTION !\n\nRéinitialiser TOUS les résultats figés ?\n\nCette action est IRRÉVERSIBLE et supprimera l\'historique de tous les rounds.')) {
         return;
       }
-      
+
       if (!confirm('🚨 DERNIÈRE CONFIRMATION\n\nÊtes-vous VRAIMENT sûr ? Tous les résultats seront perdus.')) {
         return;
       }
-      
+
       try {
         const response = await fetch(`${API_BASE}/admin/reset-frozen`, {
           method: 'POST',
           headers: { 'X-Admin-Password': adminPassword }
         });
-        
+
         if (!response.ok) throw new Error('Erreur reset');
-        
+
         addLog(`🗑️ Tous les résultats figés supprimés`);
         alert('✅ Tous les résultats ont été réinitialisés');
         loadFrozenStatus();
@@ -1135,6 +1158,71 @@
         alert('Erreur: ' + error.message);
       }
     }
+
+    // ============================================
+    // IMPORT FROZEN RESULTS (NOUVEAU)
+    // ============================================
+
+    document.getElementById('importFrozenBtn')?.addEventListener('click', () => {
+      document.getElementById('importFrozenFile').click();
+    });
+
+    document.getElementById('importFrozenFile')?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        // Valider le format
+        if (!data.rounds || typeof data.rounds !== 'object') {
+          alert('❌ Format invalide: le fichier doit contenir un objet "rounds"');
+          return;
+        }
+
+        const roundCount = Object.keys(data.rounds).length;
+        const mode = document.getElementById('importMode').value;
+        const modeText = mode === 'merge' ? 'fusionner avec' : 'remplacer';
+
+        if (!confirm(`📥 Importer ${roundCount} round(s) ?\n\nMode: ${modeText} les données existantes\n\nCette action va ${mode === 'replace' ? 'ÉCRASER toutes les données existantes' : 'ajouter les rounds manquants'}.`)) {
+          return;
+        }
+
+        addLog(`📥 Import de ${roundCount} rounds en mode "${mode}"...`);
+
+        const response = await fetch(`${API_BASE}/admin/import-frozen-results`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify({
+            data: data,
+            merge: mode === 'merge'
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Erreur import');
+        }
+
+        const result = await response.json();
+
+        addLog(`✅ Import réussi: ${result.imported} round(s) importé(s), ${result.skipped} ignoré(s)`);
+        alert(`✅ Import réussi !\n\n• ${result.imported} round(s) importé(s)\n• ${result.skipped} round(s) ignoré(s) (déjà existants)\n• Total: ${result.totalRounds} round(s)`);
+
+        loadFrozenStatus();
+
+      } catch (error) {
+        addLog(`❌ Erreur import: ${error.message}`);
+        alert('❌ Erreur: ' + error.message);
+      }
+
+      // Reset le input file
+      e.target.value = '';
+    });
 
     // Event listeners frozen
     document.getElementById('autoFreezeBtn')?.addEventListener('click', autoFreezeRounds);

@@ -6,29 +6,12 @@
  * Ce module stocke les résultats de chaque round de façon DÉFINITIVE.
  * Une fois un round terminé, ses résultats ne changent JAMAIS.
  * 
- * Structure du fichier frozen_results.json:
- * {
- *   "rounds": {
- *     "1": {
- *       "roundNumber": 1,
- *       "seasonNumber": 1,
- *       "roundInSeason": 1,
- *       "dates": { "start": "2026-02-02", "end": "2026-02-06" },
- *       "frozen": true,
- *       "frozenAt": "2026-02-07T00:00:00Z",
- *       "activeParticipants": ["id1", "id2", ...],
- *       "ranking": [
- *         { "id": "123", "name": "Jean", "elevation": 1500, "position": 1, "points": 24 }
- *       ],
- *       "eliminations": [
- *         { "id": "456", "name": "Pierre", "elevation": 100, "reason": "last", "position": 12 }
- *       ],
- *       "jokersUsed": [
- *         { "athleteId": "123", "jokerId": "voleur", "targetId": "456" }
- *       ]
- *     }
- *   }
- * }
+ * IMPORTANT: Deux modes de fonctionnement:
+ * 1. freezeRoundResults() - Recalcule les résultats (ancienne méthode)
+ * 2. freezeRoundWithData() - Accepte les données pré-calculées du frontend (RECOMMANDÉ)
+ *
+ * Le mode 2 est recommandé car il garantit que les résultats figés correspondent
+ * exactement à ce qui est affiché sur la page principale (avec jokers, etc.)
  */
 
 const fs = require('fs').promises;
@@ -78,11 +61,11 @@ function getRoundDates(roundNumber, config) {
   const start = new Date(yearStart);
   start.setDate(start.getDate() + (roundNumber - 1) * config.roundDurationDays);
   start.setHours(0, 0, 0, 0);
-  
+
   const end = new Date(start);
   end.setDate(end.getDate() + config.roundDurationDays - 1);
   end.setHours(23, 59, 59, 999);
-  
+
   return { start, end };
 }
 
@@ -97,19 +80,141 @@ function getRoundInSeason(roundNumber, totalParticipants, eliminationsPerRound) 
 }
 
 // ============================================
-// CALCUL D'UN ROUND
+// NOUVELLE MÉTHODE: FREEZE AVEC DONNÉES PRÉ-CALCULÉES
+// ============================================
+
+/**
+ * Fige un round avec des données pré-calculées provenant du frontend
+ * Cette méthode ne recalcule RIEN - elle sauvegarde exactement les données reçues
+ *
+ * @param {number} roundNumber - Numéro du round
+ * @param {Object} roundData - Données du round calculées par le frontend
+ * @param {Object} options - Options (force: true pour remplacer un round existant)
+ * @returns {Object} Les données sauvegardées
+ */
+async function freezeRoundWithData(roundNumber, roundData, options = {}) {
+  const data = await loadFrozenResults();
+  const roundKey = String(roundNumber);
+
+  // Vérifier si déjà figé (sauf si force=true)
+  if (data.rounds[roundKey]?.frozen && !options.force) {
+    console.log(`⚠️ Round ${roundNumber} déjà figé. Utilisez force=true pour remplacer.`);
+    return { success: false, error: 'already_frozen', existing: data.rounds[roundKey] };
+  }
+
+  // Valider les données minimales requises
+  if (!roundData.ranking || !Array.isArray(roundData.ranking)) {
+    return { success: false, error: 'missing_ranking' };
+  }
+  if (!roundData.eliminations || !Array.isArray(roundData.eliminations)) {
+    return { success: false, error: 'missing_eliminations' };
+  }
+
+  // Construire l'objet de résultat
+  const frozenRound = {
+    roundNumber: roundNumber,
+    seasonNumber: roundData.seasonNumber || 1,
+    roundInSeason: roundData.roundInSeason || roundNumber,
+    dates: roundData.dates || {
+      start: new Date().toISOString(),
+      end: new Date().toISOString()
+    },
+    frozen: true,
+    frozenAt: new Date().toISOString(),
+    frozenMethod: 'frontend_data', // Indique que les données viennent du frontend
+    activeParticipants: roundData.activeParticipants || roundData.ranking.map(r => String(r.id)),
+    ranking: roundData.ranking.map(entry => ({
+      id: String(entry.id),
+      name: entry.name,
+      elevation: entry.elevation || entry.totalElevation || 0,
+      activitiesCount: entry.activitiesCount || 0,
+      originalElevation: entry.originalElevation || entry.elevation || 0,
+      position: entry.position,
+      mainPoints: entry.mainPoints || 0,
+      eliminatedPosition: entry.eliminatedPosition,
+      hasShield: entry.hasShield || entry.jokerEffects?.hasShield || false,
+      jokerEffects: entry.jokerEffects || null
+    })),
+    eliminations: roundData.eliminations.map(elim => ({
+      id: String(elim.id),
+      name: elim.name,
+      elevation: elim.elevation || elim.totalElevation || 0,
+      reason: elim.reason || (elim.elevation === 0 ? 'zero_elevation' : 'last_position'),
+      position: elim.position,
+      zeroElimination: elim.zeroElimination || elim.elevation === 0
+    })),
+    jokersUsed: roundData.jokersUsed || [],
+    stats: roundData.stats || {
+      totalActivities: roundData.ranking.reduce((sum, r) => sum + (r.activitiesCount || 0), 0),
+      totalElevation: roundData.ranking.reduce((sum, r) => sum + (r.elevation || 0), 0),
+      eliminationsCount: roundData.eliminations.length
+    }
+  };
+
+  // Sauvegarder
+  data.rounds[roundKey] = frozenRound;
+  await saveFrozenResults(data);
+
+  console.log(`❄️ Round ${roundNumber} figé (via frontend): ${frozenRound.eliminations.length} éliminé(s)`);
+
+  return {
+    success: true,
+    round: frozenRound,
+    method: 'frontend_data'
+  };
+}
+
+/**
+ * Importe plusieurs rounds depuis un fichier JSON complet
+ * Utile pour restaurer ou corriger les données
+ *
+ * @param {Object} importData - Données à importer (format frozen_results.json)
+ * @param {Object} options - Options (merge: true pour fusionner, false pour remplacer)
+ */
+async function importFrozenResults(importData, options = { merge: true }) {
+  const currentData = await loadFrozenResults();
+
+  if (!importData.rounds) {
+    return { success: false, error: 'invalid_format' };
+  }
+
+  let imported = 0;
+  let skipped = 0;
+
+  for (const [roundKey, roundData] of Object.entries(importData.rounds)) {
+    // En mode merge, ne pas remplacer les rounds existants
+    if (options.merge && currentData.rounds[roundKey]?.frozen) {
+      skipped++;
+      continue;
+    }
+
+    // Ajouter les métadonnées d'import
+    roundData.importedAt = new Date().toISOString();
+    roundData.frozen = true;
+
+    currentData.rounds[roundKey] = roundData;
+    imported++;
+  }
+
+  await saveFrozenResults(currentData);
+
+  console.log(`📥 Import: ${imported} round(s) importé(s), ${skipped} ignoré(s)`);
+
+  return {
+    success: true,
+    imported,
+    skipped,
+    totalRounds: Object.keys(currentData.rounds).length
+  };
+}
+
+// ============================================
+// ANCIENNE MÉTHODE: CALCUL DES RÉSULTATS
 // ============================================
 
 /**
  * Calcule et fige les résultats d'un round terminé
- * 
- * @param {number} roundNumber - Numéro du round global
- * @param {Array} activities - Toutes les activités
- * @param {Array} athletes - Liste des athlètes inscrits
- * @param {Array} jokerUsage - Utilisations de jokers
- * @param {Object} config - Configuration du challenge
- * @param {Object} previousRounds - Résultats des rounds précédents
- * @returns {Object} Résultats du round
+ * ATTENTION: Cette méthode recalcule tout - préférer freezeRoundWithData()
  */
 function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, config, previousRounds) {
   const roundDates = getRoundDates(roundNumber, config);
@@ -118,10 +223,10 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   const roundInSeason = getRoundInSeason(roundNumber, totalParticipants, config.eliminationsPerRound);
   const roundsPerSeason = Math.ceil((totalParticipants - 1) / config.eliminationsPerRound);
   const isFinale = roundInSeason === roundsPerSeason;
-  
+
   // Déterminer les participants actifs (non éliminés dans les rounds précédents de cette saison)
   let activeParticipants = athletes.map(a => String(a.id));
-  
+
   // Trouver les éliminés des rounds précédents de CETTE saison
   const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
   for (let r = seasonStartRound; r < roundNumber; r++) {
@@ -131,26 +236,26 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
       activeParticipants = activeParticipants.filter(id => !eliminatedIds.includes(id));
     }
   }
-  
+
   // Filtrer les activités du round
   const roundStart = roundDates.start.getTime();
   const roundEnd = roundDates.end.getTime();
-  
+
   const roundActivities = activities.filter(a => {
     const actDate = new Date(a.start_date).getTime();
     return actDate >= roundStart && actDate <= roundEnd;
   });
-  
+
   // Calculer le D+ de chaque participant actif
   const ranking = activeParticipants.map(participantId => {
     const pActivities = roundActivities.filter(a => {
       const athleteId = String(a.athlete?.id || a.athlete_id);
       return athleteId === participantId;
     });
-    
+
     const elevation = pActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
     const athlete = athletes.find(a => String(a.id) === participantId);
-    
+
     return {
       id: participantId,
       name: athlete?.name || `Athlète ${participantId}`,
@@ -159,26 +264,23 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
       originalElevation: Math.round(elevation)
     };
   });
-  
+
   // Appliquer les effets des jokers actifs ce round
-  const activeJokers = jokerUsage.filter(j => 
+  const activeJokers = jokerUsage.filter(j =>
     j.round_number === roundNumber && j.status === 'active'
   );
-  
+
   applyJokerEffects(ranking, activeJokers, roundActivities, athletes);
-  
+
   // Trier par D+ décroissant
   ranking.sort((a, b) => b.elevation - a.elevation);
-  
+
   // Attribuer les positions
   ranking.forEach((entry, index) => {
     entry.position = index + 1;
   });
-  
-  // RÈGLES D'ÉLIMINATION:
-  // - Cas normal: Éliminer les N derniers du classement (N = eliminationsPerRound, typiquement 2)
-  // - Les joueurs avec bouclier sont protégés
-  // - Finale: Éliminer tous sauf 1
+
+  // RÈGLES D'ÉLIMINATION
   const eliminations = [];
 
   // Joueurs éligibles (sans bouclier)
@@ -187,9 +289,9 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   // Déterminer le nombre d'éliminations
   let eliminationsNeeded;
   if (isFinale) {
-    eliminationsNeeded = eligibleForElimination.length - 1; // Finale: tous sauf 1
+    eliminationsNeeded = eligibleForElimination.length - 1;
   } else {
-    eliminationsNeeded = config.eliminationsPerRound; // Normal: 2 (défini dans config)
+    eliminationsNeeded = config.eliminationsPerRound;
   }
 
   // Éliminer depuis la fin du classement
@@ -211,20 +313,17 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
 
     if (eliminationEntry) {
-      // Position basée sur l'index dans les éliminés
-      // Les éliminés sont triés du pire au meilleur (dernier du classement = index 0)
-      // Donc: dernier → position la plus basse, avant-dernier → position légèrement meilleure
       const indexInElims = eliminations.findIndex(e => e.id === entry.id);
-      // Position = nombre d'actifs - index (dernier = position 12, avant-dernier = position 11)
+      // CORRIGÉ: position = activeAtRoundStart - indexInElims
+      // Dernier (index 0) → position la plus haute (ex: 12)
+      // Avant-dernier (index 1) → position 11
       const position = activeAtRoundStart - indexInElims;
       entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
       entry.eliminatedPosition = position;
     } else if (isFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
-      // Gagnant de la saison
       entry.mainPoints = getMainPoints(1);
       entry.isWinner = true;
     } else {
-      // Participant toujours actif - pas de points encore
       entry.mainPoints = 0;
     }
   });
@@ -239,6 +338,7 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
     },
     frozen: true,
     frozenAt: new Date().toISOString(),
+    frozenMethod: 'calculated', // Indique que c'est recalculé
     activeParticipants,
     ranking,
     eliminations,
@@ -255,19 +355,6 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
       eliminationsCount: eliminations.length
     }
   };
-}
-
-function countPreviousEliminations(previousRounds, seasonNumber, roundsPerSeason) {
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  let count = 0;
-
-  Object.values(previousRounds).forEach(round => {
-    if (round.roundNumber >= seasonStartRound && round.eliminations) {
-      count += round.eliminations.length;
-    }
-  });
-
-  return count;
 }
 
 /**
@@ -348,12 +435,11 @@ async function getFrozenRoundResult(roundNumber) {
 }
 
 /**
- * Fige les résultats d'un round (à appeler quand un round se termine)
+ * Fige les résultats d'un round (ANCIENNE MÉTHODE - recalcule)
  */
 async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage, config) {
   const data = await loadFrozenResults();
 
-  // Ne pas re-figer un round déjà figé
   if (data.rounds[String(roundNumber)]?.frozen) {
     console.log(`⚠️ Round ${roundNumber} déjà figé`);
     return data.rounds[String(roundNumber)];
@@ -371,7 +457,7 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
   data.rounds[String(roundNumber)] = results;
   await saveFrozenResults(data);
 
-  console.log(`❄️ Round ${roundNumber} figé: ${results.eliminations.length} éliminé(s)`);
+  console.log(`❄️ Round ${roundNumber} figé (calculé): ${results.eliminations.length} éliminé(s)`);
   return results;
 }
 
@@ -383,12 +469,10 @@ async function autoFreezeCompletedRounds(activities, athletes, jokerUsage, confi
   const data = await loadFrozenResults();
   const frozenRounds = [];
 
-  // Calculer le nombre de rounds depuis le début
   const yearStart = new Date(config.yearStartDate);
   const daysSinceStart = Math.floor((now - yearStart) / (1000 * 60 * 60 * 24));
   const currentRound = Math.floor(daysSinceStart / config.roundDurationDays) + 1;
 
-  // Figer tous les rounds terminés (jusqu'au round précédent)
   for (let r = 1; r < currentRound; r++) {
     if (!data.rounds[String(r)]?.frozen) {
       const result = await freezeRoundResults(r, activities, athletes, jokerUsage, config);
@@ -406,7 +490,6 @@ async function calculateYearlyStandings(athletes) {
   const data = await loadFrozenResults();
   const standings = {};
 
-  // Initialiser tous les participants
   athletes.forEach(a => {
     standings[String(a.id)] = {
       id: String(a.id),
@@ -419,7 +502,6 @@ async function calculateYearlyStandings(athletes) {
     };
   });
 
-  // Parcourir les rounds figés
   Object.values(data.rounds).forEach(round => {
     if (!round.frozen) return;
 
@@ -433,7 +515,6 @@ async function calculateYearlyStandings(athletes) {
     });
   });
 
-  // Convertir en tableau et trier
   const standingsArray = Object.values(standings);
   standingsArray.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
   standingsArray.forEach((e, i) => e.rank = i + 1);
@@ -475,6 +556,8 @@ module.exports = {
   getAllFrozenResults,
   getFrozenRoundResult,
   freezeRoundResults,
+  freezeRoundWithData,      // NOUVELLE: fige avec données du frontend
+  importFrozenResults,       // NOUVELLE: import de fichier JSON
   autoFreezeCompletedRounds,
   calculateYearlyStandings,
   resetAllFrozenResults,
