@@ -95,6 +95,12 @@
           </button>
         </form>
 
+        <div style="text-align: center; margin-top: 16px;">
+          <a href="#" id="forgotPasswordLink" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 14px; transition: color 0.3s ease;">
+            Mot de passe oublié ?
+          </a>
+        </div>
+
         <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
           <p style="color: rgba(255,255,255,0.6); margin-bottom: 12px; font-size: 14px;">
             Pas encore de compte ?
@@ -103,6 +109,29 @@
             Rejoindre la ligue →
           </a>
         </div>
+
+      <!-- Modal Mot de passe oublié -->
+      <div id="forgotPasswordModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: linear-gradient(145deg, rgba(26,26,36,0.98), rgba(15,15,23,0.98)); border: 1px solid rgba(249,115,22,0.3); border-radius: 16px; max-width: 400px; width: 90%; padding: 32px;">
+          <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+            <h3 style="font-family: 'Syne', sans-serif; margin-bottom: 12px; font-size: 20px;">Mot de passe oublié ?</h3>
+            <p style="color: rgba(255,255,255,0.7); font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+              Contacte l'administrateur de la ligue pour réinitialiser ton mot de passe.
+            </p>
+
+            <div style="background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+              <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Administrateur</p>
+              <p style="color: #f97316; font-size: 16px; font-weight: 600;">Kilian</p>
+              <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-top: 4px;">Via le groupe WhatsApp ou Strava</p>
+            </div>
+
+            <button id="closeResetModal" style="width: 100%; padding: 14px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: rgba(255,255,255,0.8); cursor: pointer; font-size: 15px; font-weight: 500; transition: all 0.3s ease;">
+              Compris !
+            </button>
+          </div>
+        </div>
+      </div>
       </div>
 
       <!-- Admin Login -->
@@ -114,10 +143,10 @@
           <div style="margin-top: 16px;">
             <form id="adminLoginForm">
               <div class="form-group" style="margin-bottom: 16px;">
-                <input 
-                  type="password" 
-                  id="adminPassword" 
-                  class="form-input" 
+                <input
+                  type="password"
+                  id="adminPassword"
+                  class="form-input"
                   placeholder="Mot de passe admin"
                   style="width: 100%; padding: 12px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px; font-family: inherit;"
                 >
@@ -160,7 +189,7 @@
       margin-bottom: 24px;
       font-size: 14px;
     `;
-    
+
     const successStyle = `
       background: rgba(16,185,129,0.1);
       border: 1px solid rgba(16,185,129,0.3);
@@ -240,9 +269,9 @@
     // Login admin
     adminForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const password = document.getElementById('adminPassword').value;
-      
+
       if (!password) {
         showError('Entrez le mot de passe admin');
         return;
@@ -266,7 +295,7 @@
         localStorage.setItem('versant_admin_password', password);
 
         showSuccess('Accès admin accordé ! Redirection...');
-        
+
         // Rediriger vers la page admin
         setTimeout(() => {
           window.location.href = 'admin.html';
@@ -280,7 +309,7 @@
     // Vérifier si déjà connecté
     window.addEventListener('DOMContentLoaded', async () => {
       const token = localStorage.getItem('versant_token');
-      
+
       if (token) {
         try {
           const response = await fetch(`${API_BASE}/auth/me`, {
@@ -308,6 +337,28 @@
         this.style.borderColor = 'rgba(255,255,255,0.2)';
         this.style.background = 'rgba(0,0,0,0.3)';
       });
+    });
+
+    // ==========================================
+    // GESTION DU MOT DE PASSE OUBLIÉ
+    // ==========================================
+    const forgotModal = document.getElementById('forgotPasswordModal');
+    const forgotLink = document.getElementById('forgotPasswordLink');
+    const closeModal = document.getElementById('closeResetModal');
+
+    forgotLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      forgotModal.style.display = 'flex';
+    });
+
+    closeModal.addEventListener('click', () => {
+      forgotModal.style.display = 'none';
+    });
+
+    forgotModal.addEventListener('click', (e) => {
+      if (e.target === forgotModal) {
+        forgotModal.style.display = 'none';
+      }
     });
   </script>
 </body>

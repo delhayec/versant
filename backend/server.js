@@ -252,6 +252,49 @@ app.post('/api/auth/logout', async (req, res) => {
   res.json({ success: true });
 });
 
+// Route admin pour réinitialiser le mot de passe d'un joueur
+app.post('/api/admin/reset-password', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  try {
+    const { athleteId, newPassword } = req.body;
+
+    if (!athleteId || !newPassword) {
+      return res.status(400).json({ error: 'Données manquantes' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
+    }
+
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const idx = athletes.findIndex(a => normalizeId(a.id) === normalizeId(athleteId));
+
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Athlète non trouvé' });
+    }
+
+    // Hasher le nouveau mot de passe
+    athletes[idx].password_hash = hashPassword(newPassword);
+
+    // Supprimer les tokens de reset éventuels
+    delete athletes[idx].reset_token;
+    delete athletes[idx].reset_expires;
+
+    await safeWriteJSON(ATHLETES_FILE, athletes);
+
+    console.log(`🔑 Mot de passe réinitialisé pour: ${athletes[idx].name} (ID: ${athleteId})`);
+
+    res.json({
+      success: true,
+      message: `Mot de passe de ${athletes[idx].name} réinitialisé avec succès`
+    });
+  } catch (error) {
+    console.error('Erreur reset-password:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 app.get('/api/auth/me', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');

@@ -54,7 +54,10 @@ async function loadCurrentUser() {
     return currentUser;
   } catch (error) {
     console.error('Erreur chargement utilisateur:', error);
-    window.location.href = 'inscription.html';
+    // Nettoyer les données locales invalides
+    localStorage.removeItem('versant_athlete_id');
+    localStorage.removeItem('versant_token');
+    window.location.href = 'login.html';
   }
 }
 
@@ -547,26 +550,28 @@ async function init() {
 }
 
 // ============================================
-// AUTO-LOGIN TEMPORAIRE
+// DÉCONNEXION
 // ============================================
-// Pour faciliter les tests, on auto-connecte le premier athlète
-async function autoLogin() {
-  if (!getCurrentUserId()) {
-    try {
-      const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
-      const athletes = await res.json();
-      if (athletes.length > 0) {
-        setCurrentUserId(athletes[0].id);
-        console.log('🔑 Auto-login:', athletes[0].name);
-      }
-    } catch (error) {
-      console.error('Erreur auto-login:', error);
-    }
-  }
+function logout() {
+  localStorage.removeItem('versant_athlete_id');
+  localStorage.removeItem('versant_token');
+  window.location.href = 'login.html';
 }
 
-// Démarrer
+// Exposer globalement pour le bouton
+window.logout = logout;
+
+// ============================================
+// DÉMARRAGE
+// ============================================
 document.addEventListener('DOMContentLoaded', async () => {
-  await autoLogin();
+  // Vérifier si l'utilisateur est connecté
+  const athleteId = getCurrentUserId();
+  if (!athleteId) {
+    console.log('⚠️ Non connecté, redirection vers login');
+    window.location.href = 'login.html';
+    return;
+  }
+
   init();
 });

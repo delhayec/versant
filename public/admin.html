@@ -252,6 +252,34 @@
           </div>
         </div>
 
+        <!-- Reset Mot de Passe -->
+        <div class="info-box">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            🔑 Reset Mot de Passe
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
+            Réinitialiser le mot de passe d'un joueur qui l'a oublié.
+          </p>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Sélectionner l'athlète</label>
+            <select id="resetPasswordAthlete" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px;">
+              <option value="">-- Choisir un athlète --</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Nouveau mot de passe</label>
+            <input type="text" id="resetPasswordNew" placeholder="Minimum 6 caractères" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px; box-sizing: border-box;">
+          </div>
+
+          <button id="resetPasswordBtn" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">
+            🔐 Réinitialiser le mot de passe
+          </button>
+
+          <div id="resetPasswordResult" style="margin-top: 12px; font-size: 14px;"></div>
+        </div>
+
         <!-- Gestion des Jokers -->
         <div class="info-box" style="grid-column: 1 / -1;">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
@@ -1231,9 +1259,93 @@
     document.getElementById('resetFrozenBtn')?.addEventListener('click', resetAllFrozen);
 
     // ============================================
+    // RESET MOT DE PASSE
+    // ============================================
+
+    async function loadAthletesForReset() {
+      try {
+        const response = await fetch(`${API_BASE}/athletes/versant-2026`);
+        if (!response.ok) throw new Error('Erreur chargement');
+
+        const athletes = await response.json();
+        const select = document.getElementById('resetPasswordAthlete');
+
+        select.innerHTML = '<option value="">-- Choisir un athlète --</option>';
+        athletes.forEach(athlete => {
+          const option = document.createElement('option');
+          option.value = athlete.id;
+          option.textContent = `${athlete.name} (${athlete.email || 'pas d\'email'})`;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Erreur chargement athlètes pour reset:', error);
+      }
+    }
+
+    document.getElementById('resetPasswordBtn')?.addEventListener('click', async () => {
+      const athleteId = document.getElementById('resetPasswordAthlete').value;
+      const newPassword = document.getElementById('resetPasswordNew').value;
+      const resultDiv = document.getElementById('resetPasswordResult');
+
+      if (!athleteId) {
+        resultDiv.innerHTML = '<span style="color: #ef4444;">❌ Veuillez sélectionner un athlète</span>';
+        return;
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        resultDiv.innerHTML = '<span style="color: #ef4444;">❌ Le mot de passe doit contenir au moins 6 caractères</span>';
+        return;
+      }
+
+      const athleteName = document.getElementById('resetPasswordAthlete').selectedOptions[0].textContent;
+
+      if (!confirm(`⚠️ Réinitialiser le mot de passe de ${athleteName} ?\n\nNouveau mot de passe: ${newPassword}`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/reset-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify({
+            athleteId: athleteId,
+            newPassword: newPassword
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Erreur serveur');
+        }
+
+        const data = await response.json();
+        resultDiv.innerHTML = `<span style="color: #10b981;">✅ ${data.message}</span>`;
+        addLog(`🔑 Mot de passe réinitialisé pour ${athleteName}`);
+
+        // Clear le formulaire
+        document.getElementById('resetPasswordNew').value = '';
+        document.getElementById('resetPasswordAthlete').value = '';
+
+      } catch (error) {
+        resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
+        addLog(`❌ Erreur reset password: ${error.message}`);
+      }
+    });
+
+    // ============================================
     // INIT
     // ============================================
     checkAuth();
+
+    // Charger la liste des athlètes pour le reset password après connexion
+    const originalShowDashboard = showDashboard;
+    showDashboard = function() {
+      originalShowDashboard();
+      loadAthletesForReset();
+    };
   </script>
 </body>
 </html>
