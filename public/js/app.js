@@ -880,6 +880,10 @@ function renderAll() {
       console.log('✅ Guide jokers rendu');
     }
 
+    // Ticker des activités récentes
+    renderActivityTicker();
+    console.log('✅ Ticker activités rendu');
+
     console.log('🎨 renderAll - fin, masquage du loader...');
 
     // Masquer le loader avec transition - méthode robuste pour mobile
@@ -1562,7 +1566,7 @@ function startAutoRefresh() {
 
         // Afficher une notification si nouvelle activité
         if (status.count > lastActivitiesCount && status.lastActivity) {
-          showNewActivityNotification(status.lastActivity);
+          updateTickerWithNewActivity(status.lastActivity);
         }
 
         // Mettre à jour les compteurs
@@ -1582,70 +1586,242 @@ function startAutoRefresh() {
 }
 
 /**
- * Affiche une notification pour une nouvelle activité
+ * Affiche le bandeau ticker des activités récentes (aujourd'hui + hier)
  */
-function showNewActivityNotification(activity) {
-  const notification = document.createElement('div');
-  notification.className = 'new-activity-notification';
-  notification.innerHTML = `
-    <div class="notification-icon">🏃</div>
-    <div class="notification-content">
-      <div class="notification-title">Nouvelle activité !</div>
-      <div class="notification-text">${activity.athlete_name || 'Un participant'} vient d'ajouter "${activity.name}"</div>
-    </div>
-  `;
-  notification.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: linear-gradient(135deg, rgba(34, 211, 238, 0.95), rgba(168, 85, 247, 0.95));
-    color: white;
-    padding: 16px 20px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    z-index: 10000;
-    animation: slideIn 0.3s ease-out;
-    max-width: 350px;
-  `;
+function renderActivityTicker() {
+  // Récupérer les activités des dernières 48h
+  const now = getCurrentDate();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
 
-  // Ajouter les styles d'animation si pas déjà présents
-  if (!document.getElementById('notification-styles')) {
-    const style = document.createElement('style');
-    style.id = 'notification-styles';
-    style.textContent = `
-      @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-      @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-      }
-      .new-activity-notification .notification-icon {
-        font-size: 24px;
-      }
-      .new-activity-notification .notification-title {
-        font-weight: 600;
-        font-size: 14px;
-      }
-      .new-activity-notification .notification-text {
-        font-size: 12px;
-        opacity: 0.9;
-      }
-    `;
-    document.head.appendChild(style);
+  const recentActivities = allActivities
+    .filter(a => {
+      const actDate = new Date(a.start_date_local || a.start_date);
+      return actDate >= yesterday;
+    })
+    .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date));
+
+  // Créer ou mettre à jour le ticker
+  let ticker = document.getElementById('activityTicker');
+
+  if (!ticker) {
+    ticker = document.createElement('div');
+    ticker.id = 'activityTicker';
+    ticker.className = 'activity-ticker';
+    document.body.appendChild(ticker);
+
+    // Ajouter les styles du ticker
+    injectTickerStyles();
   }
 
-  document.body.appendChild(notification);
+  if (recentActivities.length === 0) {
+    ticker.innerHTML = `
+      <div class="ticker-wrapper">
+        <div class="ticker-content">
+          <span class="ticker-item">
+            <span class="ticker-no-activity">Aucune activité dans les dernières 48h</span>
+          </span>
+        </div>
+      </div>
+    `;
+    return;
+  }
 
-  // Retirer après 5 secondes
-  setTimeout(() => {
-    notification.style.animation = 'slideOut 0.3s ease-in forwards';
-    setTimeout(() => notification.remove(), 300);
-  }, 5000);
+  // Générer le contenu du ticker (dupliqué pour boucle infinie)
+  const tickerItems = recentActivities.map(activity => {
+    const date = new Date(activity.start_date_local || activity.start_date);
+    const isToday = date.toDateString() === now.toDateString();
+    const dateStr = isToday ? "Aujourd'hui" : "Hier";
+    const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const athleteName = activity.athlete_name || getParticipantById(activity.athlete_id)?.name || 'Inconnu';
+    const sportIcon = getSportIcon(activity.sport_type || activity.type);
+    const elevation = Math.round(activity.total_elevation_gain || 0);
+
+    return `
+      <span class="ticker-item">
+        <span class="ticker-date">${dateStr} ${timeStr}</span>
+        <span class="ticker-separator">•</span>
+        <span class="ticker-athlete">${athleteName}</span>
+        <span class="ticker-separator">•</span>
+        <span class="ticker-activity">"${truncateText(activity.name, 25)}"</span>
+        <span class="ticker-separator">•</span>
+        <span class="ticker-sport">${sportIcon}</span>
+        <span class="ticker-elevation">+${elevation}m</span>
+      </span>
+    `;
+  }).join('<span class="ticker-divider">│</span>');
+
+  // Dupliquer le contenu pour créer un défilement infini fluide
+  ticker.innerHTML = `
+    <div class="ticker-wrapper">
+      <div class="ticker-content">
+        ${tickerItems}
+        <span class="ticker-divider">│</span>
+        ${tickerItems}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Tronque un texte à une longueur maximale
+ */
+function truncateText(text, maxLength) {
+  if (!text) return '';
+  return text.length > maxLength ? text.substring(0, maxLength) + '…' : text;
+}
+
+/**
+ * Retourne l'icône correspondant au type de sport
+ */
+function getSportIcon(sportType) {
+  const icons = {
+    'Run': '🏃',
+    'TrailRun': '🏔️',
+    'Hike': '🥾',
+    'Walk': '🚶',
+    'Ride': '🚴',
+    'MountainBikeRide': '🚵',
+    'GravelRide': '🚴',
+    'BackcountrySki': '⛷️',
+    'NordicSki': '🎿',
+    'Snowshoe': '🦶'
+  };
+  return icons[sportType] || '🏃';
+}
+
+/**
+ * Injecte les styles CSS du ticker
+ */
+function injectTickerStyles() {
+  if (document.getElementById('ticker-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'ticker-styles';
+  style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+    .activity-ticker {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 36px;
+      background: #0a0a0a;
+      border-top: 2px solid #f97316;
+      z-index: 9999;
+      overflow: hidden;
+      font-family: 'VT323', 'Courier New', monospace;
+    }
+
+    .ticker-wrapper {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .ticker-content {
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      animation: ticker-scroll 60s linear infinite;
+      padding-left: 100%;
+    }
+
+    .ticker-content:hover {
+      animation-play-state: paused;
+    }
+
+    @keyframes ticker-scroll {
+      0% {
+        transform: translateX(0);
+      }
+      100% {
+        transform: translateX(-50%);
+      }
+    }
+
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+    }
+
+    .ticker-date {
+      color: #f97316;
+      font-weight: bold;
+    }
+
+    .ticker-separator {
+      color: #444;
+    }
+
+    .ticker-athlete {
+      color: #22d3ee;
+      font-weight: bold;
+    }
+
+    .ticker-activity {
+      color: #e5e5e5;
+    }
+
+    .ticker-sport {
+      font-size: 14px;
+    }
+
+    .ticker-elevation {
+      color: #10b981;
+      font-weight: bold;
+    }
+
+    .ticker-divider {
+      color: #333;
+      padding: 0 20px;
+      font-size: 18px;
+    }
+
+    .ticker-no-activity {
+      color: #666;
+      font-style: italic;
+      padding: 0 20px;
+    }
+
+    /* Ajouter du padding au footer pour ne pas être caché par le ticker */
+    body {
+      padding-bottom: 40px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .activity-ticker {
+        height: 32px;
+      }
+
+      .ticker-item {
+        font-size: 14px;
+        gap: 4px;
+        padding: 0 8px;
+      }
+
+      .ticker-divider {
+        padding: 0 12px;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+/**
+ * Met à jour le ticker quand de nouvelles activités arrivent
+ */
+function updateTickerWithNewActivity(activity) {
+  // Simplement re-render le ticker complet
+  renderActivityTicker();
 }
 
 // ============================================
