@@ -1602,66 +1602,60 @@ function renderActivityTicker() {
     })
     .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date));
 
-  // Créer ou mettre à jour le ticker
-  let ticker = document.getElementById('activityTicker');
+  // Récupérer le ticker (déjà dans le HTML)
+  const ticker = document.getElementById('activityTicker');
+  if (!ticker) return;
 
-  if (!ticker) {
-    ticker = document.createElement('div');
-    ticker.id = 'activityTicker';
-    ticker.className = 'activity-ticker';
-    document.body.appendChild(ticker);
-
-    // Ajouter les styles du ticker
-    injectTickerStyles();
-  }
+  // Ajouter les styles du ticker
+  injectTickerStyles();
 
   if (recentActivities.length === 0) {
     ticker.innerHTML = `
-      <div class="ticker-wrapper">
-        <div class="ticker-content">
-          <span class="ticker-item">
-            <span class="ticker-no-activity">Aucune activité dans les dernières 48h</span>
-          </span>
-        </div>
+      <div class="ticker-track">
+        <span class="ticker-item ticker-no-activity">Aucune activité dans les dernières 48h • En attente de nouvelles sorties...</span>
       </div>
     `;
     return;
   }
 
-  // Générer le contenu du ticker (dupliqué pour boucle infinie)
+  // Générer les items du ticker
   const tickerItems = recentActivities.map(activity => {
     const date = new Date(activity.start_date_local || activity.start_date);
     const isToday = date.toDateString() === now.toDateString();
-    const dateStr = isToday ? "Aujourd'hui" : "Hier";
+    const dateStr = isToday ? "Auj." : "Hier";
     const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const athleteName = activity.athlete_name || getParticipantById(activity.athlete_id)?.name || 'Inconnu';
     const sportIcon = getSportIcon(activity.sport_type || activity.type);
     const elevation = Math.round(activity.total_elevation_gain || 0);
 
-    return `
-      <span class="ticker-item">
-        <span class="ticker-date">${dateStr} ${timeStr}</span>
-        <span class="ticker-separator">•</span>
-        <span class="ticker-athlete">${athleteName}</span>
-        <span class="ticker-separator">•</span>
-        <span class="ticker-activity">"${truncateText(activity.name, 25)}"</span>
-        <span class="ticker-separator">•</span>
-        <span class="ticker-sport">${sportIcon}</span>
-        <span class="ticker-elevation">+${elevation}m</span>
-      </span>
-    `;
-  }).join('<span class="ticker-divider">│</span>');
+    return `<span class="ticker-item">
+      <span class="ticker-date">${dateStr} ${timeStr}</span>
+      <span class="ticker-sep">•</span>
+      <span class="ticker-athlete">${athleteName}</span>
+      <span class="ticker-sep">•</span>
+      <span class="ticker-activity">${truncateText(activity.name, 20)}</span>
+      <span class="ticker-sep">•</span>
+      <span class="ticker-sport">${sportIcon}</span>
+      <span class="ticker-elev">+${elevation}m</span>
+      <span class="ticker-div">│</span>
+    </span>`;
+  }).join('');
 
-  // Dupliquer le contenu pour créer un défilement infini fluide
-  ticker.innerHTML = `
-    <div class="ticker-wrapper">
-      <div class="ticker-content">
-        ${tickerItems}
-        <span class="ticker-divider">│</span>
-        ${tickerItems}
-      </div>
-    </div>
-  `;
+  // Créer le contenu avec duplication pour boucle infinie seamless
+  // On duplique 3 fois pour avoir assez de contenu pour la boucle
+  const fullContent = tickerItems + tickerItems + tickerItems;
+
+  ticker.innerHTML = `<div class="ticker-track">${fullContent}</div>`;
+
+  // Calculer la durée d'animation basée sur le nombre d'items
+  // Plus il y a d'items, plus l'animation est longue pour garder une vitesse constante
+  const itemCount = recentActivities.length;
+  const duration = Math.max(30, itemCount * 8); // 8 secondes par item, minimum 30s
+
+  const track = ticker.querySelector('.ticker-track');
+  if (track) {
+    track.style.animationDuration = `${duration}s`;
+  }
 }
 
 /**
@@ -1703,53 +1697,45 @@ function injectTickerStyles() {
     @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
     .activity-ticker {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 36px;
+      width: 100%;
+      height: 28px;
       background: #0a0a0a;
       border-top: 2px solid #f97316;
-      z-index: 9999;
       overflow: hidden;
       font-family: 'VT323', 'Courier New', monospace;
+      position: relative;
     }
 
-    .ticker-wrapper {
+    .ticker-track {
+      display: inline-flex;
+      align-items: center;
       height: 100%;
-      display: flex;
-      align-items: center;
-      overflow: hidden;
-    }
-
-    .ticker-content {
-      display: flex;
-      align-items: center;
       white-space: nowrap;
       animation: ticker-scroll 60s linear infinite;
-      padding-left: 100%;
-    }
-
-    .ticker-content:hover {
-      animation-play-state: paused;
+      /* Démarrer à -25% pour que le ticker soit rempli aux 3/4 dès le début */
+      transform: translateX(-25%);
     }
 
     @keyframes ticker-scroll {
       0% {
-        transform: translateX(0);
+        transform: translateX(-25%);
       }
       100% {
-        transform: translateX(-50%);
+        /* Aller jusqu'à -58.33% (25% + 33.33%) pour boucler parfaitement avec 3 copies */
+        transform: translateX(-58.33%);
       }
+    }
+
+    .ticker-track:hover {
+      animation-play-state: paused;
     }
 
     .ticker-item {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 0 12px;
-      font-size: 16px;
-      letter-spacing: 0.5px;
+      gap: 5px;
+      font-size: 15px;
+      letter-spacing: 0.3px;
     }
 
     .ticker-date {
@@ -1757,8 +1743,9 @@ function injectTickerStyles() {
       font-weight: bold;
     }
 
-    .ticker-separator {
-      color: #444;
+    .ticker-sep {
+      color: #555;
+      margin: 0 2px;
     }
 
     .ticker-athlete {
@@ -1767,49 +1754,47 @@ function injectTickerStyles() {
     }
 
     .ticker-activity {
-      color: #e5e5e5;
+      color: #d4d4d4;
     }
 
     .ticker-sport {
-      font-size: 14px;
+      font-size: 13px;
     }
 
-    .ticker-elevation {
+    .ticker-elev {
       color: #10b981;
       font-weight: bold;
     }
 
-    .ticker-divider {
+    .ticker-div {
       color: #333;
-      padding: 0 20px;
-      font-size: 18px;
+      margin: 0 12px;
+      font-size: 16px;
     }
 
     .ticker-no-activity {
       color: #666;
-      font-style: italic;
       padding: 0 20px;
+      font-size: 14px;
     }
 
-    /* Ajouter du padding au footer pour ne pas être caché par le ticker */
-    body {
-      padding-bottom: 40px;
-    }
-
-    /* Responsive */
+    /* Responsive mobile */
     @media (max-width: 768px) {
       .activity-ticker {
-        height: 32px;
+        height: 26px;
       }
 
       .ticker-item {
-        font-size: 14px;
-        gap: 4px;
-        padding: 0 8px;
+        font-size: 13px;
+        gap: 3px;
       }
 
-      .ticker-divider {
-        padding: 0 12px;
+      .ticker-div {
+        margin: 0 8px;
+      }
+
+      .ticker-sport {
+        font-size: 11px;
       }
     }
   `;
