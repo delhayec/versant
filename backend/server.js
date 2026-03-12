@@ -603,10 +603,12 @@ async function refreshAllTokens() {
 }
 
 // ============================================
-// SYNC MANUAL
+// SYNC MANUAL - AVEC MISE À JOUR DES ACTIVITÉS
 // ============================================
-async function syncLeague(leagueId, startDate, endDate) {
-  console.log(`🔄 Sync ${leagueId}: ${startDate} → ${endDate}`);
+async function syncLeague(leagueId, startDate, endDate, options = {}) {
+  const { updateExisting = true } = options; // Par défaut, on met à jour les existantes
+
+  console.log(`🔄 Sync ${leagueId}: ${startDate} → ${endDate} (update=${updateExisting})`);
 
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
   const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
@@ -615,6 +617,7 @@ async function syncLeague(leagueId, startDate, endDate) {
   let activities = await safeReadJSON(activitiesFile, []);
 
   let totalNew = 0;
+  let totalUpdated = 0;
   const errors = [];
 
   for (let i = 0; i < leagueAthletes.length; i++) {
@@ -653,11 +656,53 @@ async function syncLeague(leagueId, startDate, endDate) {
 
       const validTypes = ['Run', 'TrailRun', 'Hike', 'Walk', 'Ride', 'MountainBikeRide', 'GravelRide', 'BackcountrySki', 'NordicSki', 'Snowshoe'];
       let newCount = 0;
+      let updatedCount = 0;
 
       for (const act of response.data) {
         if (!validTypes.includes(act.sport_type) && !validTypes.includes(act.type)) continue;
-        if (activities.find(a => a.id === act.id)) continue;
 
+        const existingIndex = activities.findIndex(a => a.id === act.id);
+
+        if (existingIndex >= 0) {
+          // L'activité existe déjà - vérifier si elle a changé
+          if (updateExisting) {
+            const existing = activities[existingIndex];
+            const hasChanged =
+              existing.total_elevation_gain !== act.total_elevation_gain ||
+              existing.distance !== act.distance ||
+              existing.moving_time !== act.moving_time ||
+              existing.name !== act.name;
+
+            if (hasChanged) {
+              console.log(`      🔄 MAJ: ${act.name} (D+ ${existing.total_elevation_gain}→${act.total_elevation_gain}m)`);
+
+              // Préserver certains champs locaux (excluded, etc.)
+              const localFields = {
+                excluded: existing.excluded,
+                excluded_reason: existing.excluded_reason,
+                excluded_at: existing.excluded_at,
+                source: existing.source,
+                synced_at: existing.synced_at
+              };
+
+              activities[existingIndex] = {
+                ...act,
+                athlete: { id: athleteId, resource_state: 1 },
+                athlete_id: athleteId,
+                athlete_name: athlete.name,
+                ...localFields,
+                updated_at: new Date().toISOString(),
+                update_source: 'sync'
+              };
+
+              updatedCount++;
+              totalUpdated++;
+            }
+          }
+          continue;
+        }
+
+        // Nouvelle activité
         activities.push({
           ...act,
           athlete: { id: athleteId, resource_state: 1 },
@@ -670,7 +715,7 @@ async function syncLeague(leagueId, startDate, endDate) {
         totalNew++;
       }
 
-      console.log(`      ✓ ${newCount} nouvelles`);
+      console.log(`      ✓ ${newCount} nouvelles, ${updatedCount} mises à jour`);
       await sleep(300); // Pause entre chaque athlète
 
     } catch (error) {
@@ -681,8 +726,8 @@ async function syncLeague(leagueId, startDate, endDate) {
   await safeWriteJSON(ATHLETES_FILE, athletes);
   await safeWriteJSON(activitiesFile, activities);
 
-  console.log(`   ✅ Total: ${totalNew} nouvelles activités`);
-  return { success: true, totalNew, errors };
+  console.log(`   ✅ Total: ${totalNew} nouvelles, ${totalUpdated} mises à jour`);
+  return { success: true, totalNew, totalUpdated, errors };
 }
 
 app.post('/api/sync/:leagueId', async (req, res) => {
@@ -909,6 +954,106 @@ async function processOneWebhook(event) {
       await safeWriteJSON(activitiesFile, activities);
       console.log(`   🗑️ Supprimé`);
       await logWebhook(event, 'deleted', {});
+    }
+  } else if (event.aspect_type === 'update') {
+    // Activité modifiée sur Strava - la mettre à jour localement
+    let activities = await safeReadJSON(activitiesFile, []);
+    const existingIndex = activities.findIndex(a => a.id === objectId);
+
+    if (existingIndex < 0) {
+      console.log(`   → Activité ${objectId} non trouvée localement, ignorée`);
+      await logWebhook(event, 'ignored', { reason: 'activity_not_found' });
+      return;
+    }
+
+    // Récupérer les nouvelles données depuis Strava
+    let accessToken = athlete.tokens?.access_token;
+
+    if (!accessToken) {
+      console.log(`   ❌ Pas de token pour update`);
+      await logWebhook(event, 'failed', { reason: 'no_token' });
+      return;
+    }
+
+    // Refresh si expiré
+    const now = Date.now() / 1000;
+    if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
+      const result = await refreshStravaToken(athlete);
+      if (!result.success) {
+        console.log(`   ❌ Refresh échoué pour update`);
+        await logWebhook(event, 'failed', { reason: 'refresh_failed' });
+        return;
+      }
+      accessToken = result.access_token;
+      athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
+      await safeWriteJSON(ATHLETES_FILE, athletes);
+    }
+
+    try {
+      console.log(`   🌐 Fetch update...`);
+      const response = await axios.get(
+        `https://www.strava.com/api/v3/activities/${objectId}`,
+        { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
+      );
+
+      const stravaActivity = response.data;
+      const existing = activities[existingIndex];
+
+      // Log les changements
+      const changes = [];
+      if (existing.total_elevation_gain !== stravaActivity.total_elevation_gain) {
+        changes.push(`D+: ${existing.total_elevation_gain}→${stravaActivity.total_elevation_gain}m`);
+      }
+      if (existing.distance !== stravaActivity.distance) {
+        changes.push(`Dist: ${(existing.distance/1000).toFixed(1)}→${(stravaActivity.distance/1000).toFixed(1)}km`);
+      }
+      if (existing.name !== stravaActivity.name) {
+        changes.push(`Nom: "${existing.name}"→"${stravaActivity.name}"`);
+      }
+
+      if (changes.length === 0) {
+        console.log(`   → Pas de changement pertinent`);
+        await logWebhook(event, 'no_change', {});
+        return;
+      }
+
+      // Préserver les champs locaux
+      const localFields = {
+        excluded: existing.excluded,
+        excluded_reason: existing.excluded_reason,
+        excluded_at: existing.excluded_at,
+        source: existing.source,
+        synced_at: existing.synced_at
+      };
+
+      // Mettre à jour
+      activities[existingIndex] = {
+        id: stravaActivity.id,
+        athlete: { id: ownerId, resource_state: 1 },
+        athlete_id: ownerId,
+        athlete_name: athlete.name,
+        name: stravaActivity.name,
+        type: stravaActivity.type,
+        sport_type: stravaActivity.sport_type || stravaActivity.type,
+        distance: stravaActivity.distance,
+        moving_time: stravaActivity.moving_time,
+        elapsed_time: stravaActivity.elapsed_time,
+        total_elevation_gain: stravaActivity.total_elevation_gain,
+        start_date: stravaActivity.start_date,
+        start_date_local: stravaActivity.start_date_local,
+        ...localFields,
+        updated_at: new Date().toISOString(),
+        update_source: 'webhook'
+      };
+
+      await safeWriteJSON(activitiesFile, activities);
+
+      console.log(`   🔄 MAJ: ${changes.join(', ')}`);
+      await logWebhook(event, 'updated', { changes, name: stravaActivity.name });
+
+    } catch (error) {
+      console.log(`   ❌ Erreur fetch update: ${error.message}`);
+      await logWebhook(event, 'failed', { reason: 'fetch_failed', error: error.message });
     }
   }
 }

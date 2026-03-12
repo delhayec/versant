@@ -748,8 +748,23 @@
 
         if (!response.ok) throw new Error(data.error);
 
-        result.innerHTML = `<span style="color: #10b981;">✅ ${data.totalActivities} activités synchronisées</span>`;
-        addLog(`✅ Sync: ${data.totalActivities} activités pour ${data.athletesCount} athlètes`);
+        // Afficher nouvelles + mises à jour
+        const newCount = data.totalNew || 0;
+        const updatedCount = data.totalUpdated || 0;
+
+        let message = '';
+        if (newCount > 0 && updatedCount > 0) {
+          message = `✅ ${newCount} nouvelle(s) + ${updatedCount} mise(s) à jour`;
+        } else if (newCount > 0) {
+          message = `✅ ${newCount} nouvelle(s) activité(s)`;
+        } else if (updatedCount > 0) {
+          message = `🔄 ${updatedCount} activité(s) mise(s) à jour`;
+        } else {
+          message = `✓ Aucune modification`;
+        }
+
+        result.innerHTML = `<span style="color: #10b981;">${message}</span>`;
+        addLog(`🔄 Sync: ${newCount} nouvelles, ${updatedCount} MAJ`);
 
         loadDashboardData();
 
