@@ -1587,6 +1587,8 @@ function startAutoRefresh() {
 
 /**
  * Affiche le bandeau ticker des activités récentes (aujourd'hui + hier)
+ * Desktop: en bas de page (fixed)
+ * Mobile: dans la nav sticky
  */
 function renderActivityTicker() {
   // Récupérer les activités des dernières 48h
@@ -1602,60 +1604,65 @@ function renderActivityTicker() {
     })
     .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date));
 
-  // Récupérer le ticker (déjà dans le HTML)
-  const ticker = document.getElementById('activityTicker');
-  if (!ticker) return;
-
   // Ajouter les styles du ticker
   injectTickerStyles();
 
+  // Générer le contenu du ticker
+  let tickerContent = '';
+
   if (recentActivities.length === 0) {
-    ticker.innerHTML = `
+    tickerContent = `
       <div class="ticker-track">
         <span class="ticker-item ticker-no-activity">Aucune activité dans les dernières 48h • En attente de nouvelles sorties...</span>
       </div>
     `;
-    return;
+  } else {
+    // Générer les items du ticker
+    const tickerItems = recentActivities.map(activity => {
+      const date = new Date(activity.start_date_local || activity.start_date);
+      const isToday = date.toDateString() === now.toDateString();
+      const dateStr = isToday ? "Auj." : "Hier";
+      const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const athleteName = activity.athlete_name || getParticipantById(activity.athlete_id)?.name || 'Inconnu';
+      const sportIcon = getSportIcon(activity.sport_type || activity.type);
+      const elevation = Math.round(activity.total_elevation_gain || 0);
+
+      return `<span class="ticker-item">
+        <span class="ticker-date">${dateStr} ${timeStr}</span>
+        <span class="ticker-sep">•</span>
+        <span class="ticker-athlete">${athleteName}</span>
+        <span class="ticker-sep">•</span>
+        <span class="ticker-activity">${truncateText(activity.name, 20)}</span>
+        <span class="ticker-sep">•</span>
+        <span class="ticker-sport">${sportIcon}</span>
+        <span class="ticker-elev">+${elevation}m</span>
+        <span class="ticker-div">│</span>
+      </span>`;
+    }).join('');
+
+    // Tripler le contenu pour boucle infinie seamless
+    const fullContent = tickerItems + tickerItems + tickerItems;
+    tickerContent = `<div class="ticker-track">${fullContent}</div>`;
   }
 
-  // Générer les items du ticker
-  const tickerItems = recentActivities.map(activity => {
-    const date = new Date(activity.start_date_local || activity.start_date);
-    const isToday = date.toDateString() === now.toDateString();
-    const dateStr = isToday ? "Auj." : "Hier";
-    const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const athleteName = activity.athlete_name || getParticipantById(activity.athlete_id)?.name || 'Inconnu';
-    const sportIcon = getSportIcon(activity.sport_type || activity.type);
-    const elevation = Math.round(activity.total_elevation_gain || 0);
+  // Appliquer aux deux tickers (mobile et desktop)
+  const tickerMobile = document.getElementById('activityTickerMobile');
+  const tickerDesktop = document.getElementById('activityTickerDesktop');
 
-    return `<span class="ticker-item">
-      <span class="ticker-date">${dateStr} ${timeStr}</span>
-      <span class="ticker-sep">•</span>
-      <span class="ticker-athlete">${athleteName}</span>
-      <span class="ticker-sep">•</span>
-      <span class="ticker-activity">${truncateText(activity.name, 20)}</span>
-      <span class="ticker-sep">•</span>
-      <span class="ticker-sport">${sportIcon}</span>
-      <span class="ticker-elev">+${elevation}m</span>
-      <span class="ticker-div">│</span>
-    </span>`;
-  }).join('');
+  if (tickerMobile) tickerMobile.innerHTML = tickerContent;
+  if (tickerDesktop) tickerDesktop.innerHTML = tickerContent;
 
-  // Créer le contenu avec duplication pour boucle infinie seamless
-  // On duplique 3 fois pour avoir assez de contenu pour la boucle
-  const fullContent = tickerItems + tickerItems + tickerItems;
-
-  ticker.innerHTML = `<div class="ticker-track">${fullContent}</div>`;
-
-  // Calculer la durée d'animation basée sur le nombre d'items
-  // Plus il y a d'items, plus l'animation est longue pour garder une vitesse constante
+  // Calculer la durée d'animation
   const itemCount = recentActivities.length;
-  const duration = Math.max(30, itemCount * 8); // 8 secondes par item, minimum 30s
+  const duration = Math.max(30, itemCount * 8);
 
-  const track = ticker.querySelector('.ticker-track');
-  if (track) {
-    track.style.animationDuration = `${duration}s`;
-  }
+  // Appliquer la durée aux deux tracks
+  [tickerMobile, tickerDesktop].forEach(ticker => {
+    if (ticker) {
+      const track = ticker.querySelector('.ticker-track');
+      if (track) track.style.animationDuration = `${duration}s`;
+    }
+  });
 }
 
 /**
@@ -1697,16 +1704,50 @@ function injectTickerStyles() {
   style.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
+    /* Base commune */
     .activity-ticker {
       width: 100%;
       height: 22px;
       background: #0a0a0a;
-      border-bottom: 1px solid #f97316;
       overflow: hidden;
       font-family: 'VT323', 'Courier New', monospace;
-      position: relative;
       display: flex;
       align-items: center;
+    }
+
+    /* Desktop: fixed en bas de page */
+    .activity-ticker-desktop {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      border-top: 0.5px solid #f97316;
+    }
+
+    /* Mobile: dans la nav, caché par défaut sur desktop */
+    .activity-ticker-mobile {
+      border-bottom: 1px solid #f97316;
+      display: none;
+    }
+
+    /* Responsive: inverser l'affichage sur mobile */
+    @media (max-width: 768px) {
+      .activity-ticker-desktop {
+        display: none;
+      }
+
+      .activity-ticker-mobile {
+        display: flex;
+        height: 20px;
+      }
+    }
+
+    /* Padding body pour ne pas cacher le contenu par le ticker desktop */
+    @media (min-width: 769px) {
+      body {
+        padding-bottom: 24px;
+      }
     }
 
     .ticker-track {
@@ -1782,12 +1823,8 @@ function injectTickerStyles() {
       font-size: 13px;
     }
 
-    /* Responsive mobile */
+    /* Mobile adjustments */
     @media (max-width: 768px) {
-      .activity-ticker {
-        height: 20px;
-      }
-
       .ticker-track {
         line-height: 20px;
       }
