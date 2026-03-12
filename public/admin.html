@@ -344,11 +344,37 @@
       document.getElementById('adminDashboard').style.display = 'none';
     }
 
+    // Charger les athlètes pour le dropdown reset password
+    async function loadAthletesForReset() {
+      try {
+        const response = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
+        if (!response.ok) throw new Error('Erreur chargement');
+
+        const athletes = await response.json();
+        const select = document.getElementById('resetPasswordAthlete');
+
+        if (!select) return;
+
+        select.innerHTML = '<option value="">-- Choisir un athlète --</option>';
+        athletes.forEach(athlete => {
+          const option = document.createElement('option');
+          option.value = athlete.id;
+          option.textContent = `${athlete.name} (${athlete.email || 'pas d\'email'})`;
+          select.appendChild(option);
+        });
+
+        console.log(`✅ ${athletes.length} athlètes chargés pour reset password`);
+      } catch (error) {
+        console.error('Erreur chargement athlètes pour reset:', error);
+      }
+    }
+
     function showDashboard() {
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('adminDashboard').style.display = 'block';
       loadDashboardData();
       checkWebhookStatus(); // Vérifier le statut du webhook
+      loadAthletesForReset(); // Charger la liste pour le reset password
     }
 
     // Fonction pour vérifier le statut du webhook
@@ -1262,26 +1288,6 @@
     // RESET MOT DE PASSE
     // ============================================
 
-    async function loadAthletesForReset() {
-      try {
-        const response = await fetch(`${API_BASE}/athletes/versant-2026`);
-        if (!response.ok) throw new Error('Erreur chargement');
-
-        const athletes = await response.json();
-        const select = document.getElementById('resetPasswordAthlete');
-
-        select.innerHTML = '<option value="">-- Choisir un athlète --</option>';
-        athletes.forEach(athlete => {
-          const option = document.createElement('option');
-          option.value = athlete.id;
-          option.textContent = `${athlete.name} (${athlete.email || 'pas d\'email'})`;
-          select.appendChild(option);
-        });
-      } catch (error) {
-        console.error('Erreur chargement athlètes pour reset:', error);
-      }
-    }
-
     document.getElementById('resetPasswordBtn')?.addEventListener('click', async () => {
       const athleteId = document.getElementById('resetPasswordAthlete').value;
       const newPassword = document.getElementById('resetPasswordNew').value;
@@ -1339,13 +1345,6 @@
     // INIT
     // ============================================
     checkAuth();
-
-    // Charger la liste des athlètes pour le reset password après connexion
-    const originalShowDashboard = showDashboard;
-    showDashboard = function() {
-      originalShowDashboard();
-      loadAthletesForReset();
-    };
   </script>
 </body>
 </html>
