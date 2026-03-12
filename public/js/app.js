@@ -1668,11 +1668,12 @@ function truncateText(text, maxLength) {
 
 /**
  * Retourne l'icône correspondant au type de sport
+ * Modifie cette fonction pour changer les emojis
  */
 function getSportIcon(sportType) {
   const icons = {
-    'Run': '🏃',
-    'TrailRun': '🏔️',
+    'Run': '👟',
+    'TrailRun': '⛰️',
     'Hike': '🥾',
     'Walk': '🚶',
     'Ride': '🚴',
@@ -1680,9 +1681,9 @@ function getSportIcon(sportType) {
     'GravelRide': '🚴',
     'BackcountrySki': '⛷️',
     'NordicSki': '🎿',
-    'Snowshoe': '🦶'
+    'Snowshoe': '❄️'
   };
-  return icons[sportType] || '🏃';
+  return icons[sportType] || '👟';
 }
 
 /**
@@ -1698,12 +1699,14 @@ function injectTickerStyles() {
 
     .activity-ticker {
       width: 100%;
-      height: 28px;
+      height: 22px;
       background: #0a0a0a;
-      border-top: 2px solid #f97316;
+      border-bottom: 1px solid #f97316;
       overflow: hidden;
       font-family: 'VT323', 'Courier New', monospace;
       position: relative;
+      display: flex;
+      align-items: center;
     }
 
     .ticker-track {
@@ -1712,8 +1715,8 @@ function injectTickerStyles() {
       height: 100%;
       white-space: nowrap;
       animation: ticker-scroll 60s linear infinite;
-      /* Démarrer à -25% pour que le ticker soit rempli aux 3/4 dès le début */
       transform: translateX(-25%);
+      line-height: 22px;
     }
 
     @keyframes ticker-scroll {
@@ -1721,7 +1724,6 @@ function injectTickerStyles() {
         transform: translateX(-25%);
       }
       100% {
-        /* Aller jusqu'à -58.33% (25% + 33.33%) pour boucler parfaitement avec 3 copies */
         transform: translateX(-58.33%);
       }
     }
@@ -1733,9 +1735,10 @@ function injectTickerStyles() {
     .ticker-item {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      font-size: 15px;
+      gap: 4px;
+      font-size: 14px;
       letter-spacing: 0.3px;
+      line-height: 1;
     }
 
     .ticker-date {
@@ -1758,7 +1761,8 @@ function injectTickerStyles() {
     }
 
     .ticker-sport {
-      font-size: 13px;
+      font-size: 11px;
+      line-height: 1;
     }
 
     .ticker-elev {
@@ -1768,33 +1772,37 @@ function injectTickerStyles() {
 
     .ticker-div {
       color: #333;
-      margin: 0 12px;
-      font-size: 16px;
+      margin: 0 10px;
+      font-size: 14px;
     }
 
     .ticker-no-activity {
       color: #666;
       padding: 0 20px;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     /* Responsive mobile */
     @media (max-width: 768px) {
       .activity-ticker {
-        height: 26px;
+        height: 20px;
+      }
+
+      .ticker-track {
+        line-height: 20px;
       }
 
       .ticker-item {
-        font-size: 13px;
+        font-size: 12px;
         gap: 3px;
       }
 
       .ticker-div {
-        margin: 0 8px;
+        margin: 0 6px;
       }
 
       .ticker-sport {
-        font-size: 11px;
+        font-size: 10px;
       }
     }
   `;
