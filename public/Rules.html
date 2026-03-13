@@ -3,50 +3,397 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Versant - Challenge à Élimination </title>
-
-  <!-- CACHE CONTROL -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
+  <title>Règles - Challenge Versant 2026</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260225b">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
+  <link rel="stylesheet" href="css/style.css?v=20260313">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
+
+  <style>
+    .rules-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 100px 24px 60px;
+    }
+
+    .rules-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .rules-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #f97316, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .rules-subtitle {
+      font-size: 18px;
+      color: rgba(255,255,255,0.7);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .rules-section {
+      margin-bottom: 60px;
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      color: rgba(255,255,255,0.95);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title-icon {
+      font-size: 32px;
+    }
+
+    .rules-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .rules-card:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(249,115,22,0.3);
+    }
+
+    .rules-card h4 {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #f97316;
+    }
+
+    .rules-card p {
+      color: rgba(255,255,255,0.7);
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .rules-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Grilles de cartes */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .joker-card {
+      background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .joker-card:hover {
+      background: rgba(249,115,22,0.1);
+      border-color: rgba(249,115,22,0.4);
+      transform: translateY(-4px);
+    }
+
+    .joker-card .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .joker-card .name {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: rgba(255,255,255,0.95);
+    }
+
+    .joker-card .desc {
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.5;
+    }
+
+    .joker-card .stock {
+      margin-top: 12px;
+      padding: 6px 12px;
+      background: rgba(249,115,22,0.15);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #f97316;
+      display: inline-block;
+    }
+
+    /* Bonus éphémères */
+    .bonus-ephemere-card {
+      background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), rgba(168, 85, 247, 0.02));
+      border: 1px solid rgba(168, 85, 247, 0.3);
+    }
+
+    .bonus-ephemere-card:hover {
+      background: rgba(168, 85, 247, 0.15);
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+
+    .bonus-ephemere-card .name {
+      color: #a855f7;
+    }
+
+    .bonus-ephemere-card .category {
+      margin-top: 8px;
+      padding: 4px 10px;
+      background: rgba(168, 85, 247, 0.2);
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #c084fc;
+      display: inline-block;
+    }
+
+    /* Tableaux de points */
+    .points-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .points-table-container {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .points-table-container.principal {
+      border-color: rgba(249,115,22,0.3);
+    }
+
+    .points-table-container.elimines {
+      border-color: rgba(34,211,238,0.3);
+    }
+
+    .points-table-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .points-table-container.principal .points-table-title {
+      color: #f97316;
+    }
+
+    .points-table-container.elimines .points-table-title {
+      color: #22d3ee;
+    }
+
+    .points-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .points-table tr {
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .points-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .points-table td {
+      padding: 10px 8px;
+    }
+
+    .points-table td:first-child {
+      color: rgba(255,255,255,0.7);
+    }
+
+    .points-table td:last-child {
+      text-align: right;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* Règle spéciale (Rescapé) */
+    .special-rule-card {
+      background: linear-gradient(145deg, rgba(251, 191, 36, 0.08), rgba(251, 191, 36, 0.02));
+      border: 2px solid rgba(251, 191, 36, 0.3);
+      border-radius: 20px;
+      padding: 32px;
+    }
+
+    .special-rule-card h4 {
+      color: #fbbf24;
+      font-size: 22px;
+      margin-bottom: 16px;
+    }
+
+    .special-rule-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .special-rule-step {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+    }
+
+    .special-rule-step .step-icon {
+      font-size: 28px;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .special-rule-step .step-text {
+      color: rgba(255,255,255,0.8);
+      font-size: 15px;
+    }
+
+    .special-rule-step .step-text strong {
+      color: #fbbf24;
+    }
+
+    .special-rule-warning {
+      margin-top: 20px;
+      padding: 16px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+    }
+
+    .special-rule-warning strong {
+      color: #ef4444;
+    }
+
+    /* Info box */
+    .info-box {
+      padding: 20px 24px;
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .info-box p {
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .info-box strong {
+      color: #22d3ee;
+    }
+
+    /* Timeline saison */
+    .timeline-container {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .timeline {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      padding: 20px 0;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 28px;
+      left: 10%;
+      right: 10%;
+      height: 3px;
+      background: linear-gradient(90deg, #f97316, #22d3ee);
+      border-radius: 2px;
+    }
+
+    .timeline-item {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .timeline-dot {
+      width: 16px;
+      height: 16px;
+      background: #22d3ee;
+      border-radius: 50%;
+      margin: 0 auto 12px;
+      box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.2);
+    }
+
+    .timeline-label {
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .timeline-value {
+      color: #f97316;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .rules-title {
+        font-size: 36px;
+      }
+
+      .section-title {
+        font-size: 22px;
+      }
+
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline {
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .timeline::before {
+        display: none;
+      }
+    }
+  </style>
 </head>
 <body>
-  <!-- Loading Screen -->
-  <div class="loading-screen" id="loadingScreen">
-    <div class="loading-content">
-      <div class="loading-icon">◭️</div>
-      <div class="loading-title">Versant</div>
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Chargement des données...</div>
-    </div>
-  </div>
-
-  <!-- Hero Section -->
-  <section class="hero" style="min-height: 60vh;">
-    <div class="hero-bg"></div>
-    <div class="hero-content">
-      <span class="hero-eyebrow">Challenge 2026 • En direct</span>
-      <h1 class="hero-title">
-        <span class="title-line">Challenge</span>
-        <span class="title-line accent">Versant</span>
-      </h1>
-      <p class="hero-subtitle">Course à élimination par saisons • Dénivelé positif</p>
-      <p class="hero-description">
-        Chaque round de 5 jours, les 2 derniers au classement D+ sont éliminés.
-      </p>
-    </div>
-    <div class="scroll-indicator">
-      <span>Scroll</span>
-      <div class="scroll-line"></div>
-    </div>
-  </section>
-
   <!-- Navigation -->
   <nav class="nav-sticky">
     <div class="nav-container">
@@ -55,8 +402,8 @@
         <span class="brand-text">Versant</span>
       </a>
       <div class="nav-links">
-        <a href="#ranking" class="nav-link active">Classement</a>
-        <a href="rules.html" class="nav-link">Règles</a>
+        <a href="index.html" class="nav-link">Classement</a>
+        <a href="rules.html" class="nav-link active">Règles</a>
         <a href="dashboard.html" class="nav-link nav-link-with-badge" id="dashboardLink" style="display:none;">
           Dashboard
           <span class="nav-badge" id="dashboardBadge" style="display:none;">!</span>
@@ -64,67 +411,321 @@
         <a href="login.html" class="nav-link" id="loginLink">Connexion</a>
       </div>
     </div>
-    <!-- Ticker mobile (dans la nav) -->
-    <div id="activityTickerMobile" class="activity-ticker activity-ticker-mobile"></div>
   </nav>
 
-  <!-- Ticker desktop (en bas de page) -->
-  <div id="activityTickerDesktop" class="activity-ticker activity-ticker-desktop"></div>
-
-  <!-- Season Banner -->
-  <section style="padding: 24px var(--container-padding);">
-    <div class="season-banner" id="seasonBanner"></div>
-  </section>
-
-  <!-- Classement du Round -->
-  <section class="ranking-section" id="ranking">
-    <div class="section-header">
-      <span class="section-number">01</span>
-      <h2 class="section-title">Classement du Round</h2>
-      <p class="section-desc">Survolez un athlète pour voir ses activités • Les derniers seront éliminés</p>
+  <div class="rules-container">
+    <!-- Header -->
+    <div class="rules-header">
+      <h1 class="rules-title">Règles du Challenge</h1>
+      <p class="rules-subtitle">
+        Tout ce que tu dois savoir pour participer au Challenge Versant 2026
+      </p>
     </div>
-    <div class="ranking-container" id="rankingContainer"></div>
-  </section>
 
-  <!-- Challenge des Éliminés -->
-  <section class="ranking-section" id="eliminated">
-    <div class="section-header">
-      <span class="section-number">02</span>
-      <h2 class="section-title">Challenge des Éliminés</h2>
-      <p class="section-desc">D+ cumulé depuis l'élimination - Points attribués en fin de saison</p>
-    </div>
-    <div class="ranking-container" id="eliminatedChallengeContainer"></div>
-  </section>
+    <!-- Principe du Challenge -->
+    <section class="rules-section">
+      <h2 class="section-title">
+        <span class="section-title-icon">🏔️</span>
+        Principe du Challenge
+      </h2>
 
-  <!-- Classement Général (Points) -->
-  <section class="ranking-section" id="standings">
-    <div class="section-header">
-      <span class="section-number">03</span>
-      <h2 class="section-title">Classement Général</h2>
-      <p class="section-desc">Points totaux = Challenge Principal + Challenge Éliminés</p>
-    </div>
-    <div class="standings-container" id="finalStandingsContainer"></div>
-  </section>
+      <div class="rules-card">
+        <h4>Le concept</h4>
+        <p>
+          Le Challenge Versant est une compétition de dénivelé positif (D+) basée sur tes activités Strava.
+          Chaque semaine, les joueurs s'affrontent et les derniers sont éliminés. Le but : survivre le plus longtemps possible
+          et accumuler un maximum de points.
+        </p>
+      </div>
 
-  <!-- Participants -->
-  <section class="participants-section" id="participants">
-    <div class="section-header">
-      <span class="section-number">04</span>
-      <h2 class="section-title">Participants</h2>
-      <p class="section-desc">Tous les athlètes de la saison</p>
-    </div>
-    <div class="participants-grid" id="participantsGrid"></div>
-  </section>
+      <div class="rules-card">
+        <h4>Déroulement d'une saison</h4>
+        <p>
+          Une saison dure environ 2 mois et se compose de plusieurs rounds d'une semaine chacun.
+          À chaque round, les 2 derniers joueurs du classement D+ sont éliminés et rejoignent le Challenge des Éliminés.
+          La saison se termine quand il ne reste qu'un seul joueur actif : le champion !
+        </p>
+      </div>
 
-  <!-- Historique -->
-  <section class="history-section" id="history">
-    <div class="section-header">
-      <span class="section-number">05</span>
-      <h2 class="section-title">Historique des Saisons</h2>
-      <p class="section-desc">Détails et résumés des saisons passées</p>
+      <div class="timeline-container">
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-label">Début</div>
+            <div class="timeline-value">~24 joueurs</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-label">Chaque round</div>
+            <div class="timeline-value">-2 éliminés</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-label">Final</div>
+            <div class="timeline-value">1 champion</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Système de Points -->
+    <section class="rules-section">
+      <h2 class="section-title">
+        <span class="section-title-icon">🏆</span>
+        Système de Points
+      </h2>
+
+      <div class="rules-card">
+        <p>
+          Les points sont attribués à chaque round selon ton classement D+. Plus tu finis haut, plus tu gagnes de points.
+          Le classement général cumule les points du Challenge Principal et du Challenge des Éliminés.
+        </p>
+      </div>
+
+      <div class="points-grid">
+        <!-- Challenge Principal -->
+        <div class="points-table-container principal">
+          <h4 class="points-table-title">🏆 Challenge Principal</h4>
+          <p style="font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px;">
+            Points par round selon le classement
+          </p>
+          <table class="points-table">
+            <tr><td>🥇 1ère place</td><td style="color: #fbbf24;">24 pts</td></tr>
+            <tr><td>🥈 2ème place</td><td style="color: #d1d5db;">21 pts</td></tr>
+            <tr><td>🥉 3ème place</td><td style="color: #cd7f32;">18 pts</td></tr>
+            <tr><td>4ème place</td><td>16 pts</td></tr>
+            <tr><td>5ème place</td><td>14 pts</td></tr>
+            <tr><td>6ème place</td><td>12 pts</td></tr>
+            <tr><td>7ème - 12ème</td><td>10 → 5 pts</td></tr>
+            <tr><td>13ème et +</td><td style="color: rgba(255,255,255,0.5);">1-4 pts</td></tr>
+          </table>
+        </div>
+
+        <!-- Challenge des Éliminés -->
+        <div class="points-table-container elimines">
+          <h4 class="points-table-title">👻 Challenge des Éliminés</h4>
+          <p style="font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px;">
+            Points selon le D+ cumulé depuis l'élimination
+          </p>
+          <table class="points-table">
+            <tr><td>🥇 1ère place</td><td style="color: #fbbf24;">10 pts</td></tr>
+            <tr><td>🥈 2ème place</td><td style="color: #d1d5db;">8 pts</td></tr>
+            <tr><td>🥉 3ème place</td><td style="color: #cd7f32;">6 pts</td></tr>
+            <tr><td>4ème place</td><td>5 pts</td></tr>
+            <tr><td>5ème place</td><td>4 pts</td></tr>
+            <tr><td>6ème place</td><td>3 pts</td></tr>
+            <tr><td>7ème place</td><td>2 pts</td></tr>
+            <tr><td>8ème place</td><td>1 pt</td></tr>
+            <tr><td>9ème et +</td><td style="color: rgba(255,255,255,0.5);">0 pt</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <p>
+          <strong>💡 Astuce :</strong> Être éliminé tôt donne plus de temps pour accumuler du D+ dans le challenge des éliminés.
+          Un bon score peut compenser une élimination précoce !
+        </p>
+      </div>
+    </section>
+
+    <!-- Règle Rescapé -->
+    <section class="rules-section">
+      <h2 class="section-title">
+        <span class="section-title-icon">🎫</span>
+        Règle du Rescapé
+      </h2>
+
+      <div class="special-rule-card">
+        <h4>🎫 Le Jeton Rescapé</h4>
+        <p style="color: rgba(255,255,255,0.7); line-height: 1.7;">
+          Tu finis juste au-dessus de la zone d'élimination ? Tu joues avec le feu, mais tu peux en être récompensé !
+          La position "Rescapé" est l'avant-avant-dernière place : celle juste au-dessus des 2 éliminés.
+        </p>
+
+        <div class="special-rule-steps">
+          <div class="special-rule-step">
+            <span class="step-icon">🎫</span>
+            <span class="step-text">
+              <strong>1ère fois Rescapé</strong> → Tu gagnes 1 jeton (pas de points pour l'instant)
+            </span>
+          </div>
+          <div class="special-rule-step">
+            <span class="step-icon">🎉</span>
+            <span class="step-text">
+              <strong>2ème fois consécutive</strong> → <strong>+2 points bonus !</strong>
+            </span>
+          </div>
+          <div class="special-rule-step">
+            <span class="step-icon">🔥</span>
+            <span class="step-text">
+              <strong>3ème fois et +</strong> → <strong>+2 points</strong> à chaque fois (cumulable)
+            </span>
+          </div>
+        </div>
+
+        <div class="special-rule-warning">
+          <strong>⚠️ Attention :</strong> Si tu quittes la position Rescapé (tu montes dans le classement ou tu es éliminé),
+          tes jetons sont perdus et le compteur repart à zéro.
+        </div>
+      </div>
+    </section>
+
+    <!-- Les Jokers -->
+    <section class="rules-section">
+      <h2 class="section-title">
+        <span class="section-title-icon">🃏</span>
+        Les Jokers
+      </h2>
+
+      <div class="rules-card">
+        <p>
+          Chaque joueur dispose de <strong style="color: #f97316;">8 jokers</strong> au total (2 de chaque type)
+          à utiliser stratégiquement durant la saison. Les jokers s'activent généralement au round suivant.
+        </p>
+      </div>
+
+      <div class="cards-grid">
+        <div class="joker-card">
+          <div class="icon">🦹</div>
+          <div class="name">Voleur</div>
+          <div class="desc">Vole la meilleure activité (plus gros D+) d'un adversaire de ton choix.</div>
+          <div class="stock">×2 par saison</div>
+        </div>
+
+        <div class="joker-card">
+          <div class="icon">✖️</div>
+          <div class="name">Multiplicateur</div>
+          <div class="desc">Multiplie ton D+ du round par ×1.5. Un boost considérable !</div>
+          <div class="stock">×2 par saison</div>
+        </div>
+
+        <div class="joker-card">
+          <div class="icon">🛡️</div>
+          <div class="name">Bouclier</div>
+          <div class="desc">Évite l'élimination même si tu es dernier. Activable immédiatement (J1-J2). NON utilisable en finale.</div>
+          <div class="stock">×2 par saison</div>
+        </div>
+
+        <div class="joker-card">
+          <div class="icon">💣</div>
+          <div class="name">Sabotage</div>
+          <div class="desc">Retire 30% du D+ d'un adversaire ciblé. Idéal pour déstabiliser un concurrent.</div>
+          <div class="stock">×2 par saison</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bonus Éphémères -->
+    <section class="rules-section">
+      <h2 class="section-title">
+        <span class="section-title-icon">🎁</span>
+        Bonus Éphémères (Challenge des Éliminés)
+      </h2>
+
+      <div class="rules-card">
+        <h4>Comment ça marche ?</h4>
+        <p>
+          Quand tu es éliminé, si tu es le <strong style="color: #a855f7;">meilleur des 2 éliminés</strong> du round,
+          tu reçois un bonus spécial ! Tu choisis 1 bonus parmi 2 tirés au sort (style roguelite 🎲).
+        </p>
+        <p>
+          Ce bonus est utilisable une seule fois avant la fin de la saison. Si tu ne l'utilises pas, il disparaît !
+        </p>
+      </div>
+
+      <div class="cards-grid">
+        <div class="joker-card bonus-ephemere-card">
+          <div class="icon">🏹</div>
+          <div class="name">Embuscade</div>
+          <div class="desc">Vole une activité aléatoire (+20min) d'un joueur actif. Son D+ t'est transféré.</div>
+          <div class="category">⚔️ Offensif</div>
+        </div>
+
+        <div class="joker-card bonus-ephemere-card">
+          <div class="icon">🎒</div>
+          <div class="name">Ravitaillement</div>
+          <div class="desc">Donne une de tes activités aléatoire à un joueur actif. Tu gardes aussi ton D+.</div>
+          <div class="category">🤝 Soutien</div>
+        </div>
+
+        <div class="joker-card bonus-ephemere-card">
+          <div class="icon">⚔️</div>
+          <div class="name">Duel</div>
+          <div class="desc">Défie ton co-éliminé. Celui avec le plus de D+ à la fin de la saison gagne +1 point.</div>
+          <div class="category">🏆 Compétitif</div>
+        </div>
+
+        <div class="joker-card bonus-ephemere-card">
+          <div class="icon">🌫️</div>
+          <div class="name">Brouillard</div>
+          <div class="desc">Cache ton D+ jusqu'à la fin de la saison. Tu apparais dernier... mais c'est un leurre !</div>
+          <div class="category">🛡️ Défensif</div>
+        </div>
+
+        <div class="joker-card bonus-ephemere-card">
+          <div class="icon">🎯</div>
+          <div class="name">Marquage</div>
+          <div class="desc">Marque un joueur actif en début de round. S'il est éliminé, tu gagnes +1 point.</div>
+          <div class="category">🎲 Pari</div>
+        </div>
+
+        <div class="joker-card bonus-ephemere-card">
+          <div class="icon">🪤</div>
+          <div class="name">It's a TRAP !</div>
+          <div class="desc">Piège automatique. Le prochain dernier éliminé te donne le D+ de sa dernière activité.</div>
+          <div class="category">🪤 Piège</div>
+        </div>
+
+        <div class="joker-card bonus-ephemere-card">
+          <div class="icon">🔥</div>
+          <div class="name">Second Souffle</div>
+          <div class="desc">Sois régulier ! Ta plus petite activité de la saison est doublée à la fin.</div>
+          <div class="category">⚡ Boost</div>
+        </div>
+      </div>
+
+      <div class="info-box" style="background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3);">
+        <p>
+          <strong style="color: #a855f7;">🎲 Système roguelite :</strong> Tu ne choisis pas ton bonus !
+          2 bonus sont tirés au sort et tu en choisis 1. C'est le destin qui décide de tes options.
+        </p>
+      </div>
+    </section>
+
+    <!-- Activités comptabilisées -->
+    <section class="rules-section">
+      <h2 class="section-title">
+        <span class="section-title-icon">🏃</span>
+        Activités Comptabilisées
+      </h2>
+
+      <div class="rules-card">
+        <h4>Sports acceptés</h4>
+        <p>
+          Toutes les activités outdoor avec dénivelé sont comptabilisées : course à pied, trail, randonnée, vélo, VTT,
+          ski de randonnée, raquettes, etc. Les activités doivent être enregistrées sur Strava.
+        </p>
+      </div>
+
+      <div class="rules-card">
+        <h4>Critères de validité</h4>
+        <p>
+          • L'activité doit être enregistrée pendant la période du round en cours<br>
+          • Le D+ est celui calculé par Strava<br>
+          • Les activités manuelles sont acceptées mais peuvent être vérifiées<br>
+          • Les activités sur home trainer (sans D+ réel) ne comptent pas
+        </p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div style="text-align: center; margin-top: 60px;">
+      <a href="index.html" class="btn-login" style="display: inline-block; text-decoration: none;">
+        Voir le classement
+      </a>
     </div>
-    <div class="history-timeline" id="historyTimeline"></div>
-  </section>
+  </div>
 
   <!-- Footer -->
   <footer class="footer">
@@ -135,96 +736,19 @@
   </footer>
 
   <script>
-  // Force reload - purge du cache à chaque visite
-  if ('caches' in window) {
-    caches.keys().then(names => names.forEach(name => caches.delete(name)));
-  }
-  // Vider le localStorage des anciennes versions de jokers
-  Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('versant_jokers') && !key.includes('v2_20260202')) {
-      localStorage.removeItem(key);
+    // Gestion de l'affichage du lien Dashboard
+    const athleteId = localStorage.getItem('versant_athlete_id');
+    const token = localStorage.getItem('versant_token');
+    const dashboardLink = document.getElementById('dashboardLink');
+    const loginLink = document.getElementById('loginLink');
+
+    if (athleteId || token) {
+      if (dashboardLink) dashboardLink.style.display = 'inline-flex';
+      if (loginLink) loginLink.style.display = 'none';
+    } else {
+      if (dashboardLink) dashboardLink.style.display = 'none';
+      if (loginLink) loginLink.style.display = 'inline-block';
     }
-  });
-
-  // Afficher "Mon Dashboard" si connecté, sinon "Connexion"
-  const athleteId = localStorage.getItem('versant_athlete_id');
-  const token = localStorage.getItem('versant_token');
-  const dashboardLink = document.getElementById('dashboardLink');
-  const dashboardBadge = document.getElementById('dashboardBadge');
-  const loginLink = document.getElementById('loginLink');
-
-  if (athleteId || token) {
-    // Utilisateur connecté
-    if (dashboardLink) dashboardLink.style.display = 'inline-flex';
-    if (loginLink) loginLink.style.display = 'none';
-
-    // Vérifier s'il y a des notifications (bonus à choisir)
-    if (token && dashboardBadge) {
-      checkDashboardNotifications(token, dashboardBadge);
-    }
-  } else {
-    // Non connecté
-    if (dashboardLink) dashboardLink.style.display = 'none';
-    if (loginLink) loginLink.style.display = 'inline-block';
-  }
-
-  // Fonction pour vérifier les notifications dashboard
-  async function checkDashboardNotifications(authToken, badgeEl) {
-    try {
-      // Vérifier s'il y a des choix de bonus en attente
-      const choicesRes = await fetch('/api/bonuses/choices', {
-        headers: { 'Authorization': 'Bearer ' + authToken }
-      });
-
-      if (choicesRes.ok) {
-        const choicesData = await choicesRes.json();
-        if (choicesData.hasChoice) {
-          // Il y a un bonus à choisir !
-          badgeEl.textContent = '🎁';
-          badgeEl.style.display = 'inline-flex';
-          badgeEl.title = 'Tu as un bonus à choisir !';
-          return;
-        }
-      }
-
-      // Vérifier s'il y a un bonus disponible non utilisé
-      const bonusRes = await fetch('/api/bonuses/my', {
-        headers: { 'Authorization': 'Bearer ' + authToken }
-      });
-
-      if (bonusRes.ok) {
-        const bonusData = await bonusRes.json();
-        if (bonusData.bonus && bonusData.bonus.status === 'available') {
-          // Il y a un bonus disponible
-          badgeEl.textContent = '!';
-          badgeEl.style.display = 'inline-flex';
-          badgeEl.title = 'Tu as un bonus à utiliser !';
-          return;
-        }
-      }
-
-      // Pas de notification
-      badgeEl.style.display = 'none';
-    } catch (err) {
-      console.warn('Erreur vérification notifications:', err);
-      badgeEl.style.display = 'none';
-    }
-  }
-</script>
-  <!-- Safety timeout: masquer le loader après 12 secondes max -->
-  <script>
-    setTimeout(function() {
-      var loader = document.getElementById('loadingScreen');
-      if (loader && !loader.classList.contains('hidden')) {
-        console.warn('⚠️ Safety timeout: masquage forcé du loader');
-        loader.classList.add('hidden');
-        loader.style.display = 'none';
-        loader.style.visibility = 'hidden';
-      }
-    }, 12000);
   </script>
-
-  <!-- App JS - Version simple avec query string -->
-  <script type="module" src="js/app.js?v=20260225b"></script>
 </body>
 </html>

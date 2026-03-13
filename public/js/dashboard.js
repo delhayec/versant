@@ -247,6 +247,9 @@ async function renderStats() {
   const frozenResults = await loadFrozenResults();
   const athletes = await loadAllAthletes();
 
+  // Si pas d'athlètes chargés, utiliser les données locales
+  const athletesList = athletes.length > 0 ? athletes : [currentUser];
+
   // Déterminer le statut du joueur (actif ou éliminé)
   const eliminationInfo = getEliminationInfo(userId, frozenResults);
   const isEliminated = eliminationInfo.isEliminated;
@@ -265,8 +268,12 @@ async function renderStats() {
   const userRoundActivities = roundActivities.filter(a => String(a.athlete_id) === userId);
   const roundElevation = userRoundActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
 
-  // D+ total saison
-  const userActivities = allActivities.filter(a => String(a.athlete_id) === userId);
+  // D+ total saison (depuis le début de l'année/saison)
+  const seasonStart = new Date(CHALLENGE_CONFIG.yearStartDate);
+  const userActivities = allActivities.filter(a => {
+    const date = new Date(a.start_date);
+    return String(a.athlete_id) === userId && date >= seasonStart;
+  });
   const totalElevation = userActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
 
   // Calculer la position dans le challenge actuel
@@ -275,7 +282,7 @@ async function renderStats() {
 
   if (isEliminated) {
     // Challenge des éliminés : calculer le classement parmi les éliminés
-    const eliminatedRanking = calculateEliminatedRanking(frozenResults, allActivities, athletes);
+    const eliminatedRanking = calculateEliminatedRanking(frozenResults, allActivities, athletesList);
     const myRank = eliminatedRanking.findIndex(e => String(e.id) === userId) + 1;
     if (myRank > 0) {
       challengeRank = myRank;
@@ -283,21 +290,33 @@ async function renderStats() {
     }
   } else {
     // Challenge principal : calculer le classement parmi les actifs
-    const activeAthletes = getActiveAthletes(frozenResults, athletes);
+    const activeAthletes = getActiveAthletes(frozenResults, athletesList);
+
+    // Calculer le classement D+ du round actuel
     const ranking = calculateRankingFromActivities(roundActivities, activeAthletes);
     const myRank = ranking.findIndex(e => String(e.id) === userId) + 1;
+
     if (myRank > 0) {
       challengeRank = myRank;
       challengeTotal = ranking.length;
+    } else if (activeAthletes.length > 0) {
+      // L'utilisateur n'a pas d'activité ce round mais est actif
+      challengeRank = activeAthletes.length; // Dernier par défaut
+      challengeTotal = activeAthletes.length;
     }
   }
 
-  // Calculer le classement général (points)
-  const generalRanking = calculateGeneralRanking(frozenResults, athletes);
-  const overallRank = generalRanking.findIndex(e => String(e.id) === userId) + 1;
-  const totalPoints = generalRanking.find(e => String(e.id) === userId)?.points || 0;
+  // Calculer le classement général (points cumulés des rounds figés)
+  const generalRanking = calculateGeneralRanking(frozenResults, athletesList);
+  const myGeneralEntry = generalRanking.find(e => String(e.id) === userId);
+  const overallRank = myGeneralEntry ? generalRanking.indexOf(myGeneralEntry) + 1 : '-';
+  const totalPoints = myGeneralEntry?.points || 0;
 
-  // Affichage
+  // ============================================
+  // AFFICHAGE
+  // ============================================
+
+  // Statut du challenge
   const challengeStatusEl = document.getElementById('challengeStatus');
   if (challengeStatusEl) {
     if (isEliminated) {
@@ -310,51 +329,68 @@ async function renderStats() {
     }
   }
 
+  // D+ du round
   const roundElevationEl = document.getElementById('roundElevation');
   if (roundElevationEl) {
     roundElevationEl.textContent = formatElevation(roundElevation);
-    // Ajouter une couleur selon la position
-    if (!isEliminated && challengeRank !== '-') {
+    // Colorer selon la position
+    roundElevationEl.style.color = ''; // Reset
+    if (!isEliminated && challengeRank !== '-' && challengeTotal !== '-') {
       if (challengeRank <= 3) {
         roundElevationEl.style.color = '#10b981'; // Vert - top 3
-      } else if (challengeRank > challengeTotal - 2) {
+      } else if (challengeRank > challengeTotal - 2 && challengeTotal > 2) {
         roundElevationEl.style.color = '#ef4444'; // Rouge - zone danger
-      } else {
-        roundElevationEl.style.color = ''; // Normal
       }
     }
   }
 
+  // Position dans le challenge
   const challengeRankEl = document.getElementById('challengeRank');
   if (challengeRankEl) {
-    if (challengeRank !== '-') {
-      challengeRankEl.innerHTML = `<strong>${challengeRank}</strong><span style="color: rgba(255,255,255,0.5);">/${challengeTotal}</span>`;
+    if (challengeRank !== '-' && challengeTotal !== '-') {
+      let rankColor = '';
+      if (challengeRank === 1) rankColor = 'color: #fbbf24;'; // Or
+      else if (challengeRank === 2) rankColor = 'color: #d1d5db;'; // Argent
+      else if (challengeRank === 3) rankColor = 'color: #cd7f32;'; // Bronze
+
+      challengeRankEl.innerHTML = `<strong style="${rankColor}">${challengeRank}</strong><span style="color: rgba(255,255,255,0.5);">/${challengeTotal}</span>`;
     } else {
       challengeRankEl.textContent = '-';
     }
   }
 
+  // Classement général
   const overallRankEl = document.getElementById('overallRank');
   if (overallRankEl) {
-    if (overallRank > 0) {
-      overallRankEl.innerHTML = `<strong>${overallRank}</strong><span style="color: rgba(255,255,255,0.5);">/${athletes.length}</span>`;
+    if (overallRank !== '-' && athletesList.length > 0) {
+      overallRankEl.innerHTML = `<strong>${overallRank}</strong><span style="color: rgba(255,255,255,0.5);">/${athletesList.length}</span>`;
     } else {
       overallRankEl.textContent = '-';
     }
   }
 
-  document.getElementById('totalElevation').textContent = formatElevation(totalElevation);
-  document.getElementById('totalActivities').textContent = userActivities.length;
-  document.getElementById('totalPoints').textContent = `${totalPoints} pts`;
+  // D+ total et activités
+  const totalElevationEl = document.getElementById('totalElevation');
+  if (totalElevationEl) {
+    totalElevationEl.textContent = formatElevation(totalElevation);
+  }
+
+  const totalActivitiesEl = document.getElementById('totalActivities');
+  if (totalActivitiesEl) {
+    totalActivitiesEl.textContent = userActivities.length;
+  }
+
+  // Points
+  const totalPointsEl = document.getElementById('totalPoints');
+  if (totalPointsEl) {
+    totalPointsEl.textContent = `${totalPoints} pts`;
+  }
 }
 
 /**
  * Affiche les infos du round actuel
  */
 function renderCurrentRound() {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-
   const currentRound = getCurrentRound();
   const dayInRound = getDayInRound();
   const roundDates = getRoundDates(currentRound);
