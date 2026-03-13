@@ -8,6 +8,8 @@
 export { 
   CHALLENGE_CONFIG, 
   JOKER_TYPES,
+  BONUS_TYPES,
+  BONUS_IDS,
   PARTICIPANTS,
   getParticipantById,
   getAthleteColor,

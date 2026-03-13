@@ -22,6 +22,9 @@ const crypto = require('crypto');
 // Import du module jokers
 const { createJokersRoutes } = require('./jokers-routes');
 
+// Import du module bonus éphémères
+const { createBonusesRoutes } = require('./bonuses-routes');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -195,13 +198,16 @@ function checkAdmin(req, res) {
 }
 
 // Monter le router jokers
-const jokersRouter = createJokersRoutes({ 
-  ATHLETES_FILE, 
-  JOKERS_FILE, 
-  ADMIN_PASSWORD, 
-  requireAuth 
+const jokersRouter = createJokersRoutes({
+  ATHLETES_FILE,
+  JOKERS_FILE,
+  ADMIN_PASSWORD,
+  requireAuth
 });
 app.use('/api', jokersRouter);
+
+// Initialiser les routes bonus éphémères
+createBonusesRoutes(app, requireAuth, checkAdmin);
 
 // ============================================
 // AUTH ROUTES

@@ -532,6 +532,190 @@
       font-size: 1.3rem;
     }
 
+    /* ========================================
+       BONUS ÉPHÉMÈRES STYLES
+       ======================================== */
+
+    .bonus-card {
+      background: linear-gradient(145deg, rgba(168, 85, 247, 0.1), rgba(168, 85, 247, 0.05));
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      border-radius: 20px;
+      padding: 28px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bonus-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #a855f7, #ec4899);
+    }
+
+    .bonus-card.available {
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .bonus-card.available:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 15px 40px rgba(168, 85, 247, 0.3);
+      border-color: #a855f7;
+    }
+
+    .bonus-card.used {
+      opacity: 0.5;
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    .bonus-card.used::before {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .bonus-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 4px 12px rgba(168, 85, 247, 0.4));
+    }
+
+    .bonus-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #a855f7;
+      margin-bottom: 12px;
+    }
+
+    .bonus-desc {
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .bonus-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: rgba(168, 85, 247, 0.15);
+      border-radius: 25px;
+      font-weight: 600;
+      color: #a855f7;
+    }
+
+    .bonus-status.used {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+
+    .bonus-target {
+      margin-top: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* Modal de choix de bonus (roguelite) */
+    .bonus-choice-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(15px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: modalFadeIn 0.4s ease-out;
+    }
+
+    .bonus-choice-container {
+      background: linear-gradient(145deg, rgba(26, 26, 36, 0.98), rgba(15, 15, 23, 0.98));
+      border: 2px solid rgba(168, 85, 247, 0.4);
+      border-radius: 28px;
+      width: 95%;
+      max-width: 700px;
+      padding: 36px;
+      box-shadow: 0 40px 120px rgba(168, 85, 247, 0.3);
+    }
+
+    .bonus-choice-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .bonus-choice-icon {
+      font-size: 56px;
+      display: block;
+      margin-bottom: 16px;
+      animation: bounce 1s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .bonus-choice-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .bonus-choice-subtitle {
+      color: rgba(255,255,255,0.6);
+      font-size: 1rem;
+    }
+
+    .bonus-choice-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .bonus-choice-option {
+      background: rgba(255,255,255,0.03);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .bonus-choice-option:hover {
+      background: rgba(168, 85, 247, 0.1);
+      border-color: rgba(168, 85, 247, 0.5);
+      transform: translateY(-6px);
+      box-shadow: 0 15px 40px rgba(168, 85, 247, 0.2);
+    }
+
+    .bonus-choice-option .bonus-icon {
+      font-size: 52px;
+    }
+
+    .bonus-choice-option .bonus-name {
+      font-size: 1.2rem;
+    }
+
+    .bonus-choice-option .bonus-desc {
+      font-size: 0.85rem;
+      margin-bottom: 0;
+    }
+
     /* Mobile Responsive */
     @media (max-width: 480px) {
       .joker-grid {
@@ -552,6 +736,14 @@
 
       .modal-body {
         padding: 20px;
+      }
+
+      .bonus-choice-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .bonus-choice-container {
+        padding: 24px;
       }
     }
   </style>
@@ -601,17 +793,30 @@
       <div class="dashboard-card">
         <h2 class="card-title">📊 Mes Statistiques</h2>
         <div id="statsContent">
+          <!-- Statut du challenge -->
+          <div class="stat-row" style="border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 16px; margin-bottom: 8px;">
+            <span class="stat-label">Mon challenge</span>
+            <span class="stat-value" id="challengeStatus" style="display: flex; align-items: center; gap: 8px;">-</span>
+          </div>
           <div class="stat-row">
-            <span class="stat-label">Dénivelé total</span>
+            <span class="stat-label">D+ du round</span>
+            <span class="stat-value" id="roundElevation">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Position dans le challenge</span>
+            <span class="stat-value" id="challengeRank">-</span>
+          </div>
+          <div class="stat-row" style="border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 16px; margin-bottom: 8px;">
+            <span class="stat-label">Classement général</span>
+            <span class="stat-value" id="overallRank">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">D+ total saison</span>
             <span class="stat-value" id="totalElevation">-</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">Nombre d'activités</span>
             <span class="stat-value" id="totalActivities">-</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Position actuelle</span>
-            <span class="stat-value" id="currentRank">-</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">Points accumulés</span>
@@ -622,11 +827,19 @@
 
       <!-- Prochain round -->
       <div class="dashboard-card">
-        <h2 class="card-title">🎯 Prochain Round</h2>
+        <h2 class="card-title">🎯 Round Actuel</h2>
         <div id="nextRoundContent">
           <div class="stat-row">
-            <span class="stat-label">Début</span>
-            <span class="stat-value" id="nextRoundStart">-</span>
+            <span class="stat-label">Round</span>
+            <span class="stat-value" id="currentRoundNumber">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Jour du round</span>
+            <span class="stat-value" id="dayInRound">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Fin du round</span>
+            <span class="stat-value" id="roundEndDate">-</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">Règle spéciale</span>
@@ -648,6 +861,33 @@
       </p>
       <div class="joker-grid" id="jokersGrid">
         <!-- Rempli par JavaScript -->
+      </div>
+    </div>
+
+    <!-- Bonus Éphémère (Challenge des Éliminés) -->
+    <div class="dashboard-card" id="bonusSection" style="margin-bottom: 40px; display: none;">
+      <h2 class="card-title">🎁 Mon Bonus Éphémère</h2>
+      <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">
+        Bonus spécial du challenge des éliminés - À utiliser avant la fin de la saison !
+      </p>
+      <div id="bonusContent">
+        <!-- Rempli par JavaScript -->
+      </div>
+    </div>
+
+    <!-- Modal de choix de bonus -->
+    <div id="bonusChoiceModal" class="bonus-choice-modal" style="display: none;">
+      <div class="bonus-choice-container">
+        <div class="bonus-choice-header">
+          <span class="bonus-choice-icon">🎁</span>
+          <div class="bonus-choice-text">
+            <div class="bonus-choice-title">Choisis ton bonus !</div>
+            <div class="bonus-choice-subtitle">Tu es le meilleur des 2 éliminés - Choisis 1 bonus parmi 2</div>
+          </div>
+        </div>
+        <div class="bonus-choice-grid" id="bonusChoiceGrid">
+          <!-- Rempli par JavaScript -->
+        </div>
       </div>
     </div>
 

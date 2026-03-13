@@ -159,6 +159,126 @@ export const JOKER_TYPES = {
   }
 };
 
+// ============================================
+// BONUS ÉPHÉMÈRES (Challenge des Éliminés)
+// ============================================
+// Attribués au meilleur des 2 éliminés d'un round
+// Le joueur choisit 1 bonus parmi 2 tirés au sort
+// Expirent à la fin de la saison s'ils ne sont pas utilisés
+
+export const BONUS_TYPES = {
+  embuscade: {
+    id: "embuscade",
+    name: "Embuscade",
+    icon: "🏹",
+    description: "Vole une activité aléatoire d'un joueur actif",
+    effect: "Choisis un joueur actif. Une de ses activités (+20min) est tirée au sort et son D+ t'est transféré.",
+    category: "offensif",
+    requiresTarget: true,
+    targetType: "active", // Cible un joueur du challenge principal
+    activation: {
+      timing: "3_premiers_jours", // Pendant les 3 premiers jours du round
+      effect: "fin_round" // L'effet s'applique à la fin du round
+    },
+    parameters: {
+      minActivityDuration: 20 // minutes
+    }
+  },
+  ravitaillement: {
+    id: "ravitaillement",
+    name: "Ravitaillement",
+    icon: "🎒",
+    description: "Donne une de tes activités aléatoire à un joueur actif",
+    effect: "Choisis un joueur actif. Une de tes activités (+20min) est tirée au sort et son D+ lui est ajouté en bonus (tu gardes aussi ton D+).",
+    category: "soutien",
+    requiresTarget: true,
+    targetType: "active",
+    activation: {
+      timing: "3_premiers_jours",
+      effect: "fin_round"
+    },
+    parameters: {
+      minActivityDuration: 20
+    }
+  },
+  duel: {
+    id: "duel",
+    name: "Duel",
+    icon: "⚔️",
+    description: "Défie ton co-éliminé pour un point bonus",
+    effect: "Tu défies ton co-éliminé. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point.",
+    category: "competitif",
+    requiresTarget: false, // La cible est automatiquement le co-éliminé
+    targetType: "co_eliminated",
+    activation: {
+      timing: "48h_apres_elimination",
+      effect: "fin_saison"
+    }
+  },
+  brouillard: {
+    id: "brouillard",
+    name: "Brouillard",
+    icon: "🌫️",
+    description: "Cache ton D+ jusqu'à la fin de la saison",
+    effect: "Tu te caches dans le brouillard. Tu apparais dernier du classement des éliminés jusqu'à la révélation finale.",
+    category: "defensif",
+    requiresTarget: false,
+    targetType: "self",
+    activation: {
+      timing: "48h_apres_elimination",
+      effect: "fin_saison"
+    }
+  },
+  marquage: {
+    id: "marquage",
+    name: "Marquage",
+    icon: "🎯",
+    description: "Parie sur l'élimination d'un joueur actif",
+    effect: "En début de round, marque un joueur actif. S'il est éliminé à la fin du round, tu gagnes +1 point.",
+    category: "pari",
+    requiresTarget: true,
+    targetType: "active",
+    activation: {
+      timing: "jour_1", // Le 1er jour du round uniquement
+      effect: "fin_round"
+    }
+  },
+  trap: {
+    id: "trap",
+    name: "It's a TRAP !",
+    icon: "🪤",
+    description: "Piège le prochain dernier éliminé",
+    effect: "Piège automatique. Le prochain joueur éliminé en dernière position te donne le D+ de sa dernière activité.",
+    category: "piege",
+    requiresTarget: false,
+    targetType: "passive", // Pas de cible, se déclenche automatiquement
+    activation: {
+      timing: "automatique", // Actif dès réception
+      effect: "debut_round_suivant" // L'effet s'applique au début du round après le déclenchement
+    }
+  },
+  second_souffle: {
+    id: "second_souffle",
+    name: "Second Souffle",
+    icon: "🔥",
+    description: "Double ta plus petite activité de la saison",
+    effect: "Sois régulier ! À la fin de la saison, ton activité avec le moins de D+ est doublée.",
+    category: "boost",
+    requiresTarget: false,
+    targetType: "self",
+    activation: {
+      timing: "automatique",
+      effect: "fin_saison"
+    }
+  }
+};
+
+// Liste des IDs de bonus pour le tirage au sort
+export const BONUS_IDS = Object.keys(BONUS_TYPES);
+
+// Nombre de bonus proposés au choix (style roguelite)
+export const BONUS_CHOICE_COUNT = 2;
+
 // Stock initial de jokers par participant (2 de chaque)
 // Note: le calcul du stock réel se fait dans jokers.js basé sur les utilisations serveur
 export const INITIAL_JOKERS = {

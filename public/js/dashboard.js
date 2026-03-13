@@ -1,19 +1,22 @@
 /**
  * ============================================
- * DASHBOARD PERSONNEL - VERSANT 2026
+ * DASHBOARD PERSONNEL - VERSANT 2026 v2.0
  * ============================================
- * CORRIGÉ: Utilise /api/jokers/all comme source unique
+ * - Jokers du challenge principal
+ * - Bonus éphémères du challenge des éliminés
  */
 
-import { CHALLENGE_CONFIG, JOKER_TYPES } from './config-2026.js';
+import { CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES } from './config-2026.js';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
-const INITIAL_JOKER_STOCK = 2; // Chaque joueur commence avec 2 de chaque
+const INITIAL_JOKER_STOCK = 2;
 
 let currentUser = null;
 let allActivities = [];
-let jokerUsageCache = []; // Cache des utilisations de jokers
+let jokerUsageCache = [];
+let bonusData = null; // Bonus éphémère du joueur
+let bonusChoices = null; // Choix de bonus en attente
 
 // ============================================
 // AUTHENTIFICATION
@@ -22,8 +25,8 @@ function getCurrentUserId() {
   return localStorage.getItem('versant_athlete_id');
 }
 
-function setCurrentUserId(id) {
-  localStorage.setItem('versant_athlete_id', id);
+function getAuthToken() {
+  return localStorage.getItem('versant_token');
 }
 
 // ============================================
@@ -36,7 +39,6 @@ async function loadCurrentUser() {
       throw new Error('Non connecté');
     }
 
-    // Cache-buster pour éviter le cache mobile
     const cacheBuster = Date.now();
     const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}?_=${cacheBuster}`, {
       cache: 'no-store',
@@ -54,7 +56,6 @@ async function loadCurrentUser() {
     return currentUser;
   } catch (error) {
     console.error('Erreur chargement utilisateur:', error);
-    // Nettoyer les données locales invalides
     localStorage.removeItem('versant_athlete_id');
     localStorage.removeItem('versant_token');
     window.location.href = 'login.html';
@@ -63,7 +64,6 @@ async function loadCurrentUser() {
 
 async function loadActivities() {
   try {
-    // Cache-buster pour éviter le cache mobile
     const cacheBuster = Date.now();
     const res = await fetch(`${API_BASE}/activities/${LEAGUE_ID}?_=${cacheBuster}`, {
       cache: 'no-store',
@@ -79,20 +79,15 @@ async function loadActivities() {
   }
 }
 
-/**
- * Charge les utilisations de jokers depuis le serveur
- * SOURCE UNIQUE comme jokers.js v3.0
- */
 async function loadJokersFromServer() {
   try {
-    // Cache-buster pour éviter le cache mobile
     const cacheBuster = Date.now();
     const res = await fetch(`${API_BASE}/jokers/all?_=${cacheBuster}`, {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' }
     });
     if (!res.ok) {
-      console.warn('⚠️ Impossible de charger les jokers depuis le serveur');
+      console.warn('⚠️ Impossible de charger les jokers');
       return [];
     }
     jokerUsageCache = await res.json();
@@ -105,9 +100,71 @@ async function loadJokersFromServer() {
 }
 
 /**
- * Calcule le stock restant d'un joker pour un participant
- * Stock = INITIAL (2) - Utilisations
+ * Charge le bonus éphémère du joueur
  */
+async function loadBonusFromServer() {
+  try {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    const cacheBuster = Date.now();
+    const res = await fetch(`${API_BASE}/bonuses/my?_=${cacheBuster}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      console.warn('⚠️ Impossible de charger le bonus');
+      return null;
+    }
+
+    const data = await res.json();
+    bonusData = data.bonus;
+    console.log('🎁 Bonus chargé:', bonusData ? bonusData.bonus_id : 'aucun');
+    return bonusData;
+  } catch (error) {
+    console.error('❌ Erreur chargement bonus:', error);
+    return null;
+  }
+}
+
+/**
+ * Vérifie si le joueur a des choix de bonus en attente
+ */
+async function loadBonusChoices() {
+  try {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    const cacheBuster = Date.now();
+    const res = await fetch(`${API_BASE}/bonuses/choices?_=${cacheBuster}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (data.hasChoice) {
+      bonusChoices = data.choices;
+      console.log('🎁 Choix de bonus en attente:', bonusChoices);
+    }
+    return bonusChoices;
+  } catch (error) {
+    console.error('❌ Erreur chargement choix bonus:', error);
+    return null;
+  }
+}
+
+// ============================================
+// CALCULS
+// ============================================
 function getJokerStock(participantId) {
   const pid = String(participantId);
   const stock = {};
@@ -122,14 +179,25 @@ function getJokerStock(participantId) {
   return stock;
 }
 
-/**
- * Récupère les jokers en attente pour le prochain round
- */
 function getPendingJokers(participantId, currentRoundNumber) {
   const pid = String(participantId);
   return jokerUsageCache.filter(
     u => String(u.athlete_id) === pid && u.round_number === currentRoundNumber + 1
   );
+}
+
+function getCurrentRound() {
+  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
+  const now = new Date();
+  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1);
+}
+
+function getDayInRound() {
+  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
+  const now = new Date();
+  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  return (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;
 }
 
 // ============================================
@@ -147,8 +215,18 @@ function formatElevation(meters) {
   return `${Math.round(meters).toLocaleString('fr-FR')} m`;
 }
 
+function getAthleteColorSimple(id) {
+  const colors = ['#f97316', '#22d3ee', '#10b981', '#8b5cf6', '#f43f5e', '#fbbf24', '#06b6d4', '#ec4899'];
+  const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return colors[hash % colors.length];
+}
+
+function getInitials(name) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+}
+
 // ============================================
-// AFFICHAGE
+// AFFICHAGE - HEADER & STATS
 // ============================================
 function renderHeader() {
   const nameEl = document.getElementById('athleteName');
@@ -157,53 +235,350 @@ function renderHeader() {
   }
 }
 
-function renderStats() {
+/**
+ * Calcule et affiche toutes les statistiques du joueur
+ */
+async function renderStats() {
   if (!currentUser) return;
 
-  const userActivities = allActivities.filter(a => a.athlete_id === currentUser.id);
+  const userId = String(currentUser.id);
+
+  // Charger les données nécessaires
+  const frozenResults = await loadFrozenResults();
+  const athletes = await loadAllAthletes();
+
+  // Déterminer le statut du joueur (actif ou éliminé)
+  const eliminationInfo = getEliminationInfo(userId, frozenResults);
+  const isEliminated = eliminationInfo.isEliminated;
+
+  // Calculer les dates du round actuel
+  const currentRound = getCurrentRound();
+  const roundDates = getRoundDates(currentRound);
+
+  // Activités du round actuel
+  const roundActivities = allActivities.filter(a => {
+    const date = new Date(a.start_date);
+    return date >= roundDates.start && date <= roundDates.end;
+  });
+
+  // D+ du round pour cet utilisateur
+  const userRoundActivities = roundActivities.filter(a => String(a.athlete_id) === userId);
+  const roundElevation = userRoundActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+
+  // D+ total saison
+  const userActivities = allActivities.filter(a => String(a.athlete_id) === userId);
   const totalElevation = userActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+
+  // Calculer la position dans le challenge actuel
+  let challengeRank = '-';
+  let challengeTotal = '-';
+
+  if (isEliminated) {
+    // Challenge des éliminés : calculer le classement parmi les éliminés
+    const eliminatedRanking = calculateEliminatedRanking(frozenResults, allActivities, athletes);
+    const myRank = eliminatedRanking.findIndex(e => String(e.id) === userId) + 1;
+    if (myRank > 0) {
+      challengeRank = myRank;
+      challengeTotal = eliminatedRanking.length;
+    }
+  } else {
+    // Challenge principal : calculer le classement parmi les actifs
+    const activeAthletes = getActiveAthletes(frozenResults, athletes);
+    const ranking = calculateRankingFromActivities(roundActivities, activeAthletes);
+    const myRank = ranking.findIndex(e => String(e.id) === userId) + 1;
+    if (myRank > 0) {
+      challengeRank = myRank;
+      challengeTotal = ranking.length;
+    }
+  }
+
+  // Calculer le classement général (points)
+  const generalRanking = calculateGeneralRanking(frozenResults, athletes);
+  const overallRank = generalRanking.findIndex(e => String(e.id) === userId) + 1;
+  const totalPoints = generalRanking.find(e => String(e.id) === userId)?.points || 0;
+
+  // Affichage
+  const challengeStatusEl = document.getElementById('challengeStatus');
+  if (challengeStatusEl) {
+    if (isEliminated) {
+      challengeStatusEl.innerHTML = `
+        <span style="color: #a855f7;">👻 Éliminés</span>
+        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">(R${eliminationInfo.round})</span>
+      `;
+    } else {
+      challengeStatusEl.innerHTML = `<span style="color: #10b981;">🏆 Principal</span>`;
+    }
+  }
+
+  const roundElevationEl = document.getElementById('roundElevation');
+  if (roundElevationEl) {
+    roundElevationEl.textContent = formatElevation(roundElevation);
+    // Ajouter une couleur selon la position
+    if (!isEliminated && challengeRank !== '-') {
+      if (challengeRank <= 3) {
+        roundElevationEl.style.color = '#10b981'; // Vert - top 3
+      } else if (challengeRank > challengeTotal - 2) {
+        roundElevationEl.style.color = '#ef4444'; // Rouge - zone danger
+      } else {
+        roundElevationEl.style.color = ''; // Normal
+      }
+    }
+  }
+
+  const challengeRankEl = document.getElementById('challengeRank');
+  if (challengeRankEl) {
+    if (challengeRank !== '-') {
+      challengeRankEl.innerHTML = `<strong>${challengeRank}</strong><span style="color: rgba(255,255,255,0.5);">/${challengeTotal}</span>`;
+    } else {
+      challengeRankEl.textContent = '-';
+    }
+  }
+
+  const overallRankEl = document.getElementById('overallRank');
+  if (overallRankEl) {
+    if (overallRank > 0) {
+      overallRankEl.innerHTML = `<strong>${overallRank}</strong><span style="color: rgba(255,255,255,0.5);">/${athletes.length}</span>`;
+    } else {
+      overallRankEl.textContent = '-';
+    }
+  }
 
   document.getElementById('totalElevation').textContent = formatElevation(totalElevation);
   document.getElementById('totalActivities').textContent = userActivities.length;
-  document.getElementById('currentRank').textContent = '-'; // À calculer
-  document.getElementById('totalPoints').textContent = '0'; // À calculer
+  document.getElementById('totalPoints').textContent = `${totalPoints} pts`;
 }
 
-function renderNextRound() {
+/**
+ * Affiche les infos du round actuel
+ */
+function renderCurrentRound() {
   const start = new Date(CHALLENGE_CONFIG.yearStartDate);
   const now = new Date();
 
-  if (now < start) {
-    document.getElementById('nextRoundStart').textContent = formatDate(start);
-    document.getElementById('nextRoundRule').textContent = '📊 Standard';
-  } else {
-    // Calculer le prochain round
-    const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-    const currentRound = Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1;
-    const nextRound = currentRound + 1;
+  const currentRound = getCurrentRound();
+  const dayInRound = getDayInRound();
+  const roundDates = getRoundDates(currentRound);
 
-    const nextRoundStart = new Date(start);
-    nextRoundStart.setDate(nextRoundStart.getDate() + (nextRound - 1) * CHALLENGE_CONFIG.roundDurationDays);
+  const currentRoundEl = document.getElementById('currentRoundNumber');
+  if (currentRoundEl) {
+    currentRoundEl.textContent = `Round ${currentRound}`;
+  }
 
-    document.getElementById('nextRoundStart').textContent = formatDate(nextRoundStart);
-    document.getElementById('nextRoundRule').textContent = '📊 Standard'; // À adapter
+  const dayInRoundEl = document.getElementById('dayInRound');
+  if (dayInRoundEl) {
+    dayInRoundEl.textContent = `Jour ${dayInRound}/${CHALLENGE_CONFIG.roundDurationDays}`;
+  }
+
+  const roundEndEl = document.getElementById('roundEndDate');
+  if (roundEndEl) {
+    roundEndEl.textContent = formatDate(roundDates.end);
+  }
+
+  const ruleEl = document.getElementById('nextRoundRule');
+  if (ruleEl) {
+    ruleEl.textContent = '📊 Standard';
   }
 }
 
+// ============================================
+// FONCTIONS DE CALCUL
+// ============================================
+
+/**
+ * Charge les résultats figés depuis l'API
+ */
+async function loadFrozenResults() {
+  try {
+    const res = await fetch(`${API_BASE}/frozen-results`);
+    if (!res.ok) return {};
+    return await res.json();
+  } catch (error) {
+    console.warn('Erreur chargement frozen results:', error);
+    return {};
+  }
+}
+
+/**
+ * Charge tous les athlètes
+ */
+async function loadAllAthletes() {
+  try {
+    const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (error) {
+    console.warn('Erreur chargement athlètes:', error);
+    return [];
+  }
+}
+
+/**
+ * Détermine si un joueur est éliminé et à quel round
+ */
+function getEliminationInfo(athleteId, frozenResults) {
+  const aid = String(athleteId);
+
+  if (!frozenResults || !frozenResults.rounds) {
+    return { isEliminated: false, round: null };
+  }
+
+  for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
+    if (roundData.eliminations) {
+      const eliminated = roundData.eliminations.find(e => String(e.id) === aid);
+      if (eliminated) {
+        return { isEliminated: true, round: parseInt(roundNum) };
+      }
+    }
+  }
+
+  return { isEliminated: false, round: null };
+}
+
+/**
+ * Récupère les athlètes encore actifs (non éliminés)
+ */
+function getActiveAthletes(frozenResults, allAthletes) {
+  const eliminatedIds = new Set();
+
+  if (frozenResults && frozenResults.rounds) {
+    for (const roundData of Object.values(frozenResults.rounds)) {
+      if (roundData.eliminations) {
+        roundData.eliminations.forEach(e => eliminatedIds.add(String(e.id)));
+      }
+    }
+  }
+
+  return allAthletes.filter(a => !eliminatedIds.has(String(a.id)));
+}
+
+/**
+ * Calcule le classement à partir des activités
+ */
+function calculateRankingFromActivities(activities, athletes) {
+  return athletes
+    .map(athlete => {
+      const athleteActivities = activities.filter(a => String(a.athlete_id) === String(athlete.id));
+      const elevation = athleteActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+      return {
+        id: athlete.id,
+        name: athlete.name,
+        elevation
+      };
+    })
+    .sort((a, b) => b.elevation - a.elevation);
+}
+
+/**
+ * Calcule le classement des éliminés (D+ depuis leur élimination)
+ */
+function calculateEliminatedRanking(frozenResults, allActivities, allAthletes) {
+  const eliminated = [];
+
+  if (!frozenResults || !frozenResults.rounds) return [];
+
+  for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
+    if (roundData.eliminations) {
+      roundData.eliminations.forEach(e => {
+        eliminated.push({
+          id: e.id,
+          name: e.name,
+          eliminatedRound: parseInt(roundNum)
+        });
+      });
+    }
+  }
+
+  // Calculer le D+ de chaque éliminé depuis son élimination
+  return eliminated
+    .map(elim => {
+      const eliminationRoundDates = getRoundDates(elim.eliminatedRound);
+      const activitiesSinceElim = allActivities.filter(a => {
+        return String(a.athlete_id) === String(elim.id) &&
+               new Date(a.start_date) > eliminationRoundDates.end;
+      });
+      const elevation = activitiesSinceElim.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+      return { ...elim, elevation };
+    })
+    .sort((a, b) => b.elevation - a.elevation);
+}
+
+/**
+ * Calcule le classement général (points accumulés)
+ */
+function calculateGeneralRanking(frozenResults, allAthletes) {
+  // Points par position dans un round (24 joueurs max)
+  const pointsTable = [24, 21, 18, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+
+  const pointsMap = {};
+  allAthletes.forEach(a => {
+    pointsMap[String(a.id)] = { id: a.id, name: a.name, points: 0 };
+  });
+
+  if (frozenResults && frozenResults.rounds) {
+    for (const roundData of Object.values(frozenResults.rounds)) {
+      if (roundData.ranking) {
+        roundData.ranking.forEach((entry, index) => {
+          const pts = pointsTable[index] || 1;
+          if (pointsMap[String(entry.id)]) {
+            pointsMap[String(entry.id)].points += pts;
+          }
+        });
+      }
+    }
+  }
+
+  return Object.values(pointsMap).sort((a, b) => b.points - a.points);
+}
+
+/**
+ * Calcule les dates d'un round
+ */
+function getRoundDates(roundNumber) {
+  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
+  const roundStart = new Date(start);
+  roundStart.setDate(roundStart.getDate() + (roundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays);
+
+  const roundEnd = new Date(roundStart);
+  roundEnd.setDate(roundEnd.getDate() + CHALLENGE_CONFIG.roundDurationDays - 1);
+  roundEnd.setHours(23, 59, 59, 999);
+
+  return { start: roundStart, end: roundEnd };
+}
+
+function renderActivities() {
+  const list = document.getElementById('activitiesList');
+  if (!list || !currentUser) return;
+
+  const userActivities = allActivities
+    .filter(a => String(a.athlete_id) === String(currentUser.id))
+    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
+    .slice(0, 10);
+
+  if (userActivities.length === 0) {
+    list.innerHTML = '<div class="no-data">Aucune activité enregistrée</div>';
+    return;
+  }
+
+  list.innerHTML = userActivities.map(activity => `
+    <div class="activity-item">
+      <div class="activity-info">
+        <div class="activity-name">${activity.name || 'Activité'}</div>
+        <div class="activity-meta">${formatDate(activity.start_date)}</div>
+      </div>
+      <div class="activity-elevation">+${Math.round(activity.total_elevation_gain || 0)}m</div>
+    </div>
+  `).join('');
+}
+
+// ============================================
+// AFFICHAGE - JOKERS
+// ============================================
 function renderJokers() {
   const grid = document.getElementById('jokersGrid');
   if (!grid || !currentUser) return;
 
-  // Calculer le stock depuis les utilisations API (comme jokers.js v3.0)
   const jokerStock = getJokerStock(currentUser.id);
-
-  // Calculer le round actuel
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  const currentRound = Math.max(1, Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1);
-
-  // Récupérer les jokers en attente
+  const currentRound = getCurrentRound();
   const pendingJokers = getPendingJokers(currentUser.id, currentRound);
 
   grid.innerHTML = Object.entries(JOKER_TYPES).map(([id, joker]) => {
@@ -237,80 +612,390 @@ function renderJokers() {
     `;
   }).join('');
 
-  // Ajouter les event listeners seulement sur les jokers disponibles
+  // Event listeners pour les jokers disponibles
   grid.querySelectorAll('.joker-card.available').forEach(card => {
-    card.addEventListener('click', () => {
+    card.onclick = () => {
       const jokerId = card.dataset.joker;
-      useJoker(jokerId);
-    });
+      const joker = JOKER_TYPES[jokerId];
+      if (joker.requiresTarget) {
+        showJokerTargetModal(jokerId, joker);
+      } else {
+        showJokerConfirmModal(jokerId, joker);
+      }
+    };
   });
 }
 
-function renderActivities() {
-  const list = document.getElementById('activitiesList');
-  if (!list || !currentUser) return;
+// ============================================
+// AFFICHAGE - BONUS ÉPHÉMÈRES
+// ============================================
+function renderBonus() {
+  const section = document.getElementById('bonusSection');
+  const content = document.getElementById('bonusContent');
 
-  const userActivities = allActivities
-    .filter(a => a.athlete_id === currentUser.id)
-    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
-    .slice(0, 10); // Les 10 dernières
+  if (!section || !content) return;
 
-  if (userActivities.length === 0) {
-    list.innerHTML = '<div class="no-data">Aucune activité synchronisée</div>';
+  // Si pas de bonus et pas de choix en attente, cacher la section
+  if (!bonusData && !bonusChoices) {
+    section.style.display = 'none';
     return;
   }
 
-  list.innerHTML = userActivities.map(activity => {
-    const date = new Date(activity.start_date);
-    const sportEmoji = {
-      'Run': '🏃',
-      'TrailRun': '🏃',
-      'Ride': '🚴',
-      'MountainBikeRide': '🚵',
-      'BackcountrySki': '⛷️',
-      'AlpineSki': '⛷️'
-    }[activity.sport_type] || '🏃';
+  section.style.display = 'block';
+
+  // Si choix en attente, afficher le modal de choix
+  if (bonusChoices && bonusChoices.length > 0) {
+    showBonusChoiceModal();
+    content.innerHTML = `
+      <div class="bonus-card" style="cursor: pointer;" onclick="window.showBonusChoiceModal()">
+        <div class="bonus-icon">🎁</div>
+        <div class="bonus-name">Choisis ton bonus !</div>
+        <div class="bonus-desc">Tu es le meilleur des 2 éliminés - Clique pour choisir ton bonus parmi 2 options</div>
+        <div class="bonus-status">⏳ En attente de choix</div>
+      </div>
+    `;
+    return;
+  }
+
+  // Afficher le bonus existant
+  if (bonusData) {
+    const bonusType = BONUS_TYPES[bonusData.bonus_id];
+    if (!bonusType) {
+      content.innerHTML = '<div class="no-data">Bonus inconnu</div>';
+      return;
+    }
+
+    const isUsed = bonusData.status === 'used';
+    const canUse = !isUsed && canActivateBonusNow(bonusData.bonus_id);
+
+    content.innerHTML = `
+      <div class="bonus-card ${isUsed ? 'used' : 'available'}" ${!isUsed && canUse ? `onclick="window.handleBonusClick('${bonusData.bonus_id}')"` : ''}>
+        <div class="bonus-icon">${bonusType.icon}</div>
+        <div class="bonus-name">${bonusType.name}</div>
+        <div class="bonus-desc">${bonusType.effect}</div>
+        <div class="bonus-status ${isUsed ? 'used' : ''}">
+          ${isUsed ? '✓ Utilisé' : (canUse ? '🎯 Cliquez pour utiliser' : '⏳ Pas encore activable')}
+        </div>
+        ${bonusData.target_athlete_name ? `
+          <div class="bonus-target">
+            🎯 Cible : <strong>${bonusData.target_athlete_name}</strong>
+          </div>
+        ` : ''}
+        ${!canUse && !isUsed ? `
+          <div class="bonus-target">
+            ℹ️ ${getBonusTimingInfo(bonusData.bonus_id)}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+}
+
+/**
+ * Vérifie si un bonus peut être activé maintenant
+ */
+function canActivateBonusNow(bonusId) {
+  const bonusType = BONUS_TYPES[bonusId];
+  if (!bonusType) return false;
+
+  const timing = bonusType.activation.timing;
+  const dayInRound = getDayInRound();
+
+  switch (timing) {
+    case '3_premiers_jours':
+      return dayInRound <= 3;
+    case 'jour_1':
+      return dayInRound === 1;
+    case '48h_apres_elimination':
+      return true;
+    case 'automatique':
+      return false;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Retourne une info sur le timing d'activation
+ */
+function getBonusTimingInfo(bonusId) {
+  const bonusType = BONUS_TYPES[bonusId];
+  if (!bonusType) return '';
+
+  const timing = bonusType.activation.timing;
+
+  switch (timing) {
+    case '3_premiers_jours':
+      return 'Activable les 3 premiers jours du round';
+    case 'jour_1':
+      return 'Activable uniquement le 1er jour du round';
+    case '48h_apres_elimination':
+      return 'Activable dans les 48h après élimination';
+    case 'automatique':
+      return 'S\'active automatiquement';
+    default:
+      return '';
+  }
+}
+
+/**
+ * Affiche le modal de choix de bonus (roguelite)
+ */
+function showBonusChoiceModal() {
+  if (!bonusChoices || bonusChoices.length === 0) return;
+
+  const modal = document.getElementById('bonusChoiceModal');
+  const grid = document.getElementById('bonusChoiceGrid');
+
+  if (!modal || !grid) return;
+
+  grid.innerHTML = bonusChoices.map(bonusId => {
+    const bonus = BONUS_TYPES[bonusId];
+    if (!bonus) return '';
 
     return `
-      <div class="activity-item">
-        <div class="activity-info">
-          <div class="activity-name">${sportEmoji} ${activity.name}</div>
-          <div class="activity-meta">
-            ${date.toLocaleDateString('fr-FR')} •
-            ${(activity.distance / 1000).toFixed(1)} km
-          </div>
-        </div>
-        <div class="activity-elevation">
-          ${Math.round(activity.total_elevation_gain || 0)}m
+      <div class="bonus-choice-option" onclick="window.selectBonus('${bonusId}')">
+        <div class="bonus-icon">${bonus.icon}</div>
+        <div class="bonus-name">${bonus.name}</div>
+        <div class="bonus-desc">${bonus.description}</div>
+        <div style="margin-top: 12px; font-size: 0.8rem; color: rgba(255,255,255,0.5);">
+          ${bonus.category === 'offensif' ? '⚔️ Offensif' : ''}
+          ${bonus.category === 'soutien' ? '🤝 Soutien' : ''}
+          ${bonus.category === 'competitif' ? '🏆 Compétitif' : ''}
+          ${bonus.category === 'defensif' ? '🛡️ Défensif' : ''}
+          ${bonus.category === 'pari' ? '🎲 Pari' : ''}
+          ${bonus.category === 'piege' ? '🪤 Piège' : ''}
+          ${bonus.category === 'boost' ? '⚡ Boost' : ''}
         </div>
       </div>
     `;
   }).join('');
+
+  modal.style.display = 'flex';
 }
 
-// ============================================
-// GESTION DES JOKERS
-// ============================================
-async function useJoker(jokerId) {
-  const joker = JOKER_TYPES[jokerId];
-  if (!joker) return;
+/**
+ * Sélectionne un bonus parmi les choix
+ */
+async function selectBonus(bonusId) {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      showNotification('Non authentifié', 'error');
+      return;
+    }
 
-  // Jokers nécessitant une cible
-  const needsTarget = ['duel', 'sabotage', 'voleur'].includes(jokerId);
+    const response = await fetch(`${API_BASE}/bonuses/assign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ bonus_id: bonusId })
+    });
 
-  if (needsTarget) {
-    showJokerTargetModal(jokerId, joker);
-  } else {
-    showJokerConfirmModal(jokerId, joker);
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Erreur serveur');
+    }
+
+    const result = await response.json();
+    bonusData = result.bonus;
+    bonusChoices = null;
+
+    const modal = document.getElementById('bonusChoiceModal');
+    if (modal) modal.style.display = 'none';
+
+    renderBonus();
+
+    const bonus = BONUS_TYPES[bonusId];
+    showNotification(`${bonus.icon} ${bonus.name} choisi !`, 'success');
+
+  } catch (error) {
+    console.error('Erreur sélection bonus:', error);
+    showNotification(error.message, 'error');
   }
 }
 
+/**
+ * Gère le clic sur un bonus pour l'utiliser
+ */
+function handleBonusClick(bonusId) {
+  const bonusType = BONUS_TYPES[bonusId];
+  if (!bonusType) return;
+
+  if (bonusType.requiresTarget) {
+    showBonusTargetModal(bonusId, bonusType);
+  } else {
+    showBonusConfirmModal(bonusId, bonusType);
+  }
+}
+
+/**
+ * Modal de sélection de cible pour les bonus
+ */
+function showBonusTargetModal(bonusId, bonusType) {
+  fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
+    .then(res => res.json())
+    .then(athletes => {
+      let targets = athletes.filter(a => String(a.id) !== String(currentUser.id));
+
+      const modal = document.createElement('div');
+      modal.className = 'joker-selection-modal';
+      modal.innerHTML = `
+        <div class="joker-modal-container" style="border-color: rgba(168, 85, 247, 0.4);">
+          <div class="modal-header" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.1));">
+            <span class="modal-header-icon">${bonusType.icon}</span>
+            <div class="modal-header-text">
+              <div class="modal-header-title">${bonusType.name}</div>
+              <div class="modal-header-subtitle">Choisissez votre cible</div>
+            </div>
+            <button class="modal-close-btn">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-section">
+              <div class="modal-section-title" style="color: #a855f7;">🎯 Sélectionnez un joueur</div>
+              <div class="target-selection-grid">
+                ${targets.map(t => `
+                  <div class="target-card" data-id="${t.id}" data-name="${t.name}">
+                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColorSimple(t.id)}, ${getAthleteColorSimple(t.id)}88)">
+                      ${getInitials(t.name)}
+                    </div>
+                    <div class="target-card-name">${t.name}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <button class="modal-confirm-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899);" disabled>
+              <span class="btn-icon">${bonusType.icon}</span>
+              Sélectionnez une cible
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      let selectedTarget = null;
+
+      modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+      modal.querySelectorAll('.target-card').forEach(card => {
+        card.onclick = () => {
+          modal.querySelectorAll('.target-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedTarget = { id: card.dataset.id, name: card.dataset.name };
+
+          const btn = modal.querySelector('.modal-confirm-btn');
+          btn.disabled = false;
+          btn.innerHTML = `<span class="btn-icon">${bonusType.icon}</span> Cibler ${selectedTarget.name}`;
+        };
+      });
+
+      modal.querySelector('.modal-confirm-btn').onclick = async () => {
+        if (!selectedTarget) return;
+        modal.remove();
+        await useBonus(bonusId, selectedTarget.id);
+      };
+    });
+}
+
+/**
+ * Modal de confirmation pour les bonus sans cible
+ */
+function showBonusConfirmModal(bonusId, bonusType) {
+  const modal = document.createElement('div');
+  modal.className = 'joker-selection-modal';
+  modal.innerHTML = `
+    <div class="joker-modal-container" style="border-color: rgba(168, 85, 247, 0.4);">
+      <div class="modal-header" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.1));">
+        <span class="modal-header-icon">${bonusType.icon}</span>
+        <div class="modal-header-text">
+          <div class="modal-header-title">${bonusType.name}</div>
+          <div class="modal-header-subtitle">Confirmer l'activation</div>
+        </div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div style="padding: 20px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 12px;">
+            <p style="color: rgba(255,255,255,0.9); font-size: 1rem; margin: 0; line-height: 1.6;">
+              <strong style="color: #a855f7;">💡 Effet :</strong><br>
+              ${bonusType.effect}
+            </p>
+          </div>
+        </div>
+
+        <button class="modal-confirm-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899);">
+          <span class="btn-icon">${bonusType.icon}</span>
+          Activer le bonus
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  modal.querySelector('.modal-confirm-btn').onclick = async () => {
+    modal.remove();
+    await useBonus(bonusId);
+  };
+}
+
+/**
+ * Utilise un bonus via l'API
+ */
+async function useBonus(bonusId, targetId = null) {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      showNotification('Non authentifié', 'error');
+      return;
+    }
+
+    const currentRound = getCurrentRound();
+
+    const response = await fetch(`${API_BASE}/bonuses/use`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        target_athlete_id: targetId,
+        round_number: currentRound
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Erreur serveur');
+    }
+
+    const result = await response.json();
+    bonusData = result.bonus;
+
+    renderBonus();
+
+    const bonus = BONUS_TYPES[bonusId];
+    showNotification(`${bonus.icon} ${bonus.name} activé !`, 'success');
+
+  } catch (error) {
+    console.error('Erreur utilisation bonus:', error);
+    showNotification(error.message, 'error');
+  }
+}
+
+// ============================================
+// MODALS JOKERS
+// ============================================
 function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = null) {
-  // Calculer le round d'activation
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-  const currentRound = Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1;
+  const currentRound = getCurrentRound();
   const activationRound = currentRound + 1;
 
   const modal = document.createElement('div');
@@ -321,20 +1006,11 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
         <span class="modal-header-icon">${joker.icon}</span>
         <div class="modal-header-text">
           <div class="modal-header-title">${joker.name}</div>
-          <div class="modal-header-subtitle">${joker.description}</div>
+          <div class="modal-header-subtitle">${targetName ? `Cible: ${targetName}` : 'Confirmer l\'activation'}</div>
         </div>
         <button class="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
-        ${targetName ? `
-          <div class="modal-section">
-            <div class="modal-section-title">🎯 Cible sélectionnée</div>
-            <div style="padding: 16px; background: rgba(249, 115, 22, 0.1); border-radius: 12px; text-align: center;">
-              <strong style="color: #f97316; font-size: 1.2rem;">${targetName}</strong>
-            </div>
-          </div>
-        ` : ''}
-
         <div class="modal-section">
           <div class="modal-section-title">⏰ Activation</div>
           <div class="timing-options-grid">
@@ -363,44 +1039,47 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
 
   document.body.appendChild(modal);
 
-  // Events
   modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
   modal.querySelector('.modal-confirm-btn').onclick = async () => {
     try {
-      // TODO: Appel API pour enregistrer l'utilisation du joker
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE}/jokers/use`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          athleteId: currentUser.id,
-          jokerId: jokerId,
-          targetId: targetId,
-          activationRound: activationRound
+          joker_id: jokerId,
+          target_athlete_id: targetId,
+          round_number: activationRound
         })
       });
 
-      if (!response.ok) throw new Error('Erreur serveur');
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Erreur serveur');
+      }
 
-      showNotification(`${joker.icon} ${joker.name} activé pour le round ${activationRound} !`, 'success');
-      modal.remove();
+      await loadJokersFromServer();
       renderJokers();
-    } catch (error) {
-      console.error('Erreur utilisation joker:', error);
-      // Pour le moment, simuler le succès
+
       showNotification(`${joker.icon} ${joker.name} programmé pour le round ${activationRound} !`, 'success');
       modal.remove();
+    } catch (error) {
+      console.error('Erreur utilisation joker:', error);
+      showNotification(error.message || 'Erreur lors de l\'activation', 'error');
     }
   };
 }
 
 function showJokerTargetModal(jokerId, joker) {
-  // Récupérer les adversaires
   fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
     .then(res => res.json())
     .then(athletes => {
-      const opponents = athletes.filter(a => a.id !== currentUser.id);
+      const opponents = athletes.filter(a => String(a.id) !== String(currentUser.id));
 
       const modal = document.createElement('div');
       modal.className = 'joker-selection-modal';
@@ -441,11 +1120,9 @@ function showJokerTargetModal(jokerId, joker) {
 
       let selectedTarget = null;
 
-      // Events
       modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
       modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
-      // Target selection
       modal.querySelectorAll('.target-card').forEach(card => {
         card.onclick = () => {
           modal.querySelectorAll('.target-card').forEach(c => c.classList.remove('selected'));
@@ -458,30 +1135,17 @@ function showJokerTargetModal(jokerId, joker) {
         };
       });
 
-      // Confirm
       modal.querySelector('.modal-confirm-btn').onclick = () => {
         if (!selectedTarget) return;
         modal.remove();
         showJokerConfirmModal(jokerId, joker, selectedTarget.id, selectedTarget.name);
       };
-    })
-    .catch(err => {
-      console.error('Erreur chargement adversaires:', err);
-      showNotification('Erreur lors du chargement des adversaires', 'error');
     });
 }
 
-// Helpers
-function getAthleteColorSimple(id) {
-  const colors = ['#f97316', '#22d3ee', '#10b981', '#8b5cf6', '#f43f5e', '#fbbf24', '#06b6d4', '#ec4899'];
-  const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-}
-
-function getInitials(name) {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-}
-
+// ============================================
+// NOTIFICATIONS
+// ============================================
 function showNotification(message, type = 'info') {
   const existing = document.querySelector('.dashboard-notification');
   if (existing) existing.remove();
@@ -504,7 +1168,6 @@ function showNotification(message, type = 'info') {
   `;
   notification.textContent = message;
 
-  // Add animation keyframes if not exists
   if (!document.getElementById('notification-keyframes')) {
     const style = document.createElement('style');
     style.id = 'notification-keyframes';
@@ -530,17 +1193,20 @@ function showNotification(message, type = 'info') {
 // INITIALISATION
 // ============================================
 async function init() {
-  console.log('🎯 Initialisation Dashboard');
+  console.log('🎯 Initialisation Dashboard v2.1');
 
   try {
     await loadCurrentUser();
     await loadActivities();
-    await loadJokersFromServer(); // Charger les jokers depuis l'API
+    await loadJokersFromServer();
+    await loadBonusFromServer();
+    await loadBonusChoices();
 
     renderHeader();
-    renderStats();
-    renderNextRound();
+    await renderStats(); // async maintenant
+    renderCurrentRound(); // renommé depuis renderNextRound
     renderJokers();
+    renderBonus();
     renderActivities();
 
     console.log('✅ Dashboard chargé');
@@ -558,14 +1224,16 @@ function logout() {
   window.location.href = 'login.html';
 }
 
-// Exposer globalement pour le bouton
+// Exposer les fonctions globalement
 window.logout = logout;
+window.showBonusChoiceModal = showBonusChoiceModal;
+window.selectBonus = selectBonus;
+window.handleBonusClick = handleBonusClick;
 
 // ============================================
 // DÉMARRAGE
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
-  // Vérifier si l'utilisateur est connecté
   const athleteId = getCurrentUserId();
   if (!athleteId) {
     console.log('⚠️ Non connecté, redirection vers login');

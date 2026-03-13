@@ -1,6 +1,6 @@
 /**
  * ============================================
- * VERSANT - GESTION DES JOKERS v3.0 (CLEAN)
+ * VERSANT - GESTION DES JOKERS v3.1
  * ============================================
  *
  * SOURCE UNIQUE: Le serveur API (/api/jokers/all)
@@ -8,10 +8,12 @@
  * Le serveur stocke uniquement les UTILISATIONS de jokers.
  * Le stock est calculé: INITIAL (2) - UTILISATIONS
  *
+ * v3.1: Ajout des BONUS ÉPHÉMÈRES pour le challenge des éliminés
+ *
  * PAS de localStorage, PAS de cache complexe.
  */
 
-import { PARTICIPANTS, JOKER_TYPES, getParticipantById } from './config.js';
+import { PARTICIPANTS, JOKER_TYPES, BONUS_TYPES, BONUS_IDS, BONUS_CHOICE_COUNT, getParticipantById } from './config.js';
 
 // ============================================
 // CONFIGURATION
@@ -27,6 +29,7 @@ const INITIAL_STOCK = 2; // Chaque joueur commence avec 2 de chaque joker
 
 // Le cache contient uniquement les utilisations chargées depuis le serveur
 let jokerUsageCache = [];
+let bonusCache = []; // Cache des bonus éphémères attribués/utilisés
 let cacheTimestamp = null;
 
 // ============================================
@@ -509,3 +512,347 @@ export function validateJokersCache() {
     issues
   };
 }
+
+// ============================================
+// BONUS ÉPHÉMÈRES (Challenge des Éliminés)
+// ============================================
+
+/**
+ * Charge les bonus éphémères depuis le serveur
+ */
+export async function loadBonusesFromServer() {
+  try {
+    const cacheBuster = Date.now();
+    const response = await fetch(`${API_BASE}/bonuses/all?_=${cacheBuster}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+
+    if (!response.ok) {
+      console.warn('⚠️ Impossible de charger les bonus depuis le serveur');
+      return bonusCache;
+    }
+
+    bonusCache = await response.json();
+    console.log(`🎁 ${bonusCache.length} bonus éphémères chargés`);
+    return bonusCache;
+  } catch (error) {
+    console.error('❌ Erreur chargement bonus:', error);
+    return bonusCache;
+  }
+}
+
+/**
+ * Tire au sort 2 bonus parmi les 7 disponibles (style roguelite)
+ * @returns {Array} Tableau de 2 bonus IDs
+ */
+export function drawRandomBonuses() {
+  const shuffled = [...BONUS_IDS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, BONUS_CHOICE_COUNT);
+}
+
+/**
+ * Récupère le bonus d'un joueur éliminé
+ * @param {string} participantId - ID du participant
+ * @returns {Object|null} Le bonus attribué ou null
+ */
+export function getParticipantBonus(participantId) {
+  const pid = String(participantId);
+  return bonusCache.find(b => String(b.athlete_id) === pid) || null;
+}
+
+/**
+ * Vérifie si un joueur a un bonus disponible (non utilisé)
+ * @param {string} participantId - ID du participant
+ * @returns {boolean}
+ */
+export function hasAvailableBonus(participantId) {
+  const bonus = getParticipantBonus(participantId);
+  return bonus && bonus.status === 'available';
+}
+
+/**
+ * Récupère les infos complètes du bonus d'un joueur
+ * @param {string} participantId - ID du participant
+ * @returns {Object|null} Infos du bonus avec les détails du type
+ */
+export function getParticipantBonusDetails(participantId) {
+  const bonus = getParticipantBonus(participantId);
+  if (!bonus) return null;
+
+  const bonusType = BONUS_TYPES[bonus.bonus_id];
+  if (!bonusType) return null;
+
+  return {
+    ...bonus,
+    type: bonusType,
+    name: bonusType.name,
+    icon: bonusType.icon,
+    description: bonusType.description,
+    effect: bonusType.effect,
+    category: bonusType.category,
+    requiresTarget: bonusType.requiresTarget,
+    targetType: bonusType.targetType,
+    activation: bonusType.activation
+  };
+}
+
+/**
+ * Vérifie si un bonus peut être activé maintenant
+ * @param {string} bonusId - ID du bonus
+ * @param {Date} currentDate - Date actuelle
+ * @param {Object} context - Contexte (roundNumber, dayInRound, eliminatedAt, etc.)
+ * @returns {Object} { canActivate: boolean, reason: string }
+ */
+export function canActivateBonus(bonusId, currentDate, context = {}) {
+  const bonusType = BONUS_TYPES[bonusId];
+  if (!bonusType) {
+    return { canActivate: false, reason: 'Bonus inconnu' };
+  }
+
+  const timing = bonusType.activation.timing;
+  const { dayInRound, eliminatedAt, roundNumber } = context;
+
+  switch (timing) {
+    case '3_premiers_jours':
+      if (dayInRound > 3) {
+        return { canActivate: false, reason: 'Activable uniquement les 3 premiers jours du round' };
+      }
+      return { canActivate: true, reason: '' };
+
+    case '48h_apres_elimination':
+      if (!eliminatedAt) {
+        return { canActivate: false, reason: 'Date d\'élimination inconnue' };
+      }
+      const hoursSinceElimination = (currentDate - new Date(eliminatedAt)) / (1000 * 60 * 60);
+      if (hoursSinceElimination > 48) {
+        return { canActivate: false, reason: 'Délai de 48h dépassé' };
+      }
+      return { canActivate: true, reason: '' };
+
+    case 'jour_1':
+      if (dayInRound !== 1) {
+        return { canActivate: false, reason: 'Activable uniquement le 1er jour du round' };
+      }
+      return { canActivate: true, reason: '' };
+
+    case 'automatique':
+      // Les bonus automatiques sont toujours "activables" (ils s'activent seuls)
+      return { canActivate: true, reason: 'Activation automatique' };
+
+    default:
+      return { canActivate: false, reason: 'Timing d\'activation inconnu' };
+  }
+}
+
+/**
+ * Utilise un bonus éphémère via l'API serveur
+ * @param {string} participantId - ID du participant
+ * @param {string} bonusId - ID du bonus à utiliser
+ * @param {Object} options - Options (targetId, roundNumber, etc.)
+ * @returns {Object} Résultat de l'utilisation
+ */
+export async function useBonus(participantId, bonusId, options = {}) {
+  const bonusType = BONUS_TYPES[bonusId];
+  if (!bonusType) {
+    return { success: false, error: 'Bonus inconnu' };
+  }
+
+  // Vérifier que le joueur a ce bonus
+  const playerBonus = getParticipantBonus(participantId);
+  if (!playerBonus || playerBonus.bonus_id !== bonusId) {
+    return { success: false, error: 'Tu ne possèdes pas ce bonus' };
+  }
+
+  if (playerBonus.status !== 'available') {
+    return { success: false, error: 'Ce bonus a déjà été utilisé' };
+  }
+
+  // Vérifier la cible si nécessaire
+  if (bonusType.requiresTarget && !options.targetId) {
+    return { success: false, error: 'Ce bonus nécessite une cible' };
+  }
+
+  try {
+    const token = localStorage.getItem('versant_token');
+    if (!token) {
+      return { success: false, error: 'Non authentifié' };
+    }
+
+    const response = await fetch(`${API_BASE}/bonuses/use`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        bonus_id: bonusId,
+        target_athlete_id: options.targetId || null,
+        round_number: options.roundNumber || null
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, error: err.error || 'Erreur serveur' };
+    }
+
+    const result = await response.json();
+
+    // Mettre à jour le cache local
+    const index = bonusCache.findIndex(b => String(b.athlete_id) === String(participantId));
+    if (index >= 0) {
+      bonusCache[index] = result.bonus;
+    }
+
+    return {
+      success: true,
+      bonus: result.bonus,
+      effect: result.effect
+    };
+
+  } catch (error) {
+    console.error('❌ Erreur utilisation bonus:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Attribue un bonus à un joueur nouvellement éliminé (appelé par le serveur)
+ * Cette fonction est principalement pour l'affichage, l'attribution réelle se fait côté serveur
+ * @param {string} participantId - ID du participant
+ * @param {string} bonusId - ID du bonus choisi
+ * @param {number} roundNumber - Round d'élimination
+ */
+export async function assignBonus(participantId, bonusId, roundNumber) {
+  try {
+    const token = localStorage.getItem('versant_token');
+    if (!token) {
+      return { success: false, error: 'Non authentifié' };
+    }
+
+    const response = await fetch(`${API_BASE}/bonuses/assign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        bonus_id: bonusId,
+        elimination_round: roundNumber
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, error: err.error || 'Erreur serveur' };
+    }
+
+    const result = await response.json();
+
+    // Ajouter au cache local
+    bonusCache.push(result.bonus);
+
+    return {
+      success: true,
+      bonus: result.bonus
+    };
+
+  } catch (error) {
+    console.error('❌ Erreur attribution bonus:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Récupère tous les bonus actifs (pour l'affichage)
+ * @returns {Array} Liste des bonus avec leurs détails
+ */
+export function getAllActiveBonuses() {
+  return bonusCache
+    .filter(b => b.status === 'available' || b.status === 'used')
+    .map(b => {
+      const participant = getParticipantById(b.athlete_id);
+      const bonusType = BONUS_TYPES[b.bonus_id];
+      const target = b.target_athlete_id ? getParticipantById(b.target_athlete_id) : null;
+
+      return {
+        ...b,
+        participantName: participant?.name || 'Inconnu',
+        bonusName: bonusType?.name || b.bonus_id,
+        bonusIcon: bonusType?.icon || '🎁',
+        targetName: target?.name || null
+      };
+    });
+}
+
+/**
+ * Récupère les bonus utilisés pour un round donné
+ * @param {number} roundNumber - Numéro du round
+ * @returns {Array} Liste des bonus utilisés ce round
+ */
+export function getBonusesUsedInRound(roundNumber) {
+  return bonusCache
+    .filter(b => b.status === 'used' && b.used_in_round === roundNumber)
+    .map(b => {
+      const participant = getParticipantById(b.athlete_id);
+      const bonusType = BONUS_TYPES[b.bonus_id];
+      const target = b.target_athlete_id ? getParticipantById(b.target_athlete_id) : null;
+
+      return {
+        ...b,
+        participantName: participant?.name || 'Inconnu',
+        bonusName: bonusType?.name || b.bonus_id,
+        bonusIcon: bonusType?.icon || '🎁',
+        bonusEffect: bonusType?.effect || '',
+        targetName: target?.name || null
+      };
+    });
+}
+
+/**
+ * Vérifie si un joueur doit choisir son bonus (nouveau éliminé, meilleur des 2)
+ * @param {string} participantId - ID du participant
+ * @returns {Object} { mustChoose: boolean, choices: Array }
+ */
+export function checkBonusChoice(participantId) {
+  const existing = getParticipantBonus(participantId);
+
+  // Si déjà un bonus attribué, pas de choix à faire
+  if (existing) {
+    return { mustChoose: false, choices: [], existing };
+  }
+
+  // Vérifier si le joueur a des choix en attente (stocké temporairement)
+  const pendingChoices = localStorage.getItem(`versant_bonus_choices_${participantId}`);
+  if (pendingChoices) {
+    return { mustChoose: true, choices: JSON.parse(pendingChoices) };
+  }
+
+  return { mustChoose: false, choices: [] };
+}
+
+/**
+ * Génère et stocke les choix de bonus pour un nouveau éliminé
+ * @param {string} participantId - ID du participant
+ * @returns {Array} Les 2 bonus proposés au choix
+ */
+export function generateBonusChoices(participantId) {
+  const choices = drawRandomBonuses();
+  localStorage.setItem(`versant_bonus_choices_${participantId}`, JSON.stringify(choices));
+  return choices;
+}
+
+/**
+ * Nettoie les choix de bonus en attente
+ * @param {string} participantId - ID du participant
+ */
+export function clearBonusChoices(participantId) {
+  localStorage.removeItem(`versant_bonus_choices_${participantId}`);
+}
+
+// ============================================
+// EXPORTS ADDITIONNELS
+// ============================================
+
+export { BONUS_TYPES, BONUS_IDS };
