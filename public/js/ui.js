@@ -283,7 +283,10 @@ export function renderRanking(container, data) {
     container.innerHTML = '<div class="empty-state"><p>Aucune donnée disponible</p></div>';
     return;
   }
-  
+
+  // Position du Rescapé = avant-avant-dernier (juste au-dessus des 2 éliminés)
+  const rescapePosition = ranking.length - 2; // 0-indexed, donc -2 pour avant-avant-dernier
+
   let html = `
     <div class="ranking-header">
       <div>Pos.</div>
@@ -293,16 +296,19 @@ export function renderRanking(container, data) {
       <div>Jokers</div>
     </div>
   `;
-  
+
   ranking.forEach((entry, i) => {
     const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const rowClass = entry.isInDangerZone ? 'danger-zone' : (entry.isProtected ? 'protected' : '');
     const seasonElev = seasonStats?.[entry.participant.id]?.elevation || 0;
     const effects = entry.jokerEffects || { bonuses: {} };
-    
+
+    // Vérifier si c'est le Rescapé (avant-avant-dernier, uniquement si au moins 4 joueurs)
+    const isRescape = ranking.length >= 4 && i === rescapePosition;
+
     // Générer les indicateurs de bonus sur l'avatar
     const bonusIndicators = renderAvatarBonusIndicators(effects.bonuses);
-    
+
     html += `
       <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
         <div class="position ${posClass}">
@@ -317,6 +323,7 @@ export function renderRanking(container, data) {
           </div>
           <div class="athlete-details">
             <span class="athlete-name">${entry.participant.name}</span>
+            ${isRescape ? '<span class="athlete-status rescape" title="Position Rescapé - Juste au-dessus de la zone d\'élimination">🎫 Rescapé</span>' : ''}
             ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
             ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
           </div>
