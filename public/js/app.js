@@ -1712,7 +1712,7 @@ async function init() {
  * Polling automatique pour détecter les nouvelles activités
  */
 function startAutoRefresh() {
-  const POLLING_INTERVAL = 30000; // 30 secondes
+  const POLLING_INTERVAL = 180000; //3 min
 
   console.log('🔄 Auto-refresh activé (toutes les 30s)');
 
