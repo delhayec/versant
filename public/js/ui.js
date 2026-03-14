@@ -268,8 +268,8 @@ export function renderActiveJokersSection(container, data) {
 // ============================================
 
 export function renderRanking(container, data) {
-  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount } = data;
-  
+  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, rescapeId } = data;
+
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
       <div class="empty-state">
@@ -278,14 +278,11 @@ export function renderRanking(container, data) {
     `;
     return;
   }
-  
+
   if (!ranking || ranking.length === 0) {
     container.innerHTML = '<div class="empty-state"><p>Aucune donnée disponible</p></div>';
     return;
   }
-
-  // Position du Rescapé = avant-avant-dernier (juste au-dessus des 2 éliminés)
-  const rescapePosition = ranking.length - 2; // 0-indexed, donc -2 pour avant-avant-dernier
 
   let html = `
     <div class="ranking-header">
@@ -303,8 +300,8 @@ export function renderRanking(container, data) {
     const seasonElev = seasonStats?.[entry.participant.id]?.elevation || 0;
     const effects = entry.jokerEffects || { bonuses: {} };
 
-    // Vérifier si c'est le Rescapé (avant-avant-dernier, uniquement si au moins 4 joueurs)
-    const isRescape = ranking.length >= 4 && i === rescapePosition;
+    // Vérifier si c'est le Rescapé (basé sur le round précédent figé)
+    const isRescape = rescapeId && String(entry.participant.id) === String(rescapeId);
 
     // Générer les indicateurs de bonus sur l'avatar
     const bonusIndicators = renderAvatarBonusIndicators(effects.bonuses);
@@ -323,7 +320,7 @@ export function renderRanking(container, data) {
           </div>
           <div class="athlete-details">
             <span class="athlete-name">${entry.participant.name}</span>
-            ${isRescape ? '<span class="athlete-status rescape" title="Position Rescapé - Juste au-dessus de la zone d\'élimination">🎫 Rescapé</span>' : ''}
+            ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">🎫 Rescapé</span>' : ''}
             ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
             ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
           </div>

@@ -66,6 +66,32 @@ function getFrozenRound(globalRoundNumber) {
   return frozenResultsCache.rounds[String(globalRoundNumber)] || null;
 }
 
+/**
+ * Récupère l'ID du rescapé du round précédent
+ * Le rescapé est l'avant-avant-dernier du classement (juste au-dessus des 2 éliminés)
+ */
+function getRescapeFromPreviousRound(currentRoundNumber) {
+  const previousRound = currentRoundNumber - 1;
+  if (previousRound < 1) return null;
+
+  const frozenRound = getFrozenRound(previousRound);
+  if (!frozenRound || !frozenRound.ranking || frozenRound.ranking.length < 4) {
+    return null;
+  }
+
+  // L'avant-avant-dernier = position ranking.length - 2 (0-indexed: length - 3)
+  // Exemple: 10 joueurs -> positions 0-9, éliminés = 8,9, rescapé = 7
+  const rescapeIndex = frozenRound.ranking.length - 3;
+  const rescapeEntry = frozenRound.ranking[rescapeIndex];
+
+  if (rescapeEntry) {
+    console.log(`🎫 Rescapé du round ${previousRound}: ${rescapeEntry.name || rescapeEntry.id}`);
+    return String(rescapeEntry.id);
+  }
+
+  return null;
+}
+
 // ============================================
 // ÉCRAN D'ATTENTE AVANT LE CHALLENGE
 // ============================================
@@ -182,7 +208,7 @@ async function loadActivities() {
         const localData = await localResponse.json();
         allActivities = parseActivitiesData(localData);
         console.log(`📊 ${allActivities.length} activités chargées (démo: ${dataFile})`);
-        
+
         if (allActivities.length > 0) {
           const dates = allActivities.map(a => a.start_date?.substring(0, 10)).filter(Boolean);
           const uniqueDates = [...new Set(dates)].sort().reverse();
@@ -839,13 +865,17 @@ function renderAll() {
         }
       });
 
+      // Calculer le rescapé du round précédent (depuis frozen results)
+      const rescapeId = getRescapeFromPreviousRound(currentRoundNumber);
+
       renderRanking(rankingContainer, {
         ranking,
         seasonData,
         currentSeasonNumber,
         seasonStats,
         eliminationsCount: elimCount,
-        currentRoundNumber
+        currentRoundNumber,
+        rescapeId
       });
     }
 
@@ -1722,7 +1752,7 @@ function injectTickerStyles() {
       left: 0;
       right: 0;
       z-index: 9999;
-      border-top: 0.5px solid #f97316;
+      border-top: 1px solid #f97316;
     }
 
     /* Mobile: dans la nav, caché par défaut sur desktop */
