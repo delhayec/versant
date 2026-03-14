@@ -1615,6 +1615,211 @@ body {
   margin: 0 auto;
 }
 
+/* ============================================
+   SECTION ARSENAL (JOKERS & BONUS)
+   ============================================ */
+
+.arsenal-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.arsenal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.arsenal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px 24px;
+  transition: all 0.3s ease;
+}
+
+.arsenal-card:hover {
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.arsenal-card-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arsenal-card-title .icon {
+  font-size: 16px;
+}
+
+/* Jokers actifs */
+.active-jokers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.active-joker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.active-joker-item:hover {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.active-joker-item .joker-icon {
+  font-size: 20px;
+}
+
+.active-joker-item .joker-source {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.active-joker-item .joker-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.active-joker-item .joker-target {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.active-joker-item .joker-type {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.arsenal-empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Bonus éphémères */
+.bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bonus-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.bonus-item:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.bonus-item.pending {
+  border-style: dashed;
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.bonus-item.used {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.bonus-item .bonus-icon {
+  font-size: 20px;
+}
+
+.bonus-item .bonus-owner {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bonus-item .bonus-name {
+  color: #a855f7;
+  font-weight: 500;
+}
+
+.bonus-item .bonus-status {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.bonus-item .bonus-status.available {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.bonus-item .bonus-status.active {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.bonus-item .bonus-status.pending {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.bonus-item .bonus-status.used {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.bonus-item .bonus-target {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .arsenal-card {
+    padding: 16px;
+  }
+
+  .active-jokers-list,
+  .bonus-list {
+    flex-direction: column;
+  }
+
+  .active-joker-item,
+  .bonus-item {
+    width: 100%;
+  }
+}
+
 .participants-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1995,6 +2200,88 @@ body {
   border-radius: 4px;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+/* ============================================
+   CHALLENGE DES ÉLIMINÉS - HISTORIQUE
+   ============================================ */
+
+.history-eliminated-challenge {
+  background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), rgba(168, 85, 247, 0.02));
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  margin-top: 24px;
+}
+
+.history-eliminated-challenge .history-round {
+  color: #a855f7;
+}
+
+.history-eliminated-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+}
+
+.history-eliminated-summary .history-sublabel {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.eliminated-challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eliminated-challenge-list .history-ranking-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+}
+
+.eliminated-challenge-list .history-ranking-row:hover {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.eliminated-challenge-list .history-ranking-row.top-three {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.history-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-name-block .history-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.history-name-block .history-elim-round {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.history-points {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  min-width: 50px;
+  text-align: right;
+}
+
+.history-points.has-points {
+  color: #a855f7;
+  font-weight: 600;
 }
 
 /* Responsive mobile pour l'historique */
@@ -3840,7 +4127,7 @@ body {
   max-width: 480px;
   max-height: 85vh;
   overflow: hidden;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5), 
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5),
               0 0 40px rgba(249, 115, 22, 0.1);
   animation: modalSlideIn 0.3s ease-out;
 }
@@ -4930,7 +5217,7 @@ body {
     bottom: -3px;
     right: -3px;
   }
-  
+
   .avatar-bonus-icon {
     width: 14px;
     height: 14px;
@@ -4944,14 +5231,14 @@ body {
     bottom: -2px;
     right: -2px;
   }
-  
+
   .avatar-bonus-icon {
     width: 12px;
     height: 12px;
     font-size: 7px;
     border-width: 1px;
   }
-  
+
   /* Limiter à 2 indicateurs max sur mobile */
   .avatar-bonus-icon:nth-child(n+3) {
     display: none;

@@ -11,7 +11,7 @@
  */
 
 import {
-  CHALLENGE_CONFIG, PARTICIPANTS, ROUND_RULES, JOKER_TYPES,
+  CHALLENGE_CONFIG, PARTICIPANTS, ROUND_RULES, JOKER_TYPES, BONUS_TYPES,
   getParticipantById, getRoundDates, getSeasonNumber, getSeasonDates,
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getMainChallengePoints, getEliminatedChallengePoints,
@@ -28,7 +28,7 @@ import {
 import {
   formatElevation, formatPosition,
   renderCombinedBanner, renderActiveJokersSection, renderRanking,
-  renderJokersGuide, showNotification,
+  renderJokersGuide, renderArsenal, showNotification,
   showContextMenu, hideContextMenu, showTargetSelectionModal
 } from './ui.js';
 
@@ -879,10 +879,10 @@ function renderAll() {
       });
     }
 
-    // Participants (cards)
-    const participantsGrid = document.getElementById('participantsGrid');
-    if (participantsGrid) {
-      renderParticipantsGrid(participantsGrid, today);
+    // Arsenal (Jokers & Bonus)
+    const arsenalContainer = document.getElementById('arsenalContainer');
+    if (arsenalContainer) {
+      renderArsenalSection(arsenalContainer, currentRoundNumber);
     }
 
     // Challenge des Éliminés
@@ -1074,6 +1074,81 @@ function renderParticipantsGrid(container, today) {
 }
 
 // ============================================
+// RENDU: SECTION ARSENAL (JOKERS & BONUS)
+// ============================================
+
+async function renderArsenalSection(container, roundNumber) {
+  // Récupérer les jokers actifs ce round
+  const activeJokers = getActiveJokersForRound(roundNumber);
+
+  // Enrichir avec les noms des joueurs
+  const enrichedJokers = activeJokers.map(joker => {
+    const athlete = getParticipantById(joker.athleteId);
+    const target = joker.targetId ? getParticipantById(joker.targetId) : null;
+    return {
+      ...joker,
+      joker_id: joker.jokerId,
+      athlete_name: athlete?.name || 'Joueur',
+      target_athlete_name: target?.name || null
+    };
+  });
+
+  // Récupérer les bonus éphémères depuis l'API
+  let bonuses = [];
+  try {
+    const res = await fetch('/api/bonuses/all');
+    if (res.ok) {
+      const allBonuses = await res.json();
+      bonuses = allBonuses.map(b => {
+        const athlete = getParticipantById(b.athlete_id);
+        const target = b.target_id ? getParticipantById(b.target_id) : null;
+        const bonusType = BONUS_TYPES?.[b.bonus_id];
+        return {
+          ...b,
+          athlete_name: athlete?.name || 'Joueur',
+          target_athlete_name: target?.name || null,
+          bonus_name: bonusType?.name || b.bonus_id,
+          icon: bonusType?.icon || '🎁',
+          status: b.used_at ? 'used' : b.activated_at ? 'active' : 'available'
+        };
+      });
+    }
+  } catch (e) {
+    console.warn('Impossible de charger les bonus:', e);
+  }
+
+  // Récupérer les choix en attente
+  try {
+    const res = await fetch('/api/bonuses/active');
+    if (res.ok) {
+      const pendingData = await res.json();
+      // Ajouter les joueurs qui doivent encore choisir
+      if (pendingData.pendingChoices) {
+        Object.entries(pendingData.pendingChoices).forEach(([playerId, choices]) => {
+          const athlete = getParticipantById(playerId);
+          if (!bonuses.some(b => String(b.athlete_id) === String(playerId))) {
+            bonuses.push({
+              athlete_id: playerId,
+              athlete_name: athlete?.name || 'Joueur',
+              icon: '🎁',
+              status: 'pending'
+            });
+          }
+        });
+      }
+    }
+  } catch (e) {
+    // Ignorer
+  }
+
+  renderArsenal(container, {
+    activeJokers: enrichedJokers,
+    bonuses,
+    currentRoundNumber: roundNumber
+  });
+}
+
+// ============================================
 // RENDU: HISTORIQUE
 // ============================================
 
@@ -1145,6 +1220,11 @@ function renderCurrentSeasonHistory(container) {
       // Fallback: recalculer (uniquement si pas de frozen results)
       html += renderCalculatedRoundHistory(r, globalRound, roundDates, roundEliminated);
     }
+  }
+
+  // Ajouter le bloc Challenge des Éliminés si des joueurs sont éliminés
+  if (seasonData?.eliminated?.length > 0) {
+    html += renderEliminatedChallengeHistory();
   }
 
   if (!html) {
@@ -1266,6 +1346,91 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
       </div>
     </div>
   </div>`;
+
+  return html;
+}
+
+/**
+ * Génère le HTML pour le bloc Challenge des Éliminés dans l'historique
+ */
+function renderEliminatedChallengeHistory() {
+  if (!seasonData?.eliminated?.length) return '';
+
+  const today = getCurrentDate();
+  const seasonDates = getSeasonDates(currentSeasonNumber);
+
+  // Calculer le D+ de chaque éliminé depuis son élimination
+  const eliminatedRanking = seasonData.eliminated.map(elim => {
+    // Trouver le round d'élimination pour calculer la date de début
+    const elimRound = (currentSeasonNumber - 1) * getRoundsPerSeason() + elim.eliminatedRound;
+    const elimRoundDates = getRoundDates(elimRound);
+
+    // Filtrer les activités APRÈS la fin du round d'élimination
+    const activitiesSinceElim = allActivities.filter(a => {
+      const actDate = new Date(a.start_date);
+      return String(a.athlete_id) === String(elim.id) && actDate > elimRoundDates.end;
+    });
+
+    const elevation = activitiesSinceElim.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+    const activityCount = activitiesSinceElim.length;
+
+    return {
+      id: elim.id,
+      name: elim.name,
+      eliminatedRound: elim.eliminatedRound,
+      elevation,
+      activityCount,
+      points: 0 // Calculé après le tri
+    };
+  }).sort((a, b) => b.elevation - a.elevation);
+
+  // Attribuer les points selon le classement
+  const pointsTable = [10, 8, 6, 5, 4, 3, 2, 1];
+  eliminatedRanking.forEach((entry, idx) => {
+    entry.points = pointsTable[idx] || 0;
+    entry.rank = idx + 1;
+  });
+
+  // Générer le HTML
+  let html = `
+    <div class="history-item history-eliminated-challenge">
+      <div class="history-round-header" onclick="toggleRoundDetails('eliminated-challenge')">
+        <div class="history-round">👻 Challenge des Éliminés</div>
+        <span class="history-toggle-icon">▼</span>
+      </div>
+      <div class="history-eliminated-summary">
+        <span class="history-label">Classement provisoire</span>
+        <span class="history-sublabel">(D+ cumulé depuis l'élimination)</span>
+      </div>
+      <div class="history-ranking-dropdown" id="ranking-eliminated-challenge" style="display: block;">
+        <div class="history-ranking-list eliminated-challenge-list">
+  `;
+
+  eliminatedRanking.forEach((entry, idx) => {
+    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+    const rankClass = idx < 3 ? 'top-three' : '';
+
+    html += `
+      <div class="history-ranking-row eliminated-row ${rankClass}">
+        <span class="history-rank">${medal || entry.rank}</span>
+        <div class="history-name-block">
+          <span class="history-name">${entry.name}</span>
+          <span class="history-elim-round">Éliminé R${entry.eliminatedRound}</span>
+        </div>
+        <span class="history-elevation">${formatElevation(entry.elevation, false)}</span>
+        <span class="history-points ${entry.points > 0 ? 'has-points' : ''}">${entry.points > 0 ? `+${entry.points} pts` : '-'}</span>
+      </div>
+    `;
+  });
+
+  html += `
+        </div>
+      </div>
+      <div class="history-note" style="margin-top: 12px;">
+        💡 Points attribués en fin de saison selon le classement final
+      </div>
+    </div>
+  `;
 
   return html;
 }

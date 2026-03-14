@@ -335,7 +335,7 @@ export function renderRanking(container, data) {
       </div>
     `;
   });
-  
+
   container.innerHTML = html;
 }
 
@@ -345,49 +345,49 @@ export function renderRanking(container, data) {
 
 function renderAvatarBonusIndicators(bonuses = {}) {
   const indicators = [];
-  
+
   // Multiplicateur (×1.5)
   if (bonuses.multiplier) {
     indicators.push({ icon: '✨', class: 'multiplier', title: 'Multiplicateur ×1.5' });
   }
-  
+
   // Bouclier
   if (bonuses.shield) {
     indicators.push({ icon: '🛡️', class: 'shield', title: 'Bouclier actif' });
   }
-  
+
   // Duel gagné
   if (bonuses.duelWon) {
     indicators.push({ icon: '⚔️', class: 'duel-won', title: 'Duel gagné' });
   }
-  
+
   // Duel perdu
   if (bonuses.duelLost) {
     indicators.push({ icon: '⚔️', class: 'duel-lost', title: 'Duel perdu' });
   }
-  
+
   // Saboté (victime)
   if (bonuses.sabotaged) {
     indicators.push({ icon: '💣', class: 'sabotaged', title: 'Saboté' });
   }
-  
+
   // Sabotage appliqué (celui qui sabote)
   if (bonuses.sabotageApplied) {
     indicators.push({ icon: '💣', class: 'saboteur', title: 'Sabotage actif' });
   }
-  
+
   // Voleur actif
   if (bonuses.thief) {
     indicators.push({ icon: '🦹', class: 'thief', title: 'Vol actif' });
   }
-  
+
   // Victime du vol
   if (bonuses.stolen) {
     indicators.push({ icon: '🦹', class: 'stolen', title: 'Activité volée' });
   }
-  
+
   if (indicators.length === 0) return '';
-  
+
   return `
     <div class="avatar-bonus-indicators">
       ${indicators.map(ind => `
@@ -404,18 +404,18 @@ function renderAvatarBonusIndicators(bonuses = {}) {
 function renderJokerBadges(participantId, currentRoundNumber) {
   const status = getJokerStatusForRound(participantId, currentRoundNumber);
   const stock = status.stock;
-  
+
   let html = '';
-  
+
   Object.entries(JOKER_TYPES).forEach(([jokerId, jokerType]) => {
     const count = stock[jokerId] || 0;
     const isActive = status.active.some(j => j.jokerId === jokerId);
     const isPending = status.pending.some(j => j.jokerId === jokerId);
-    
+
     let badgeClass = 'available';
     if (isActive) badgeClass = 'active';
     else if (isPending) badgeClass = 'pending';
-    
+
     if (count > 0 || isActive || isPending) {
       html += `
         <span class="joker-badge ${badgeClass}" title="${jokerType.name}: ${count} restant(s)">
@@ -424,7 +424,7 @@ function renderJokerBadges(participantId, currentRoundNumber) {
       `;
     }
   });
-  
+
   return html || '<span class="no-jokers">-</span>';
 }
 
@@ -434,9 +434,9 @@ function renderJokerBadges(participantId, currentRoundNumber) {
 
 function renderElevationWithBonuses(totalElevation, bonuses = {}) {
   let html = `<span class="elevation-primary">${formatElevation(totalElevation)}</span>`;
-  
+
   const tags = [];
-  
+
   if (bonuses.multiplier) {
     tags.push(`<span class="bonus-tag multiplier">×1.5 +${formatElevation(bonuses.multiplier.amount, false)}</span>`);
   }
@@ -452,11 +452,11 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}) {
   if (bonuses.sabotageApplied) {
     tags.push(`<span class="bonus-tag sabotage-done">💣 → ${bonuses.sabotageApplied.to}</span>`);
   }
-  
+
   if (tags.length > 0) {
     html += `<div class="elevation-bonuses">${tags.join('')}</div>`;
   }
-  
+
   return html;
 }
 
@@ -466,13 +466,13 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}) {
 
 export function renderParticipants(container, data) {
   const { participants, stats, currentRoundNumber } = data;
-  
+
   let html = '<div class="participants-grid">';
-  
+
   participants.forEach(p => {
     const pStats = stats?.[p.id] || { elevation: 0, activities: 0 };
     const stock = getJokerStock(p.id);
-    
+
     html += `
       <div class="participant-card" data-participant-id="${p.id}">
         <div class="card-header">
@@ -487,7 +487,7 @@ export function renderParticipants(container, data) {
         <div class="card-body">
           <div class="elevation">${formatElevation(pStats.elevation)}</div>
           <div class="jokers-row">
-            ${Object.entries(JOKER_TYPES).map(([id, j]) => 
+            ${Object.entries(JOKER_TYPES).map(([id, j]) =>
               `<span class="mini-joker" title="${j.name}">${j.icon}${stock[id] || 0}</span>`
             ).join('')}
           </div>
@@ -495,8 +495,95 @@ export function renderParticipants(container, data) {
       </div>
     `;
   });
-  
+
   html += '</div>';
+  container.innerHTML = html;
+}
+
+// ============================================
+// RENDU DE LA SECTION ARSENAL (JOKERS & BONUS)
+// ============================================
+
+export function renderArsenal(container, data) {
+  const { activeJokers = [], bonuses = [], currentRoundNumber } = data;
+
+  let html = '';
+
+  // === JOKERS ACTIFS CE ROUND ===
+  html += `
+    <div class="arsenal-card">
+      <div class="arsenal-card-title">
+        <span class="icon">⚔️</span>
+        Jokers en jeu ce round
+      </div>
+      <div class="active-jokers-list">
+  `;
+
+  if (activeJokers.length === 0) {
+    html += '<div class="arsenal-empty">Aucun joker actif ce round</div>';
+  } else {
+    activeJokers.forEach(joker => {
+      const jokerType = JOKER_TYPES[joker.joker_id];
+      if (!jokerType) return;
+
+      html += `
+        <div class="active-joker-item">
+          <span class="joker-icon">${jokerType.icon}</span>
+          <span class="joker-source">${joker.athlete_name || 'Joueur'}</span>
+          ${joker.target_athlete_name ? `
+            <span class="joker-arrow">→</span>
+            <span class="joker-target">${joker.target_athlete_name}</span>
+          ` : ''}
+          <span class="joker-type">${jokerType.name}</span>
+        </div>
+      `;
+    });
+  }
+
+  html += `
+      </div>
+    </div>
+  `;
+
+  // === BONUS ÉPHÉMÈRES ===
+  html += `
+    <div class="arsenal-card">
+      <div class="arsenal-card-title">
+        <span class="icon">🎁</span>
+        Bonus éphémères (Éliminés)
+      </div>
+      <div class="bonus-list">
+  `;
+
+  if (bonuses.length === 0) {
+    html += '<div class="arsenal-empty">Aucun bonus attribué</div>';
+  } else {
+    bonuses.forEach(bonus => {
+      const statusClass = bonus.status === 'pending' ? 'pending' :
+                          bonus.status === 'used' ? 'used' :
+                          bonus.status === 'active' ? 'active' : 'available';
+
+      const statusLabel = bonus.status === 'pending' ? '⏳ Choix en attente' :
+                          bonus.status === 'used' ? '✓ Utilisé' :
+                          bonus.status === 'active' ? '🎯 Activé' : 'Disponible';
+
+      html += `
+        <div class="bonus-item ${statusClass}">
+          <span class="bonus-icon">${bonus.icon || '🎁'}</span>
+          <span class="bonus-owner">👻 ${bonus.athlete_name || 'Joueur'}</span>
+          ${bonus.bonus_name ? `<span class="bonus-name">${bonus.bonus_name}</span>` : ''}
+          <span class="bonus-status ${statusClass}">${statusLabel}</span>
+          ${bonus.target_athlete_name ? `<span class="bonus-target">→ ${bonus.target_athlete_name}</span>` : ''}
+        </div>
+      `;
+    });
+  }
+
+  html += `
+      </div>
+    </div>
+  `;
+
   container.innerHTML = html;
 }
 
