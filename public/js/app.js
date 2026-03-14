@@ -1349,44 +1349,10 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
  * Génère le HTML pour le classement final du Challenge des Éliminés (saisons terminées)
  */
 function renderCompletedEliminatedChallenge(summary) {
-  if (!summary.eliminated?.length) return '';
+  // Utiliser eliminatedRanking qui est déjà calculé par getSeasonSummary
+  if (!summary.eliminatedRanking?.length) return '';
 
   const seasonNumber = summary.seasonNumber;
-  const seasonDates = getSeasonDates(seasonNumber);
-
-  // Calculer le D+ de chaque éliminé depuis son élimination jusqu'à la fin de la saison
-  const eliminatedRanking = summary.eliminated.map(elim => {
-    // Trouver le round d'élimination pour calculer la date de début
-    const elimRound = (seasonNumber - 1) * getRoundsPerSeason() + elim.eliminatedRound;
-    const elimRoundDates = getRoundDates(elimRound);
-
-    // Filtrer les activités APRÈS l'élimination et AVANT la fin de la saison
-    const activitiesSinceElim = allActivities.filter(a => {
-      const actDate = new Date(a.start_date);
-      return String(a.athlete_id) === String(elim.id) &&
-             actDate > elimRoundDates.end &&
-             actDate <= seasonDates.end;
-    });
-
-    const elevation = activitiesSinceElim.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
-    const activityCount = activitiesSinceElim.length;
-
-    return {
-      id: elim.id,
-      name: elim.name,
-      eliminatedRound: elim.eliminatedRound,
-      elevation,
-      activityCount,
-      points: 0
-    };
-  }).sort((a, b) => b.elevation - a.elevation);
-
-  // Attribuer les points selon le classement final
-  const pointsTable = [10, 8, 6, 5, 4, 3, 2, 1];
-  eliminatedRanking.forEach((entry, idx) => {
-    entry.points = pointsTable[idx] || 0;
-    entry.rank = idx + 1;
-  });
 
   // Générer le HTML
   let html = `
@@ -1399,19 +1365,23 @@ function renderCompletedEliminatedChallenge(summary) {
         <div class="history-ranking-list eliminated-challenge-list">
   `;
 
-  eliminatedRanking.forEach((entry, idx) => {
+  summary.eliminatedRanking.forEach((entry, idx) => {
     const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
     const rankClass = idx < 3 ? 'top-three' : '';
+    const name = entry.participant?.name || 'Inconnu';
+    const elimRound = entry.eliminatedRound || '?';
+    const elevation = entry.totalElevation || 0;
+    const points = entry.points || 0;
 
     html += `
       <div class="history-ranking-row eliminated-row ${rankClass}">
-        <span class="history-rank">${medal || entry.rank}</span>
+        <span class="history-rank">${medal || (idx + 1)}</span>
         <div class="history-name-block">
-          <span class="history-name">${entry.name}</span>
-          <span class="history-elim-round">Éliminé R${entry.eliminatedRound}</span>
+          <span class="history-name">${name}</span>
+          <span class="history-elim-round">Éliminé R${elimRound}</span>
         </div>
-        <span class="history-elevation">${formatElevation(entry.elevation, false)}</span>
-        <span class="history-points ${entry.points > 0 ? 'has-points' : ''}">${entry.points > 0 ? `+${entry.points} pts` : '-'}</span>
+        <span class="history-elevation">${formatElevation(elevation, false)}</span>
+        <span class="history-points ${points > 0 ? 'has-points' : ''}">${points > 0 ? `+${points} pts` : '-'}</span>
       </div>
     `;
   });
