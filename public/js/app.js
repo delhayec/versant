@@ -1402,6 +1402,9 @@ function renderCompletedEliminatedChallenge(summary) {
 function renderCompletedSeasonHistory(container, summary) {
   const roundsPerSeason = getRoundsPerSeason();
 
+  console.log('📜 renderCompletedSeasonHistory - summary:', summary);
+  console.log('📜 eliminatedRanking:', summary.eliminatedRanking);
+
   let html = `<div class="history-season-summary"><h3>🏆 Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
 
   summary.rounds.forEach(r => {
@@ -1435,7 +1438,7 @@ function renderCompletedSeasonHistory(container, summary) {
   });
 
   // Ajouter le classement final du Challenge des Éliminés
-  if (summary.eliminated?.length > 0) {
+  if (summary.eliminatedRanking?.length > 0) {
     html += renderCompletedEliminatedChallenge(summary);
   }
 
