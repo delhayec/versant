@@ -1222,11 +1222,6 @@ function renderCurrentSeasonHistory(container) {
     }
   }
 
-  // Ajouter le bloc Challenge des Éliminés si des joueurs sont éliminés
-  if (seasonData?.eliminated?.length > 0) {
-    html += renderEliminatedChallengeHistory();
-  }
-
   if (!html) {
     html = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
   }
@@ -1351,24 +1346,26 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
 }
 
 /**
- * Génère le HTML pour le bloc Challenge des Éliminés dans l'historique
+ * Génère le HTML pour le classement final du Challenge des Éliminés (saisons terminées)
  */
-function renderEliminatedChallengeHistory() {
-  if (!seasonData?.eliminated?.length) return '';
+function renderCompletedEliminatedChallenge(summary) {
+  if (!summary.eliminated?.length) return '';
 
-  const today = getCurrentDate();
-  const seasonDates = getSeasonDates(currentSeasonNumber);
+  const seasonNumber = summary.seasonNumber;
+  const seasonDates = getSeasonDates(seasonNumber);
 
-  // Calculer le D+ de chaque éliminé depuis son élimination
-  const eliminatedRanking = seasonData.eliminated.map(elim => {
+  // Calculer le D+ de chaque éliminé depuis son élimination jusqu'à la fin de la saison
+  const eliminatedRanking = summary.eliminated.map(elim => {
     // Trouver le round d'élimination pour calculer la date de début
-    const elimRound = (currentSeasonNumber - 1) * getRoundsPerSeason() + elim.eliminatedRound;
+    const elimRound = (seasonNumber - 1) * getRoundsPerSeason() + elim.eliminatedRound;
     const elimRoundDates = getRoundDates(elimRound);
 
-    // Filtrer les activités APRÈS la fin du round d'élimination
+    // Filtrer les activités APRÈS l'élimination et AVANT la fin de la saison
     const activitiesSinceElim = allActivities.filter(a => {
       const actDate = new Date(a.start_date);
-      return String(a.athlete_id) === String(elim.id) && actDate > elimRoundDates.end;
+      return String(a.athlete_id) === String(elim.id) &&
+             actDate > elimRoundDates.end &&
+             actDate <= seasonDates.end;
     });
 
     const elevation = activitiesSinceElim.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
@@ -1380,11 +1377,11 @@ function renderEliminatedChallengeHistory() {
       eliminatedRound: elim.eliminatedRound,
       elevation,
       activityCount,
-      points: 0 // Calculé après le tri
+      points: 0
     };
   }).sort((a, b) => b.elevation - a.elevation);
 
-  // Attribuer les points selon le classement
+  // Attribuer les points selon le classement final
   const pointsTable = [10, 8, 6, 5, 4, 3, 2, 1];
   eliminatedRanking.forEach((entry, idx) => {
     entry.points = pointsTable[idx] || 0;
@@ -1394,15 +1391,11 @@ function renderEliminatedChallengeHistory() {
   // Générer le HTML
   let html = `
     <div class="history-item history-eliminated-challenge">
-      <div class="history-round-header" onclick="toggleRoundDetails('eliminated-challenge')">
-        <div class="history-round">👻 Challenge des Éliminés</div>
+      <div class="history-round-header" onclick="toggleRoundDetails('eliminated-s${seasonNumber}')">
+        <div class="history-round">👻 Challenge des Éliminés - Classement Final</div>
         <span class="history-toggle-icon">▼</span>
       </div>
-      <div class="history-eliminated-summary">
-        <span class="history-label">Classement provisoire</span>
-        <span class="history-sublabel">(D+ cumulé depuis l'élimination)</span>
-      </div>
-      <div class="history-ranking-dropdown" id="ranking-eliminated-challenge" style="display: block;">
+      <div class="history-ranking-dropdown" id="ranking-eliminated-s${seasonNumber}" style="display: block;">
         <div class="history-ranking-list eliminated-challenge-list">
   `;
 
@@ -1425,9 +1418,6 @@ function renderEliminatedChallengeHistory() {
 
   html += `
         </div>
-      </div>
-      <div class="history-note" style="margin-top: 12px;">
-        💡 Points attribués en fin de saison selon le classement final
       </div>
     </div>
   `;
@@ -1473,6 +1463,11 @@ function renderCompletedSeasonHistory(container, summary) {
       }
     }
   });
+
+  // Ajouter le classement final du Challenge des Éliminés
+  if (summary.eliminated?.length > 0) {
+    html += renderCompletedEliminatedChallenge(summary);
+  }
 
   container.innerHTML = html;
 }
