@@ -641,6 +641,8 @@ function calculateYearlyStandings(activities, currentDate) {
       participant: p,
       totalMainPoints: 0,
       totalEliminatedPoints: 0,
+      totalBonusPoints: 0,
+      roundPoints: 0,
       totalPoints: 0,
       wins: 0,
       seasonsPlayed: 0,
@@ -648,59 +650,61 @@ function calculateYearlyStandings(activities, currentDate) {
     };
   });
 
+  // ÉTAPE 1: Collecter les points des rounds FIGÉS depuis frozen_results
+  if (frozenResultsCache?.rounds) {
+    console.log('📊 Calcul points depuis frozen_results...');
+
+    Object.entries(frozenResultsCache.rounds).forEach(([roundNum, roundData]) => {
+      // Pour chaque participant dans le classement du round
+      (roundData.ranking || []).forEach(entry => {
+        const athleteId = String(entry.id);
+        if (totals[athleteId] && entry.mainPoints > 0) {
+          totals[athleteId].totalMainPoints += entry.mainPoints;
+          totals[athleteId].totalPoints += entry.mainPoints;
+
+          // Vérifier s'il est le gagnant de la saison
+          if (entry.isWinner) {
+            totals[athleteId].wins++;
+          }
+
+          console.log(`  ${entry.name}: +${entry.mainPoints} pts (round ${roundNum})`);
+        }
+      });
+    });
+  }
+
+  // ÉTAPE 2: Ajouter les points du challenge des éliminés pour les SAISONS TERMINÉES
   for (let s = 1; s <= currentSeason; s++) {
     const seasonDates = getSeasonDates(s);
     if (currentDate < seasonDates.start) continue;
 
     const sData = simulateSeasonEliminations(activities, s, currentDate);
-    const elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, sData.seasonComplete ? seasonDates.end : currentDate);
-    const elimPointsMap = {};
-    elimRanking.forEach(e => elimPointsMap[e.participant.id] = e.points);
 
-    // Calcul des points pour TOUS les participants
-    PARTICIPANTS.forEach(p => {
-      const elim = sData.eliminated.find(e => e.id === p.id);
-      let mainPts = 0, elimPts = 0;
-
-      if (elim) {
-        // RÈGLE DE POINTS:
-        // Position = nombre d'actifs au début du round - index dans les éliminés
-        // Les éliminés sont triés du pire au meilleur (dernier du classement = index 0)
-        // Donc: dernier → position la plus basse, avant-dernier → position légèrement meilleure
-        const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-        const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-
-        // Trouver tous les éliminés du même round
-        const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
-        const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
-
-        // Position = actifs au début - index (dernier = position la plus basse)
-        const position = activeAtRoundStart - indexInRound;
-        mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
-        elimPts = elimPointsMap[p.id] || 0;
-      } else if (sData.winner?.id === p.id) {
-        mainPts = getMainChallengePoints(1);
-        totals[p.id].wins++;
-      } else if (sData.seasonComplete) {
-        mainPts = getMainChallengePoints(2);
-      }
-
-      if (sData.seasonComplete || elim) {
-        totals[p.id].totalMainPoints += mainPts;
-        if (sData.seasonComplete) {
-          totals[p.id].totalEliminatedPoints += elimPts;
-          totals[p.id].totalPoints += mainPts + elimPts;
-          totals[p.id].seasonsPlayed++;
-        } else {
-          totals[p.id].totalPoints += mainPts;
+    // Si la saison est terminée, calculer les points du challenge des éliminés
+    if (sData.seasonComplete) {
+      const elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, seasonDates.end);
+      elimRanking.forEach(e => {
+        if (totals[e.participant.id]) {
+          totals[e.participant.id].totalEliminatedPoints += e.points;
+          totals[e.participant.id].totalPoints += e.points;
         }
-      }
-    });
+      });
+
+      // Marquer la saison jouée pour tous les participants
+      PARTICIPANTS.forEach(p => {
+        if (totals[p.id]) {
+          totals[p.id].seasonsPlayed++;
+        }
+      });
+    }
   }
 
   const standings = Object.values(totals);
   standings.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
   standings.forEach((e, i) => e.rank = i + 1);
+
+  console.log('📊 Classement final:', standings.slice(0, 5).map(s => `${s.participant.name}: ${s.totalPoints} pts`));
+
   return standings;
 }
 
@@ -988,16 +992,52 @@ function renderFinalStandings(container) {
   const activeIds = new Set((seasonData?.active || []).map(p => p.id));
   const standings = yearlyStandingsCache || [];
 
-  let html = '<div class="standings-header"><div>Rang</div><div>Athlète</div><div>Pts Principal</div><div>Pts Éliminés</div><div>Total</div></div>';
+  // Calculer les points gagnés ce round pour chaque participant
+  const roundPointsMap = {};
+  if (frozenResultsCache?.rounds) {
+    // Trouver le dernier round figé terminé
+    const lastFrozenRound = Math.max(...Object.keys(frozenResultsCache.rounds).map(Number).filter(n => !isNaN(n)));
+    const lastRoundData = frozenResultsCache.rounds[String(lastFrozenRound)];
+
+    if (lastRoundData?.ranking) {
+      lastRoundData.ranking.forEach(entry => {
+        if (entry.mainPoints > 0) {
+          roundPointsMap[String(entry.id)] = {
+            points: entry.mainPoints,
+            round: lastFrozenRound
+          };
+        }
+      });
+    }
+  }
+
+  // Tableau avec colonnes étendues sur desktop
+  let html = `
+    <div class="standings-header standings-extended">
+      <div>Rang</div>
+      <div>Athlète</div>
+      <div class="desktop-only">Pts Round</div>
+      <div class="desktop-only">Pts Bonus</div>
+      <div>Pts Principal</div>
+      <div>Pts Éliminés</div>
+      <div>Total</div>
+    </div>`;
+
   standings.forEach(e => {
     const isActive = activeIds.has(e.participant.id);
     const wins = e.wins > 0 ? `<span class="wins-badge">🏆×${e.wins}</span>` : '';
-    html += `<div class="standings-row ${isActive ? '' : 'eliminated'}">
+    const roundPts = roundPointsMap[e.participant.id];
+    const roundPtsDisplay = roundPts ? `<span class="round-pts-value">+${roundPts.points}</span>` : '-';
+    const bonusPtsDisplay = e.totalBonusPoints > 0 ? `<span class="bonus-pts-value">+${e.totalBonusPoints}</span>` : '-';
+
+    html += `<div class="standings-row standings-extended ${isActive ? '' : 'eliminated'}">
       <div class="standings-rank">${e.rank}</div>
       <div class="standings-athlete">
         <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)">${getAthleteInitials(e.participant.id)}</div>
         <span>${e.participant.name}</span>${wins}${isActive ? '<span class="active-badge">En course</span>' : ''}
       </div>
+      <div class="standings-points round desktop-only">${roundPtsDisplay}</div>
+      <div class="standings-points bonus desktop-only">${bonusPtsDisplay}</div>
       <div class="standings-points main">${e.totalMainPoints || '-'}</div>
       <div class="standings-points elim">${e.totalEliminatedPoints || '-'}</div>
       <div class="standings-total">${e.totalPoints}</div>

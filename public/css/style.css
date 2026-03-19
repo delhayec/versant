@@ -1495,6 +1495,11 @@ body {
   color: var(--text-muted);
 }
 
+/* Version étendue sur desktop avec colonnes supplémentaires */
+.standings-header.standings-extended {
+  grid-template-columns: 50px 1fr 80px 80px 90px 90px 90px;
+}
+
 .standings-row {
   display: grid;
   grid-template-columns: 60px 1fr 100px 100px 100px;
@@ -1502,6 +1507,41 @@ body {
   border-bottom: 1px solid var(--border-color);
   align-items: center;
   transition: background 0.2s ease;
+}
+
+.standings-row.standings-extended {
+  grid-template-columns: 50px 1fr 80px 80px 90px 90px 90px;
+}
+
+/* Colonnes desktop-only */
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .desktop-only {
+    display: block;
+  }
+}
+
+/* Style pour les points du round */
+.standings-points.round {
+  color: var(--accent-secondary);
+}
+
+.round-pts-value {
+  color: var(--accent-secondary);
+  font-weight: 600;
+}
+
+/* Style pour les points bonus */
+.standings-points.bonus {
+  color: var(--accent-warning);
+}
+
+.bonus-pts-value {
+  color: var(--accent-warning);
+  font-weight: 600;
 }
 
 .standings-row:hover {
@@ -4892,9 +4932,16 @@ body {
 
 /* === TABLET (768px) === */
 @media (max-width: 768px) {
-  /* Classement Général - Afficher les 5 colonnes compactes */
+  /* Masquer les colonnes desktop uniquement */
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* Classement Général - Afficher les 5 colonnes compactes (sans les colonnes desktop) */
   .standings-header,
-  .standings-row {
+  .standings-row,
+  .standings-header.standings-extended,
+  .standings-row.standings-extended {
     grid-template-columns: 35px 1fr 55px 55px 60px;
     padding: 10px 12px;
     gap: 6px;
