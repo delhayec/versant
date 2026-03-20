@@ -1,1292 +1,5325 @@
-/**
- * ============================================
- * DASHBOARD PERSONNEL - VERSANT 2026 v2.0
- * ============================================
- * - Jokers du challenge principal
- * - Bonus éphémères du challenge des éliminés
- */
+/* ============================================
+   VERSANT — CHALLENGE À ÉLIMINATION
+   Style basé sur Récap du Million (Éditorial Data-Viz)
+   ============================================ */
 
-import { CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES } from './config-2026.js';
+/* === VARIABLES & RESET === */
+:root {
+  /* Palette principale - Thème Montagne */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-card: #1a1a24;
+  --bg-card-hover: #222230;
 
-const API_BASE = '/api';
-const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
-const INITIAL_JOKER_STOCK = 2;
+  /* Accents - Palette Versant */
+  --accent-primary: #f97316; /* Orange vif #f97316 */
+  --accent-secondary: #22d3ee; /* Cyan */
+  --accent-tertiary: #10b981; /* Émeraude */
+  --accent-warning: #fbbf24; /* Jaune */
+  --accent-danger: #ef4444; /* Rouge */
+  --accent-gradient: linear-gradient(135deg, #f97316 0%, #22d3ee 100%);
 
-let currentUser = null;
-let allActivities = [];
-let jokerUsageCache = [];
-let bonusData = null; // Bonus éphémère du joueur
-let bonusChoices = null; // Choix de bonus en attente
+  /* Texte */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.4);
 
-// ============================================
-// AUTHENTIFICATION
-// ============================================
-function getCurrentUserId() {
-  return localStorage.getItem('versant_athlete_id');
+  /* Bordures */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(249, 115, 22, 0.3);
+
+  /* Typographie */
+  --font-display: "Syne", sans-serif;
+  --font-mono: "Space Mono", monospace;
+  --font-body: "Inter", sans-serif;
+
+  /* Espacements */
+  --section-padding: clamp(60px, 10vw, 120px);
+  --container-padding: clamp(20px, 5vw, 80px);
+
+  /* Animations */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Status colors */
+  --status-active: #10b981;
+  --status-eliminated: #ef4444;
+  --status-warning: #fbbf24;
 }
 
-function getAuthToken() {
-  return localStorage.getItem('versant_token');
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-// ============================================
-// CHARGEMENT DES DONNÉES
-// ============================================
-async function loadCurrentUser() {
-  try {
-    const athleteId = getCurrentUserId();
-    if (!athleteId) {
-      throw new Error('Non connecté');
-    }
+html {
+  scroll-behavior: smooth;
+}
 
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    if (!res.ok) throw new Error('Erreur chargement');
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
 
-    const athletes = await res.json();
-    currentUser = athletes.find(a => String(a.id) === String(athleteId));
+/* === DATE SLIDER (COMPACT) === */
+.date-slider-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.12) 0%,
+    rgba(34, 211, 238, 0.12) 100%
+  );
+  border-top: 1px solid var(--border-accent);
+  padding: 8px var(--container-padding);
+  backdrop-filter: blur(10px);
+}
 
-    if (!currentUser) {
-      throw new Error('Athlète non trouvé');
-    }
+.slider-compact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
 
-    return currentUser;
-  } catch (error) {
-    console.error('Erreur chargement utilisateur:', error);
-    localStorage.removeItem('versant_athlete_id');
-    localStorage.removeItem('versant_token');
-    window.location.href = 'login.html';
+.slider-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.slider-right {
+  flex: 1;
+  min-width: 200px;
+}
+
+.slider-nav-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-accent);
+  background: var(--bg-card);
+  color: var(--accent-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.slider-nav-btn:hover {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.slider-date {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  min-width: 130px;
+}
+
+.slider-info-inline {
+  display: flex;
+  gap: 6px;
+}
+
+.info-badge {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.info-badge strong {
+  color: var(--accent-secondary);
+  margin-left: 2px;
+}
+
+.slider-reset-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+
+.slider-reset-btn:hover {
+  background: var(--accent-secondary);
+  color: var(--bg-primary);
+  border-color: var(--accent-secondary);
+}
+
+.slider-right .date-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-card);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.slider-right .date-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+}
+
+.slider-right .date-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+}
+
+/* Ajouter du padding en bas pour le slider fixe */
+body {
+  padding-bottom: 60px;
+}
+
+/* === SEASON BANNER === */
+.season-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.08) 0%,
+    rgba(34, 211, 238, 0.08) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* === BANNER UNIFIÉ === */
+.banner-unified {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.banner-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px;
+  min-width: 100px;
+}
+
+.banner-separator {
+  width: 1px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.banner-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.banner-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.banner-season-block .banner-value {
+  color: var(--accent-secondary);
+}
+
+.banner-round-block .banner-value {
+  color: var(--accent-primary);
+}
+
+.banner-day {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-warning);
+  background: rgba(251, 191, 36, 0.15);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
+/* Stats block */
+.banner-stats-block {
+  flex-direction: row;
+  gap: 20px;
+}
+
+.banner-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.banner-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.banner-stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Countdown block */
+.banner-countdown-block {
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.banner-countdown-timer {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.countdown-unit {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.countdown-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-danger);
+}
+
+.countdown-ended .countdown-num {
+  color: var(--accent-tertiary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .banner-unified {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .banner-block {
+    width: 100%;
+    padding: 12px 16px;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .banner-separator {
+    width: 100%;
+    height: 1px;
+  }
+
+  .banner-stats-block {
+    justify-content: center;
+    gap: 32px;
+  }
+
+  .banner-countdown-block {
+    border-left: none;
+    border-top: 1px solid rgba(239, 68, 68, 0.2);
+    flex-direction: column;
+  }
+
+  .banner-value {
+    font-size: 1.5rem;
   }
 }
 
-async function loadActivities() {
-  try {
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/activities/${LEAGUE_ID}?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    if (!res.ok) throw new Error('Erreur chargement activités');
+/* === ANCIEN STYLES (compatibilité) === */
+.season-info {
+  text-align: center;
+}
 
-    allActivities = await res.json();
-    return allActivities;
-  } catch (error) {
-    console.error('Erreur chargement activités:', error);
-    return [];
+.season-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-secondary);
+}
+
+.season-number {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--accent-secondary);
+}
+
+.season-dates {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.season-progress {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.progress-text {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--accent-secondary),
+    var(--accent-tertiary)
+  );
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.progress-detail {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 6px;
+}
+
+.season-winner {
+  text-align: center;
+  padding: 12px 24px;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.2),
+    rgba(249, 115, 22, 0.2)
+  );
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.winner-icon {
+  font-size: 2rem;
+  display: block;
+}
+
+.winner-name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-warning);
+  display: block;
+}
+
+.winner-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* === COUNTDOWN === */
+.season-countdown {
+  text-align: center;
+  min-width: 180px;
+}
+
+.countdown-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.countdown-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.countdown-value {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-danger);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-width: 40px;
+}
+
+.countdown-unit {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.countdown-sep {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  color: var(--accent-danger);
+  opacity: 0.5;
+}
+
+.countdown-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.countdown-complete {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-warning);
+}
+
+/* === TOOLTIP ACTIVITÉS === */
+.tooltip-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+
+.tooltip-content {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 320px;
+  max-width: 400px;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.tooltip-wrapper:hover .tooltip-content {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.tooltip-activity {
+  display: grid;
+  grid-template-columns: 50px 1fr 60px 60px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.tooltip-date {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.tooltip-name {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tooltip-sport {
+  color: var(--accent-secondary);
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+.tooltip-elevation {
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+  text-align: right;
+  font-weight: 600;
+}
+
+.tooltip-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 12px;
+}
+
+.tooltip-more {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-align: center;
+  font-style: italic;
+  padding-top: 6px;
+}
+
+/* Responsive tooltip */
+@media (max-width: 1200px) {
+  .tooltip-content {
+    left: auto;
+    right: 0;
+    top: 100%;
+    transform: none;
+    margin-left: 0;
+    margin-top: 8px;
   }
 }
 
-async function loadJokersFromServer() {
-  try {
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/jokers/all?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    if (!res.ok) {
-      console.warn('⚠️ Impossible de charger les jokers');
-      return [];
-    }
-    jokerUsageCache = await res.json();
-    console.log(`🃏 ${jokerUsageCache.length} utilisations de jokers chargées`);
-    return jokerUsageCache;
-  } catch (error) {
-    console.error('❌ Erreur chargement jokers:', error);
-    return [];
+/* === ROUND BANNER UPDATES === */
+.round-eliminations {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--accent-danger);
+}
+
+.ranking-elevation.season {
+  color: var(--accent-secondary);
+  opacity: 0.8;
+}
+
+.ranking-round {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.active-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--status-active);
+  margin-left: 8px;
+}
+
+.wins-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--accent-warning);
+  margin-left: 6px;
+}
+
+.standings-footer {
+  padding: 16px 24px;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.standings-footer p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.history-item.winner {
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.1),
+    rgba(249, 115, 22, 0.1)
+  );
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.history-item.winner::before {
+  background: var(--accent-warning);
+}
+
+/* === HISTORY CONTROLS === */
+.history-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.history-controls label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.season-select {
+  flex: 1;
+  max-width: 300px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.season-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.history-season-summary {
+  padding: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.1),
+    rgba(249, 115, 22, 0.1)
+  );
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.history-season-summary h3 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--accent-warning);
+  margin-bottom: 8px;
+}
+
+.history-item.special-round {
+  border-left-color: var(--accent-secondary);
+}
+
+.rule-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(34, 211, 238, 0.2);
+  color: var(--accent-secondary);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+}
+
+.round-winner {
+  display: inline-block;
+  color: var(--accent-warning);
+  font-weight: 500;
+}
+
+.history-eliminated-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 24px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-eliminated-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 100px 80px;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.history-eliminated-row span:first-child {
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+}
+
+/* === LOADING SCREEN === */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition:
+    opacity 0.5s ease-out,
+    visibility 0.5s ease-out;
+  /* Fallback pour mobile */
+  -webkit-transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+}
+
+.loading-screen.hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  display: none !important;
+}
+
+.loading-content {
+  text-align: center;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.loading-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: var(--text-primary);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 1rem;
+  border: 3px solid rgba(249, 115, 22, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* === HERO SECTION === */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--container-padding);
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at 20% 80%,
+      rgba(249, 115, 22, 0.15) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 20%,
+      rgba(34, 211, 238, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      rgba(16, 185, 129, 0.05) 0%,
+      transparent 70%
+    );
+  animation: pulseGlow 8s ease-in-out infinite alternate;
+}
+
+.hero-content {
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--accent-primary);
+  margin-bottom: 1.5rem;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 0.2s backwards;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 15vw, 12rem);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  margin-bottom: 2rem;
+}
+
+.title-line {
+  display: block;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 0.4s backwards;
+}
+
+.title-line.accent {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation-delay: 0.6s;
+}
+
+.hero-subtitle {
+  font-family: var(--font-mono);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 0.8s backwards;
+}
+
+.hero-description {
+  max-width: 600px;
+  margin: 2rem auto;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  animation: fadeInUp 0.8s var(--ease-out-expo) 1s backwards;
+}
+
+.scroll-indicator {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 1.2s backwards;
+}
+
+.scroll-indicator span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+}
+
+.scroll-line {
+  width: 1px;
+  height: 60px;
+  background: linear-gradient(to bottom, var(--accent-primary), transparent);
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+
+/* === NAVIGATION === */
+.nav-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 16px 0;
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--container-padding);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.brand-icon {
+  font-size: 1.5rem;
+}
+
+.brand-text {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.nav-link {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--accent-primary);
+}
+
+.nav-link.active {
+  color: var(--accent-primary);
+}
+
+/* Nav link with notification badge */
+.nav-link-with-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  border-radius: 10px;
+  animation: badgePulse 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 3px 12px rgba(168, 85, 247, 0.6);
   }
 }
 
-/**
- * Charge le bonus éphémère du joueur
- */
-async function loadBonusFromServer() {
-  try {
-    const token = getAuthToken();
-    if (!token) return null;
+.btn-login {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #e85d04 100%);
+  border: none;
+  border-radius: 8px;
+  color: var(--bg-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
 
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/bonuses/my?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${token}`
-      }
-    });
+.btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+}
 
-    if (!res.ok) {
-      console.warn('⚠️ Impossible de charger le bonus');
-      return null;
-    }
+/* === ROUND INFO BANNER === */
+.round-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.1) 0%,
+    rgba(34, 211, 238, 0.1) 100%
+  );
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  padding: 24px 32px;
+  margin: 24px auto;
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 32px;
+}
 
-    const data = await res.json();
-    bonusData = data.bonus;
-    console.log('🎁 Bonus chargé:', bonusData ? bonusData.bonus_id : 'aucun');
-    return bonusData;
-  } catch (error) {
-    console.error('❌ Erreur chargement bonus:', error);
-    return null;
+.round-info {
+  text-align: center;
+}
+
+.round-number {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 800;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.round-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.round-dates {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.round-divider {
+  width: 1px;
+  height: 80px;
+  background: var(--border-color);
+}
+
+.round-rule {
+  text-align: center;
+}
+
+.rule-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+
+.rule-name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rule-description {
+  font-size: 1 rem;
+  color: var(--text-secondary);
+  max-width: 500px;
+}
+
+.round-countdown {
+  text-align: center;
+}
+
+.countdown-value {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-secondary);
+}
+
+.countdown-timer {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-danger);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 6px 12px;
+  border-radius: 8px;
+  letter-spacing: 0.05em;
+}
+
+.countdown-timer.countdown-ended {
+  color: var(--accent-tertiary);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.round-day {
+  display: inline-block;
+  margin-left: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-warning);
+  background: rgba(251, 191, 36, 0.15);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.countdown-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* === SECTION HEADERS === */
+.section-header {
+  margin-bottom: 32px;
+}
+
+.section-number {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.section-desc {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-top: 12px;
+}
+
+/* === CLASSEMENT SECTION === */
+.ranking-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* === CLASSEMENT TABLE === */
+.ranking-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.ranking-header {
+  display: grid;
+  grid-template-columns: 60px minmax(160px, 1fr) 130px 130px 200px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 60px minmax(160px, 1fr) 130px 130px 200px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  transition: background 0.2s ease;
+}
+
+.ranking-row:hover {
+  background: var(--bg-card-hover);
+}
+
+.ranking-row:last-child {
+  border-bottom: none;
+}
+
+.ranking-row.eliminated {
+  opacity: 0.5;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.ranking-row.danger-zone {
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid var(--accent-danger);
+}
+
+.ranking-position {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.ranking-position.gold {
+  color: #fbbf24;
+}
+
+.ranking-position.silver {
+  color: #94a3b8;
+}
+
+.ranking-position.bronze {
+  color: #cd7f32;
+}
+
+.ranking-athlete {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.athlete-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.athlete-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.athlete-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.athlete-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.athlete-status {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.athlete-status.active {
+  color: var(--status-active);
+}
+
+.athlete-status.eliminated {
+  color: var(--status-eliminated);
+}
+
+/* Badge pour bonus éphémère (meilleur des 2 éliminés) */
+.bonus-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.85rem;
+  cursor: help;
+  animation: pulse-bonus 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bonus {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.ranking-elevation {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.ranking-elevation span {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.ranking-activities {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.ranking-jokers {
+  display: flex;
+  gap: 4px;
+}
+
+.ranking-points {
+  text-align: center;
+}
+
+.points-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent-tertiary), #059669);
+  color: white;
+}
+
+.joker-badge {
+  font-size: 1rem;
+  opacity: 0.4;
+  transition: all 0.2s ease;
+  cursor: help;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.joker-badge:hover {
+  transform: scale(1.2);
+  opacity: 1;
+}
+
+.joker-badge.joker-available {
+  opacity: 0.4;
+}
+
+.joker-badge.joker-pending {
+  opacity: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.2);
+  border: 2px solid var(--accent-warning);
+  animation: pulse-orange 2s infinite;
+}
+
+.joker-badge.joker-active {
+  opacity: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid var(--status-active);
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-orange {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
   }
 }
 
-/**
- * Vérifie si le joueur a des choix de bonus en attente
- */
-async function loadBonusChoices() {
-  try {
-    const token = getAuthToken();
-    if (!token) return null;
-
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/bonuses/choices?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    if (data.hasChoice) {
-      bonusChoices = data.choices;
-      console.log('🎁 Choix de bonus en attente:', bonusChoices);
-    }
-    return bonusChoices;
-  } catch (error) {
-    console.error('❌ Erreur chargement choix bonus:', error);
-    return null;
+@keyframes pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
   }
 }
 
-// ============================================
-// CALCULS
-// ============================================
-function getJokerStock(participantId) {
-  const pid = String(participantId);
-  const stock = {};
-
-  Object.keys(JOKER_TYPES).forEach(jokerId => {
-    const usedCount = jokerUsageCache.filter(
-      u => String(u.athlete_id) === pid && u.joker_id === jokerId
-    ).length;
-    stock[jokerId] = Math.max(0, INITIAL_JOKER_STOCK - usedCount);
-  });
-
-  return stock;
+/* === STANDINGS TABLE (CLASSEMENT GÉNÉRAL) === */
+.standings-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-function getPendingJokers(participantId, currentRoundNumber) {
-  const pid = String(participantId);
-  return jokerUsageCache.filter(
-    u => String(u.athlete_id) === pid && u.round_number === currentRoundNumber + 1
+.standings-header {
+  display: grid;
+  grid-template-columns: 60px 1fr 90px 90px 70px 90px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.standings-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 90px 90px 70px 90px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  transition: background 0.2s ease;
+}
+
+.standings-row:hover {
+  background: var(--bg-card-hover);
+}
+
+.standings-row:last-child {
+  border-bottom: none;
+}
+
+.standings-row.eliminated {
+  opacity: 0.6;
+}
+
+.standings-rank {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.standings-athlete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.athlete-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.standings-points {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.standings-points.main {
+  color: var(--accent-primary);
+}
+
+.standings-points.elim {
+  color: var(--accent-tertiary);
+}
+
+.standings-points.bonus {
+  color: var(--accent-warning);
+}
+
+.standings-total {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Badge pour les éliminés de la saison en cours */
+.elim-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--accent-danger);
+  font-family: var(--font-mono);
+  margin-left: 6px;
+}
+
+/* Classe utilitaire pour masquer sur mobile */
+.hide-mobile {
+  display: block;
+}
+
+/* === EMPTY STATE === */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+
+.empty-state p {
+  margin-bottom: 8px;
+}
+
+.empty-state .text-muted {
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+/* === CHART CONTAINER === */
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 24px;
+  position: relative;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: 400px !important;
+}
+
+.joker-badge {
+  font-size: 1.25rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.joker-badge.used {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+/* === PARTICIPANTS GRID === */
+.participants-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   SECTION ARSENAL (JOKERS & BONUS)
+   ============================================ */
+
+.arsenal-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.arsenal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.arsenal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px 24px;
+  transition: all 0.3s ease;
+}
+
+.arsenal-card:hover {
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.arsenal-card-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arsenal-card-title .icon {
+  font-size: 16px;
+}
+
+/* Jokers actifs */
+.active-jokers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.active-joker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.active-joker-item:hover {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.active-joker-item .joker-icon {
+  font-size: 20px;
+}
+
+.active-joker-item .joker-source {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.active-joker-item .joker-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.active-joker-item .joker-target {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.active-joker-item .joker-type {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.arsenal-empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Bonus éphémères */
+.bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bonus-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.bonus-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bonus-item-details {
+  padding-top: 8px;
+  border-top: 1px solid rgba(168, 85, 247, 0.15);
+  font-size: 12px;
+}
+
+.bonus-detail-target {
+  color: #fbbf24;
+  margin-bottom: 4px;
+}
+
+.bonus-detail-effect {
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.bonus-item:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.bonus-item.pending {
+  border-style: dashed;
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.bonus-item.used {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.bonus-item .bonus-icon {
+  font-size: 20px;
+}
+
+.bonus-item .bonus-owner {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bonus-item .bonus-name {
+  color: #a855f7;
+  font-weight: 500;
+}
+
+.bonus-item .bonus-status {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.bonus-item .bonus-status.available {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.bonus-item .bonus-status.active {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.bonus-item .bonus-status.pending {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.bonus-item .bonus-status.used {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.bonus-item .bonus-target {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.bonus-hover-hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.bonus-item[title] {
+  cursor: help;
+}
+
+.bonus-item[title]:hover {
+  background: rgba(168, 85, 247, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .arsenal-card {
+    padding: 16px;
+  }
+
+  .active-jokers-list,
+  .bonus-list {
+    flex-direction: column;
+  }
+
+  .active-joker-item,
+  .bonus-item {
+    width: 100%;
+  }
+}
+
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.participant-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.participant-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-primary);
+  box-shadow: 0 8px 32px rgba(249, 115, 22, 0.15);
+}
+
+.participant-card.eliminated {
+  opacity: 0.6;
+}
+
+.participant-card.eliminated::after {
+  content: "ÉLIMINÉ";
+  position: absolute;
+  top: 16px;
+  right: -32px;
+  background: var(--accent-danger);
+  color: white;
+  padding: 4px 40px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  transform: rotate(45deg);
+}
+
+.participant-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.participant-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.participant-name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.participant-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.participant-jokers {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+/* === CHART SECTION === */
+.chart-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 32px;
+  position: relative;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.chart-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.chart-actions {
+  display: flex;
+  gap: 12px;
+}
+
+#elevationChart {
+  height: 400px;
+}
+
+/* === ELIMINATION HISTORY === */
+.history-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.history-timeline {
+  position: relative;
+  padding-left: 40px;
+}
+
+.history-timeline::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--accent-primary),
+    var(--accent-secondary)
   );
 }
 
-function getCurrentRound() {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  return Math.max(1, Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1);
+.history-item {
+  position: relative;
+  padding: 24px;
+  margin-bottom: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
 }
 
-function getDayInRound() {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  return (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;
+.history-item::before {
+  content: "";
+  position: absolute;
+  left: -33px;
+  top: 32px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  border: 3px solid var(--bg-primary);
 }
 
-// ============================================
-// UTILITAIRES
-// ============================================
-function formatDate(date) {
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+.history-round {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
 }
 
-function formatElevation(meters) {
-  return `${Math.round(meters).toLocaleString('fr-FR')} m`;
+.history-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
-function getAthleteColorSimple(id) {
-  const colors = ['#f97316', '#22d3ee', '#10b981', '#8b5cf6', '#f43f5e', '#fbbf24', '#06b6d4', '#ec4899'];
-  const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
+.history-eliminated {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  line-height: 1.6;
 }
 
-function getInitials(name) {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+.history-label {
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
-// ============================================
-// AFFICHAGE - HEADER & STATS
-// ============================================
-function renderHeader() {
-  const nameEl = document.getElementById('athleteName');
-  if (nameEl && currentUser) {
-    nameEl.textContent = `${currentUser.name}`;
+.eliminated-name {
+  font-weight: 600;
+  color: var(--accent-danger);
+}
+
+.eliminated-name.eliminated-zero {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.eliminated-gap {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.history-zero-warning {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--accent-warning);
+}
+
+.history-jokers {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.history-jokers .history-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-warning);
+}
+
+/* Header cliquable pour les rounds */
+.history-round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 8px;
+  transition: opacity 0.2s ease;
+}
+
+.history-round-header:hover {
+  opacity: 0.8;
+}
+
+.history-round-header .history-round {
+  margin-bottom: 0;
+}
+
+.history-toggle-icon {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  transition: transform 0.3s ease;
+}
+
+/* Dropdown du classement */
+.history-ranking-dropdown {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.history-ranking-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.history-ranking-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.history-ranking-row.eliminated {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.history-rank {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+.history-ranking-row:first-child .history-rank {
+  color: var(--accent-warning);
+}
+
+.history-ranking-row:nth-child(2) .history-rank {
+  color: var(--text-secondary);
+}
+
+.history-ranking-row:nth-child(3) .history-rank {
+  color: #cd7f32;
+}
+
+.history-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.history-elevation {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.history-elim-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: var(--accent-danger);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ============================================
+   CHALLENGE DES ÉLIMINÉS - HISTORIQUE
+   ============================================ */
+
+.history-eliminated-challenge {
+  background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), rgba(168, 85, 247, 0.02));
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  margin-top: 24px;
+}
+
+.history-eliminated-challenge .history-round {
+  color: #a855f7;
+}
+
+.history-eliminated-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+}
+
+.history-eliminated-summary .history-sublabel {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.eliminated-challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eliminated-challenge-list .history-ranking-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+}
+
+.eliminated-challenge-list .history-ranking-row:hover {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.eliminated-challenge-list .history-ranking-row.top-three {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.history-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-name-block .history-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.history-name-block .history-elim-round {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.history-points {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  min-width: 50px;
+  text-align: right;
+}
+
+.history-points.has-points {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+/* Responsive mobile pour l'historique */
+@media (max-width: 768px) {
+  .history-item {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .history-eliminated {
+    font-size: 0.85rem;
+    line-height: 1.8;
+  }
+
+  .eliminated-gap {
+    display: block;
+    margin-left: 0;
+    font-size: 0.75rem;
+  }
+
+  .history-jokers {
+    font-size: 0.8rem;
+    line-height: 2;
+  }
+
+  .history-ranking-row {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .history-name {
+    font-size: 0.8rem;
+  }
+
+  .history-elevation {
+    font-size: 0.75rem;
+  }
+
+  .history-elim-badge {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+  }
+}
+
+.history-details {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* === LOGIN PAGE === */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--container-padding);
+}
+
+.login-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  padding: 48px;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+}
+
+.login-logo {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.login-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.form-select {
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #e85d04 100%);
+  border: none;
+  border-radius: 10px;
+  color: var(--bg-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+  color: var(--accent-danger);
+  font-size: 0.875rem;
+  display: none;
+}
+
+.login-error.visible {
+  display: block;
+}
+
+/* === DASHBOARD PAGE === */
+.dashboard-header {
+  padding: 32px var(--container-padding);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dashboard-header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-welcome {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-avatar-large {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.user-info h1 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.user-info .user-status {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.user-position {
+  text-align: right;
+}
+
+.position-value {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 800;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.position-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+/* === DASHBOARD STATS GRID === */
+.dashboard-stats {
+  padding: 32px var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-primary);
+}
+
+.stat-card-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.stat-card-value {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.stat-card-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+/* === JOKERS SECTION === */
+.jokers-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.jokers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.joker-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.joker-card:hover {
+  border-color: var(--accent-primary);
+}
+
+.joker-card.available {
+  cursor: pointer;
+}
+
+.joker-card.used {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.joker-card.used .joker-icon {
+  filter: grayscale(1);
+}
+
+.joker-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.joker-icon {
+  font-size: 2.5rem;
+}
+
+.joker-name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.joker-status {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.joker-status.available {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--status-active);
+}
+
+.joker-status.used {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--status-eliminated);
+}
+
+.joker-description {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.joker-effect {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.joker-use-info {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.btn-use-joker {
+  margin-top: 16px;
+  width: 100%;
+  padding: 12px 20px;
+  background: transparent;
+  border: 2px solid var(--accent-primary);
+  border-radius: 8px;
+  color: var(--accent-primary);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-use-joker:hover {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+/* === ROUND HISTORY === */
+.round-history-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.rounds-table {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.rounds-table-header {
+  display: grid;
+  grid-template-columns: 100px 1fr 120px 120px 100px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.rounds-table-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 120px 120px 100px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+}
+
+.rounds-table-row:last-child {
+  border-bottom: none;
+}
+
+.round-cell-number {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.round-cell-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.round-cell-elevation {
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+}
+
+.round-cell-position {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* === MODAL === */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.visible .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.modal-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+
+.modal-body {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn-secondary {
+  padding: 12px 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-primary);
+}
+
+.btn-danger {
+  padding: 12px 24px;
+  background: var(--accent-danger);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+/* === FOOTER === */
+.footer {
+  padding: 48px var(--container-padding);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.footer-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.footer-brand {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.footer-text {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* === ANIMATIONS === */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes scrollPulse {
+  0%,
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(0.5);
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* === SELECTION === */
+::selection {
+  background: rgba(249, 115, 22, 0.3);
+  color: var(--text-primary);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 1200px) {
+  .round-banner {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    text-align: center;
+  }
+
+  .round-divider {
+    width: 80%;
+    height: 1px;
+    margin: 0 auto;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .nav-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .nav-links {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .ranking-header,
+  .ranking-row {
+    grid-template-columns: 50px 1fr 100px;
+  }
+
+  .ranking-header > *:nth-child(4),
+  .ranking-header > *:nth-child(5),
+  .ranking-row > *:nth-child(4),
+  .ranking-row > *:nth-child(5) {
+    display: none;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 24px;
+  }
+
+  .user-welcome {
+    flex-direction: column;
+  }
+
+  .user-position {
+    text-align: center;
+  }
+
+  .rounds-table-header,
+  .rounds-table-row {
+    grid-template-columns: 80px 1fr 100px;
+  }
+
+  .rounds-table-header > *:nth-child(4),
+  .rounds-table-header > *:nth-child(5),
+  .rounds-table-row > *:nth-child(4),
+  .rounds-table-row > *:nth-child(5) {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: clamp(2.5rem, 12vw, 4rem);
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .participants-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jokers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .login-card {
+    padding: 32px 24px;
+  }
+}
+
+/* ============================================
+   NOUVEAUX STYLES 2026
+   ============================================ */
+
+/* Demo Banner */
+.demo-banner {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  padding: 12px 24px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.demo-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.demo-text {
+  color: white;
+  font-weight: 500;
+}
+
+.demo-link {
+  background: white;
+  color: #f97316;
+  padding: 6px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.demo-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Hero CTA Buttons */
+.hero-cta {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Navigation - Join Button */
+.btn-join {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.btn-join:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3);
+}
+
+/* Footer CTA */
+.footer-cta {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.footer-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3);
+}
+
+/* ============================================
+   BONUS / JOKERS DISPLAY
+   ============================================ */
+
+/* Détails des bonus dans l'élévation */
+.elevation-bonuses {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.bonus-detail {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 4px;
+  margin-bottom: 2px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+}
+
+.bonus-detail.multiplier {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.bonus-detail.duel-won {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.bonus-detail.duel-lost {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.bonus-detail.sabotage {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.bonus-detail.round-rule {
+  background: rgba(34, 211, 238, 0.2);
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+/* Icône de duel dans le tableau */
+.duel-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.duel-icon {
+  position: relative;
+  cursor: help;
+  font-size: 1.1em;
+  animation: duelPulse 2s ease-in-out infinite;
+}
+
+@keyframes duelPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.duel-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 10, 15, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.duel-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+.duel-icon:hover .duel-tooltip {
+  display: block;
+}
+
+.duel-tooltip strong {
+  color: var(--accent-primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.duel-tooltip em {
+  color: var(--accent-secondary);
+  font-style: normal;
+}
+
+/* Connecteur visuel entre deux athlètes en duel */
+.ranking-row.in-duel {
+  position: relative;
+}
+
+.ranking-row.in-duel::before {
+  content: "⚔️";
+  position: absolute;
+  left: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  animation: duelPulse 2s ease-in-out infinite;
+}
+
+.duel-line {
+  position: absolute;
+  left: -24px;
+  width: 3px;
+  background: linear-gradient(
+    to bottom,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  border-radius: 2px;
+}
+
+/* Badge x2 pour multiplicateur */
+.multiplier-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  vertical-align: middle;
+}
+
+/* Joker stock display */
+.joker-stock {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.joker-stock-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.joker-stock-item .joker-icon {
+  font-size: 1rem;
+}
+
+.joker-stock-item .joker-count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.joker-stock-item.empty {
+  opacity: 0.4;
+}
+
+.joker-stock-item.empty .joker-count {
+  color: var(--text-muted);
+}
+
+/* Effets visuels sur ligne avec bonus actif */
+.ranking-row.has-multiplier {
+  background: rgba(168, 85, 247, 0.05);
+  border-left: 3px solid #a855f7;
+}
+
+.ranking-row.has-duel {
+  background: rgba(249, 115, 22, 0.05);
+}
+
+.ranking-row.sabotaged {
+  background: rgba(239, 68, 68, 0.05);
+  border-left: 3px solid var(--accent-danger);
+}
+
+/* ============================================
+   CARTE ACTIVITÉ AVEC ZONES COMPTÉES
+   ============================================ */
+
+.activity-map-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.activity-map {
+  height: 300px;
+  width: 100%;
+}
+
+.elevation-profile {
+  padding: 16px;
+  background: var(--bg-secondary);
+}
+
+.elevation-profile-chart {
+  height: 100px;
+  width: 100%;
+  position: relative;
+}
+
+.counted-zone {
+  position: absolute;
+  bottom: 0;
+  background: rgba(16, 185, 129, 0.3);
+  border-top: 2px solid var(--accent-tertiary);
+}
+
+.uncounted-zone {
+  position: absolute;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.elevation-profile-legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 12px;
+  font-size: 0.8rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.legend-color.counted {
+  background: rgba(16, 185, 129, 0.5);
+  border: 2px solid var(--accent-tertiary);
+}
+
+.legend-color.uncounted {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   ADMIN - ÉDITION JOKERS
+   ============================================ */
+
+.joker-editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-top: 12px;
+}
+
+.joker-editor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.joker-editor-item .joker-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.joker-editor-item .joker-info .icon {
+  font-size: 1.5rem;
+}
+
+.joker-editor-item input[type="number"] {
+  width: 60px;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.joker-editor-item input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-cta {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .demo-banner {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .elevation-bonuses {
+    font-size: 0.65rem;
+  }
+
+  .bonus-detail {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .duel-tooltip {
+    left: 0;
+    transform: none;
+    white-space: normal;
+    min-width: 200px;
+  }
+
+  .joker-editor {
+    grid-template-columns: 1fr;
   }
 }
 
 /**
- * Calcule et affiche toutes les statistiques du joueur
+ * VERSANT - STYLES COMPLÉMENTAIRES
+ * ================================
+ * Ces styles complètent style.css avec les éléments
+ * qui n'y sont pas présents (menus contextuels, modales, etc.)
+ *
+ * Ajouter APRÈS style.css dans le HTML
  */
-async function renderStats() {
-  if (!currentUser) return;
 
-  const userId = String(currentUser.id);
+/* ============================================
+   SECTION JOKERS ACTIFS (détails supplémentaires)
+   ============================================ */
 
-  // Charger les données nécessaires
-  const frozenResults = await loadFrozenResults();
-  const athletes = await loadAllAthletes();
+.active-jokers-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.1),
+    rgba(139, 92, 246, 0.1)
+  );
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 12px;
+}
 
-  // Si pas d'athlètes chargés, utiliser les données locales
-  const athletesList = athletes.length > 0 ? athletes : [currentUser];
+.active-jokers-section .section-title {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  color: #f97316;
+}
 
-  // Déterminer le statut du joueur (actif ou éliminé)
-  const eliminationInfo = getEliminationInfo(userId, frozenResults);
-  const isEliminated = eliminationInfo.isEliminated;
+.joker-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
 
-  // Calculer les dates du round actuel
-  const currentRound = getCurrentRound();
-  const roundDates = getRoundDates(currentRound);
+.joker-card-icon {
+  font-size: 1.5rem;
+}
 
-  // Activités du round actuel
-  const roundActivities = allActivities.filter(a => {
-    const date = new Date(a.start_date);
-    return date >= roundDates.start && date <= roundDates.end;
-  });
+.joker-card-name {
+  font-weight: 600;
+}
 
-  // D+ du round pour cet utilisateur
-  const userRoundActivities = roundActivities.filter(a => String(a.athlete_id) === userId);
-  const roundElevation = userRoundActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+.joker-card-user {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: auto;
+}
 
-  // D+ total saison (depuis le début de l'année/saison)
-  const seasonStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const userActivities = allActivities.filter(a => {
-    const date = new Date(a.start_date);
-    return String(a.athlete_id) === userId && date >= seasonStart;
-  });
-  const totalElevation = userActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+/* Duel status */
+.duel-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-  // Calculer la position dans le challenge actuel
-  let challengeRank = '-';
-  let challengeTotal = '-';
+.duel-competitor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
 
-  if (isEliminated) {
-    // Challenge des éliminés : calculer le classement parmi les éliminés
-    const eliminatedRanking = calculateEliminatedRanking(frozenResults, allActivities, athletesList);
-    const myRank = eliminatedRanking.findIndex(e => String(e.id) === userId) + 1;
-    if (myRank > 0) {
-      challengeRank = myRank;
-      challengeTotal = eliminatedRanking.length;
-    }
-  } else {
-    // Challenge principal : calculer le classement parmi les actifs
-    const activeAthletes = getActiveAthletes(frozenResults, athletesList);
+.duel-competitor.winning {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
 
-    // Calculer le classement D+ du round actuel
-    const ranking = calculateRankingFromActivities(roundActivities, activeAthletes);
-    const myRank = ranking.findIndex(e => String(e.id) === userId) + 1;
+.duel-competitor.losing {
+  background: rgba(239, 68, 68, 0.1);
+}
 
-    if (myRank > 0) {
-      challengeRank = myRank;
-      challengeTotal = ranking.length;
-    } else if (activeAthletes.length > 0) {
-      // L'utilisateur n'a pas d'activité ce round mais est actif
-      challengeRank = activeAthletes.length; // Dernier par défaut
-      challengeTotal = activeAthletes.length;
-    }
+.competitor-elevation {
+  font-family: "Space Mono", monospace;
+  color: #22d3ee;
+}
+
+.duel-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.duel-vs {
+  text-align: center;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.duel-stakes {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Pending jokers */
+.pending-jokers {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pending-jokers h4 {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+.pending-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pending-item {
+  background: rgba(249, 115, 22, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+/* ============================================
+   ELEVATION AVEC BONUS
+   ============================================ */
+
+.elevation-primary {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #22d3ee;
+}
+
+.elevation-secondary {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+}
+
+.bonus-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.bonus-tag.multiplier {
+  background: rgba(34, 211, 238, 0.2);
+  color: #22d3ee;
+}
+
+.bonus-tag.duel-won {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.bonus-tag.duel-lost,
+.bonus-tag.sabotage {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.bonus-tag.sabotage-done {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+/* ============================================
+   STATUTS ATHLÈTES
+   ============================================ */
+
+.ranking-row.protected {
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+}
+
+.athlete-status.protected {
+  color: #3b82f6;
+}
+
+.athlete-status.danger {
+  color: #ef4444;
+}
+
+.athlete-status.rescape {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  animation: rescapePulse 2s ease-in-out infinite;
+}
+
+@keyframes rescapePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
   }
-
-  // Calculer le classement général (points cumulés des rounds figés)
-  const generalRanking = calculateGeneralRanking(frozenResults, athletesList);
-  const myGeneralEntry = generalRanking.find(e => String(e.id) === userId);
-  const overallRank = myGeneralEntry ? generalRanking.indexOf(myGeneralEntry) + 1 : '-';
-  const totalPoints = myGeneralEntry?.points || 0;
-
-  // ============================================
-  // AFFICHAGE
-  // ============================================
-
-  // Statut du challenge
-  const challengeStatusEl = document.getElementById('challengeStatus');
-  if (challengeStatusEl) {
-    if (isEliminated) {
-      challengeStatusEl.innerHTML = `
-        <span style="color: #a855f7;">👻 Éliminés</span>
-        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">(R${eliminationInfo.round})</span>
-      `;
-    } else {
-      challengeStatusEl.innerHTML = `<span style="color: #10b981;">🏆 Principal</span>`;
-    }
-  }
-
-  // D+ du round
-  const roundElevationEl = document.getElementById('roundElevation');
-  if (roundElevationEl) {
-    roundElevationEl.textContent = formatElevation(roundElevation);
-    // Colorer selon la position
-    roundElevationEl.style.color = ''; // Reset
-    if (!isEliminated && challengeRank !== '-' && challengeTotal !== '-') {
-      if (challengeRank <= 3) {
-        roundElevationEl.style.color = '#10b981'; // Vert - top 3
-      } else if (challengeRank > challengeTotal - 2 && challengeTotal > 2) {
-        roundElevationEl.style.color = '#ef4444'; // Rouge - zone danger
-      }
-    }
-  }
-
-  // Position dans le challenge
-  const challengeRankEl = document.getElementById('challengeRank');
-  if (challengeRankEl) {
-    if (challengeRank !== '-' && challengeTotal !== '-') {
-      let rankColor = '';
-      if (challengeRank === 1) rankColor = 'color: #fbbf24;'; // Or
-      else if (challengeRank === 2) rankColor = 'color: #d1d5db;'; // Argent
-      else if (challengeRank === 3) rankColor = 'color: #cd7f32;'; // Bronze
-
-      challengeRankEl.innerHTML = `<strong style="${rankColor}">${challengeRank}</strong><span style="color: rgba(255,255,255,0.5);">/${challengeTotal}</span>`;
-    } else {
-      challengeRankEl.textContent = '-';
-    }
-  }
-
-  // Classement général
-  const overallRankEl = document.getElementById('overallRank');
-  if (overallRankEl) {
-    if (overallRank !== '-' && athletesList.length > 0) {
-      overallRankEl.innerHTML = `<strong>${overallRank}</strong><span style="color: rgba(255,255,255,0.5);">/${athletesList.length}</span>`;
-    } else {
-      overallRankEl.textContent = '-';
-    }
-  }
-
-  // D+ total et activités
-  const totalElevationEl = document.getElementById('totalElevation');
-  if (totalElevationEl) {
-    totalElevationEl.textContent = formatElevation(totalElevation);
-  }
-
-  const totalActivitiesEl = document.getElementById('totalActivities');
-  if (totalActivitiesEl) {
-    totalActivitiesEl.textContent = userActivities.length;
-  }
-
-  // Points
-  const totalPointsEl = document.getElementById('totalPoints');
-  if (totalPointsEl) {
-    totalPointsEl.textContent = `${totalPoints} pts`;
+  50% {
+    box-shadow: 0 0 8px 2px rgba(251, 191, 36, 0.3);
   }
 }
 
-/**
- * Affiche les infos du round actuel
- */
-function renderCurrentRound() {
-  const currentRound = getCurrentRound();
-  const dayInRound = getDayInRound();
-  const roundDates = getRoundDates(currentRound);
+/* ============================================
+   MENU CONTEXTUEL JOKERS
+   ============================================ */
 
-  const currentRoundEl = document.getElementById('currentRoundNumber');
-  if (currentRoundEl) {
-    currentRoundEl.textContent = `Round ${currentRound}`;
+.joker-context-menu {
+  position: fixed;
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 12px;
+  padding: 8px 0;
+  min-width: 260px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  opacity: 0;
+  transform: scale(0.95);
+  pointer-events: none;
+  transition: all 0.15s ease;
+}
+
+.joker-context-menu.visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.context-menu-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #f97316;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.context-menu-info {
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.context-menu-section {
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.context-menu-item:hover:not(.disabled) {
+  background: rgba(249, 115, 22, 0.15);
+}
+
+.context-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.context-menu-item .joker-icon {
+  font-size: 20px;
+}
+
+.context-menu-item .joker-name {
+  flex: 1;
+}
+
+.context-menu-item .joker-count {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.context-menu-item .joker-disabled-reason {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+/* Admin controls */
+.joker-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.joker-minus,
+.joker-plus {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s;
+}
+
+.joker-minus:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.joker-plus:hover {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+/* ============================================
+   MODALE JOKER (SÉLECTION CIBLE)
+   ============================================ */
+
+.joker-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.joker-modal-content {
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.joker-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(249, 115, 22, 0.1);
+  font-weight: 600;
+  color: #f97316;
+}
+
+.joker-modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.joker-modal-close:hover {
+  color: #fff;
+}
+
+.joker-modal-body {
+  padding: 20px;
+}
+
+.joker-modal-body p {
+  margin-bottom: 16px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.target-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.target-option:hover {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.target-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+}
+
+/* ============================================
+   INDICATEURS DE BONUS SUR AVATAR
+   ============================================ */
+
+.athlete-avatar-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.avatar-bonus-indicators {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  display: flex;
+  gap: 1px;
+}
+
+.avatar-bonus-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  border: 2px solid var(--bg-card);
+  cursor: help;
+  transition: transform 0.15s ease;
+}
+
+.avatar-bonus-icon:hover {
+  transform: scale(1.3);
+  z-index: 10;
+}
+
+/* Multiplicateur - Violet */
+.avatar-bonus-icon.multiplier {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+}
+
+/* Bouclier - Cyan */
+.avatar-bonus-icon.shield {
+  background: linear-gradient(135deg, #06b6d4, #22d3ee);
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+}
+
+/* Duel gagné - Vert */
+.avatar-bonus-icon.duel-won {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+/* Duel perdu - Rouge */
+.avatar-bonus-icon.duel-lost {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+/* Saboté (victime) - Rouge */
+.avatar-bonus-icon.sabotaged {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+  animation: sabotaged-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sabotaged-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.8); }
+}
+
+/* Saboteur (celui qui sabote) - Orange */
+.avatar-bonus-icon.saboteur {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.5);
+}
+
+/* Voleur actif - Violet foncé */
+.avatar-bonus-icon.thief {
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  box-shadow: 0 0 6px rgba(124, 58, 237, 0.5);
+}
+
+/* Victime du vol - Gris */
+.avatar-bonus-icon.stolen {
+  background: linear-gradient(135deg, #6b7280, #9ca3af);
+  box-shadow: 0 0 6px rgba(107, 114, 128, 0.5);
+}
+
+/* ============================================
+   MODALE JOKER AMÉLIORÉE
+   ============================================ */
+
+.joker-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.joker-modal-content {
+  background: linear-gradient(145deg, rgba(26, 26, 36, 0.98), rgba(18, 18, 26, 0.98));
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow: hidden;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5),
+              0 0 40px rgba(249, 115, 22, 0.1);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from { transform: translateY(-20px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.joker-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(34, 211, 238, 0.1));
+  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent-primary);
+}
+
+.joker-modal-close {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.joker-modal-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.joker-modal-body {
+  padding: 24px;
+}
+
+.joker-modal-body p {
+  margin-bottom: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+}
+
+.target-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.target-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.target-option:hover {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.target-option:active {
+  transform: translateY(0);
+}
+
+.target-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.target-option:hover .target-avatar {
+  transform: scale(1.1);
+}
+
+.target-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* ============================================
+   TIMING SELECTOR (Activation du joker)
+   ============================================ */
+
+.joker-timing-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.joker-timing-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  margin-bottom: 12px;
+}
+
+.timing-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timing-option {
+  flex: 1;
+  min-width: 100px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.timing-option:hover {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+.timing-option.selected {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--accent-secondary);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+}
+
+.timing-option-label {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+
+.timing-option-value {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ============================================
+   BOUTON DE CONFIRMATION JOKER
+   ============================================ */
+
+.joker-confirm-btn {
+  width: 100%;
+  padding: 16px 24px;
+  margin-top: 24px;
+  background: linear-gradient(135deg, var(--accent-primary), #e85d04);
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.joker-confirm-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.4);
+}
+
+.joker-confirm-btn:active {
+  transform: translateY(0);
+}
+
+.joker-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.joker-confirm-btn .btn-icon {
+  font-size: 1.2rem;
+}
+
+/* ============================================
+   NOTIFICATIONS
+   ============================================ */
+
+.notification {
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-weight: 500;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 10001;
+}
+
+.notification.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.notification-success {
+  background: rgba(16, 185, 129, 0.95);
+  color: #fff;
+}
+
+.notification-error {
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+}
+
+.notification-info {
+  background: rgba(59, 130, 246, 0.95);
+  color: #fff;
+}
+
+/* ============================================
+   GUIDE DES JOKERS
+   ============================================ */
+
+.jokers-guide-section {
+  margin: 40px auto;
+  padding: 32px;
+  max-width: 1200px;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.9),
+    rgba(30, 41, 59, 0.9)
+  );
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 16px;
+}
+
+.jokers-guide-section .section-title {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+}
+
+.guide-intro {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 24px;
+}
+
+.jokers-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.joker-guide-card {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 4px solid #f97316;
+}
+
+.joker-guide-card.multiplicateur {
+  border-left-color: #22d3ee;
+}
+
+.joker-guide-card.duel {
+  border-left-color: #ef4444;
+}
+
+.joker-guide-card.sabotage {
+  border-left-color: #f97316;
+}
+
+.joker-guide-card.bouclier {
+  border-left-color: #3b82f6;
+}
+
+.joker-guide-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+.joker-guide-content h3 {
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+}
+
+.joker-effect-desc {
+  font-weight: 600;
+  color: #22d3ee;
+  margin-bottom: 8px;
+}
+
+.joker-details {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.joker-warning {
+  font-size: 0.85rem;
+  color: #ef4444;
+  margin-top: 8px;
+}
+
+.joker-tips {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.joker-tips h4 {
+  color: #10b981;
+  margin-bottom: 12px;
+}
+
+.joker-tips ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.joker-tips li {
+  padding: 6px 0;
+  padding-left: 24px;
+  position: relative;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
+
+.joker-tips li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #10b981;
+}
+
+/* ============================================
+   MODALE JUMP TO DATE
+   ============================================ */
+
+.jump-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.jump-modal-content {
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 360px;
+}
+
+.jump-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(249, 115, 22, 0.1);
+  font-weight: 600;
+  color: #f97316;
+  border-radius: 16px 16px 0 0;
+}
+
+.jump-modal-body {
+  padding: 20px;
+}
+
+.jump-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.preset-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+
+.preset-btn:hover {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.jump-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jump-custom label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.jump-custom input[type="date"] {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.go-btn {
+  background: #f97316;
+  border: none;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.go-btn:hover {
+  background: #ea580c;
+}
+
+/* ============================================
+   ÉCRAN D'ATTENTE AVANT LE CHALLENGE
+   ============================================ */
+
+.waiting-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  min-height: 400px;
+}
+
+.waiting-icon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.waiting-title {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 30px;
+}
+
+.waiting-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.countdown-number {
+  font-family: var(--font-display);
+  font-size: 6rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  line-height: 1;
+}
+
+.countdown-label {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+}
+
+.waiting-date {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.waiting-date strong {
+  color: var(--accent-secondary);
+}
+
+.waiting-info {
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+.waiting-participants {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.participants-count {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.banner-waiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(34, 211, 238, 0.1) 100%);
+  border-radius: 12px;
+  border: 1px solid var(--border-accent);
+}
+
+.banner-waiting .banner-icon {
+  font-size: 1.5rem;
+}
+
+.banner-waiting .banner-text {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.banner-waiting .banner-countdown {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+/* ============================================
+   AMÉLIORATION DES BONUS (AFFICHAGE SUR UNE LIGNE)
+   ============================================ */
+
+.elevation-bonuses {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.bonus-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bonus-tag.multiplier {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.bonus-tag.duel-won {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.bonus-tag.duel-lost {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bonus-tag.sabotage {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bonus-tag.sabotage-done {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+/* Jokers dans la colonne */
+.jokers-cell {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.joker-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--bg-card);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.joker-badge sub {
+  font-size: 0.65rem;
+  margin-left: 2px;
+  color: var(--text-muted);
+}
+
+.joker-badge.active {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: var(--accent-primary);
+}
+
+.joker-badge.pending {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--accent-secondary);
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.no-jokers {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* === WAITING PARTICIPANTS GRID === */
+.waiting-participants-section {
+  padding: 30px;
+  text-align: center;
+}
+
+.waiting-section-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+
+.waiting-participants-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 800px;
+  margin: 0 auto 30px;
+}
+
+.waiting-participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 30px;
+  transition: all 0.2s ease;
+}
+
+.waiting-participant:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.participant-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+}
+
+.participant-name-small {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.waiting-inscription-cta {
+  margin-top: 20px;
+}
+
+.btn-inscription {
+  display: inline-block;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-inscription:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.3);
+}
+
+/* ============================================
+   MOBILE RESPONSIVE - TABLEAUX ÉLIMINÉS & CLASSEMENT GÉNÉRAL
+   ============================================ */
+
+/* === TABLET (768px) === */
+@media (max-width: 768px) {
+  /* Masquer les colonnes supplémentaires sur tablet/mobile */
+  .hide-mobile {
+    display: none !important;
   }
 
-  const dayInRoundEl = document.getElementById('dayInRound');
-  if (dayInRoundEl) {
-    dayInRoundEl.textContent = `Jour ${dayInRound}/${CHALLENGE_CONFIG.roundDurationDays}`;
+  /* Classement Général - 3 colonnes sur mobile (Rang, Athlète, Total) */
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 35px 1fr 60px;
+    padding: 10px 12px;
+    gap: 6px;
   }
 
-  const roundEndEl = document.getElementById('roundEndDate');
-  if (roundEndEl) {
-    roundEndEl.textContent = formatDate(roundDates.end);
+  .standings-rank {
+    font-size: 0.9rem;
   }
 
-  const ruleEl = document.getElementById('nextRoundRule');
-  if (ruleEl) {
-    ruleEl.textContent = '📊 Standard';
-  }
-}
-
-// ============================================
-// FONCTIONS DE CALCUL
-// ============================================
-
-/**
- * Charge les résultats figés depuis l'API
- */
-async function loadFrozenResults() {
-  try {
-    const res = await fetch(`${API_BASE}/frozen-results`);
-    if (!res.ok) return {};
-    return await res.json();
-  } catch (error) {
-    console.warn('Erreur chargement frozen results:', error);
-    return {};
-  }
-}
-
-/**
- * Charge tous les athlètes
- */
-async function loadAllAthletes() {
-  try {
-    const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
-    if (!res.ok) return [];
-    return await res.json();
-  } catch (error) {
-    console.warn('Erreur chargement athlètes:', error);
-    return [];
-  }
-}
-
-/**
- * Détermine si un joueur est éliminé et à quel round
- */
-function getEliminationInfo(athleteId, frozenResults) {
-  const aid = String(athleteId);
-
-  if (!frozenResults || !frozenResults.rounds) {
-    return { isEliminated: false, round: null };
+  .standings-athlete {
+    gap: 8px;
+    min-width: 0;
   }
 
-  for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
-    if (roundData.eliminations) {
-      const eliminated = roundData.eliminations.find(e => String(e.id) === aid);
-      if (eliminated) {
-        return { isEliminated: true, round: parseInt(roundNum) };
-      }
-    }
+  .standings-athlete > span {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  return { isEliminated: false, round: null };
-}
-
-/**
- * Récupère les athlètes encore actifs (non éliminés)
- */
-function getActiveAthletes(frozenResults, allAthletes) {
-  const eliminatedIds = new Set();
-
-  if (frozenResults && frozenResults.rounds) {
-    for (const roundData of Object.values(frozenResults.rounds)) {
-      if (roundData.eliminations) {
-        roundData.eliminations.forEach(e => eliminatedIds.add(String(e.id)));
-      }
-    }
+  .standings-athlete .athlete-avatar-small {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.65rem;
   }
 
-  return allAthletes.filter(a => !eliminatedIds.has(String(a.id)));
-}
-
-/**
- * Calcule le classement à partir des activités
- */
-function calculateRankingFromActivities(activities, athletes) {
-  return athletes
-    .map(athlete => {
-      const athleteActivities = activities.filter(a => String(a.athlete_id) === String(athlete.id));
-      const elevation = athleteActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
-      return {
-        id: athlete.id,
-        name: athlete.name,
-        elevation
-      };
-    })
-    .sort((a, b) => b.elevation - a.elevation);
-}
-
-/**
- * Calcule le classement des éliminés (D+ depuis leur élimination)
- */
-function calculateEliminatedRanking(frozenResults, allActivities, allAthletes) {
-  const eliminated = [];
-
-  if (!frozenResults || !frozenResults.rounds) return [];
-
-  for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
-    if (roundData.eliminations) {
-      roundData.eliminations.forEach(e => {
-        eliminated.push({
-          id: e.id,
-          name: e.name,
-          eliminatedRound: parseInt(roundNum)
-        });
-      });
-    }
+  .standings-athlete .wins-badge,
+  .standings-athlete .active-badge,
+  .standings-athlete .elim-badge {
+    display: none;
   }
 
-  // Calculer le D+ de chaque éliminé depuis son élimination
-  return eliminated
-    .map(elim => {
-      const eliminationRoundDates = getRoundDates(elim.eliminatedRound);
-      const activitiesSinceElim = allActivities.filter(a => {
-        return String(a.athlete_id) === String(elim.id) &&
-               new Date(a.start_date) > eliminationRoundDates.end;
-      });
-      const elevation = activitiesSinceElim.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
-      return { ...elim, elevation };
-    })
-    .sort((a, b) => b.elevation - a.elevation);
-}
-
-/**
- * Calcule le classement général (points accumulés)
- */
-function calculateGeneralRanking(frozenResults, allAthletes) {
-  // Points par position dans un round (24 joueurs max)
-  const pointsTable = [24, 21, 18, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-
-  const pointsMap = {};
-  allAthletes.forEach(a => {
-    pointsMap[String(a.id)] = { id: a.id, name: a.name, points: 0 };
-  });
-
-  if (frozenResults && frozenResults.rounds) {
-    for (const roundData of Object.values(frozenResults.rounds)) {
-      if (roundData.ranking) {
-        roundData.ranking.forEach((entry, index) => {
-          const pts = pointsTable[index] || 1;
-          if (pointsMap[String(entry.id)]) {
-            pointsMap[String(entry.id)].points += pts;
-          }
-        });
-      }
-    }
+  .standings-points {
+    font-size: 0.75rem;
   }
 
-  return Object.values(pointsMap).sort((a, b) => b.points - a.points);
-}
-
-/**
- * Calcule les dates d'un round
- */
-function getRoundDates(roundNumber) {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const roundStart = new Date(start);
-  roundStart.setDate(roundStart.getDate() + (roundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays);
-
-  const roundEnd = new Date(roundStart);
-  roundEnd.setDate(roundEnd.getDate() + CHALLENGE_CONFIG.roundDurationDays - 1);
-  roundEnd.setHours(23, 59, 59, 999);
-
-  return { start: roundStart, end: roundEnd };
-}
-
-function renderActivities() {
-  const list = document.getElementById('activitiesList');
-  if (!list || !currentUser) return;
-
-  const userActivities = allActivities
-    .filter(a => String(a.athlete_id) === String(currentUser.id))
-    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
-    .slice(0, 10);
-
-  if (userActivities.length === 0) {
-    list.innerHTML = '<div class="no-data">Aucune activité enregistrée</div>';
-    return;
+  .standings-total {
+    font-size: 0.9rem;
   }
 
-  list.innerHTML = userActivities.map(activity => `
-    <div class="activity-item">
-      <div class="activity-info">
-        <div class="activity-name">${activity.name || 'Activité'}</div>
-        <div class="activity-meta">${formatDate(activity.start_date)}</div>
-      </div>
-      <div class="activity-elevation">+${Math.round(activity.total_elevation_gain || 0)}m</div>
-    </div>
-  `).join('');
-}
-
-// ============================================
-// AFFICHAGE - JOKERS
-// ============================================
-function renderJokers() {
-  const grid = document.getElementById('jokersGrid');
-  if (!grid || !currentUser) return;
-
-  const jokerStock = getJokerStock(currentUser.id);
-  const currentRound = getCurrentRound();
-  const pendingJokers = getPendingJokers(currentUser.id, currentRound);
-
-  grid.innerHTML = Object.entries(JOKER_TYPES).map(([id, joker]) => {
-    const count = jokerStock[id] || 0;
-    const isPending = pendingJokers.some(j => j.joker_id === id);
-    const isAvailable = count > 0 && !isPending;
-
-    let statusClass = 'used';
-    let statusText = 'Épuisé';
-    let statusIcon = '✗';
-
-    if (isPending) {
-      statusClass = 'pending';
-      statusText = 'Programmé';
-      statusIcon = '⏳';
-    } else if (isAvailable) {
-      statusClass = 'available';
-      statusText = `disponible${count > 1 ? 's' : ''}`;
-      statusIcon = count;
-    }
-
-    return `
-      <div class="joker-card ${statusClass}" data-joker="${id}">
-        <div class="joker-icon">${joker.icon}</div>
-        <div class="joker-name">${joker.name}</div>
-        <div class="joker-desc">${joker.description}</div>
-        <div class="joker-count ${statusClass}">
-          <strong>${statusIcon}</strong> ${statusText}
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // Event listeners pour les jokers disponibles
-  grid.querySelectorAll('.joker-card.available').forEach(card => {
-    card.onclick = () => {
-      const jokerId = card.dataset.joker;
-      const joker = JOKER_TYPES[jokerId];
-      if (joker.requiresTarget) {
-        showJokerTargetModal(jokerId, joker);
-      } else {
-        showJokerConfirmModal(jokerId, joker);
-      }
-    };
-  });
-}
-
-// ============================================
-// AFFICHAGE - BONUS ÉPHÉMÈRES
-// ============================================
-function renderBonus() {
-  const section = document.getElementById('bonusSection');
-  const content = document.getElementById('bonusContent');
-
-  if (!section || !content) return;
-
-  // Si pas de bonus et pas de choix en attente, cacher la section
-  if (!bonusData && !bonusChoices) {
-    section.style.display = 'none';
-    return;
+  /* Challenge Éliminés - Compact */
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 30px 1fr 70px 40px 55px;
+    padding: 8px 12px;
+    gap: 6px;
   }
 
-  section.style.display = 'block';
-
-  // Si choix en attente, afficher le modal de choix
-  if (bonusChoices && bonusChoices.length > 0) {
-    showBonusChoiceModal();
-    content.innerHTML = `
-      <div class="bonus-card" style="cursor: pointer;" onclick="window.showBonusChoiceModal()">
-        <div class="bonus-icon">🎁</div>
-        <div class="bonus-name">Choisis ton bonus !</div>
-        <div class="bonus-desc">Tu es le meilleur des 2 éliminés - Clique pour choisir ton bonus parmi 2 options</div>
-        <div class="bonus-status">⏳ En attente de choix</div>
-      </div>
-    `;
-    return;
+  #eliminatedChallengeContainer .ranking-position {
+    font-size: 0.85rem;
   }
 
-  // Afficher le bonus existant
-  if (bonusData) {
-    const bonusType = BONUS_TYPES[bonusData.bonus_id];
-    if (!bonusType) {
-      content.innerHTML = '<div class="no-data">Bonus inconnu</div>';
-      return;
-    }
+  #eliminatedChallengeContainer .ranking-athlete {
+    gap: 8px;
+  }
 
-    const isUsed = bonusData.status === 'used';
-    const canUse = !isUsed && canActivateBonusNow(bonusData.bonus_id);
-    const isAutomatic = bonusType.activation?.timing === 'automatique';
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.65rem;
+  }
 
-    content.innerHTML = `
-      <div class="bonus-card ${isUsed ? 'used' : 'available'}" ${!isUsed && canUse ? `onclick="window.handleBonusClick('${bonusData.bonus_id}')"` : ''}>
-        <div class="bonus-icon">${bonusType.icon}</div>
-        <div class="bonus-name">${bonusType.name}</div>
-        <div class="bonus-desc">${bonusType.effect}</div>
-        ${bonusType.timing ? `<div class="bonus-timing">${bonusType.timing}</div>` : ''}
-        <div class="bonus-status ${isUsed ? 'used' : ''}">
-          ${isUsed ? '✓ Utilisé' : (canUse ? '🎯 Cliquez pour utiliser' : (isAutomatic ? '✨ Actif automatiquement' : '⏳ Pas encore activable'))}
-        </div>
-        ${bonusData.target_athlete_name ? `
-          <div class="bonus-target">
-            🎯 Cible : <strong>${bonusData.target_athlete_name}</strong>
-          </div>
-        ` : ''}
-        ${!canUse && !isUsed && !isAutomatic ? `
-          <div class="bonus-timing-info">
-            ℹ️ ${getBonusTimingInfo(bonusData.bonus_id)}
-          </div>
-        ` : ''}
-      </div>
-      ${!isUsed ? `
-        <div class="bonus-help-text">
-          <p>💡 <strong>Ton bonus est disponible jusqu'à la fin de la saison.</strong> Après, il disparaîtra.</p>
-          <p>${isAutomatic
-            ? '✨ Ce bonus s\'active automatiquement, tu n\'as rien à faire !'
-            : '🎮 Tu peux l\'utiliser maintenant ou le garder pour le moment idéal.'}</p>
-        </div>
-      ` : ''}
-    `;
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.8rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-status {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.8rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-round {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .points-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
   }
 }
 
-/**
- * Vérifie si un bonus peut être activé maintenant
- */
-function canActivateBonusNow(bonusId) {
-  const bonusType = BONUS_TYPES[bonusId];
-  if (!bonusType) return false;
+/* === MOBILE (480px) === */
+@media (max-width: 480px) {
+  /* Classement Général - Ultra compact pour iPhone (3 colonnes) */
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 28px 1fr 50px;
+    padding: 8px 8px;
+    gap: 4px;
+  }
 
-  const timing = bonusType.activation.timing;
-  const dayInRound = getDayInRound();
+  .standings-header {
+    font-size: 0.55rem;
+    letter-spacing: 0.05em;
+  }
 
-  switch (timing) {
-    case '3_premiers_jours':
-      return dayInRound <= 3;
-    case 'jour_1':
-      return dayInRound === 1;
-    case '48h_apres_elimination':
-      return true;
-    case 'automatique':
-      return false;
-    default:
-      return false;
+  .standings-rank {
+    font-size: 0.8rem;
+  }
+
+  .standings-athlete {
+    gap: 6px;
+  }
+
+  .standings-athlete > span {
+    font-size: 0.7rem;
+  }
+
+  .standings-athlete .athlete-avatar-small {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    font-size: 0.55rem;
+  }
+
+  .standings-points {
+    font-size: 0.65rem;
+  }
+
+  .standings-total {
+    font-size: 0.8rem;
+  }
+
+  /* Challenge Éliminés - Ultra compact */
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 25px 1fr 60px 35px 45px;
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  #eliminatedChallengeContainer .ranking-header {
+    font-size: 0.55rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-position {
+    font-size: 0.75rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-athlete {
+    gap: 6px;
+  }
+
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    font-size: 0.55rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-status {
+    font-size: 0.55rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .elevation-unit {
+    display: none;
+  }
+
+  #eliminatedChallengeContainer .ranking-round {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .points-badge {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
+
+  /* Ranking principal - Ajustements supplémentaires */
+  .ranking-header,
+  .ranking-row {
+    grid-template-columns: 40px 1fr 80px;
+    padding: 8px 10px;
+  }
+
+  .ranking-header {
+    font-size: 0.6rem;
+  }
+
+  .position {
+    font-size: 0.9rem;
+  }
+
+  .athlete-avatar {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 0.7rem;
+  }
+
+  .athlete-name {
+    font-size: 0.8rem;
+  }
+
+  .athlete-status {
+    font-size: 0.6rem;
+  }
+
+  .elevation-cell .elevation-primary {
+    font-size: 0.85rem;
+  }
+
+  .elevation-bonuses {
+    flex-wrap: wrap;
+  }
+
+  .bonus-tag {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+  }
+
+  /* Section titles - Plus compact */
+  .section-title {
+    font-size: clamp(1.25rem, 4vw, 2rem);
+  }
+
+  /* Banner saison - Compact */
+  .season-banner {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .season-number {
+    font-size: 1.75rem;
+  }
+
+  .season-progress {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* Container padding réduit */
+  :root {
+    --container-padding: clamp(12px, 3vw, 40px);
   }
 }
 
-/**
- * Retourne une info sur le timing d'activation
- */
-function getBonusTimingInfo(bonusId) {
-  const bonusType = BONUS_TYPES[bonusId];
-  if (!bonusType) return '';
+/* === TRÈS PETIT MOBILE (360px et moins) === */
+@media (max-width: 360px) {
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 24px 1fr 38px 38px 45px;
+    padding: 6px 6px;
+    gap: 3px;
+  }
 
-  const timing = bonusType.activation.timing;
+  .standings-header {
+    font-size: 0.5rem;
+  }
 
-  switch (timing) {
-    case '3_premiers_jours':
-      return 'Activable les 3 premiers jours du round';
-    case 'jour_1':
-      return 'Activable uniquement le 1er jour du round';
-    case '48h_apres_elimination':
-      return 'Activable dans les 48h après élimination';
-    case 'automatique':
-      return 'S\'active automatiquement';
-    default:
-      return '';
+  .standings-rank {
+    font-size: 0.7rem;
+  }
+
+  .standings-athlete > span {
+    font-size: 0.65rem;
+  }
+
+  .standings-athlete .athlete-avatar-small {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    font-size: 0.5rem;
+  }
+
+  .standings-points {
+    font-size: 0.6rem;
+  }
+
+  .standings-total {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 22px 1fr 50px 30px 40px;
+    padding: 5px 6px;
+  }
+
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+  }
+
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.6rem;
   }
 }
 
-/**
- * Affiche le modal de choix de bonus (roguelite)
- */
-function showBonusChoiceModal() {
-  if (!bonusChoices || bonusChoices.length === 0) return;
+/* ============================================
+   AVATAR BONUS INDICATORS - MOBILE
+   ============================================ */
 
-  const modal = document.getElementById('bonusChoiceModal');
-  const grid = document.getElementById('bonusChoiceGrid');
+@media (max-width: 768px) {
+  .avatar-bonus-indicators {
+    bottom: -3px;
+    right: -3px;
+  }
 
-  if (!modal || !grid) return;
-
-  grid.innerHTML = bonusChoices.map(bonusId => {
-    const bonus = BONUS_TYPES[bonusId];
-    if (!bonus) return '';
-
-    return `
-      <div class="bonus-choice-option" onclick="window.selectBonus('${bonusId}')">
-        <div class="bonus-icon">${bonus.icon}</div>
-        <div class="bonus-name">${bonus.name}</div>
-        <div class="bonus-desc">${bonus.effect}</div>
-        ${bonus.timing ? `<div class="bonus-timing">${bonus.timing}</div>` : ''}
-        <div style="margin-top: 12px; font-size: 0.8rem; color: rgba(255,255,255,0.5);">
-          ${bonus.category === 'offensif' ? '⚔️ Offensif' : ''}
-          ${bonus.category === 'soutien' ? '🤝 Soutien' : ''}
-          ${bonus.category === 'competitif' ? '🏆 Compétitif' : ''}
-          ${bonus.category === 'defensif' ? '🛡️ Défensif' : ''}
-          ${bonus.category === 'pari' ? '🎲 Pari' : ''}
-          ${bonus.category === 'piege' ? '🪤 Piège' : ''}
-          ${bonus.category === 'boost' ? '⚡ Boost' : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  modal.style.display = 'flex';
-}
-
-/**
- * Sélectionne un bonus parmi les choix
- */
-async function selectBonus(bonusId) {
-  try {
-    const token = getAuthToken();
-    if (!token) {
-      showNotification('Non authentifié', 'error');
-      return;
-    }
-
-    const response = await fetch(`${API_BASE}/bonuses/assign`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ bonus_id: bonusId })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Erreur serveur');
-    }
-
-    const result = await response.json();
-    bonusData = result.bonus;
-    bonusChoices = null;
-
-    const modal = document.getElementById('bonusChoiceModal');
-    if (modal) modal.style.display = 'none';
-
-    renderBonus();
-
-    const bonus = BONUS_TYPES[bonusId];
-    showNotification(`${bonus.icon} ${bonus.name} choisi !`, 'success');
-
-  } catch (error) {
-    console.error('Erreur sélection bonus:', error);
-    showNotification(error.message, 'error');
+  .avatar-bonus-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 8px;
+    border-width: 1.5px;
   }
 }
 
-/**
- * Gère le clic sur un bonus pour l'utiliser
- */
-function handleBonusClick(bonusId) {
-  const bonusType = BONUS_TYPES[bonusId];
-  if (!bonusType) return;
-
-  if (bonusType.requiresTarget) {
-    showBonusTargetModal(bonusId, bonusType);
-  } else {
-    showBonusConfirmModal(bonusId, bonusType);
-  }
-}
-
-/**
- * Modal de sélection de cible pour les bonus
- */
-function showBonusTargetModal(bonusId, bonusType) {
-  fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
-    .then(res => res.json())
-    .then(athletes => {
-      let targets = athletes.filter(a => String(a.id) !== String(currentUser.id));
-
-      const modal = document.createElement('div');
-      modal.className = 'joker-selection-modal';
-      modal.innerHTML = `
-        <div class="joker-modal-container" style="border-color: rgba(168, 85, 247, 0.4);">
-          <div class="modal-header" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.1));">
-            <span class="modal-header-icon">${bonusType.icon}</span>
-            <div class="modal-header-text">
-              <div class="modal-header-title">${bonusType.name}</div>
-              <div class="modal-header-subtitle">Choisissez votre cible</div>
-            </div>
-            <button class="modal-close-btn">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="modal-section">
-              <div class="modal-section-title" style="color: #a855f7;">🎯 Sélectionnez un joueur</div>
-              <div class="target-selection-grid">
-                ${targets.map(t => `
-                  <div class="target-card" data-id="${t.id}" data-name="${t.name}">
-                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColorSimple(t.id)}, ${getAthleteColorSimple(t.id)}88)">
-                      ${getInitials(t.name)}
-                    </div>
-                    <div class="target-card-name">${t.name}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-
-            <button class="modal-confirm-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899);" disabled>
-              <span class="btn-icon">${bonusType.icon}</span>
-              Sélectionnez une cible
-            </button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-
-      let selectedTarget = null;
-
-      modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
-      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-      modal.querySelectorAll('.target-card').forEach(card => {
-        card.onclick = () => {
-          modal.querySelectorAll('.target-card').forEach(c => c.classList.remove('selected'));
-          card.classList.add('selected');
-          selectedTarget = { id: card.dataset.id, name: card.dataset.name };
-
-          const btn = modal.querySelector('.modal-confirm-btn');
-          btn.disabled = false;
-          btn.innerHTML = `<span class="btn-icon">${bonusType.icon}</span> Cibler ${selectedTarget.name}`;
-        };
-      });
-
-      modal.querySelector('.modal-confirm-btn').onclick = async () => {
-        if (!selectedTarget) return;
-        modal.remove();
-        await useBonus(bonusId, selectedTarget.id);
-      };
-    });
-}
-
-/**
- * Modal de confirmation pour les bonus sans cible
- */
-function showBonusConfirmModal(bonusId, bonusType) {
-  const modal = document.createElement('div');
-  modal.className = 'joker-selection-modal';
-  modal.innerHTML = `
-    <div class="joker-modal-container" style="border-color: rgba(168, 85, 247, 0.4);">
-      <div class="modal-header" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.1));">
-        <span class="modal-header-icon">${bonusType.icon}</span>
-        <div class="modal-header-text">
-          <div class="modal-header-title">${bonusType.name}</div>
-          <div class="modal-header-subtitle">Confirmer l'activation</div>
-        </div>
-        <button class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-section">
-          <div style="padding: 20px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 12px;">
-            <p style="color: rgba(255,255,255,0.9); font-size: 1rem; margin: 0; line-height: 1.6;">
-              <strong style="color: #a855f7;">💡 Effet :</strong><br>
-              ${bonusType.effect}
-            </p>
-          </div>
-        </div>
-
-        <button class="modal-confirm-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899);">
-          <span class="btn-icon">${bonusType.icon}</span>
-          Activer le bonus
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-  modal.querySelector('.modal-confirm-btn').onclick = async () => {
-    modal.remove();
-    await useBonus(bonusId);
-  };
-}
-
-/**
- * Utilise un bonus via l'API
- */
-async function useBonus(bonusId, targetId = null) {
-  try {
-    const token = getAuthToken();
-    if (!token) {
-      showNotification('Non authentifié', 'error');
-      return;
-    }
-
-    const currentRound = getCurrentRound();
-
-    const response = await fetch(`${API_BASE}/bonuses/use`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        target_athlete_id: targetId,
-        round_number: currentRound
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Erreur serveur');
-    }
-
-    const result = await response.json();
-    bonusData = result.bonus;
-
-    renderBonus();
-
-    const bonus = BONUS_TYPES[bonusId];
-    showNotification(`${bonus.icon} ${bonus.name} activé !`, 'success');
-
-  } catch (error) {
-    console.error('Erreur utilisation bonus:', error);
-    showNotification(error.message, 'error');
-  }
-}
-
-// ============================================
-// MODALS JOKERS
-// ============================================
-function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = null) {
-  const currentRound = getCurrentRound();
-  const activationRound = currentRound + 1;
-
-  const modal = document.createElement('div');
-  modal.className = 'joker-selection-modal';
-  modal.innerHTML = `
-    <div class="joker-modal-container">
-      <div class="modal-header">
-        <span class="modal-header-icon">${joker.icon}</span>
-        <div class="modal-header-text">
-          <div class="modal-header-title">${joker.name}</div>
-          <div class="modal-header-subtitle">${targetName ? `Cible: ${targetName}` : 'Confirmer l\'activation'}</div>
-        </div>
-        <button class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-section">
-          <div class="modal-section-title">⏰ Activation</div>
-          <div class="timing-options-grid">
-            <div class="timing-card selected" data-timing="next">
-              <div class="timing-card-label">Prochain round</div>
-              <div class="timing-card-value">Round ${activationRound}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-section">
-          <div style="padding: 16px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); border-radius: 12px;">
-            <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;">
-              <strong style="color: #22d3ee;">💡 Effet :</strong> ${joker.effect || joker.description}
-            </p>
-          </div>
-        </div>
-
-        <button class="modal-confirm-btn">
-          <span class="btn-icon">${joker.icon}</span>
-          Activer le joker
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-  modal.querySelector('.modal-confirm-btn').onclick = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/jokers/use`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          joker_id: jokerId,
-          target_athlete_id: targetId,
-          round_number: activationRound
-        })
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Erreur serveur');
-      }
-
-      await loadJokersFromServer();
-      renderJokers();
-
-      showNotification(`${joker.icon} ${joker.name} programmé pour le round ${activationRound} !`, 'success');
-      modal.remove();
-    } catch (error) {
-      console.error('Erreur utilisation joker:', error);
-      showNotification(error.message || 'Erreur lors de l\'activation', 'error');
-    }
-  };
-}
-
-function showJokerTargetModal(jokerId, joker) {
-  fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
-    .then(res => res.json())
-    .then(athletes => {
-      const opponents = athletes.filter(a => String(a.id) !== String(currentUser.id));
-
-      const modal = document.createElement('div');
-      modal.className = 'joker-selection-modal';
-      modal.innerHTML = `
-        <div class="joker-modal-container">
-          <div class="modal-header">
-            <span class="modal-header-icon">${joker.icon}</span>
-            <div class="modal-header-text">
-              <div class="modal-header-title">${joker.name}</div>
-              <div class="modal-header-subtitle">Choisissez votre cible</div>
-            </div>
-            <button class="modal-close-btn">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="modal-section">
-              <div class="modal-section-title">🎯 Sélectionnez un adversaire</div>
-              <div class="target-selection-grid">
-                ${opponents.map(opp => `
-                  <div class="target-card" data-id="${opp.id}" data-name="${opp.name}">
-                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColorSimple(opp.id)}, ${getAthleteColorSimple(opp.id)}88)">
-                      ${getInitials(opp.name)}
-                    </div>
-                    <div class="target-card-name">${opp.name}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-
-            <button class="modal-confirm-btn" disabled>
-              <span class="btn-icon">${joker.icon}</span>
-              Sélectionnez une cible
-            </button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-
-      let selectedTarget = null;
-
-      modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
-      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-      modal.querySelectorAll('.target-card').forEach(card => {
-        card.onclick = () => {
-          modal.querySelectorAll('.target-card').forEach(c => c.classList.remove('selected'));
-          card.classList.add('selected');
-          selectedTarget = { id: card.dataset.id, name: card.dataset.name };
-
-          const btn = modal.querySelector('.modal-confirm-btn');
-          btn.disabled = false;
-          btn.innerHTML = `<span class="btn-icon">${joker.icon}</span> Cibler ${selectedTarget.name}`;
-        };
-      });
-
-      modal.querySelector('.modal-confirm-btn').onclick = () => {
-        if (!selectedTarget) return;
-        modal.remove();
-        showJokerConfirmModal(jokerId, joker, selectedTarget.id, selectedTarget.name);
-      };
-    });
-}
-
-// ============================================
-// NOTIFICATIONS
-// ============================================
-function showNotification(message, type = 'info') {
-  const existing = document.querySelector('.dashboard-notification');
-  if (existing) existing.remove();
-
-  const notification = document.createElement('div');
-  notification.className = `dashboard-notification ${type}`;
-  notification.style.cssText = `
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 16px 28px;
-    border-radius: 12px;
-    font-weight: 600;
-    z-index: 10001;
-    animation: slideUp 0.3s ease-out;
-    ${type === 'success' ? 'background: linear-gradient(135deg, #10b981, #059669); color: white;' : ''}
-    ${type === 'error' ? 'background: linear-gradient(135deg, #ef4444, #dc2626); color: white;' : ''}
-    ${type === 'info' ? 'background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;' : ''}
-  `;
-  notification.textContent = message;
-
-  if (!document.getElementById('notification-keyframes')) {
-    const style = document.createElement('style');
-    style.id = 'notification-keyframes';
-    style.textContent = `
-      @keyframes slideUp {
-        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-        to { transform: translateX(-50%) translateY(0); opacity: 1; }
-      }
-    `;
-    document.head.appendChild(style);
+@media (max-width: 480px) {
+  .avatar-bonus-indicators {
+    bottom: -2px;
+    right: -2px;
   }
 
-  document.body.appendChild(notification);
-
-  setTimeout(() => {
-    notification.style.opacity = '0';
-    notification.style.transition = 'opacity 0.3s ease';
-    setTimeout(() => notification.remove(), 300);
-  }, 4000);
-}
-
-// ============================================
-// INITIALISATION
-// ============================================
-async function init() {
-  console.log('🎯 Initialisation Dashboard v2.1');
-
-  try {
-    await loadCurrentUser();
-    await loadActivities();
-    await loadJokersFromServer();
-    await loadBonusFromServer();
-    await loadBonusChoices();
-
-    renderHeader();
-    await renderStats(); // async maintenant
-    renderCurrentRound(); // renommé depuis renderNextRound
-    renderJokers();
-    renderBonus();
-    renderActivities();
-
-    console.log('✅ Dashboard chargé');
-  } catch (error) {
-    console.error('❌ Erreur initialisation dashboard:', error);
-  }
-}
-
-// ============================================
-// DÉCONNEXION
-// ============================================
-function logout() {
-  localStorage.removeItem('versant_athlete_id');
-  localStorage.removeItem('versant_token');
-  window.location.href = 'login.html';
-}
-
-// Exposer les fonctions globalement
-window.logout = logout;
-window.showBonusChoiceModal = showBonusChoiceModal;
-window.selectBonus = selectBonus;
-window.handleBonusClick = handleBonusClick;
-
-// ============================================
-// DÉMARRAGE
-// ============================================
-document.addEventListener('DOMContentLoaded', async () => {
-  const athleteId = getCurrentUserId();
-  if (!athleteId) {
-    console.log('⚠️ Non connecté, redirection vers login');
-    window.location.href = 'login.html';
-    return;
+  .avatar-bonus-icon {
+    width: 12px;
+    height: 12px;
+    font-size: 7px;
+    border-width: 1px;
   }
 
-  init();
-});
+  /* Limiter à 2 indicateurs max sur mobile */
+  .avatar-bonus-icon:nth-child(n+3) {
+    display: none;
+  }
+}
