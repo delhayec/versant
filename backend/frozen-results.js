@@ -506,6 +506,7 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
   await saveFrozenResults(data);
 
   console.log(`❄️ Round ${roundNumber} figé (calculé): ${results.eliminations.length} éliminé(s)`);
+
   return results;
 }
 

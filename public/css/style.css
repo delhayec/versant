@@ -1381,6 +1381,20 @@ body {
   color: var(--status-eliminated);
 }
 
+/* Badge pour bonus éphémère (meilleur des 2 éliminés) */
+.bonus-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.85rem;
+  cursor: help;
+  animation: pulse-bonus 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bonus {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
 .ranking-elevation {
   font-family: var(--font-mono);
   font-size: 1rem;
@@ -1484,7 +1498,7 @@ body {
 
 .standings-header {
   display: grid;
-  grid-template-columns: 60px 1fr 100px 100px 100px;
+  grid-template-columns: 60px 1fr 90px 90px 70px 90px;
   padding: 16px 24px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid var(--border-color);
@@ -1495,53 +1509,13 @@ body {
   color: var(--text-muted);
 }
 
-/* Version étendue sur desktop avec colonnes supplémentaires */
-.standings-header.standings-extended {
-  grid-template-columns: 50px 1fr 80px 80px 90px 90px 90px;
-}
-
 .standings-row {
   display: grid;
-  grid-template-columns: 60px 1fr 100px 100px 100px;
+  grid-template-columns: 60px 1fr 90px 90px 70px 90px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
   transition: background 0.2s ease;
-}
-
-.standings-row.standings-extended {
-  grid-template-columns: 50px 1fr 80px 80px 90px 90px 90px;
-}
-
-/* Colonnes desktop-only */
-.desktop-only {
-  display: none;
-}
-
-@media (min-width: 1024px) {
-  .desktop-only {
-    display: block;
-  }
-}
-
-/* Style pour les points du round */
-.standings-points.round {
-  color: var(--accent-secondary);
-}
-
-.round-pts-value {
-  color: var(--accent-secondary);
-  font-weight: 600;
-}
-
-/* Style pour les points bonus */
-.standings-points.bonus {
-  color: var(--accent-warning);
-}
-
-.bonus-pts-value {
-  color: var(--accent-warning);
-  font-weight: 600;
 }
 
 .standings-row:hover {
@@ -1567,6 +1541,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .athlete-avatar-small {
@@ -1592,8 +1567,12 @@ body {
   color: var(--accent-primary);
 }
 
-.standings-points.eliminated {
+.standings-points.elim {
   color: var(--accent-tertiary);
+}
+
+.standings-points.bonus {
+  color: var(--accent-warning);
 }
 
 .standings-total {
@@ -1605,6 +1584,22 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Badge pour les éliminés de la saison en cours */
+.elim-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--accent-danger);
+  font-family: var(--font-mono);
+  margin-left: 6px;
+}
+
+/* Classe utilitaire pour masquer sur mobile */
+.hide-mobile {
+  display: block;
 }
 
 /* === EMPTY STATE === */
@@ -4932,17 +4927,15 @@ body {
 
 /* === TABLET (768px) === */
 @media (max-width: 768px) {
-  /* Masquer les colonnes desktop uniquement */
-  .desktop-only {
+  /* Masquer les colonnes supplémentaires sur tablet/mobile */
+  .hide-mobile {
     display: none !important;
   }
 
-  /* Classement Général - Afficher les 5 colonnes compactes (sans les colonnes desktop) */
+  /* Classement Général - 3 colonnes sur mobile (Rang, Athlète, Total) */
   .standings-header,
-  .standings-row,
-  .standings-header.standings-extended,
-  .standings-row.standings-extended {
-    grid-template-columns: 35px 1fr 55px 55px 60px;
+  .standings-row {
+    grid-template-columns: 35px 1fr 60px;
     padding: 10px 12px;
     gap: 6px;
   }
@@ -4971,7 +4964,8 @@ body {
   }
 
   .standings-athlete .wins-badge,
-  .standings-athlete .active-badge {
+  .standings-athlete .active-badge,
+  .standings-athlete .elim-badge {
     display: none;
   }
 
@@ -5030,10 +5024,10 @@ body {
 
 /* === MOBILE (480px) === */
 @media (max-width: 480px) {
-  /* Classement Général - Ultra compact pour iPhone */
+  /* Classement Général - Ultra compact pour iPhone (3 colonnes) */
   .standings-header,
   .standings-row {
-    grid-template-columns: 28px 1fr 45px 45px 50px;
+    grid-template-columns: 28px 1fr 50px;
     padding: 8px 8px;
     gap: 4px;
   }
