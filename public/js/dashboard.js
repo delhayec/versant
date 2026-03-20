@@ -703,26 +703,36 @@ function renderBonus() {
 
     const isUsed = bonusData.status === 'used';
     const canUse = !isUsed && canActivateBonusNow(bonusData.bonus_id);
+    const isAutomatic = bonusType.activation?.timing === 'automatique';
 
     content.innerHTML = `
       <div class="bonus-card ${isUsed ? 'used' : 'available'}" ${!isUsed && canUse ? `onclick="window.handleBonusClick('${bonusData.bonus_id}')"` : ''}>
         <div class="bonus-icon">${bonusType.icon}</div>
         <div class="bonus-name">${bonusType.name}</div>
         <div class="bonus-desc">${bonusType.effect}</div>
+        ${bonusType.timing ? `<div class="bonus-timing">${bonusType.timing}</div>` : ''}
         <div class="bonus-status ${isUsed ? 'used' : ''}">
-          ${isUsed ? '✓ Utilisé' : (canUse ? '🎯 Cliquez pour utiliser' : '⏳ Pas encore activable')}
+          ${isUsed ? '✓ Utilisé' : (canUse ? '🎯 Cliquez pour utiliser' : (isAutomatic ? '✨ Actif automatiquement' : '⏳ Pas encore activable'))}
         </div>
         ${bonusData.target_athlete_name ? `
           <div class="bonus-target">
             🎯 Cible : <strong>${bonusData.target_athlete_name}</strong>
           </div>
         ` : ''}
-        ${!canUse && !isUsed ? `
-          <div class="bonus-target">
+        ${!canUse && !isUsed && !isAutomatic ? `
+          <div class="bonus-timing-info">
             ℹ️ ${getBonusTimingInfo(bonusData.bonus_id)}
           </div>
         ` : ''}
       </div>
+      ${!isUsed ? `
+        <div class="bonus-help-text">
+          <p>💡 <strong>Ton bonus est disponible jusqu'à la fin de la saison.</strong> Après, il disparaîtra.</p>
+          <p>${isAutomatic
+            ? '✨ Ce bonus s\'active automatiquement, tu n\'as rien à faire !'
+            : '🎮 Tu peux l\'utiliser maintenant ou le garder pour le moment idéal.'}</p>
+        </div>
+      ` : ''}
     `;
   }
 }
@@ -793,7 +803,8 @@ function showBonusChoiceModal() {
       <div class="bonus-choice-option" onclick="window.selectBonus('${bonusId}')">
         <div class="bonus-icon">${bonus.icon}</div>
         <div class="bonus-name">${bonus.name}</div>
-        <div class="bonus-desc">${bonus.description}</div>
+        <div class="bonus-desc">${bonus.effect}</div>
+        ${bonus.timing ? `<div class="bonus-timing">${bonus.timing}</div>` : ''}
         <div style="margin-top: 12px; font-size: 0.8rem; color: rgba(255,255,255,0.5);">
           ${bonus.category === 'offensif' ? '⚔️ Offensif' : ''}
           ${bonus.category === 'soutien' ? '🤝 Soutien' : ''}

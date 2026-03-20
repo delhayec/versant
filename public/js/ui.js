@@ -7,7 +7,7 @@
  */
 
 import { 
-  CHALLENGE_CONFIG, JOKER_TYPES, ROUND_RULES, PARTICIPANTS,
+  CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES, ROUND_RULES, PARTICIPANTS,
   getSeasonDates, getRoundDates, getRoundInSeason, getParticipantById,
   getAthleteColor, getAthleteInitials, getRoundInfo
 } from './config.js';
@@ -56,11 +56,11 @@ export function formatDateRange(start, end) {
 
 export function renderCombinedBanner(container, data) {
   const { currentSeasonNumber, currentRoundNumber, seasonData, currentDate } = data;
-  
+
   const seasonDates = getSeasonDates(currentSeasonNumber);
   const roundDates = getRoundDates(currentRoundNumber);
   const roundInSeason = getRoundInSeason(currentDate);
-  
+
   const isRoundActive = currentDate >= roundDates.start && currentDate <= roundDates.end;
 
   // Calcul du jour actuel dans le round (1 à 5)
@@ -179,35 +179,35 @@ function startCountdownTimer(endTime) {
 
 export function renderActiveJokersSection(container, data) {
   const { currentRoundNumber, ranking } = data;
-  
+
   const activeJokers = getActiveJokersForRound(currentRoundNumber);
   const pendingJokers = getPendingJokersForNextRound(currentRoundNumber);
-  
+
   if (activeJokers.length === 0 && pendingJokers.length === 0) {
     container.innerHTML = '';
     container.style.display = 'none';
     return;
   }
-  
+
   container.style.display = 'block';
-  
+
   let html = '<h3 class="section-title">🃏 Jokers en jeu ce round</h3><div class="jokers-grid">';
-  
+
   activeJokers.forEach(joker => {
     const jokerType = JOKER_TYPES[joker.jokerId];
     if (!jokerType) return;
-    
+
     let statusHtml = '';
     let statusClass = 'active';
-    
+
     if (joker.jokerId === 'duel' && ranking) {
       const challenger = ranking.find(r => String(r.participant.id) === String(joker.participantId));
       const target = ranking.find(r => String(r.participant.id) === String(joker.targetId));
-      
+
       if (challenger && target) {
         const challengerWins = challenger.totalElevation > target.totalElevation;
         statusClass = challengerWins ? 'winning' : 'losing';
-        
+
         statusHtml = `
           <div class="duel-status">
             <div class="duel-competitor ${challengerWins ? 'winning' : 'losing'}">
@@ -232,7 +232,7 @@ export function renderActiveJokersSection(container, data) {
     } else if (joker.jokerId === 'bouclier') {
       statusHtml = `<div class="joker-effect">${joker.participantName} est protégé contre l'élimination</div>`;
     }
-    
+
     html += `
       <div class="joker-card ${statusClass}">
         <div class="joker-card-header">
@@ -244,21 +244,21 @@ export function renderActiveJokersSection(container, data) {
       </div>
     `;
   });
-  
+
   // Jokers programmés pour le prochain round
   if (pendingJokers.length > 0) {
     const nextRound = getRoundInSeason(new Date()) + 1;
     html += `<div class="pending-jokers"><h4>⏰ Programmés pour le Round ${nextRound}</h4><div class="pending-list">`;
-    
+
     pendingJokers.forEach(joker => {
       const jokerType = JOKER_TYPES[joker.jokerId];
       if (!jokerType) return;
       html += `<span class="pending-item">${jokerType.icon} ${joker.participantName}${joker.targetName ? ' → ' + joker.targetName : ''}</span>`;
     });
-    
+
     html += '</div></div>';
   }
-  
+
   html += '</div>';
   container.innerHTML = html;
 }
@@ -565,15 +565,37 @@ export function renderArsenal(container, data) {
 
       const statusLabel = bonus.status === 'pending' ? '⏳ Choix en attente' :
                           bonus.status === 'used' ? '✓ Utilisé' :
-                          bonus.status === 'active' ? '🎯 Activé' : 'Disponible';
+                          bonus.status === 'active' ? '🎯 Activé' : '💤 Disponible';
+
+      // Construire les détails du bonus
+      let bonusDetails = '';
+      if (bonus.bonus_id && bonus.status !== 'pending') {
+        const bonusType = BONUS_TYPES ? BONUS_TYPES[bonus.bonus_id] : null;
+
+        // Afficher la cible si elle existe (sauf pour marquage)
+        if (bonus.target_athlete_name && bonus.bonus_id !== 'marquage') {
+          bonusDetails += `<div class="bonus-detail-target">🎯 Cible : <strong>${bonus.target_athlete_name}</strong></div>`;
+        }
+
+        // Afficher l'effet attendu selon le statut
+        if (bonus.status === 'used' || bonus.status === 'active') {
+          bonusDetails += `<div class="bonus-detail-effect">${getBonusEffectDescription(bonus)}</div>`;
+        }
+      }
+
+      // Info au survol
+      const hoverTitle = bonus.hoverInfo ? bonus.hoverInfo : '';
 
       html += `
-        <div class="bonus-item ${statusClass}">
-          <span class="bonus-icon">${bonus.icon || '🎁'}</span>
-          <span class="bonus-owner">👻 ${bonus.athlete_name || 'Joueur'}</span>
-          ${bonus.bonus_name ? `<span class="bonus-name">${bonus.bonus_name}</span>` : ''}
-          <span class="bonus-status ${statusClass}">${statusLabel}</span>
-          ${bonus.target_athlete_name ? `<span class="bonus-target">→ ${bonus.target_athlete_name}</span>` : ''}
+        <div class="bonus-item ${statusClass}" ${hoverTitle ? `title="${hoverTitle}"` : ''}>
+          <div class="bonus-item-header">
+            <span class="bonus-icon">${bonus.icon || '🎁'}</span>
+            <span class="bonus-owner">👻 ${bonus.athlete_name || 'Joueur'}</span>
+            ${bonus.bonus_name ? `<span class="bonus-name">${bonus.bonus_name}</span>` : ''}
+            <span class="bonus-status ${statusClass}">${statusLabel}</span>
+          </div>
+          ${bonusDetails ? `<div class="bonus-item-details">${bonusDetails}</div>` : ''}
+          ${bonus.hoverInfo ? `<div class="bonus-hover-hint">ℹ️ Survoler pour plus d'infos</div>` : ''}
         </div>
       `;
     });
@@ -585,6 +607,34 @@ export function renderArsenal(container, data) {
   `;
 
   container.innerHTML = html;
+}
+
+/**
+ * Génère une description de l'effet du bonus en fonction de son statut et de sa cible
+ */
+function getBonusEffectDescription(bonus) {
+  const bonusId = bonus.bonus_id;
+  const target = bonus.target_athlete_name;
+  const used_in_round = bonus.used_in_round;
+
+  switch (bonusId) {
+    case 'embuscade':
+      return `⚡ À la fin du round${used_in_round ? ' ' + used_in_round : ''}, une activité aléatoire de ${target || 'la cible'} sera volée`;
+    case 'ravitaillement':
+      return `⚡ À la fin du round${used_in_round ? ' ' + used_in_round : ''}, une activité sera donnée à ${target || 'la cible'}`;
+    case 'duel':
+      return `⚡ Duel en cours jusqu'à la fin de la saison. Le gagnant (plus de D+) obtient +1 point`;
+    case 'brouillard':
+      return `⚡ D+ masqué jusqu'à la révélation finale en fin de saison`;
+    case 'marquage':
+      return `⚡ Si ${target || 'la cible'} est éliminé(e) à la fin du round${used_in_round ? ' ' + used_in_round : ''} → +1 point`;
+    case 'trap':
+      return `⚡ Piège actif. Le prochain dernier éliminé donnera du D+`;
+    case 'second_souffle':
+      return `⚡ En fin de saison, la plus petite activité sera doublée`;
+    default:
+      return '';
+  }
 }
 
 // ============================================

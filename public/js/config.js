@@ -172,16 +172,17 @@ export const BONUS_TYPES = {
     name: "Embuscade",
     icon: "🏹",
     description: "Vole une activité aléatoire d'un joueur actif",
-    effect: "Choisis un joueur actif. Une de ses activités (+20min) est tirée au sort et son D+ t'est transféré.",
+    effect: "Choisis un joueur actif. Une de ses activités (+20min) est tirée au sort : son D+ lui est retiré et t'est transféré dans le challenge des éliminés.",
+    timing: "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
     category: "offensif",
     requiresTarget: true,
-    targetType: "active", // Cible un joueur du challenge principal
+    targetType: "active",
     activation: {
-      timing: "3_premiers_jours", // Pendant les 3 premiers jours du round
-      effect: "fin_round" // L'effet s'applique à la fin du round
+      timing: "3_premiers_jours",
+      effect: "fin_round"
     },
     parameters: {
-      minActivityDuration: 20 // minutes
+      minActivityDuration: 20
     }
   },
   ravitaillement: {
@@ -189,7 +190,8 @@ export const BONUS_TYPES = {
     name: "Ravitaillement",
     icon: "🎒",
     description: "Donne une de tes activités aléatoire à un joueur actif",
-    effect: "Choisis un joueur actif. Une de tes activités (+20min) est tirée au sort et son D+ lui est ajouté en bonus (tu gardes aussi ton D+).",
+    effect: "Choisis un joueur actif. Une de tes activités (+20min) est tirée au sort : son D+ lui est ajouté en bonus. Tu conserves aussi ce D+ dans ton total.",
+    timing: "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
     category: "soutien",
     requiresTarget: true,
     targetType: "active",
@@ -206,9 +208,10 @@ export const BONUS_TYPES = {
     name: "Duel",
     icon: "⚔️",
     description: "Défie ton co-éliminé pour un point bonus",
-    effect: "Tu défies ton co-éliminé. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point.",
+    effect: "Tu défies l'autre joueur éliminé en même temps que toi. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point au classement général. Égalité = aucun point.",
+    timing: "⏰ Activation : dans les 48h après élimination · ⚡ Effet : fin de saison",
     category: "competitif",
-    requiresTarget: false, // La cible est automatiquement le co-éliminé
+    requiresTarget: false,
     targetType: "co_eliminated",
     activation: {
       timing: "48h_apres_elimination",
@@ -220,7 +223,8 @@ export const BONUS_TYPES = {
     name: "Brouillard",
     icon: "🌫️",
     description: "Cache ton D+ jusqu'à la fin de la saison",
-    effect: "Tu te caches dans le brouillard. Tu apparais dernier du classement des éliminés jusqu'à la révélation finale.",
+    effect: "Tu te caches ! Ton D+ est masqué : tu apparais dernier du classement des éliminés pour tous. Seul toi vois ton vrai D+ dans ton dashboard. Révélation à la fin de la saison.",
+    timing: "⏰ Activation : dans les 48h après élimination · ⚡ Effet : fin de saison",
     category: "defensif",
     requiresTarget: false,
     targetType: "self",
@@ -234,12 +238,13 @@ export const BONUS_TYPES = {
     name: "Marquage",
     icon: "🎯",
     description: "Parie sur l'élimination d'un joueur actif",
-    effect: "En début de round, marque un joueur actif. S'il est éliminé à la fin du round, tu gagnes +1 point.",
+    effect: "Le 1er jour d'un round, marque un joueur actif. S'il termine dans les 2 dernières places (éliminé) à la fin du round, tu gagnes +1 point au classement général. Sinon, le bonus est perdu.",
+    timing: "⏰ Activation : jour 1 du round uniquement · ⚡ Effet : fin du round",
     category: "pari",
     requiresTarget: true,
     targetType: "active",
     activation: {
-      timing: "jour_1", // Le 1er jour du round uniquement
+      timing: "jour_1",
       effect: "fin_round"
     }
   },
@@ -248,13 +253,14 @@ export const BONUS_TYPES = {
     name: "It's a TRAP !",
     icon: "🪤",
     description: "Piège le prochain dernier éliminé",
-    effect: "Piège automatique. Le prochain joueur éliminé en dernière position te donne le D+ de sa dernière activité.",
+    effect: "Piège passif qui reste actif. Quand un joueur est éliminé en dernière position, tu récupères le D+ de sa dernière activité du round (copie, pas vol). Le piège se désactive après déclenchement.",
+    timing: "⏰ Activation : automatique dès réception · ⚡ Effet : au prochain éliminé dernier",
     category: "piege",
     requiresTarget: false,
-    targetType: "passive", // Pas de cible, se déclenche automatiquement
+    targetType: "passive",
     activation: {
-      timing: "automatique", // Actif dès réception
-      effect: "debut_round_suivant" // L'effet s'applique au début du round après le déclenchement
+      timing: "automatique",
+      effect: "debut_round_suivant"
     }
   },
   second_souffle: {
@@ -262,7 +268,8 @@ export const BONUS_TYPES = {
     name: "Second Souffle",
     icon: "🔥",
     description: "Double ta plus petite activité de la saison",
-    effect: "Sois régulier ! À la fin de la saison, ton activité avec le moins de D+ est doublée.",
+    effect: "Récompense la régularité ! À la fin de la saison, ton activité avec le D+ le plus faible (depuis ton élimination) compte double dans ton total.",
+    timing: "⏰ Activation : automatique dès réception · ⚡ Effet : fin de saison",
     category: "boost",
     requiresTarget: false,
     targetType: "self",

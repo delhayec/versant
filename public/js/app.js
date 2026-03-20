@@ -1238,15 +1238,20 @@ async function renderArsenalSection(container, roundNumber) {
       const allBonuses = await res.json();
       bonuses = allBonuses.map(b => {
         const athlete = getParticipantById(b.athlete_id);
-        const target = b.target_id ? getParticipantById(b.target_id) : null;
+        const target = b.target_athlete_id ? getParticipantById(b.target_athlete_id) : null;
         const bonusType = BONUS_TYPES?.[b.bonus_id];
+
+        // Calculer les infos supplémentaires pour le hover
+        const hoverInfo = calculateBonusHoverInfo(b, athlete, target);
+
         return {
           ...b,
           athlete_name: athlete?.name || 'Joueur',
           target_athlete_name: target?.name || null,
           bonus_name: bonusType?.name || b.bonus_id,
           icon: bonusType?.icon || '🎁',
-          status: b.used_at ? 'used' : b.activated_at ? 'active' : 'available'
+          status: b.used_at ? 'used' : b.activated_at ? 'active' : 'available',
+          hoverInfo
         };
       });
     }
@@ -1282,6 +1287,142 @@ async function renderArsenalSection(container, roundNumber) {
     activeJokers: enrichedJokers,
     bonuses,
     currentRoundNumber: roundNumber
+  });
+}
+
+/**
+ * Calcule les informations supplémentaires pour le hover d'un bonus
+ */
+function calculateBonusHoverInfo(bonus, athlete, target) {
+  const bonusId = bonus.bonus_id;
+  if (!bonusId || bonus.status === 'pending') return null;
+
+  const athleteId = bonus.athlete_id;
+  const targetId = bonus.target_athlete_id;
+
+  switch (bonusId) {
+    case 'embuscade': {
+      // Calculer le D+ potentiel des activités de la cible (>20min)
+      if (!targetId) return null;
+      const targetActivities = getEligibleActivitiesForBonus(targetId);
+      if (targetActivities.length === 0) return "Aucune activité éligible";
+      const elevations = targetActivities.map(a => a.total_elevation_gain || 0);
+      const minElev = Math.min(...elevations);
+      const maxElev = Math.max(...elevations);
+      return `Entre ${formatElevation(minElev, false)} et ${formatElevation(maxElev, false)} m D+ potentiellement volés`;
+    }
+
+    case 'ravitaillement': {
+      // Calculer le D+ potentiel des activités de l'éliminé
+      const athleteActivities = getEligibleActivitiesForBonus(athleteId);
+      if (athleteActivities.length === 0) return "Aucune activité éligible";
+      const elevations = athleteActivities.map(a => a.total_elevation_gain || 0);
+      const minElev = Math.min(...elevations);
+      const maxElev = Math.max(...elevations);
+      const targetName = target?.name || 'la cible';
+      return `Entre ${formatElevation(minElev, false)} et ${formatElevation(maxElev, false)} m D+ donnés à ${targetName}`;
+    }
+
+    case 'duel': {
+      // Calculer l'avance/retard sur le co-éliminé
+      const coEliminatedId = findCoEliminated(athleteId, bonus.elimination_round);
+      if (!coEliminatedId) return null;
+      const coEliminated = getParticipantById(coEliminatedId);
+      const athleteElev = getEliminatedElevationSince(athleteId, bonus.elimination_round);
+      const coElimElev = getEliminatedElevationSince(coEliminatedId, bonus.elimination_round);
+      const diff = athleteElev - coElimElev;
+      if (diff > 0) {
+        return `${formatElevation(diff, false)} m d'avance sur ${coEliminated?.name || 'son adversaire'}`;
+      } else if (diff < 0) {
+        return `${formatElevation(Math.abs(diff), false)} m de retard sur ${coEliminated?.name || 'son adversaire'}`;
+      } else {
+        return `Égalité avec ${coEliminated?.name || 'son adversaire'}`;
+      }
+    }
+
+    case 'marquage': {
+      // Pas d'info sur la cible pour ne pas influencer
+      const athleteName = athlete?.name || 'Le joueur';
+      return `${athleteName} a marqué un joueur actif. S'il est éliminé → +1 point`;
+    }
+
+    case 'trap': {
+      // Si déjà déclenché, montrer le D+ gagné
+      if (bonus.effect_result?.elevation_gained) {
+        const victimName = bonus.effect_result.victim_name || 'un joueur';
+        return `+${formatElevation(bonus.effect_result.elevation_gained, false)} m gagnés grâce à ${victimName}`;
+      }
+      return "Piège actif, en attente d'un éliminé...";
+    }
+
+    case 'second_souffle': {
+      // Trouver l'activité la plus faible
+      const activities = getEliminatedActivities(athleteId, bonus.elimination_round);
+      if (activities.length === 0) return "Aucune activité depuis l'élimination";
+      const minActivity = activities.reduce((min, a) =>
+        (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
+      );
+      const minElev = minActivity.total_elevation_gain || 0;
+      const activityName = minActivity.name || 'Activité';
+      return `x2 sur "${activityName}" = +${formatElevation(minElev, false)} m bonus`;
+    }
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Récupère les activités éligibles pour un bonus (>20min)
+ */
+function getEligibleActivitiesForBonus(athleteId) {
+  if (!allActivities) return [];
+  return allActivities.filter(a => {
+    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
+    const duration = a.moving_time || a.elapsed_time || 0;
+    return duration >= 20 * 60; // 20 minutes en secondes
+  });
+}
+
+/**
+ * Trouve le co-éliminé d'un joueur
+ */
+function findCoEliminated(athleteId, eliminationRound) {
+  if (!frozenResultsCache?.rounds) return null;
+  const roundData = frozenResultsCache.rounds[String(eliminationRound)];
+  if (!roundData?.eliminations) return null;
+
+  const coElim = roundData.eliminations.find(e => String(e.id) !== String(athleteId));
+  return coElim?.id || null;
+}
+
+/**
+ * Calcule le D+ d'un éliminé depuis son élimination
+ */
+function getEliminatedElevationSince(athleteId, eliminationRound) {
+  const roundDates = getRoundDates(eliminationRound);
+  const startDate = new Date(roundDates.end);
+  startDate.setDate(startDate.getDate() + 1);
+
+  const activities = allActivities.filter(a => {
+    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
+    return new Date(a.start_date) >= startDate;
+  });
+
+  return activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+}
+
+/**
+ * Récupère les activités d'un éliminé depuis son élimination
+ */
+function getEliminatedActivities(athleteId, eliminationRound) {
+  const roundDates = getRoundDates(eliminationRound);
+  const startDate = new Date(roundDates.end);
+  startDate.setDate(startDate.getDate() + 1);
+
+  return allActivities.filter(a => {
+    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
+    return new Date(a.start_date) >= startDate;
   });
 }
 
