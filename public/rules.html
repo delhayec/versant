@@ -168,6 +168,21 @@
       display: inline-block;
     }
 
+    .bonus-ephemere-card .timing {
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      border-radius: 8px;
+      font-size: 11px;
+      color: #22d3ee;
+      line-height: 1.6;
+    }
+
+    .bonus-ephemere-card .desc {
+      line-height: 1.6;
+    }
+
     /* Tableaux de points */
     .points-grid {
       display: grid;
@@ -621,49 +636,92 @@
         <div class="joker-card bonus-ephemere-card">
           <div class="icon">🏹</div>
           <div class="name">Embuscade</div>
-          <div class="desc">Vole une activité aléatoire (+20min) d'un joueur actif. Son D+ t'est transféré.</div>
+          <div class="desc">
+            Tu tends une embuscade à un joueur actif et lui voles une activité aléatoire (+20min).
+            <br><br>
+            <strong>Effet :</strong> Le D+ de cette activité est <span style="color:#ef4444">retiré</span> du total du joueur actif
+            et <span style="color:#10b981">ajouté</span> à ton total dans le challenge des éliminés.
+          </div>
+          <div class="timing">⏰ Activation : 3 premiers jours du round<br>⚡ Effet : fin du round</div>
           <div class="category">⚔️ Offensif</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
           <div class="icon">🎒</div>
           <div class="name">Ravitaillement</div>
-          <div class="desc">Donne une de tes activités aléatoire à un joueur actif. Tu gardes aussi ton D+.</div>
+          <div class="desc">
+            Tu ravitailles un joueur actif en lui offrant une de tes activités aléatoire (+20min).
+            <br><br>
+            <strong>Effet :</strong> Le D+ de cette activité est <span style="color:#10b981">ajouté en bonus</span> au joueur actif.
+            Tu <span style="color:#10b981">conserves aussi</span> ce D+ dans ton total (pas de perte pour toi).
+          </div>
+          <div class="timing">⏰ Activation : 3 premiers jours du round<br>⚡ Effet : fin du round</div>
           <div class="category">🤝 Soutien</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
           <div class="icon">⚔️</div>
           <div class="name">Duel</div>
-          <div class="desc">Défie ton co-éliminé. Celui avec le plus de D+ à la fin de la saison gagne +1 point.</div>
+          <div class="desc">
+            Tu défies ton co-éliminé (l'autre joueur éliminé en même temps que toi).
+            <br><br>
+            <strong>Effet :</strong> À la fin de la saison, on compare le D+ total des deux duellistes (depuis leur élimination).
+            Le gagnant remporte <span style="color:#10b981">+1 point</span> au classement général. Égalité = aucun point.
+          </div>
+          <div class="timing">⏰ Activation : dans les 48h après élimination<br>⚡ Effet : fin de saison</div>
           <div class="category">🏆 Compétitif</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
           <div class="icon">🌫️</div>
           <div class="name">Brouillard</div>
-          <div class="desc">Cache ton D+ jusqu'à la fin de la saison. Tu apparais dernier... mais c'est un leurre !</div>
+          <div class="desc">
+            Tu te caches dans le brouillard jusqu'à la fin de la saison. Tapi dans l'ombre !
+            <br><br>
+            <strong>Effet :</strong> Ton D+ est <span style="color:#a855f7">masqué</span> pour tous les autres joueurs.
+            Tu apparais comme dernier du classement des éliminés (même si ce n'est pas le cas).
+            Révélation à la fin de la saison.
+          </div>
+          <div class="timing">⏰ Activation : dans les 48h après élimination<br>⚡ Effet : fin de saison</div>
           <div class="category">🛡️ Défensif</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
           <div class="icon">🎯</div>
           <div class="name">Marquage</div>
-          <div class="desc">Marque un joueur actif en début de round. S'il est éliminé, tu gagnes +1 point.</div>
+          <div class="desc">
+            En début de round, tu marques un joueur actif. C'est un pari sur son élimination !
+            <br><br>
+            <strong>Effet :</strong> Si le joueur marqué termine dans les 2 dernières places (éliminé) à la fin du round,
+            tu gagnes <span style="color:#10b981">+1 point</span> au classement général. Sinon, le bonus est perdu.
+          </div>
+          <div class="timing">⏰ Activation : jour 1 du round uniquement<br>⚡ Effet : fin du round</div>
           <div class="category">🎲 Pari</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
           <div class="icon">🪤</div>
           <div class="name">It's a TRAP !</div>
-          <div class="desc">Piège automatique. Le prochain dernier éliminé te donne le D+ de sa dernière activité.</div>
+          <div class="desc">
+            Tu poses un piège passif qui reste actif jusqu'à ce qu'il se déclenche.
+            <br><br>
+            <strong>Effet :</strong> Quand un joueur est éliminé en dernière position, tu récupères
+            <span style="color:#10b981">le D+ de sa dernière activité</span> du round (c'est une copie, pas un vol - il garde son D+).
+          </div>
+          <div class="timing">⏰ Activation : automatique dès réception<br>⚡ Effet : au prochain éliminé dernier</div>
           <div class="category">🪤 Piège</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
           <div class="icon">🔥</div>
           <div class="name">Second Souffle</div>
-          <div class="desc">Sois régulier ! Ta plus petite activité de la saison est doublée à la fin.</div>
+          <div class="desc">
+            Récompense la régularité ! Sois constant dans tes efforts.
+            <br><br>
+            <strong>Effet :</strong> À la fin de la saison, ton activité avec le D+ le plus faible (depuis ton élimination)
+            <span style="color:#10b981">compte double</span> dans ton total du challenge des éliminés.
+          </div>
+          <div class="timing">⏰ Activation : automatique dès réception<br>⚡ Effet : fin de saison</div>
           <div class="category">⚡ Boost</div>
         </div>
       </div>
