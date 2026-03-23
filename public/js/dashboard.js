@@ -799,21 +799,25 @@ function showBonusChoiceModal() {
     const bonus = BONUS_TYPES[bonusId];
     if (!bonus) return '';
 
+    // Catégorie avec icône
+    const categoryMap = {
+      'offensif': '⚔️ Offensif',
+      'soutien': '🤝 Soutien',
+      'competitif': '🏆 Compétitif',
+      'defensif': '🛡️ Défensif',
+      'pari': '🎲 Pari',
+      'piege': '🪤 Piège',
+      'boost': '⚡ Boost'
+    };
+    const categoryLabel = categoryMap[bonus.category] || '';
+
     return `
       <div class="bonus-choice-option" onclick="window.selectBonus('${bonusId}')">
         <div class="bonus-icon">${bonus.icon}</div>
         <div class="bonus-name">${bonus.name}</div>
         <div class="bonus-desc">${bonus.effect}</div>
-        ${bonus.timing ? `<div class="bonus-timing">${bonus.timing}</div>` : ''}
-        <div style="margin-top: 12px; font-size: 0.8rem; color: rgba(255,255,255,0.5);">
-          ${bonus.category === 'offensif' ? '⚔️ Offensif' : ''}
-          ${bonus.category === 'soutien' ? '🤝 Soutien' : ''}
-          ${bonus.category === 'competitif' ? '🏆 Compétitif' : ''}
-          ${bonus.category === 'defensif' ? '🛡️ Défensif' : ''}
-          ${bonus.category === 'pari' ? '🎲 Pari' : ''}
-          ${bonus.category === 'piege' ? '🪤 Piège' : ''}
-          ${bonus.category === 'boost' ? '⚡ Boost' : ''}
-        </div>
+        ${bonus.timing ? `<div class="bonus-timing">${bonus.timing.replace(' · ', '<br>')}</div>` : ''}
+        ${categoryLabel ? `<div class="bonus-category">${categoryLabel}</div>` : ''}
       </div>
     `;
   }).join('');

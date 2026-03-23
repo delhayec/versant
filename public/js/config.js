@@ -208,13 +208,13 @@ export const BONUS_TYPES = {
     name: "Duel",
     icon: "⚔️",
     description: "Défie ton co-éliminé pour un point bonus",
-    effect: "Tu défies l'autre joueur éliminé en même temps que toi. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point au classement général. Égalité = aucun point.",
-    timing: "⏰ Activation : dans les 48h après élimination · ⚡ Effet : fin de saison",
+    effect: "Tu défies automatiquement l'autre joueur éliminé en même temps que toi. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point au classement général. Égalité = aucun point.",
+    timing: "⏰ Activation : automatique dès le choix · ⚡ Effet : fin de saison",
     category: "competitif",
     requiresTarget: false,
     targetType: "co_eliminated",
     activation: {
-      timing: "48h_apres_elimination",
+      timing: "automatique",
       effect: "fin_saison"
     }
   },
