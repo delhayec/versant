@@ -386,6 +386,21 @@ function renderAvatarBonusIndicators(bonuses = {}) {
     indicators.push({ icon: '🦹', class: 'stolen', title: 'Activité volée' });
   }
 
+  // Kamikaze (celui qui l'active)
+  if (bonuses.kamikaze) {
+    indicators.push({ icon: '💣', class: 'kamikaze', title: 'Kamikaze - perd 25% de son D+' });
+  }
+
+  // Victime de Kamikaze
+  if (bonuses.kamikazeTarget) {
+    indicators.push({ icon: '💥', class: 'kamikaze-target', title: `Kamikaze par ${bonuses.kamikazeTarget.by}` });
+  }
+
+  // Maudit (victime de malédiction)
+  if (bonuses.cursed) {
+    indicators.push({ icon: '🪬', class: 'cursed', title: `Maudit par ${bonuses.cursed.by}` });
+  }
+
   if (indicators.length === 0) return '';
 
   return `
@@ -451,6 +466,18 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}) {
   }
   if (bonuses.sabotageApplied) {
     tags.push(`<span class="bonus-tag sabotage-done">💣 → ${bonuses.sabotageApplied.to}</span>`);
+  }
+  // Kamikaze (perte personnelle)
+  if (bonuses.kamikaze) {
+    tags.push(`<span class="bonus-tag kamikaze">💣 -${formatElevation(bonuses.kamikaze.amount, false)} (kamikaze)</span>`);
+  }
+  // Victime de Kamikaze
+  if (bonuses.kamikazeTarget) {
+    tags.push(`<span class="bonus-tag kamikaze-victim">💥 -${formatElevation(bonuses.kamikazeTarget.amount, false)} par ${bonuses.kamikazeTarget.by}</span>`);
+  }
+  // Maudit (victime de malédiction)
+  if (bonuses.cursed) {
+    tags.push(`<span class="bonus-tag cursed">🪬 -${formatElevation(bonuses.cursed.amount, false)} par ${bonuses.cursed.by}</span>`);
   }
 
   if (tags.length > 0) {
@@ -632,6 +659,10 @@ function getBonusEffectDescription(bonus) {
       return `⚡ Piège actif. Le prochain dernier éliminé donnera du D+`;
     case 'second_souffle':
       return `⚡ En fin de saison, la plus petite activité sera doublée`;
+    case 'kamikaze':
+      return `💣 -25% D+ pour toi ET -25% D+ pour ${target || 'la cible'} à la fin du round${used_in_round ? ' ' + used_in_round : ''}`;
+    case 'malediction':
+      return `🪬 Maudit ${target || 'la cible'} : -10% de son D+ volé à chaque fin de round`;
     default:
       return '';
   }

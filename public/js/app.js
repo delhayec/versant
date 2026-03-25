@@ -1367,9 +1367,58 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
       return `x2 sur "${activityName}" = +${formatElevation(minElev, false)} m bonus`;
     }
 
+    case 'kamikaze': {
+      // Calculer le D+ du round actuel pour les deux joueurs
+      if (!targetId) return "Cible non définie";
+      const currentRound = getCurrentRoundNumber();
+      const roundDates = getRoundDates(currentRound);
+
+      // D+ du round de l'éliminé (celui qui utilise le bonus)
+      const athleteRoundElev = getRoundElevation(athleteId, roundDates);
+      const targetRoundElev = getRoundElevation(targetId, roundDates);
+
+      const athleteLoss = Math.round(athleteRoundElev * 0.25);
+      const targetLoss = Math.round(targetRoundElev * 0.25);
+      const targetName = target?.name || 'la cible';
+
+      return `💣 -${formatElevation(athleteLoss, false)} m pour toi, -${formatElevation(targetLoss, false)} m pour ${targetName}`;
+    }
+
+    case 'malediction': {
+      // Calculer le D+ volé ce round et le cumul
+      if (!targetId) return "Cible non définie";
+      const currentRound = getCurrentRoundNumber();
+      const roundDates = getRoundDates(currentRound);
+
+      const targetRoundElev = getRoundElevation(targetId, roundDates);
+      const stolenThisRound = Math.round(targetRoundElev * 0.10);
+      const targetName = target?.name || 'la cible';
+
+      // Cumul total volé (si disponible dans effect_result)
+      const totalStolen = bonus.effect_result?.total_stolen || 0;
+
+      if (totalStolen > 0) {
+        return `🪬 ${formatElevation(stolenThisRound, false)} m volés ce round à ${targetName} (total: ${formatElevation(totalStolen, false)} m)`;
+      }
+      return `🪬 ${formatElevation(stolenThisRound, false)} m seront volés à ${targetName} ce round`;
+    }
+
     default:
       return null;
   }
+}
+
+/**
+ * Calcule le D+ d'un joueur pour un round donné
+ */
+function getRoundElevation(athleteId, roundDates) {
+  if (!allActivities) return 0;
+  const activities = allActivities.filter(a => {
+    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
+    const date = new Date(a.start_date);
+    return date >= roundDates.start && date <= roundDates.end;
+  });
+  return activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
 }
 
 /**

@@ -277,6 +277,43 @@ export const BONUS_TYPES = {
       timing: "automatique",
       effect: "fin_saison"
     }
+  },
+  kamikaze: {
+    id: "kamikaze",
+    name: "Kamikaze",
+    icon: "💣",
+    description: "Tu te sacrifies pour entraîner un adversaire dans ta chute",
+    effect: "Tu perds 25% de ton D+ du round, mais ta cible (joueur actif de ton choix) perd aussi 25% de son D+ du round. Sacrifice mutuel !",
+    timing: "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
+    category: "offensif",
+    requiresTarget: true,
+    targetType: "active",
+    activation: {
+      timing: "3_premiers_jours",
+      effect: "fin_round"
+    },
+    parameters: {
+      percentageLost: 25 // pourcentage de D+ perdu
+    }
+  },
+  malediction: {
+    id: "malediction",
+    name: "Malédiction",
+    icon: "🪬",
+    description: "Tu maudis l'un des responsables de ton élimination",
+    effect: "Tu maudis un joueur parmi les 3 juste au-dessus de toi lors de ton élimination. À chaque fin de round, 10% de son D+ lui est volé et ajouté à ton total. L'effet cesse quand il est éliminé.",
+    timing: "⏰ Activation : automatique dès le choix · ⚡ Effet : chaque fin de round",
+    category: "offensif",
+    requiresTarget: true,
+    targetType: "eliminator", // les 3 joueurs au-dessus lors de l'élimination
+    activation: {
+      timing: "automatique",
+      effect: "chaque_fin_round"
+    },
+    parameters: {
+      percentageStolen: 10, // pourcentage de D+ volé par round
+      maxTargets: 3 // nombre de cibles possibles (3 au-dessus)
+    }
   }
 };
 
