@@ -29,6 +29,49 @@ function getAuthToken() {
   return localStorage.getItem('versant_token');
 }
 
+/**
+ * Fetch authentifié avec gestion automatique des erreurs 401
+ * Redirige vers login si la session a expiré
+ */
+async function authFetch(url, options = {}) {
+  const token = getAuthToken();
+  if (!token) {
+    handleSessionExpired();
+    throw new Error('Non authentifié');
+  }
+
+  const authOptions = {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+      'Cache-Control': 'no-cache'
+    }
+  };
+
+  const response = await fetch(url, authOptions);
+
+  if (response.status === 401) {
+    handleSessionExpired();
+    throw new Error('Session expirée');
+  }
+
+  return response;
+}
+
+/**
+ * Gère l'expiration de session : nettoie et redirige
+ */
+function handleSessionExpired() {
+  console.warn('⚠️ Session expirée, redirection vers login...');
+  localStorage.removeItem('versant_athlete_id');
+  localStorage.removeItem('versant_token');
+
+  // Afficher un message avant redirection
+  alert('Votre session a expiré. Veuillez vous reconnecter.');
+  window.location.href = 'login.html';
+}
+
 // ============================================
 // CHARGEMENT DES DONNÉES
 // ============================================
@@ -104,16 +147,9 @@ async function loadJokersFromServer() {
  */
 async function loadBonusFromServer() {
   try {
-    const token = getAuthToken();
-    if (!token) return null;
-
     const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/bonuses/my?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${token}`
-      }
+    const res = await authFetch(`${API_BASE}/bonuses/my?_=${cacheBuster}`, {
+      cache: 'no-store'
     });
 
     if (!res.ok) {
@@ -126,7 +162,10 @@ async function loadBonusFromServer() {
     console.log('🎁 Bonus chargé:', bonusData ? bonusData.bonus_id : 'aucun');
     return bonusData;
   } catch (error) {
-    console.error('❌ Erreur chargement bonus:', error);
+    // Si c'est une erreur de session, authFetch a déjà géré la redirection
+    if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
+      console.error('❌ Erreur chargement bonus:', error);
+    }
     return null;
   }
 }
@@ -136,16 +175,9 @@ async function loadBonusFromServer() {
  */
 async function loadBonusChoices() {
   try {
-    const token = getAuthToken();
-    if (!token) return null;
-
     const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/bonuses/choices?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${token}`
-      }
+    const res = await authFetch(`${API_BASE}/bonuses/choices?_=${cacheBuster}`, {
+      cache: 'no-store'
     });
 
     if (!res.ok) return null;
@@ -157,7 +189,10 @@ async function loadBonusChoices() {
     }
     return bonusChoices;
   } catch (error) {
-    console.error('❌ Erreur chargement choix bonus:', error);
+    // Si c'est une erreur de session, authFetch a déjà géré la redirection
+    if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
+      console.error('❌ Erreur chargement choix bonus:', error);
+    }
     return null;
   }
 }
@@ -830,17 +865,10 @@ function showBonusChoiceModal() {
  */
 async function selectBonus(bonusId) {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      showNotification('Non authentifié', 'error');
-      return;
-    }
-
-    const response = await fetch(`${API_BASE}/bonuses/assign`, {
+    const response = await authFetch(`${API_BASE}/bonuses/assign`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ bonus_id: bonusId })
     });
@@ -863,8 +891,10 @@ async function selectBonus(bonusId) {
     showNotification(`${bonus.icon} ${bonus.name} choisi !`, 'success');
 
   } catch (error) {
-    console.error('Erreur sélection bonus:', error);
-    showNotification(error.message, 'error');
+    if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
+      console.error('Erreur sélection bonus:', error);
+      showNotification(error.message, 'error');
+    }
   }
 }
 
@@ -1003,19 +1033,12 @@ function showBonusConfirmModal(bonusId, bonusType) {
  */
 async function useBonus(bonusId, targetId = null) {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      showNotification('Non authentifié', 'error');
-      return;
-    }
-
     const currentRound = getCurrentRound();
 
-    const response = await fetch(`${API_BASE}/bonuses/use`, {
+    const response = await authFetch(`${API_BASE}/bonuses/use`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         target_athlete_id: targetId,
@@ -1037,8 +1060,10 @@ async function useBonus(bonusId, targetId = null) {
     showNotification(`${bonus.icon} ${bonus.name} activé !`, 'success');
 
   } catch (error) {
-    console.error('Erreur utilisation bonus:', error);
-    showNotification(error.message, 'error');
+    if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
+      console.error('Erreur utilisation bonus:', error);
+      showNotification(error.message, 'error');
+    }
   }
 }
 
@@ -1095,12 +1120,10 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
 
   modal.querySelector('.modal-confirm-btn').onclick = async () => {
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/jokers/use`, {
+      const response = await authFetch(`${API_BASE}/jokers/use`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           joker_id: jokerId,
@@ -1120,8 +1143,10 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
       showNotification(`${joker.icon} ${joker.name} programmé pour le round ${activationRound} !`, 'success');
       modal.remove();
     } catch (error) {
-      console.error('Erreur utilisation joker:', error);
-      showNotification(error.message || 'Erreur lors de l\'activation', 'error');
+      if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
+        console.error('Erreur utilisation joker:', error);
+        showNotification(error.message || 'Erreur lors de l\'activation', 'error');
+      }
     }
   };
 }
