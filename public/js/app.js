@@ -1302,15 +1302,10 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
 
   switch (bonusId) {
     case 'embuscade': {
-      // Calculer le D+ potentiel des activités de la cible (>20min) DU ROUND ACTUEL
+      // Calculer le D+ potentiel des activités de la cible (>20min)
       if (!targetId) return null;
-      const currentRound = getCurrentRoundNumber();
-      const roundDates = getRoundDates(currentRound);
-      const targetActivities = getEligibleActivitiesForBonus(targetId).filter(a => {
-        const date = new Date(a.start_date);
-        return date >= roundDates.start && date <= roundDates.end;
-      });
-      if (targetActivities.length === 0) return "Aucune activité éligible ce round";
+      const targetActivities = getEligibleActivitiesForBonus(targetId);
+      if (targetActivities.length === 0) return "Aucune activité éligible";
       const elevations = targetActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
       const maxElev = Math.max(...elevations);
@@ -1318,14 +1313,9 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
     }
 
     case 'ravitaillement': {
-      // Calculer le D+ potentiel des activités de l'éliminé DU ROUND ACTUEL
-      const currentRound = getCurrentRoundNumber();
-      const roundDates = getRoundDates(currentRound);
-      const athleteActivities = getEligibleActivitiesForBonus(athleteId).filter(a => {
-        const date = new Date(a.start_date);
-        return date >= roundDates.start && date <= roundDates.end;
-      });
-      if (athleteActivities.length === 0) return "Aucune activité éligible ce round";
+      // Calculer le D+ potentiel des activités de l'éliminé
+      const athleteActivities = getEligibleActivitiesForBonus(athleteId);
+      if (athleteActivities.length === 0) return "Aucune activité éligible";
       const elevations = athleteActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
       const maxElev = Math.max(...elevations);
@@ -1380,8 +1370,7 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
     case 'kamikaze': {
       // Calculer le D+ du round actuel pour les deux joueurs
       if (!targetId) return "Cible non définie";
-      const currentRound = getCurrentRoundNumber();
-      const roundDates = getRoundDates(currentRound);
+      const roundDates = getRoundDates(currentRoundNumber);
 
       // D+ du round de l'éliminé (celui qui utilise le bonus)
       const athleteRoundElev = getRoundElevation(athleteId, roundDates);
@@ -1397,8 +1386,7 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
     case 'malediction': {
       // Calculer le D+ volé ce round et le cumul
       if (!targetId) return "Cible non définie";
-      const currentRound = getCurrentRoundNumber();
-      const roundDates = getRoundDates(currentRound);
+      const roundDates = getRoundDates(currentRoundNumber);
 
       const targetRoundElev = getRoundElevation(targetId, roundDates);
       const stolenThisRound = Math.round(targetRoundElev * 0.10);
