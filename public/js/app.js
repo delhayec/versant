@@ -1302,10 +1302,15 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
 
   switch (bonusId) {
     case 'embuscade': {
-      // Calculer le D+ potentiel des activités de la cible (>20min)
+      // Calculer le D+ potentiel des activités de la cible (>20min) DU ROUND ACTUEL
       if (!targetId) return null;
-      const targetActivities = getEligibleActivitiesForBonus(targetId);
-      if (targetActivities.length === 0) return "Aucune activité éligible";
+      const currentRound = getCurrentRoundNumber();
+      const roundDates = getRoundDates(currentRound);
+      const targetActivities = getEligibleActivitiesForBonus(targetId).filter(a => {
+        const date = new Date(a.start_date);
+        return date >= roundDates.start && date <= roundDates.end;
+      });
+      if (targetActivities.length === 0) return "Aucune activité éligible ce round";
       const elevations = targetActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
       const maxElev = Math.max(...elevations);
@@ -1313,9 +1318,14 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
     }
 
     case 'ravitaillement': {
-      // Calculer le D+ potentiel des activités de l'éliminé
-      const athleteActivities = getEligibleActivitiesForBonus(athleteId);
-      if (athleteActivities.length === 0) return "Aucune activité éligible";
+      // Calculer le D+ potentiel des activités de l'éliminé DU ROUND ACTUEL
+      const currentRound = getCurrentRoundNumber();
+      const roundDates = getRoundDates(currentRound);
+      const athleteActivities = getEligibleActivitiesForBonus(athleteId).filter(a => {
+        const date = new Date(a.start_date);
+        return date >= roundDates.start && date <= roundDates.end;
+      });
+      if (athleteActivities.length === 0) return "Aucune activité éligible ce round";
       const elevations = athleteActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
       const maxElev = Math.max(...elevations);

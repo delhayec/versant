@@ -646,21 +646,21 @@ function getBonusEffectDescription(bonus) {
 
   switch (bonusId) {
     case 'embuscade':
-      return `⚡ À la fin du round${used_in_round ? ' ' + used_in_round : ''}, une activité aléatoire de ${target || 'la cible'} sera volée`;
+      return `⚡ À la fin du round, une activité aléatoire de ${target || 'la cible'} sera volée`;
     case 'ravitaillement':
-      return `⚡ À la fin du round${used_in_round ? ' ' + used_in_round : ''}, une activité sera donnée à ${target || 'la cible'}`;
+      return `⚡ À la fin du round$, une activité sera donnée à ${target || 'la cible'}`;
     case 'duel':
       return `⚡ Duel en cours jusqu'à la fin de la saison. Le gagnant (plus de D+) obtient +1 point`;
     case 'brouillard':
       return `⚡ D+ masqué jusqu'à la révélation finale en fin de saison`;
     case 'marquage':
-      return `⚡ Si ${target || 'la cible'} est éliminé(e) à la fin du round${used_in_round ? ' ' + used_in_round : ''} → +1 point`;
+      return `⚡ Si ${target || 'la cible'} est éliminé(e) à la fin du round → +1 point`;
     case 'trap':
       return `⚡ Piège actif. Le prochain dernier éliminé donnera du D+`;
     case 'second_souffle':
       return `⚡ En fin de saison, la plus petite activité sera doublée`;
     case 'kamikaze':
-      return `💣 -25% D+ pour toi ET -25% D+ pour ${target || 'la cible'} à la fin du round${used_in_round ? ' ' + used_in_round : ''}`;
+      return `💣 -25% D+ pour toi ET -25% D+ pour ${target || 'la cible'} à la fin du round`;
     case 'malediction':
       return `🪬 Maudit ${target || 'la cible'} : -10% de son D+ volé à chaque fin de round`;
     default:
