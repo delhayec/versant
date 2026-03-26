@@ -145,7 +145,7 @@ export const JOKER_TYPES = {
     usableInFinal: false,
     requiresTarget: false,
     canActivateNow: true,
-    maxDayForImmediateUse: 2
+    maxDayForImmediateUse: 3
   },
   sabotage: {
     id: "sabotage",
