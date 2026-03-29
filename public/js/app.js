@@ -132,12 +132,13 @@ function getBonusHistoryDescription(bonus) {
 }
 
 /**
- * Calcule les effets des bonus éphémères pour un joueur dans un round donné
- * @param {string} athleteId - ID du joueur
+ * Calcule les effets des bonus éphémères pour un joueur ACTIF (challenge principal)
+ * Ces effets s'appliquent sur le D+ du round en cours
+ * @param {string} athleteId - ID du joueur actif
  * @param {number} roundNumber - Numéro du round
  * @returns {Object} Effets: { gained: number, lost: number, details: [] }
  */
-function getEphemeralBonusEffectsForAthlete(athleteId, roundNumber) {
+function getEphemeralBonusEffectsForActiveAthlete(athleteId, roundNumber) {
   const effects = { gained: 0, lost: 0, details: [] };
   const normalizedId = String(athleteId);
 
@@ -147,24 +148,16 @@ function getEphemeralBonusEffectsForAthlete(athleteId, roundNumber) {
     const result = bonus.effect_result;
     if (!result) continue;
 
-    // Embuscade - vol d'activité
+    // Embuscade - le joueur actif (cible) PERD du D+ dans le challenge principal
     if (bonus.bonus_id === 'embuscade') {
       const amount = result.stolenElevation || 0;
-      if (amount > 0) {
-        // Victime perd du D+
-        if (String(bonus.target_athlete_id) === normalizedId) {
-          effects.lost += amount;
-          effects.details.push({ type: 'embuscade_victim', amount, by: bonus.athlete_name, icon: '🏹' });
-        }
-        // Attaquant gagne du D+
-        if (String(bonus.athlete_id) === normalizedId) {
-          effects.gained += amount;
-          effects.details.push({ type: 'embuscade_gain', amount, from: bonus.target_athlete_name, icon: '🏹' });
-        }
+      if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
+        effects.lost += amount;
+        effects.details.push({ type: 'embuscade_victim', amount, by: bonus.athlete_name, icon: '🏹' });
       }
     }
 
-    // Ravitaillement - bonus D+
+    // Ravitaillement - le joueur actif (cible) GAGNE du D+ dans le challenge principal
     if (bonus.bonus_id === 'ravitaillement') {
       const amount = result.bonusElevation || 0;
       if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
@@ -173,7 +166,43 @@ function getEphemeralBonusEffectsForAthlete(athleteId, roundNumber) {
       }
     }
 
-    // Marquage - pénalité 20%
+    // Note: marquage, malédiction, kamikaze sont des bonus entre éliminés ou ciblent des éliminés
+    // Ils ne s'appliquent pas aux joueurs actifs dans le challenge principal
+  }
+
+  return effects;
+}
+
+/**
+ * Calcule les effets des bonus éphémères pour un joueur ÉLIMINÉ (challenge des éliminés)
+ * Ces effets s'appliquent sur le D+ cumulé depuis l'élimination
+ * @param {string} athleteId - ID du joueur éliminé
+ * @param {number} roundNumber - Numéro du round
+ * @returns {Object} Effets: { gained: number, lost: number, details: [] }
+ */
+function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber) {
+  const effects = { gained: 0, lost: 0, details: [] };
+  const normalizedId = String(athleteId);
+
+  const roundBonuses = getBonusesUsedInRound(roundNumber);
+
+  for (const bonus of roundBonuses) {
+    const result = bonus.effect_result;
+    if (!result) continue;
+
+    // Embuscade - l'éliminé (attaquant) GAGNE du D+ dans le challenge des éliminés
+    if (bonus.bonus_id === 'embuscade') {
+      const amount = result.stolenElevation || 0;
+      if (amount > 0 && String(bonus.athlete_id) === normalizedId) {
+        effects.gained += amount;
+        effects.details.push({ type: 'embuscade_gain', amount, from: bonus.target_athlete_name, icon: '🏹' });
+      }
+    }
+
+    // Ravitaillement - l'éliminé donne mais ne perd rien (c'est une copie)
+    // Pas d'effet négatif pour l'éliminé
+
+    // Marquage - pénalité 20% sur un autre éliminé
     if (bonus.bonus_id === 'marquage') {
       const amount = result.penaltyAmount || 0;
       if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
@@ -182,7 +211,7 @@ function getEphemeralBonusEffectsForAthlete(athleteId, roundNumber) {
       }
     }
 
-    // Malédiction - vol 10% par round
+    // Malédiction - vol 10% par round entre éliminés
     if (bonus.bonus_id === 'malediction') {
       const amount = result.stolenThisRound || 0;
       if (amount > 0) {
@@ -197,7 +226,7 @@ function getEphemeralBonusEffectsForAthlete(athleteId, roundNumber) {
       }
     }
 
-    // Kamikaze - perte mutuelle
+    // Kamikaze - perte mutuelle entre éliminés
     if (bonus.bonus_id === 'kamikaze') {
       if (String(bonus.target_athlete_id) === normalizedId) {
         const amount = result.targetPenalty || 0;
@@ -1037,10 +1066,10 @@ function renderAll() {
       // Calculer le rescapé du round précédent (depuis frozen results)
       const rescapeId = getRescapeFromPreviousRound(currentRoundNumber);
 
-      // Calculer les effets des bonus éphémères pour chaque participant
+      // Calculer les effets des bonus éphémères pour chaque participant ACTIF
       const ephemeralEffects = {};
       ranking.forEach(e => {
-        ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForAthlete(e.participant.id, currentRoundNumber);
+        ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForActiveAthlete(e.participant.id, currentRoundNumber);
       });
 
       renderRanking(rankingContainer, {
@@ -1149,7 +1178,7 @@ function renderEliminatedChallenge(container) {
     const seasonStartRound = (currentSeasonNumber - 1) * roundsPerSeason + 1;
     const seasonEndRound = currentSeasonNumber * roundsPerSeason;
     for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-      const roundEffects = getEphemeralBonusEffectsForAthlete(eliminated.id, roundNum);
+      const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(eliminated.id, roundNum);
       effects.gained += roundEffects.gained;
       effects.lost += roundEffects.lost;
       effects.details.push(...roundEffects.details);
@@ -2150,34 +2179,25 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
 
       const entryId = String(entry.id);
 
-      // Embuscade - victime
+      // Dans l'historique du challenge principal, on affiche les effets sur les ACTIFS
+
+      // Embuscade - la victime (joueur actif) perd du D+
       if (bonus.bonus_id === 'embuscade' && String(bonus.target_athlete_id) === entryId) {
         const amount = result.stolenElevation || 0;
         if (amount > 0) {
           bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Embuscade par ${bonus.athlete_name}">🏹 -${formatElevation(amount, false)} m</span>`;
         }
       }
-      // Embuscade - attaquant
-      if (bonus.bonus_id === 'embuscade' && String(bonus.athlete_id) === entryId) {
-        const amount = result.stolenElevation || 0;
+
+      // Ravitaillement - la cible (joueur actif) gagne du D+
+      if (bonus.bonus_id === 'ravitaillement' && String(bonus.target_athlete_id) === entryId) {
+        const amount = result.bonusElevation || 0;
         if (amount > 0) {
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Volé à ${bonus.target_athlete_name}">🏹 +${formatElevation(amount, false)} m</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Ravitaillement de ${bonus.athlete_name}">🍖 +${formatElevation(amount, false)} m</span>`;
         }
       }
-      // Marquage
-      if (bonus.bonus_id === 'marquage' && String(bonus.target_athlete_id) === entryId) {
-        const amount = result.penaltyAmount || 0;
-        if (amount > 0) {
-          bonusPills += `<span class="bonus-tag ephemeral-mark" title="Marqué par ${bonus.athlete_name}">🎯 -${formatElevation(amount, false)} m</span>`;
-        }
-      }
-      // Malédiction - victime
-      if (bonus.bonus_id === 'malediction' && String(bonus.target_athlete_id) === entryId) {
-        const amount = result.stolenThisRound || 0;
-        if (amount > 0) {
-          bonusPills += `<span class="bonus-tag ephemeral-curse" title="Maudit par ${bonus.athlete_name}">🪬 -${formatElevation(amount, false)} m</span>`;
-        }
-      }
+
+      // Note: marquage, malédiction, kamikaze sont entre éliminés, pas dans le challenge principal
     }
 
     return `
