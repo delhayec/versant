@@ -532,9 +532,57 @@ export function renderParticipants(container, data) {
 // ============================================
 
 export function renderArsenal(container, data) {
-  const { activeJokers = [], bonuses = [], currentRoundNumber } = data;
+  const {
+    activeJokers = [],
+    bonuses = [],
+    currentRoundNumber,
+    showPreviousRoundEffects = false,
+    previousRoundEffects = { jokers: [], bonuses: [] },
+    previousRoundNumber = 0
+  } = data;
 
   let html = '';
+
+  // === RÉCAP DU ROUND PRÉCÉDENT (affiché 1 jour après la fin) ===
+  if (showPreviousRoundEffects && (previousRoundEffects.jokers.length > 0 || previousRoundEffects.bonuses.length > 0)) {
+    html += `
+      <div class="arsenal-card arsenal-recap">
+        <div class="arsenal-card-title">
+          <span class="icon">📜</span>
+          Récap Round ${previousRoundNumber} (terminé)
+        </div>
+        <div class="recap-content">
+    `;
+
+    // Jokers du round précédent
+    if (previousRoundEffects.jokers.length > 0) {
+      html += '<div class="recap-section"><strong>Jokers utilisés :</strong><ul class="recap-list">';
+      previousRoundEffects.jokers.forEach(joker => {
+        const jokerType = JOKER_TYPES[joker.joker_id];
+        if (!jokerType) return;
+        html += `<li>${jokerType.icon} <strong>${joker.athlete_name}</strong>`;
+        if (joker.target_athlete_name) {
+          html += ` → ${joker.target_athlete_name}`;
+        }
+        html += ` (${jokerType.name})</li>`;
+      });
+      html += '</ul></div>';
+    }
+
+    // Bonus du round précédent
+    if (previousRoundEffects.bonuses.length > 0) {
+      html += '<div class="recap-section"><strong>Bonus éphémères :</strong><ul class="recap-list">';
+      previousRoundEffects.bonuses.forEach(bonus => {
+        html += `<li>${bonus.description}</li>`;
+      });
+      html += '</ul></div>';
+    }
+
+    html += `
+        </div>
+      </div>
+    `;
+  }
 
   // === JOKERS ACTIFS CE ROUND ===
   html += `
@@ -572,26 +620,24 @@ export function renderArsenal(container, data) {
     </div>
   `;
 
-  // === BONUS ÉPHÉMÈRES ===
-  html += `
-    <div class="arsenal-card">
-      <div class="arsenal-card-title">
-        <span class="icon">🎁</span>
-        Bonus éphémères (Éliminés)
-      </div>
-      <div class="bonus-list">
-  `;
+  // === BONUS ÉPHÉMÈRES (seulement s'il y en a d'actifs/disponibles) ===
+  if (bonuses.length > 0) {
+    html += `
+      <div class="arsenal-card">
+        <div class="arsenal-card-title">
+          <span class="icon">🎁</span>
+          Bonus éphémères (Éliminés)
+        </div>
+        <div class="bonus-list">
+    `;
 
-  if (bonuses.length === 0) {
-    html += '<div class="arsenal-empty">Aucun bonus attribué</div>';
-  } else {
     bonuses.forEach(bonus => {
       const statusClass = bonus.status === 'pending' ? 'pending' :
                           bonus.status === 'used' ? 'used' :
                           bonus.status === 'active' ? 'active' : 'available';
 
       const statusLabel = bonus.status === 'pending' ? '⏳ Choix en attente' :
-                          bonus.status === 'used' ? '✓ Utilisé' :
+                          bonus.status === 'used' ? '✓ Utilisé ce round' :
                           bonus.status === 'active' ? '🎯 Activé' : '💤 Disponible';
 
       // Construire les détails du bonus
@@ -626,12 +672,12 @@ export function renderArsenal(container, data) {
         </div>
       `;
     });
-  }
 
-  html += `
+    html += `
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }
 
   container.innerHTML = html;
 }

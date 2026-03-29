@@ -1072,10 +1072,42 @@ async function useBonus(bonusId, targetId = null) {
 // ============================================
 function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = null) {
   const currentRound = getCurrentRound();
-  const activationRound = currentRound + 1;
+  const dayInRound = getDayInRound();
+  const canActivateNow = joker.canActivateNow && dayInRound <= (joker.maxDayForImmediateUse || 3);
 
   const modal = document.createElement('div');
   modal.className = 'joker-selection-modal';
+
+  // Construire les options de timing
+  let timingOptionsHtml = '';
+  if (canActivateNow) {
+    timingOptionsHtml = `
+      <div class="timing-card selected" data-timing="now" data-round="${currentRound}">
+        <div class="timing-card-label">⚡ Round actuel</div>
+        <div class="timing-card-value">Round ${currentRound}</div>
+        <div class="timing-card-hint">Effet immédiat</div>
+      </div>
+      <div class="timing-card" data-timing="next" data-round="${currentRound + 1}">
+        <div class="timing-card-label">⏳ Prochain round</div>
+        <div class="timing-card-value">Round ${currentRound + 1}</div>
+        <div class="timing-card-hint">Programmé</div>
+      </div>
+    `;
+  } else {
+    // Après jour 3, uniquement round suivant
+    timingOptionsHtml = `
+      <div class="timing-card selected" data-timing="next" data-round="${currentRound + 1}">
+        <div class="timing-card-label">⏳ Prochain round</div>
+        <div class="timing-card-value">Round ${currentRound + 1}</div>
+      </div>
+      <div class="timing-card disabled" title="Activation immédiate possible uniquement les 3 premiers jours">
+        <div class="timing-card-label">⚡ Round actuel</div>
+        <div class="timing-card-value">Non disponible</div>
+        <div class="timing-card-hint">Jours 1-3 uniquement</div>
+      </div>
+    `;
+  }
+
   modal.innerHTML = `
     <div class="joker-modal-container">
       <div class="modal-header">
@@ -1088,12 +1120,9 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
       </div>
       <div class="modal-body">
         <div class="modal-section">
-          <div class="modal-section-title">⏰ Activation</div>
+          <div class="modal-section-title">⏰ Quand activer ?</div>
           <div class="timing-options-grid">
-            <div class="timing-card selected" data-timing="next">
-              <div class="timing-card-label">Prochain round</div>
-              <div class="timing-card-value">Round ${activationRound}</div>
-            </div>
+            ${timingOptionsHtml}
           </div>
         </div>
 
@@ -1115,6 +1144,19 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
 
   document.body.appendChild(modal);
 
+  // Gestion de la sélection du timing
+  let selectedRound = canActivateNow ? currentRound : currentRound + 1;
+  let activateNow = canActivateNow;
+
+  modal.querySelectorAll('.timing-card:not(.disabled)').forEach(card => {
+    card.onclick = () => {
+      modal.querySelectorAll('.timing-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedRound = parseInt(card.dataset.round);
+      activateNow = card.dataset.timing === 'now';
+    };
+  });
+
   modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
@@ -1128,7 +1170,8 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
         body: JSON.stringify({
           joker_id: jokerId,
           target_athlete_id: targetId,
-          round_number: activationRound
+          round_number: selectedRound,
+          activate_now: activateNow
         })
       });
 
@@ -1140,7 +1183,10 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
       await loadJokersFromServer();
       renderJokers();
 
-      showNotification(`${joker.icon} ${joker.name} programmé pour le round ${activationRound} !`, 'success');
+      const message = activateNow
+        ? `${joker.icon} ${joker.name} activé pour ce round !`
+        : `${joker.icon} ${joker.name} programmé pour le round ${selectedRound} !`;
+      showNotification(message, 'success');
       modal.remove();
     } catch (error) {
       if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {

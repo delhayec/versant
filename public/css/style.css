@@ -2151,6 +2151,66 @@ body {
   color: var(--accent-warning);
 }
 
+.history-bonuses {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.history-bonuses .history-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #a855f7;
+}
+
+/* Récap du round précédent dans Arsenal */
+.arsenal-recap {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.05));
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.arsenal-recap .arsenal-card-title {
+  color: #a855f7;
+}
+
+.recap-content {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.recap-section {
+  margin-bottom: 12px;
+}
+
+.recap-section:last-child {
+  margin-bottom: 0;
+}
+
+.recap-section strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.recap-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recap-list li {
+  padding: 4px 0 4px 8px;
+  border-left: 2px solid rgba(168, 85, 247, 0.3);
+  margin-bottom: 4px;
+}
+
+.recap-list li:last-child {
+  margin-bottom: 0;
+}
+
 /* Header cliquable pour les rounds */
 .history-round-header {
   display: flex;

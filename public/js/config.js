@@ -121,27 +121,29 @@ export const JOKER_TYPES = {
     name: "Voleur",
     icon: "🦹",
     description: "Vole l'activité avec le plus de D+ d'un adversaire",
-    effect: "Choisissez un adversaire. Au prochain round, vous lui volez son activité avec le plus de D+.",
+    effect: "Choisissez un adversaire. Vous lui volez son activité avec le plus de D+.",
     usableInFinal: true,
     requiresTarget: true,
-    notOnLastDay: true
+    canActivateNow: true,
+    maxDayForImmediateUse: 3
   },
   multiplicateur: {
     id: "multiplicateur",
     name: "Multiplicateur",
     icon: "✖️",
     description: "Multiplie votre D+ par 1.5",
-    effect: "×1.5 sur tout votre D+ du round. Actif au round suivant.",
+    effect: "×1.5 sur tout votre D+ du round.",
     usableInFinal: true,
     requiresTarget: false,
-    parameters: { multiplier: 1.5 }
+    canActivateNow: true,
+    maxDayForImmediateUse: 3
   },
   bouclier: {
     id: "bouclier",
     name: "Bouclier",
     icon: "🛡️",
     description: "Évitez l'élimination",
-    effect: "Activable immédiatement (jours 1-2 du round) ou pour le prochain round. NON UTILISABLE en finale.",
+    effect: "Protection contre l'élimination. NON UTILISABLE en finale.",
     usableInFinal: false,
     requiresTarget: false,
     canActivateNow: true,
@@ -152,10 +154,11 @@ export const JOKER_TYPES = {
     name: "Sabotage",
     icon: "💣",
     description: "Retire 30% du D+ d'un adversaire",
-    effect: "Ciblez un adversaire. Actif au round suivant.",
+    effect: "Ciblez un adversaire. -30% sur son D+ du round.",
     usableInFinal: true,
     requiresTarget: true,
-    parameters: { penaltyPercentage: 30 }
+    canActivateNow: true,
+    maxDayForImmediateUse: 3
   }
 };
 
