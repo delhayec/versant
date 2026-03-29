@@ -3862,6 +3862,8 @@ body {
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
+  margin-right: 4px;
+  margin-bottom: 2px;
 }
 
 .bonus-tag.multiplier {
@@ -3869,13 +3871,15 @@ body {
   color: #22d3ee;
 }
 
-.bonus-tag.duel-won {
+.bonus-tag.duel-won,
+.bonus-tag.thief {
   background: rgba(16, 185, 129, 0.2);
   color: #10b981;
 }
 
 .bonus-tag.duel-lost,
-.bonus-tag.sabotage {
+.bonus-tag.sabotage,
+.bonus-tag.stolen {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
 }
@@ -3883,6 +3887,42 @@ body {
 .bonus-tag.sabotage-done {
   background: rgba(249, 115, 22, 0.2);
   color: #f97316;
+}
+
+.bonus-tag.kamikaze,
+.bonus-tag.kamikaze-victim {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.bonus-tag.cursed {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+}
+
+/* Bonus éphémères */
+.bonus-tag.ephemeral-stolen {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+}
+
+.bonus-tag.ephemeral-gained {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px dashed rgba(16, 185, 129, 0.4);
+}
+
+.bonus-tag.ephemeral-bonus {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border: 1px dashed rgba(251, 191, 36, 0.4);
+}
+
+.bonus-tag.ephemeral-mark {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+  border: 1px dashed rgba(168, 85, 247, 0.4);
 }
 
 /* ============================================

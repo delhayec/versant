@@ -95,33 +95,37 @@ function getBonusHistoryDescription(bonus) {
   const targetName = bonus.target_athlete_name;
   const effectResult = bonus.effect_result;
 
+  // Helper pour formater avec "m D+"
+  const fmtElev = (val) => `${Math.round(val).toLocaleString('fr-FR')} m D+`;
+
   switch (bonus.bonus_id) {
     case 'embuscade':
       const stolenAmount = effectResult?.stolenElevation || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a tendu une embuscade à ${targetName} (${stolenAmount > 0 ? '-' + formatElevation(stolenAmount, false) : 'aucune activité volée'})`;
+      return `${icon} ${athleteName} a tendu une embuscade à ${targetName} (${stolenAmount > 0 ? '-' + fmtElev(stolenAmount) : 'aucune activité volée'})`;
     case 'ravitaillement':
       const bonusAmount = effectResult?.bonusElevation || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a reçu un ravitaillement (+${formatElevation(bonusAmount, false)})`;
+      return `${icon} ${athleteName} a reçu un ravitaillement (+${fmtElev(bonusAmount)})`;
     case 'duel':
       const duelResult = effectResult?.won ? 'gagné' : 'perdu';
       const duelAmount = effectResult?.amount || 0;
-      return `${icon} ${athleteName} a défié ${targetName} en duel (${duelResult}${duelAmount > 0 ? ', ' + formatElevation(duelAmount, false) + ' volés' : ''})`;
+      return `${icon} ${athleteName} a défié ${targetName} en duel (${duelResult}${duelAmount > 0 ? ', ' + fmtElev(duelAmount) + ' volés' : ''})`;
     case 'brouillard':
       return `${icon} ${athleteName} a activé le brouillard (D+ masqué)`;
     case 'marquage':
-      return `${icon} ${athleteName} a marqué ${targetName} (-20% D+)`;
+      const markPenalty = effectResult?.penaltyAmount || 0;
+      return `${icon} ${athleteName} a marqué ${targetName} (${markPenalty > 0 ? '-' + fmtElev(markPenalty) : '-20% D+'})`;
     case 'trap':
       const trapAmount = effectResult?.stolenElevation || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a piégé ${targetName} (${trapAmount > 0 ? '-' + formatElevation(trapAmount, false) : 'piège déclenché'})`;
+      return `${icon} ${athleteName} a piégé ${targetName} (${trapAmount > 0 ? '-' + fmtElev(trapAmount) : 'piège déclenché'})`;
     case 'second_souffle':
       const savedFrom = effectResult?.savedFromElimination ? 'sauvé de l\'élimination' : 'protection active';
       return `${icon} ${athleteName} a utilisé son second souffle (${savedFrom})`;
     case 'kamikaze':
-      const kamikazeAmount = effectResult?.amount || 0;
-      return `${icon} ${athleteName} a lancé une attaque kamikaze sur ${targetName} (-${formatElevation(kamikazeAmount, false)} chacun)`;
+      const kamikazeAmount = effectResult?.targetPenalty || effectResult?.amount || 0;
+      return `${icon} ${athleteName} a lancé une attaque kamikaze sur ${targetName} (-${fmtElev(kamikazeAmount)} chacun)`;
     case 'malediction':
       const curseAmount = effectResult?.stolenThisRound || 0;
-      return `${icon} ${athleteName} a maudit ${targetName} (${curseAmount > 0 ? '-' + formatElevation(curseAmount, false) + ' ce round' : 'malédiction active'})`;
+      return `${icon} ${athleteName} a maudit ${targetName} (${curseAmount > 0 ? '-' + fmtElev(curseAmount) + ' ce round' : 'malédiction active'})`;
     default:
       return `${icon} ${athleteName} a utilisé ${bonusType?.name || bonus.bonus_id}${targetName ? ' sur ' + targetName : ''}`;
   }

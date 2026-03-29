@@ -191,11 +191,84 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
     }
   }
 
+  // Générer automatiquement les choix de bonus pour le meilleur éliminé
+  let bonusChoiceGenerated = null;
+  if (frozenRound.eliminations && frozenRound.eliminations.length >= 2) {
+    try {
+      bonusChoiceGenerated = await generateBonusChoiceForBestEliminated(frozenRound.eliminations, roundNumber);
+    } catch (e) {
+      console.warn(`⚠️ Erreur génération choix bonus round ${roundNumber}:`, e.message);
+    }
+  }
+
   return {
     success: true,
     round: frozenRound,
     method: 'frontend_data',
-    appliedBonuses: appliedBonuses.length
+    appliedBonuses: appliedBonuses.length,
+    bonusChoiceGenerated
+  };
+}
+
+/**
+ * Génère un choix de bonus pour le meilleur des 2 éliminés
+ */
+async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
+  if (!eliminations || eliminations.length < 2) return null;
+
+  // Trier par D+ décroissant pour trouver le meilleur
+  const sorted = [...eliminations].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
+  const bestEliminated = sorted[0];
+
+  // Ne pas donner de bonus si le meilleur a 0 D+
+  if (!bestEliminated.elevation || bestEliminated.elevation === 0) {
+    console.log(`🎁 Pas de bonus pour round ${roundNumber}: meilleur éliminé à 0 D+`);
+    return null;
+  }
+
+  // Charger les choix en attente
+  const pendingFile = path.join(DATA_DIR, 'pending_bonus_choices.json');
+  let pendingChoices = {};
+  try {
+    const content = await fs.readFile(pendingFile, 'utf8');
+    pendingChoices = JSON.parse(content);
+  } catch (e) {
+    // Fichier n'existe pas encore
+  }
+
+  // Vérifier si déjà généré pour ce joueur
+  const playerId = String(bestEliminated.id);
+  if (pendingChoices[playerId]) {
+    console.log(`🎁 Choix bonus déjà existant pour ${bestEliminated.name}`);
+    return null;
+  }
+
+  // Liste des bonus disponibles
+  const BONUS_IDS = ['embuscade', 'ravitaillement', 'duel', 'brouillard', 'marquage', 'trap', 'second_souffle', 'kamikaze', 'malediction'];
+
+  // Tirer 2 bonus au hasard
+  const shuffled = [...BONUS_IDS].sort(() => Math.random() - 0.5);
+  const choices = shuffled.slice(0, 2);
+
+  // Ajouter le choix
+  pendingChoices[playerId] = {
+    choices,
+    elimination_round: roundNumber,
+    athlete_name: bestEliminated.name,
+    created_at: new Date().toISOString(),
+    expires_at: `${new Date().getFullYear()}-12-31T23:59:59.999Z`
+  };
+
+  // Sauvegarder
+  await fs.writeFile(pendingFile, JSON.stringify(pendingChoices, null, 2));
+
+  console.log(`🎁 Choix bonus généré pour ${bestEliminated.name} (round ${roundNumber}): ${choices.join(', ')}`);
+
+  return {
+    athleteId: playerId,
+    athleteName: bestEliminated.name,
+    choices,
+    eliminationRound: roundNumber
   };
 }
 

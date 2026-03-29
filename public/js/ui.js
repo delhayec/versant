@@ -447,37 +447,60 @@ function renderJokerBadges(participantId, currentRoundNumber) {
 // RENDU DU D+ AVEC BONUS
 // ============================================
 
-function renderElevationWithBonuses(totalElevation, bonuses = {}) {
+function renderElevationWithBonuses(totalElevation, bonuses = {}, ephemeralBonus = null) {
   let html = `<span class="elevation-primary">${formatElevation(totalElevation)}</span>`;
 
   const tags = [];
 
+  // Jokers classiques
   if (bonuses.multiplier) {
-    tags.push(`<span class="bonus-tag multiplier">×1.5 +${formatElevation(bonuses.multiplier.amount, false)}</span>`);
+    tags.push(`<span class="bonus-tag multiplier">×1.5 +${formatElevation(bonuses.multiplier.amount, false)} m</span>`);
   }
   if (bonuses.duelWon) {
-    tags.push(`<span class="bonus-tag duel-won">⚔️ +${formatElevation(bonuses.duelWon.amount, false)}</span>`);
+    tags.push(`<span class="bonus-tag duel-won">⚔️ +${formatElevation(bonuses.duelWon.amount, false)} m</span>`);
   }
   if (bonuses.duelLost) {
-    tags.push(`<span class="bonus-tag duel-lost">⚔️ -${formatElevation(bonuses.duelLost.amount, false)}</span>`);
+    tags.push(`<span class="bonus-tag duel-lost">⚔️ -${formatElevation(bonuses.duelLost.amount, false)} m</span>`);
   }
   if (bonuses.sabotaged) {
-    tags.push(`<span class="bonus-tag sabotage">💣 -${formatElevation(bonuses.sabotaged.amount, false)}</span>`);
+    tags.push(`<span class="bonus-tag sabotage">💣 -${formatElevation(bonuses.sabotaged.amount, false)} m</span>`);
   }
   if (bonuses.sabotageApplied) {
     tags.push(`<span class="bonus-tag sabotage-done">💣 → ${bonuses.sabotageApplied.to}</span>`);
   }
+  if (bonuses.thief) {
+    tags.push(`<span class="bonus-tag thief">🦹 +${formatElevation(bonuses.thief.amount, false)} m volés</span>`);
+  }
+  if (bonuses.stolen) {
+    tags.push(`<span class="bonus-tag stolen">🦹 -${formatElevation(bonuses.stolen.amount, false)} m volés</span>`);
+  }
   // Kamikaze (perte personnelle)
   if (bonuses.kamikaze) {
-    tags.push(`<span class="bonus-tag kamikaze">💣 -${formatElevation(bonuses.kamikaze.amount, false)} (kamikaze)</span>`);
+    tags.push(`<span class="bonus-tag kamikaze">💣 -${formatElevation(bonuses.kamikaze.amount, false)} m (kamikaze)</span>`);
   }
   // Victime de Kamikaze
   if (bonuses.kamikazeTarget) {
-    tags.push(`<span class="bonus-tag kamikaze-victim">💥 -${formatElevation(bonuses.kamikazeTarget.amount, false)} par ${bonuses.kamikazeTarget.by}</span>`);
+    tags.push(`<span class="bonus-tag kamikaze-victim">💥 -${formatElevation(bonuses.kamikazeTarget.amount, false)} m</span>`);
   }
   // Maudit (victime de malédiction)
   if (bonuses.cursed) {
-    tags.push(`<span class="bonus-tag cursed">🪬 -${formatElevation(bonuses.cursed.amount, false)} par ${bonuses.cursed.by}</span>`);
+    tags.push(`<span class="bonus-tag cursed">🪬 -${formatElevation(bonuses.cursed.amount, false)} m</span>`);
+  }
+
+  // Bonus éphémères
+  if (ephemeralBonus) {
+    if (ephemeralBonus.embuscadeStolen) {
+      tags.push(`<span class="bonus-tag ephemeral-stolen">🏹 -${formatElevation(ephemeralBonus.embuscadeStolen, false)} m volés</span>`);
+    }
+    if (ephemeralBonus.embuscadeGained) {
+      tags.push(`<span class="bonus-tag ephemeral-gained">🏹 +${formatElevation(ephemeralBonus.embuscadeGained, false)} m volés</span>`);
+    }
+    if (ephemeralBonus.ravitaillement) {
+      tags.push(`<span class="bonus-tag ephemeral-bonus">🍖 +${formatElevation(ephemeralBonus.ravitaillement, false)} m</span>`);
+    }
+    if (ephemeralBonus.marquage) {
+      tags.push(`<span class="bonus-tag ephemeral-mark">🎯 -${formatElevation(ephemeralBonus.marquage, false)} m (-20%)</span>`);
+    }
   }
 
   if (tags.length > 0) {
