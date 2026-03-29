@@ -378,6 +378,37 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   });
 
   // ==========================================
+  // POST /api/admin/bonuses/auto-apply/:roundNumber - Appliquer auto les bonus d'un round
+  // ==========================================
+  app.post('/api/admin/bonuses/auto-apply/:roundNumber', async (req, res) => {
+    if (!checkAdmin(req, res)) return;
+
+    try {
+      const roundNumber = parseInt(req.params.roundNumber);
+      const { activities, config } = req.body;
+
+      if (!activities || !Array.isArray(activities)) {
+        return res.status(400).json({ error: 'activities requises' });
+      }
+
+      const appliedBonuses = await applyBonusEffectsForRound(roundNumber, activities, config || {
+        yearStartDate: '2026-02-02',
+        roundDurationDays: 5
+      });
+
+      res.json({
+        success: true,
+        roundNumber,
+        appliedCount: appliedBonuses.length,
+        bonuses: appliedBonuses
+      });
+    } catch (error) {
+      console.error('Erreur auto-apply bonuses:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+
+  // ==========================================
   // POST /api/admin/bonuses/reset - Reset tous les bonus (admin)
   // ==========================================
   app.post('/api/admin/bonuses/reset', async (req, res) => {
@@ -434,4 +465,185 @@ function getEffectDescription(bonusId, targetName) {
   return effects[bonusId] || 'Effet activé';
 }
 
-module.exports = { createBonusesRoutes };
+/**
+ * Applique automatiquement les effets des bonus pour un round terminé
+ * @param {number} roundNumber - Numéro du round
+ * @param {Array} activities - Toutes les activités
+ * @param {Object} config - Configuration du challenge (yearStartDate, roundDurationDays)
+ * @returns {Array} Liste des bonus avec leurs effets appliqués
+ */
+async function applyBonusEffectsForRound(roundNumber, activities, config) {
+  const bonuses = await safeReadJSON(BONUSES_FILE, []);
+  const appliedBonuses = [];
+
+  // Calculer les dates du round
+  const yearStart = new Date(config.yearStartDate);
+  const roundStart = new Date(yearStart);
+  roundStart.setDate(roundStart.getDate() + (roundNumber - 1) * config.roundDurationDays);
+  const roundEnd = new Date(roundStart);
+  roundEnd.setDate(roundEnd.getDate() + config.roundDurationDays - 1);
+  roundEnd.setHours(23, 59, 59, 999);
+
+  // Filtrer les activités du round (sports valides, >20min)
+  const validSports = ['Run', 'TrailRun', 'Ride', 'MountainBikeRide', 'GravelRide', 'Hike', 'Walk',
+                       'BackcountrySki', 'NordicSki', 'AlpineSki', 'Snowshoe', 'RockClimbing'];
+
+  const roundActivities = activities.filter(a => {
+    const actDate = new Date(a.start_date);
+    const isInRound = actDate >= roundStart && actDate <= roundEnd;
+    const isValidSport = validSports.includes(a.sport_type) || validSports.includes(a.type);
+    const isLongEnough = (a.moving_time || 0) >= 1200; // 20 minutes
+    return isInRound && isValidSport && isLongEnough;
+  });
+
+  // Traiter chaque bonus utilisé ce round
+  for (let i = 0; i < bonuses.length; i++) {
+    const bonus = bonuses[i];
+
+    // Seulement les bonus utilisés ce round et pas encore appliqués
+    if (bonus.used_in_round !== roundNumber || bonus.effect_applied) continue;
+
+    let effectResult = null;
+
+    switch (bonus.bonus_id) {
+      case 'embuscade': {
+        // Vole une activité aléatoire de la cible
+        const targetActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id) === normalizeId(bonus.target_athlete_id)
+        );
+
+        if (targetActivities.length > 0) {
+          // Choisir une activité aléatoire
+          const randomIndex = Math.floor(Math.random() * targetActivities.length);
+          const stolenActivity = targetActivities[randomIndex];
+          effectResult = {
+            stolenElevation: Math.round(stolenActivity.total_elevation_gain || 0),
+            stolenActivityId: stolenActivity.id,
+            stolenActivityName: stolenActivity.name
+          };
+        } else {
+          effectResult = {
+            stolenElevation: 0,
+            error: 'Aucune activité éligible trouvée'
+          };
+        }
+        break;
+      }
+
+      case 'ravitaillement': {
+        // Donne une activité aléatoire à un actif (bonus pour l'utilisateur)
+        const userActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id) === normalizeId(bonus.athlete_id)
+        );
+
+        if (userActivities.length > 0) {
+          // Prendre l'activité avec le plus de D+
+          const bestActivity = userActivities.reduce((best, curr) =>
+            (curr.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? curr : best
+          );
+          effectResult = {
+            bonusElevation: Math.round(bestActivity.total_elevation_gain || 0),
+            activityId: bestActivity.id,
+            activityName: bestActivity.name
+          };
+        } else {
+          effectResult = {
+            bonusElevation: 0,
+            error: 'Aucune activité trouvée'
+          };
+        }
+        break;
+      }
+
+      case 'marquage': {
+        // -20% du D+ de la cible ce round
+        const targetActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id) === normalizeId(bonus.target_athlete_id)
+        );
+        const totalElevation = targetActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+        const penalty = Math.round(totalElevation * 0.20);
+        effectResult = {
+          penaltyPercentage: 20,
+          totalElevation: Math.round(totalElevation),
+          penaltyAmount: penalty
+        };
+        break;
+      }
+
+      case 'kamikaze': {
+        // -25% du D+ pour l'utilisateur ET la cible
+        const userActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id) === normalizeId(bonus.athlete_id)
+        );
+        const targetActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id) === normalizeId(bonus.target_athlete_id)
+        );
+        const userElevation = userActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+        const targetElevation = targetActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+        effectResult = {
+          penaltyPercentage: 25,
+          userPenalty: Math.round(userElevation * 0.25),
+          targetPenalty: Math.round(targetElevation * 0.25)
+        };
+        break;
+      }
+
+      case 'trap': {
+        // Piège déclenché - vole du D+ au dernier éliminé
+        // Note: nécessite de connaître qui est éliminé - sera calculé au freeze
+        effectResult = {
+          trapSet: true,
+          triggeredBy: null,
+          stolenElevation: 0
+        };
+        break;
+      }
+
+      case 'malediction': {
+        // Vole 10% du D+ de la cible à chaque fin de round
+        const targetActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id) === normalizeId(bonus.target_athlete_id)
+        );
+        const totalElevation = targetActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+        const stolenAmount = Math.round(totalElevation * 0.10);
+        effectResult = {
+          stolenThisRound: stolenAmount,
+          totalTargetElevation: Math.round(totalElevation)
+        };
+        break;
+      }
+
+      case 'duel':
+      case 'brouillard':
+      case 'second_souffle': {
+        // Ces bonus ont des effets à long terme, pas de calcul immédiat
+        effectResult = {
+          active: true,
+          appliedAt: new Date().toISOString()
+        };
+        break;
+      }
+
+      default:
+        effectResult = { applied: true };
+    }
+
+    // Mettre à jour le bonus
+    bonuses[i].effect_applied = true;
+    bonuses[i].effect_result = effectResult;
+    bonuses[i].effect_applied_at = new Date().toISOString();
+    appliedBonuses.push(bonuses[i]);
+
+    console.log(`🎁 Effet auto-appliqué: ${bonus.bonus_id} de ${bonus.athlete_name} → ${JSON.stringify(effectResult)}`);
+  }
+
+  // Sauvegarder
+  if (appliedBonuses.length > 0) {
+    await safeWriteJSON(BONUSES_FILE, bonuses);
+    console.log(`🎁 ${appliedBonuses.length} effets de bonus appliqués pour le round ${roundNumber}`);
+  }
+
+  return appliedBonuses;
+}
+
+module.exports = { createBonusesRoutes, applyBonusEffectsForRound };

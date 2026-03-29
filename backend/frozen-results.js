@@ -17,6 +17,15 @@
 const fs = require('fs').promises;
 const path = require('path');
 
+// Import de la fonction d'application des bonus
+let applyBonusEffectsForRound = null;
+try {
+  const bonusesRoutes = require('./bonuses-routes.js');
+  applyBonusEffectsForRound = bonusesRoutes.applyBonusEffectsForRound;
+} catch (e) {
+  console.warn('⚠️ Impossible de charger bonuses-routes pour auto-apply');
+}
+
 // Configuration
 const DATA_DIR = path.join(__dirname, 'data');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
@@ -169,10 +178,24 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
 
   console.log(`❄️ Round ${roundNumber} figé (via frontend): ${frozenRound.eliminations.length} éliminé(s)`);
 
+  // Appliquer automatiquement les effets des bonus si la fonction est disponible
+  let appliedBonuses = [];
+  if (applyBonusEffectsForRound && roundData.activities) {
+    try {
+      appliedBonuses = await applyBonusEffectsForRound(roundNumber, roundData.activities, {
+        yearStartDate: roundData.dates?.start || new Date().toISOString(),
+        roundDurationDays: 5
+      });
+    } catch (e) {
+      console.warn(`⚠️ Erreur application auto bonus round ${roundNumber}:`, e.message);
+    }
+  }
+
   return {
     success: true,
     round: frozenRound,
-    method: 'frontend_data'
+    method: 'frontend_data',
+    appliedBonuses: appliedBonuses.length
   };
 }
 
