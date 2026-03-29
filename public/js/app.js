@@ -131,6 +131,105 @@ function getBonusHistoryDescription(bonus) {
   }
 }
 
+/**
+ * Calcule les effets des bonus éphémères pour un joueur dans un round donné
+ * @param {string} athleteId - ID du joueur
+ * @param {number} roundNumber - Numéro du round
+ * @returns {Object} Effets: { gained: number, lost: number, details: [] }
+ */
+function getEphemeralBonusEffectsForAthlete(athleteId, roundNumber) {
+  const effects = { gained: 0, lost: 0, details: [] };
+  const normalizedId = String(athleteId);
+
+  const roundBonuses = getBonusesUsedInRound(roundNumber);
+
+  for (const bonus of roundBonuses) {
+    const result = bonus.effect_result;
+    if (!result) continue;
+
+    // Embuscade - vol d'activité
+    if (bonus.bonus_id === 'embuscade') {
+      const amount = result.stolenElevation || 0;
+      if (amount > 0) {
+        // Victime perd du D+
+        if (String(bonus.target_athlete_id) === normalizedId) {
+          effects.lost += amount;
+          effects.details.push({ type: 'embuscade_victim', amount, by: bonus.athlete_name, icon: '🏹' });
+        }
+        // Attaquant gagne du D+
+        if (String(bonus.athlete_id) === normalizedId) {
+          effects.gained += amount;
+          effects.details.push({ type: 'embuscade_gain', amount, from: bonus.target_athlete_name, icon: '🏹' });
+        }
+      }
+    }
+
+    // Ravitaillement - bonus D+
+    if (bonus.bonus_id === 'ravitaillement') {
+      const amount = result.bonusElevation || 0;
+      if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
+        effects.gained += amount;
+        effects.details.push({ type: 'ravitaillement', amount, from: bonus.athlete_name, icon: '🍖' });
+      }
+    }
+
+    // Marquage - pénalité 20%
+    if (bonus.bonus_id === 'marquage') {
+      const amount = result.penaltyAmount || 0;
+      if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
+        effects.lost += amount;
+        effects.details.push({ type: 'marquage', amount, by: bonus.athlete_name, icon: '🎯' });
+      }
+    }
+
+    // Malédiction - vol 10% par round
+    if (bonus.bonus_id === 'malediction') {
+      const amount = result.stolenThisRound || 0;
+      if (amount > 0) {
+        if (String(bonus.target_athlete_id) === normalizedId) {
+          effects.lost += amount;
+          effects.details.push({ type: 'malediction_victim', amount, by: bonus.athlete_name, icon: '🪬' });
+        }
+        if (String(bonus.athlete_id) === normalizedId) {
+          effects.gained += amount;
+          effects.details.push({ type: 'malediction_gain', amount, from: bonus.target_athlete_name, icon: '🪬' });
+        }
+      }
+    }
+
+    // Kamikaze - perte mutuelle
+    if (bonus.bonus_id === 'kamikaze') {
+      if (String(bonus.target_athlete_id) === normalizedId) {
+        const amount = result.targetPenalty || 0;
+        if (amount > 0) {
+          effects.lost += amount;
+          effects.details.push({ type: 'kamikaze_victim', amount, by: bonus.athlete_name, icon: '💣' });
+        }
+      }
+      if (String(bonus.athlete_id) === normalizedId) {
+        const amount = result.userPenalty || 0;
+        if (amount > 0) {
+          effects.lost += amount;
+          effects.details.push({ type: 'kamikaze_self', amount, icon: '💣' });
+        }
+      }
+    }
+  }
+
+  return effects;
+}
+
+/**
+ * Récupère les bonus éphémères actifs pour un joueur (pas encore utilisés ou en cours)
+ */
+function getActiveBonusesForAthlete(athleteId) {
+  const normalizedId = String(athleteId);
+  return bonusesCache.filter(b =>
+    String(b.athlete_id) === normalizedId &&
+    (b.status === 'active' || b.status === 'pending')
+  );
+}
+
 function getFrozenRound(globalRoundNumber) {
   if (!frozenResultsCache?.rounds) return null;
   return frozenResultsCache.rounds[String(globalRoundNumber)] || null;
@@ -938,6 +1037,12 @@ function renderAll() {
       // Calculer le rescapé du round précédent (depuis frozen results)
       const rescapeId = getRescapeFromPreviousRound(currentRoundNumber);
 
+      // Calculer les effets des bonus éphémères pour chaque participant
+      const ephemeralEffects = {};
+      ranking.forEach(e => {
+        ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForAthlete(e.participant.id, currentRoundNumber);
+      });
+
       renderRanking(rankingContainer, {
         ranking,
         seasonData,
@@ -945,7 +1050,8 @@ function renderAll() {
         seasonStats,
         eliminationsCount: elimCount,
         currentRoundNumber,
-        rescapeId
+        rescapeId,
+        ephemeralEffects
       });
     }
 
@@ -1034,10 +1140,37 @@ function renderEliminatedChallenge(container) {
   // Déterminer qui a reçu un bonus éphémère (meilleur des 2 éliminés de chaque round)
   const bonusRecipients = getBonusRecipientsForSeason(currentSeasonNumber);
 
+  // Calculer les effets de bonus pour chaque éliminé (cumulés sur toute la saison)
+  const bonusEffectsByAthlete = {};
+  for (const eliminated of seasonData.eliminated) {
+    const effects = { gained: 0, lost: 0, details: [] };
+    // Parcourir tous les rounds de la saison pour cumuler les effets
+    const roundsPerSeason = getRoundsPerSeason();
+    const seasonStartRound = (currentSeasonNumber - 1) * roundsPerSeason + 1;
+    const seasonEndRound = currentSeasonNumber * roundsPerSeason;
+    for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
+      const roundEffects = getEphemeralBonusEffectsForAthlete(eliminated.id, roundNum);
+      effects.gained += roundEffects.gained;
+      effects.lost += roundEffects.lost;
+      effects.details.push(...roundEffects.details);
+    }
+    bonusEffectsByAthlete[eliminated.id] = effects;
+  }
+
   let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
   ranking.forEach(e => {
     const hasBonus = bonusRecipients.has(String(e.participant.id));
     const bonusBadge = hasBonus ? '<span class="bonus-badge" title="Meilleur des 2 éliminés - A reçu un bonus éphémère">🎁</span>' : '';
+
+    // Calculer les pilules de bonus éphémères
+    const bonusEffects = bonusEffectsByAthlete[e.participant.id] || { gained: 0, lost: 0 };
+    let bonusPills = '';
+    if (bonusEffects.gained > 0) {
+      bonusPills += `<span class="bonus-tag ephemeral-gained">+${formatElevation(bonusEffects.gained, false)} m</span>`;
+    }
+    if (bonusEffects.lost > 0) {
+      bonusPills += `<span class="bonus-tag ephemeral-stolen">-${formatElevation(bonusEffects.lost, false)} m</span>`;
+    }
 
     html += `<div class="ranking-row">
       <div class="ranking-position">${e.position}</div>
@@ -1048,7 +1181,10 @@ function renderEliminatedChallenge(container) {
           <span class="athlete-status eliminated">${e.daysSinceElimination}j depuis élim.</span>
         </div>
       </div>
-      <div class="ranking-elevation">${formatElevation(e.totalElevation, false)} <span class="elevation-unit">m</span></div>
+      <div class="ranking-elevation">
+        ${formatElevation(e.totalElevation, false)} <span class="elevation-unit">m</span>
+        ${bonusPills ? `<div class="elevation-bonuses">${bonusPills}</div>` : ''}
+      </div>
       <div class="ranking-round">R${e.eliminatedRound}</div>
       <div class="ranking-points"><span class="points-badge">${e.points} pts</span></div>
     </div>`;
@@ -1146,12 +1282,21 @@ function renderFinalStandings(container) {
   // Calculer les points depuis les résultats figés pour plus de précision
   const frozenPoints = calculatePointsFromFrozenResults();
 
+  // Calculer les points de la saison précédente
+  const previousSeasonPoints = calculatePointsForSeason(currentSeasonNumber - 1);
+
+  // Calculer les points de la saison actuelle (jusqu'au dernier round figé)
+  const currentSeasonPoints = calculatePointsForSeason(currentSeasonNumber);
+
   // Utiliser yearlyStandingsCache mais l'enrichir avec les données figées
   const standings = yearlyStandingsCache || [];
 
   // Enrichir les standings avec les points figés et recalculer
   const enrichedStandings = standings.map(e => {
-    const frozen = frozenPoints[e.participant.id] || { mainPoints: 0, elimPoints: 0, bonusPoints: 0, wins: 0 };
+    const id = String(e.participant.id);
+    const frozen = frozenPoints[id] || { mainPoints: 0, elimPoints: 0, bonusPoints: 0, wins: 0 };
+    const prevSeason = previousSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, total: 0 };
+    const currSeason = currentSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, total: 0 };
 
     // Utiliser les points figés s'ils sont supérieurs (plus fiables)
     const mainPts = Math.max(e.totalMainPoints || 0, frozen.mainPoints);
@@ -1165,7 +1310,11 @@ function renderFinalStandings(container) {
       totalEliminatedPoints: elimPts,
       bonusPoints: bonusPts,
       totalPoints: mainPts + elimPts + bonusPts,
-      wins: wins
+      wins: wins,
+      previousSeasonTotal: prevSeason.total,
+      currentSeasonMain: currSeason.mainPoints,
+      currentSeasonElim: currSeason.elimPoints,
+      currentSeasonTotal: currSeason.total
     };
   });
 
@@ -1173,14 +1322,13 @@ function renderFinalStandings(container) {
   enrichedStandings.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins || b.totalMainPoints - a.totalMainPoints);
   enrichedStandings.forEach((e, i) => e.rank = i + 1);
 
-  // HTML avec colonnes supplémentaires sur desktop
+  // HTML avec colonnes améliorées
   let html = `
     <div class="standings-header">
       <div>Rang</div>
       <div>Athlète</div>
-      <div class="hide-mobile">Pts Saisons</div>
-      <div class="hide-mobile">Pts Éliminés</div>
-      <div class="hide-mobile">Bonus</div>
+      <div class="hide-mobile" title="Points des saisons précédentes">Saisons préc.</div>
+      <div class="hide-mobile" title="Points de la saison actuelle (Principal + Éliminés)">Saison ${currentSeasonNumber}</div>
       <div>Total</div>
     </div>`;
 
@@ -1197,20 +1345,69 @@ function renderFinalStandings(container) {
       statusBadge = `<span class="elim-badge">Élim. R${elimData?.eliminatedRound || '?'}</span>`;
     }
 
+    // Afficher les détails de la saison actuelle avec pilules
+    const currentSeasonDetails = [];
+    if (e.currentSeasonMain > 0) {
+      currentSeasonDetails.push(`<span class="pts-main" title="Points challenge principal">${e.currentSeasonMain}</span>`);
+    }
+    if (e.currentSeasonElim > 0) {
+      currentSeasonDetails.push(`<span class="pts-elim" title="Points challenge éliminés">+${e.currentSeasonElim}</span>`);
+    }
+    const currentSeasonHtml = currentSeasonDetails.length > 0
+      ? `<span class="season-pts-detail">${currentSeasonDetails.join(' ')}</span>`
+      : `<span class="pts-zero">-</span>`;
+
     html += `<div class="standings-row ${isActive ? '' : 'eliminated'}">
       <div class="standings-rank">${e.rank}</div>
       <div class="standings-athlete">
         <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)">${getAthleteInitials(e.participant.id)}</div>
         <span>${e.participant.name}</span>${wins}${statusBadge}
       </div>
-      <div class="standings-points main hide-mobile">${e.totalMainPoints || '-'}</div>
-      <div class="standings-points elim hide-mobile">${e.totalEliminatedPoints || '-'}</div>
-      <div class="standings-points bonus hide-mobile">${e.bonusPoints || '-'}</div>
+      <div class="standings-points prev hide-mobile">${e.previousSeasonTotal || '-'}</div>
+      <div class="standings-points current hide-mobile">${currentSeasonHtml}</div>
       <div class="standings-total">${e.totalPoints}</div>
     </div>`;
   });
 
   container.innerHTML = html;
+}
+
+/**
+ * Calcule les points pour une saison donnée depuis les résultats figés
+ */
+function calculatePointsForSeason(seasonNumber) {
+  const pointsMap = {};
+
+  PARTICIPANTS.forEach(p => {
+    pointsMap[p.id] = { mainPoints: 0, elimPoints: 0, total: 0 };
+  });
+
+  if (!frozenResultsCache?.rounds || seasonNumber < 1) return pointsMap;
+
+  const roundsPerSeason = getRoundsPerSeason();
+  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
+  const seasonEndRound = seasonNumber * roundsPerSeason;
+
+  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
+    const round = frozenResultsCache.rounds[String(roundNum)];
+    if (!round?.frozen || !round.ranking) continue;
+
+    for (const entry of round.ranking) {
+      const id = String(entry.id);
+      if (!pointsMap[id]) continue;
+
+      if (entry.mainPoints > 0) {
+        pointsMap[id].mainPoints += entry.mainPoints;
+      }
+    }
+  }
+
+  // Calculer le total
+  for (const id in pointsMap) {
+    pointsMap[id].total = pointsMap[id].mainPoints + pointsMap[id].elimPoints;
+  }
+
+  return pointsMap;
 }
 
 // ============================================
@@ -1937,15 +2134,57 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   // Compter les éliminations à 0 D+
   const zeroElimCount = eliminatedDetails.filter(e => e.isZeroElim).length;
 
-  // Générer le HTML du classement pour le dropdown
+  // Récupérer les bonus utilisés ce round pour calculer les effets
+  const roundBonuses = getBonusesUsedInRound(globalRound);
+
+  // Générer le HTML du classement pour le dropdown avec pilules bonus
   const rankingHtml = ranking.map((entry, idx) => {
     const isEliminated = eliminatedIds.has(entry.id);
     const position = idx + 1;
+
+    // Calculer les pilules de bonus éphémères pour ce joueur
+    let bonusPills = '';
+    for (const bonus of roundBonuses) {
+      const result = bonus.effect_result;
+      if (!result) continue;
+
+      const entryId = String(entry.id);
+
+      // Embuscade - victime
+      if (bonus.bonus_id === 'embuscade' && String(bonus.target_athlete_id) === entryId) {
+        const amount = result.stolenElevation || 0;
+        if (amount > 0) {
+          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Embuscade par ${bonus.athlete_name}">🏹 -${formatElevation(amount, false)} m</span>`;
+        }
+      }
+      // Embuscade - attaquant
+      if (bonus.bonus_id === 'embuscade' && String(bonus.athlete_id) === entryId) {
+        const amount = result.stolenElevation || 0;
+        if (amount > 0) {
+          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Volé à ${bonus.target_athlete_name}">🏹 +${formatElevation(amount, false)} m</span>`;
+        }
+      }
+      // Marquage
+      if (bonus.bonus_id === 'marquage' && String(bonus.target_athlete_id) === entryId) {
+        const amount = result.penaltyAmount || 0;
+        if (amount > 0) {
+          bonusPills += `<span class="bonus-tag ephemeral-mark" title="Marqué par ${bonus.athlete_name}">🎯 -${formatElevation(amount, false)} m</span>`;
+        }
+      }
+      // Malédiction - victime
+      if (bonus.bonus_id === 'malediction' && String(bonus.target_athlete_id) === entryId) {
+        const amount = result.stolenThisRound || 0;
+        if (amount > 0) {
+          bonusPills += `<span class="bonus-tag ephemeral-curse" title="Maudit par ${bonus.athlete_name}">🪬 -${formatElevation(amount, false)} m</span>`;
+        }
+      }
+    }
+
     return `
       <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''}">
         <span class="history-rank">${position}</span>
         <span class="history-name">${entry.name}</span>
-        <span class="history-elevation">${formatElevation(entry.elevation || 0, false)}</span>
+        <span class="history-elevation">${formatElevation(entry.elevation || 0, false)}${bonusPills ? ` ${bonusPills}` : ''}</span>
         ${isEliminated ? '<span class="history-elim-badge">Éliminé</span>' : ''}
       </div>
     `;

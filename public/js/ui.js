@@ -268,7 +268,7 @@ export function renderActiveJokersSection(container, data) {
 // ============================================
 
 export function renderRanking(container, data) {
-  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, rescapeId } = data;
+  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, rescapeId, ephemeralEffects } = data;
 
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
@@ -303,8 +303,12 @@ export function renderRanking(container, data) {
     // Vérifier si c'est le Rescapé (basé sur le round précédent figé)
     const isRescape = rescapeId && String(entry.participant.id) === String(rescapeId);
 
-    // Générer les indicateurs de bonus sur l'avatar
-    const bonusIndicators = renderAvatarBonusIndicators(effects.bonuses);
+    // Générer les indicateurs de bonus sur l'avatar (jokers + bonus éphémères)
+    const ephemeral = ephemeralEffects?.[entry.participant.id];
+    const bonusIndicators = renderAvatarBonusIndicators(effects.bonuses, ephemeral);
+
+    // Générer les pilules pour les effets de bonus éphémères
+    const ephemeralPills = renderEphemeralBonusPills(ephemeral);
 
     html += `
       <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
@@ -327,6 +331,7 @@ export function renderRanking(container, data) {
         </div>
         <div class="elevation-cell">
           ${renderElevationWithBonuses(entry.totalElevation, effects.bonuses)}
+          ${ephemeralPills}
         </div>
         <div class="elevation-secondary">${formatElevation(seasonElev)}</div>
         <div class="jokers-cell">
@@ -343,7 +348,7 @@ export function renderRanking(container, data) {
 // RENDU DES INDICATEURS DE BONUS SUR AVATAR
 // ============================================
 
-function renderAvatarBonusIndicators(bonuses = {}) {
+function renderAvatarBonusIndicators(bonuses = {}, ephemeral = null) {
   const indicators = [];
 
   // Multiplicateur (×1.5)
@@ -401,6 +406,23 @@ function renderAvatarBonusIndicators(bonuses = {}) {
     indicators.push({ icon: '🪬', class: 'cursed', title: `Maudit par ${bonuses.cursed.by}` });
   }
 
+  // Bonus éphémères (basés sur les détails)
+  if (ephemeral?.details) {
+    for (const detail of ephemeral.details) {
+      if (detail.type === 'embuscade_victim') {
+        indicators.push({ icon: '🏹', class: 'ephemeral-victim', title: `Embuscade par ${detail.by}` });
+      } else if (detail.type === 'embuscade_gain') {
+        indicators.push({ icon: '🏹', class: 'ephemeral-gain', title: `A volé ${detail.from}` });
+      } else if (detail.type === 'ravitaillement') {
+        indicators.push({ icon: '🍖', class: 'ephemeral-gain', title: `Ravitaillement de ${detail.from}` });
+      } else if (detail.type === 'marquage') {
+        indicators.push({ icon: '🎯', class: 'ephemeral-victim', title: `Marqué par ${detail.by}` });
+      } else if (detail.type === 'malediction_victim') {
+        indicators.push({ icon: '🪬', class: 'ephemeral-victim', title: `Maudit par ${detail.by}` });
+      }
+    }
+  }
+
   if (indicators.length === 0) return '';
 
   return `
@@ -410,6 +432,48 @@ function renderAvatarBonusIndicators(bonuses = {}) {
       `).join('')}
     </div>
   `;
+}
+
+/**
+ * Génère les pilules pour les effets de bonus éphémères
+ */
+function renderEphemeralBonusPills(ephemeral) {
+  if (!ephemeral || (!ephemeral.gained && !ephemeral.lost)) return '';
+
+  const pills = [];
+
+  for (const detail of ephemeral.details || []) {
+    const amount = detail.amount || 0;
+    if (amount === 0) continue;
+
+    switch (detail.type) {
+      case 'embuscade_victim':
+        pills.push(`<span class="bonus-tag ephemeral-stolen">${detail.icon} -${formatElevation(amount, false)} m volés</span>`);
+        break;
+      case 'embuscade_gain':
+        pills.push(`<span class="bonus-tag ephemeral-gained">${detail.icon} +${formatElevation(amount, false)} m volés</span>`);
+        break;
+      case 'ravitaillement':
+        pills.push(`<span class="bonus-tag ephemeral-bonus">${detail.icon} +${formatElevation(amount, false)} m</span>`);
+        break;
+      case 'marquage':
+        pills.push(`<span class="bonus-tag ephemeral-mark">${detail.icon} -${formatElevation(amount, false)} m</span>`);
+        break;
+      case 'malediction_victim':
+        pills.push(`<span class="bonus-tag ephemeral-curse">${detail.icon} -${formatElevation(amount, false)} m</span>`);
+        break;
+      case 'malediction_gain':
+        pills.push(`<span class="bonus-tag ephemeral-gained">${detail.icon} +${formatElevation(amount, false)} m</span>`);
+        break;
+      case 'kamikaze_victim':
+      case 'kamikaze_self':
+        pills.push(`<span class="bonus-tag ephemeral-stolen">${detail.icon} -${formatElevation(amount, false)} m</span>`);
+        break;
+    }
+  }
+
+  if (pills.length === 0) return '';
+  return `<div class="elevation-bonuses">${pills.join('')}</div>`;
 }
 
 // ============================================
