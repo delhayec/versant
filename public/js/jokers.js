@@ -58,7 +58,6 @@ export async function loadJokersFromServer() {
     jokerUsageCache = await response.json();
     cacheTimestamp = Date.now();
 
-    console.log(`🃏 ${jokerUsageCache.length} utilisations de jokers chargées depuis le serveur`);
     return jokerUsageCache;
   } catch (error) {
     console.error('❌ Erreur chargement jokers:', error);
@@ -71,20 +70,19 @@ export async function loadJokersFromServer() {
  */
 export async function initializeJokersState() {
   await loadJokersFromServer();
-  console.log(`🃏 Jokers initialisés - ${PARTICIPANTS.length} participants, ${jokerUsageCache.length} utilisations`);
 }
 
 /**
  * Rafraîchit les jokers depuis le serveur
  */
-export async function refreshJokersFromServer() {
+async function refreshJokersFromServer() {
   return await loadJokersFromServer();
 }
 
 /**
  * Sauvegarde - NE FAIT RIEN car tout est géré côté serveur
  */
-export function saveJokersState() {
+function saveJokersState() {
   // Les jokers sont gérés uniquement côté serveur
   // Cette fonction existe pour compatibilité mais ne fait rien
 }
@@ -96,7 +94,7 @@ export function saveJokersState() {
 /**
  * Compte combien de fois un joker a été utilisé par un participant
  */
-export function getUsedJokerCount(participantId, jokerId) {
+function getUsedJokerCount(participantId, jokerId) {
   const pid = String(participantId);
   return jokerUsageCache.filter(
     u => String(u.athlete_id) === pid && u.joker_id === jokerId
@@ -107,7 +105,7 @@ export function getUsedJokerCount(participantId, jokerId) {
  * Calcule le stock restant d'un joker pour un participant
  * Stock = INITIAL (2) - Utilisations
  */
-export function getRemainingStock(participantId, jokerId) {
+function getRemainingStock(participantId, jokerId) {
   const used = getUsedJokerCount(participantId, jokerId);
   return Math.max(0, INITIAL_STOCK - used);
 }
@@ -455,7 +453,7 @@ export function removeJoker(participantId, jokerId) {
   return false;
 }
 
-export function resetJokers(participantId) {
+function resetJokers(participantId) {
   console.warn('⚠️ resetJokers: Utilisez l\'API admin /api/admin/jokers/reset-all');
   return false;
 }
@@ -467,7 +465,7 @@ export function resetJokers(participantId) {
 /**
  * Retourne l'état complet du cache (pour debug)
  */
-export function getAllJokersState() {
+function getAllJokersState() {
   return {
     usage: jokerUsageCache,
     cacheTimestamp,
@@ -478,7 +476,7 @@ export function getAllJokersState() {
 /**
  * Récupère l'état des jokers d'un participant (pour debug)
  */
-export function getParticipantJokersState(participantId) {
+function getParticipantJokersState(participantId) {
   return {
     stock: getJokerStock(participantId),
     usage: jokerUsageCache.filter(u => String(u.athlete_id) === String(participantId))
@@ -488,7 +486,7 @@ export function getParticipantJokersState(participantId) {
 /**
  * Vérifie la cohérence du cache
  */
-export function validateJokersCache() {
+function validateJokersCache() {
   const issues = [];
 
   // Vérifier que tous les athlete_id correspondent à des participants existants
@@ -520,7 +518,7 @@ export function validateJokersCache() {
 /**
  * Charge les bonus éphémères depuis le serveur
  */
-export async function loadBonusesFromServer() {
+async function loadBonusesFromServer() {
   try {
     const cacheBuster = Date.now();
     const response = await fetch(`${API_BASE}/bonuses/all?_=${cacheBuster}`, {
@@ -534,7 +532,6 @@ export async function loadBonusesFromServer() {
     }
 
     bonusCache = await response.json();
-    console.log(`🎁 ${bonusCache.length} bonus éphémères chargés`);
     return bonusCache;
   } catch (error) {
     console.error('❌ Erreur chargement bonus:', error);
@@ -546,7 +543,7 @@ export async function loadBonusesFromServer() {
  * Tire au sort 2 bonus parmi les 7 disponibles (style roguelite)
  * @returns {Array} Tableau de 2 bonus IDs
  */
-export function drawRandomBonuses() {
+function drawRandomBonuses() {
   const shuffled = [...BONUS_IDS].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, BONUS_CHOICE_COUNT);
 }
@@ -556,7 +553,7 @@ export function drawRandomBonuses() {
  * @param {string} participantId - ID du participant
  * @returns {Object|null} Le bonus attribué ou null
  */
-export function getParticipantBonus(participantId) {
+function getParticipantBonus(participantId) {
   const pid = String(participantId);
   return bonusCache.find(b => String(b.athlete_id) === pid) || null;
 }
@@ -566,7 +563,7 @@ export function getParticipantBonus(participantId) {
  * @param {string} participantId - ID du participant
  * @returns {boolean}
  */
-export function hasAvailableBonus(participantId) {
+function hasAvailableBonus(participantId) {
   const bonus = getParticipantBonus(participantId);
   return bonus && bonus.status === 'available';
 }
@@ -576,7 +573,7 @@ export function hasAvailableBonus(participantId) {
  * @param {string} participantId - ID du participant
  * @returns {Object|null} Infos du bonus avec les détails du type
  */
-export function getParticipantBonusDetails(participantId) {
+function getParticipantBonusDetails(participantId) {
   const bonus = getParticipantBonus(participantId);
   if (!bonus) return null;
 
@@ -724,7 +721,7 @@ export async function useBonus(participantId, bonusId, options = {}) {
  * @param {string} bonusId - ID du bonus choisi
  * @param {number} roundNumber - Round d'élimination
  */
-export async function assignBonus(participantId, bonusId, roundNumber) {
+async function assignBonus(participantId, bonusId, roundNumber) {
   try {
     const token = localStorage.getItem('versant_token');
     if (!token) {
@@ -768,7 +765,7 @@ export async function assignBonus(participantId, bonusId, roundNumber) {
  * Récupère tous les bonus actifs (pour l'affichage)
  * @returns {Array} Liste des bonus avec leurs détails
  */
-export function getAllActiveBonuses() {
+function getAllActiveBonuses() {
   return bonusCache
     .filter(b => b.status === 'available' || b.status === 'used')
     .map(b => {
@@ -815,7 +812,7 @@ export function getBonusesUsedInRound(roundNumber) {
  * @param {string} participantId - ID du participant
  * @returns {Object} { mustChoose: boolean, choices: Array }
  */
-export function checkBonusChoice(participantId) {
+function checkBonusChoice(participantId) {
   const existing = getParticipantBonus(participantId);
 
   // Si déjà un bonus attribué, pas de choix à faire
@@ -837,7 +834,7 @@ export function checkBonusChoice(participantId) {
  * @param {string} participantId - ID du participant
  * @returns {Array} Les 2 bonus proposés au choix
  */
-export function generateBonusChoices(participantId) {
+function generateBonusChoices(participantId) {
   const choices = drawRandomBonuses();
   localStorage.setItem(`versant_bonus_choices_${participantId}`, JSON.stringify(choices));
   return choices;
@@ -847,7 +844,7 @@ export function generateBonusChoices(participantId) {
  * Nettoie les choix de bonus en attente
  * @param {string} participantId - ID du participant
  */
-export function clearBonusChoices(participantId) {
+function clearBonusChoices(participantId) {
   localStorage.removeItem(`versant_bonus_choices_${participantId}`);
 }
 

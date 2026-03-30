@@ -8,15 +8,15 @@ const router = express.Router();
 const fs = require('fs').promises;
 
 const JOKER_CONFIG = {
-  duel: { id: "duel", name: "Duel", initialStock: 2, stealPercentage: 25, notOnLastDay: true },
-  multiplicateur: { id: "multiplicateur", name: "Multiplicateur", initialStock: 2, multiplier: 2 },
+  voleur: { id: "voleur", name: "Voleur", initialStock: 2, requiresTarget: true },
+  multiplicateur: { id: "multiplicateur", name: "Multiplicateur", initialStock: 2, multiplier: 1.5 },
   bouclier: { id: "bouclier", name: "Bouclier", initialStock: 2, usableInFinal: false },
-  sabotage: { id: "sabotage", name: "Sabotage", initialStock: 2, fixedAmount: 250 }
+  sabotage: { id: "sabotage", name: "Sabotage", initialStock: 2, percentagePenalty: 30 }
 };
 
 function createInitialJokersStock() {
   return {
-    duel: JOKER_CONFIG.duel.initialStock,
+    voleur: JOKER_CONFIG.voleur.initialStock,
     multiplicateur: JOKER_CONFIG.multiplicateur.initialStock,
     bouclier: JOKER_CONFIG.bouclier.initialStock,
     sabotage: JOKER_CONFIG.sabotage.initialStock
@@ -183,44 +183,21 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
 
       const { leagueId } = req.params;
       const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
+      const leagueAthletes = athletes.filter(a => a.league_id === leagueId);
 
-      let resetCount = 0;
-      athletes.forEach(athlete => {
-        if (athlete.league_id === leagueId) {
-          athlete.jokers_stock = createInitialJokersStock();
-          resetCount++;
-        }
-      });
-
-      await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
-      console.log(`🃏 Admin: Reset jokers pour ${resetCount} athlètes`);
-
-      res.json({ success: true, count: resetCount });
-    } catch (error) {
-      console.error('Erreur reset jokers:', error);
-      res.status(500).json({ error: 'Erreur serveur' });
-    }
-  });
-
-  // GET /api/jokers/active/:roundNumber
-  router.get('/jokers/active/:roundNumber', async (req, res) => {
-    try {
-      const { roundNumber } = req.params;
+      // Vider les usages de jokers pour cette ligue
       let jokerUsage = [];
       try { jokerUsage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
 
-      const activeJokers = jokerUsage.filter(j => j.round_number === parseInt(roundNumber) && j.status === 'active');
+      const leagueAthleteIds = new Set(leagueAthletes.map(a => String(a.id)));
+      const remaining = jokerUsage.filter(u => !leagueAthleteIds.has(String(u.athlete_id)));
 
-      res.json({
-        round_number: parseInt(roundNumber),
-        total_active: activeJokers.length,
-        duels: activeJokers.filter(j => j.joker_id === 'duel'),
-        multiplicateurs: activeJokers.filter(j => j.joker_id === 'multiplicateur'),
-        boucliers: activeJokers.filter(j => j.joker_id === 'bouclier'),
-        sabotages: activeJokers.filter(j => j.joker_id === 'sabotage')
-      });
+      await fs.writeFile(JOKERS_FILE, JSON.stringify(remaining, null, 2));
+      console.log(`🃏 Admin: Reset jokers pour ${leagueAthletes.length} athlètes (${jokerUsage.length - remaining.length} usages supprimés)`);
+
+      res.json({ success: true, count: leagueAthletes.length, usagesRemoved: jokerUsage.length - remaining.length });
     } catch (error) {
-      console.error('Erreur jokers actifs:', error);
+      console.error('Erreur reset jokers:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
   });
@@ -253,33 +230,4 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
   return router;
 }
 
-async function applyJokerEffects(ranking, activeJokers) {
-  const effects = [];
-  const modifiedRanking = [...ranking];
-
-  for (const duel of activeJokers.filter(j => j.joker_id === 'duel')) {
-    const challenger = modifiedRanking.find(r => r.participant.id === duel.athlete_id);
-    const target = modifiedRanking.find(r => r.participant.id === duel.target_athlete_id);
-    if (challenger && target && challenger.totalElevation > target.totalElevation) {
-      const stolenAmount = Math.round(target.totalElevation * 0.25);
-      challenger.totalElevation += stolenAmount;
-      target.totalElevation -= stolenAmount;
-      effects.push({ type: 'duel_won', winner_id: duel.athlete_id, loser_id: duel.target_athlete_id, stolen_amount: stolenAmount });
-    }
-  }
-
-  for (const sab of activeJokers.filter(j => j.joker_id === 'sabotage')) {
-    const target = modifiedRanking.find(r => r.participant.id === sab.target_athlete_id);
-    if (target) {
-      target.totalElevation = Math.max(0, target.totalElevation - 250);
-      effects.push({ type: 'sabotage', target_id: sab.target_athlete_id, amount: 250 });
-    }
-  }
-
-  modifiedRanking.sort((a, b) => b.totalElevation - a.totalElevation);
-  modifiedRanking.forEach((e, i) => e.position = i + 1);
-
-  return { modifiedRanking, effects };
-}
-
-module.exports = { JOKER_CONFIG, createInitialJokersStock, applyJokerEffects, createJokersRoutes };
+module.exports = { JOKER_CONFIG, createInitialJokersStock, createJokersRoutes };

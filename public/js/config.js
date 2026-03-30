@@ -20,7 +20,6 @@
 const IS_DEMO = typeof window !== 'undefined' && window.location.pathname.includes('demo');
 const CURRENT_YEAR = IS_DEMO ? 2025 : 2026;
 
-console.log(`⚙️ Config: mode ${IS_DEMO ? 'DEMO (2025)' : 'PRODUCTION (2026)'}`);
 
 // ============================================
 // CONFIGURATION PRINCIPALE DE LA LIGUE
@@ -484,12 +483,10 @@ async function fetchWithTimeout(url, timeout = 10000) {
 
 export async function loadParticipants() {
   if (IS_DEMO) {
-    console.log('📋 Mode démo: utilisation des participants 2025 statiques');
     return PARTICIPANTS_2025;
   }
 
   try {
-    console.log('📋 Chargement des participants depuis l\'API...');
 
     // Utiliser le même endpoint que l'admin : /api/athletes/versant-2026
     // Timeout de 8 secondes pour éviter blocage sur mobile
@@ -514,7 +511,6 @@ export async function loadParticipants() {
       PARTICIPANTS.length = 0;
       PARTICIPANTS.push(...loadedParticipants);
 
-      console.log(`✅ ${PARTICIPANTS.length} participants chargés depuis l'API`);
     } else {
       console.warn('⚠️ Aucun participant dans athletes.json, tentative d\'extraction depuis les activités...');
       await loadParticipantsFromActivities();
@@ -562,7 +558,6 @@ async function loadParticipantsFromActivities() {
     if (participantsMap.size > 0) {
       PARTICIPANTS.length = 0;
       PARTICIPANTS.push(...participantsMap.values());
-      console.log(`✅ ${PARTICIPANTS.length} participants extraits depuis les activités`);
     }
   } catch (error) {
     console.error('❌ Erreur extraction participants depuis activités:', error);

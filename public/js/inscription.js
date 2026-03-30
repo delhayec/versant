@@ -6,9 +6,9 @@
 
 const API_BASE_URL = '/api';
 
-// Configuration Strava OAuth
+// Configuration Strava OAuth (clientId chargé dynamiquement)
 const STRAVA_CONFIG = {
-  clientId: '195975', // ← Remplacer par votre Client ID
+  clientId: null, // Chargé depuis /api/strava-client-id
   redirectUri: window.location.origin + '/inscription.html',
   scope: 'read,activity:read_all'
 };
@@ -20,7 +20,18 @@ let stravaTokens = null;
 // ============================================
 // INITIALISATION
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Charger le client ID Strava depuis le serveur
+  try {
+    const response = await fetch('/api/strava-client-id');
+    if (response.ok) {
+      const data = await response.json();
+      STRAVA_CONFIG.clientId = data.clientId;
+    }
+  } catch (e) {
+    console.warn('⚠️ Impossible de charger le client ID Strava');
+  }
+  
   checkStravaCallback();
   setupEventListeners();
 });

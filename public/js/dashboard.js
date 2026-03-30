@@ -6,7 +6,11 @@
  * - Bonus éphémères du challenge des éliminés
  */
 
-import { CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES } from './config-2026.js';
+import { 
+  CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES,
+  getRoundDates as _getRoundDates, 
+  getGlobalRoundNumber
+} from './config.js';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
@@ -134,7 +138,6 @@ async function loadJokersFromServer() {
       return [];
     }
     jokerUsageCache = await res.json();
-    console.log(`🃏 ${jokerUsageCache.length} utilisations de jokers chargées`);
     return jokerUsageCache;
   } catch (error) {
     console.error('❌ Erreur chargement jokers:', error);
@@ -159,7 +162,6 @@ async function loadBonusFromServer() {
 
     const data = await res.json();
     bonusData = data.bonus;
-    console.log('🎁 Bonus chargé:', bonusData ? bonusData.bonus_id : 'aucun');
     return bonusData;
   } catch (error) {
     // Si c'est une erreur de session, authFetch a déjà géré la redirection
@@ -185,7 +187,6 @@ async function loadBonusChoices() {
     const data = await res.json();
     if (data.hasChoice) {
       bonusChoices = data.choices;
-      console.log('🎁 Choix de bonus en attente:', bonusChoices);
     }
     return bonusChoices;
   } catch (error) {
@@ -222,10 +223,7 @@ function getPendingJokers(participantId, currentRoundNumber) {
 }
 
 function getCurrentRound() {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  return Math.max(1, Math.floor(daysSinceStart / CHALLENGE_CONFIG.roundDurationDays) + 1);
+  return getGlobalRoundNumber(new Date());
 }
 
 function getDayInRound() {
@@ -233,6 +231,11 @@ function getDayInRound() {
   const now = new Date();
   const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
   return (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;
+}
+
+// Utilise getRoundDates importé de config.js (wrapper pour compatibilité)
+function getRoundDates(roundNumber) {
+  return _getRoundDates(roundNumber);
 }
 
 // ============================================
@@ -604,17 +607,7 @@ function calculateGeneralRanking(frozenResults, allAthletes) {
 /**
  * Calcule les dates d'un round
  */
-function getRoundDates(roundNumber) {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const roundStart = new Date(start);
-  roundStart.setDate(roundStart.getDate() + (roundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays);
-
-  const roundEnd = new Date(roundStart);
-  roundEnd.setDate(roundEnd.getDate() + CHALLENGE_CONFIG.roundDurationDays - 1);
-  roundEnd.setHours(23, 59, 59, 999);
-
-  return { start: roundStart, end: roundEnd };
-}
+// getRoundDates est défini plus haut (wrapper de config.js)
 
 function renderActivities() {
   const list = document.getElementById('activitiesList');
@@ -1315,7 +1308,6 @@ function showNotification(message, type = 'info') {
 // INITIALISATION
 // ============================================
 async function init() {
-  console.log('🎯 Initialisation Dashboard v2.1');
 
   try {
     await loadCurrentUser();
@@ -1331,7 +1323,6 @@ async function init() {
     renderBonus();
     renderActivities();
 
-    console.log('✅ Dashboard chargé');
   } catch (error) {
     console.error('❌ Erreur initialisation dashboard:', error);
   }
@@ -1358,7 +1349,6 @@ window.handleBonusClick = handleBonusClick;
 document.addEventListener('DOMContentLoaded', async () => {
   const athleteId = getCurrentUserId();
   if (!athleteId) {
-    console.log('⚠️ Non connecté, redirection vers login');
     window.location.href = 'login.html';
     return;
   }

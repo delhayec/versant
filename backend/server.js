@@ -9,8 +9,6 @@
  */
 require('dotenv').config();
 
-const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
-const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -18,6 +16,9 @@ const fs = require('fs').promises;
 const path = require('path');
 const cron = require('node-cron');
 const crypto = require('crypto');
+
+// Import configuration partagée (source unique de vérité)
+const { CHALLENGE_CONFIG, VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK } = require('./shared-config');
 
 // Import du module jokers
 const { createJokersRoutes } = require('./jokers-routes');
@@ -32,6 +33,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Configuration Strava (unique)
 const STRAVA_CONFIG = {
   clientId: process.env.STRAVA_CLIENT_ID,
   clientSecret: process.env.STRAVA_CLIENT_SECRET
@@ -112,6 +114,37 @@ async function safeWriteJSON(filePath, data) {
     const tempPath = filePath + '.tmp';
     await fs.writeFile(tempPath, JSON.stringify(data, null, 2));
     await fs.rename(tempPath, filePath);
+  } finally {
+    releaseLock(filePath);
+  }
+}
+
+/**
+ * Lecture-modification-écriture atomique.
+ * Le lock est maintenu pendant tout le cycle, éliminant les race conditions.
+ * @param {string} filePath - Chemin du fichier JSON
+ * @param {Function} modifyFn - Fonction (data) => modifiedData
+ * @param {*} defaultValue - Valeur par défaut si le fichier n'existe pas
+ * @returns {*} Les données modifiées
+ */
+async function safeModifyJSON(filePath, modifyFn, defaultValue = []) {
+  await acquireLock(filePath);
+  try {
+    let data;
+    try {
+      const raw = await fs.readFile(filePath, 'utf8');
+      data = JSON.parse(raw);
+    } catch {
+      data = defaultValue;
+    }
+    
+    const modified = await modifyFn(data);
+    
+    const tempPath = filePath + '.tmp';
+    await fs.writeFile(tempPath, JSON.stringify(modified, null, 2));
+    await fs.rename(tempPath, filePath);
+    
+    return modified;
   } finally {
     releaseLock(filePath);
   }
@@ -208,6 +241,23 @@ app.use('/api', jokersRouter);
 
 // Initialiser les routes bonus éphémères
 createBonusesRoutes(app, requireAuth, checkAdmin);
+
+// ============================================
+// CONFIG ROUTE (publique)
+// ============================================
+app.get('/api/config', (req, res) => {
+  res.json({
+    challenge: CHALLENGE_CONFIG,
+    validSports: VALID_SPORTS,
+    jokerIds: JOKER_IDS,
+    initialJokerStock: INITIAL_JOKER_STOCK
+  });
+});
+
+// Client ID Strava (public, pas un secret)
+app.get('/api/strava-client-id', (req, res) => {
+  res.json({ clientId: STRAVA_CONFIG.clientId });
+});
 
 // ============================================
 // AUTH ROUTES
@@ -315,9 +365,9 @@ app.get('/api/auth/me', async (req, res) => {
     const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
     const usedByAthlete = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(athleteId));
 
-    const availableJokers = ['voleur', 'multiplicateur', 'bouclier', 'sabotage'].filter(jokerId => {
+    const availableJokers = JOKER_IDS.filter(jokerId => {
       const usedCount = usedByAthlete.filter(j => j.joker_id === jokerId).length;
-      return usedCount < 2; // 2 de chaque au départ
+      return usedCount < INITIAL_JOKER_STOCK;
     });
 
     res.json({
@@ -392,8 +442,10 @@ app.get('/api/athletes/:leagueId', async (req, res) => {
 });
 
 // ============================================
-// JOKERS ROUTES - UNIFIÉ
+// JOKERS ROUTES - JOUEUR
 // ============================================
+// Routes joueur ici (server.js) — utilise safeReadJSON/safeWriteJSON
+// Routes admin avancées dans jokers-routes.js (stock, reset par ligue, resolve)
 
 // Récupérer TOUS les jokers utilisés (pour le tableau principal)
 app.get('/api/jokers/all', async (req, res) => {
@@ -424,9 +476,9 @@ app.get('/api/jokers/my', requireAuth, async (req, res) => {
 
     // Calculer le stock restant
     const stock = {};
-    ['voleur', 'multiplicateur', 'bouclier', 'sabotage'].forEach(jokerId => {
+    JOKER_IDS.forEach(jokerId => {
       const usedCount = myUsage.filter(j => j.joker_id === jokerId).length;
-      stock[jokerId] = Math.max(0, 2 - usedCount);
+      stock[jokerId] = Math.max(0, INITIAL_JOKER_STOCK - usedCount);
     });
 
     res.json({ stock, used: myUsage });
@@ -444,44 +496,52 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Données manquantes' });
     }
 
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
-
-    // Vérifier le stock
-    const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
-    const usedCount = myUsage.filter(j => j.joker_id === joker_id).length;
-
-    if (usedCount >= 2) {
-      return res.status(400).json({ error: 'Plus de joker disponible' });
-    }
-
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const athlete = athletes.find(a => normalizeId(a.id) === normalizeId(req.athleteId));
 
-    const usage = {
-      id: `${req.athleteId}-${joker_id}-${Date.now()}`,
-      athlete_id: normalizeId(req.athleteId),
-      athlete_name: athlete?.name || 'Unknown',
-      joker_id,
-      target_athlete_id: target_athlete_id ? normalizeId(target_athlete_id) : null,
-      target_athlete_name: null,
-      selected_day: selected_day || null,
-      activate_now: activate_now || false,
-      round_number,
-      used_at: new Date().toISOString(),
-      status: 'active'
-    };
+    // Lecture-vérification-écriture atomique (pas de race condition)
+    let resultUsage = null;
+    let error = null;
 
-    // Ajouter le nom de la cible si applicable
-    if (target_athlete_id) {
-      const target = athletes.find(a => normalizeId(a.id) === normalizeId(target_athlete_id));
-      usage.target_athlete_name = target?.name || 'Unknown';
+    await safeModifyJSON(JOKERS_FILE, (jokerUsage) => {
+      const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
+      const usedCount = myUsage.filter(j => j.joker_id === joker_id).length;
+
+      if (usedCount >= INITIAL_JOKER_STOCK) {
+        error = 'Plus de joker disponible';
+        return jokerUsage; // Pas de modification
+      }
+
+      const usage = {
+        id: `${req.athleteId}-${joker_id}-${Date.now()}`,
+        athlete_id: normalizeId(req.athleteId),
+        athlete_name: athlete?.name || 'Unknown',
+        joker_id,
+        target_athlete_id: target_athlete_id ? normalizeId(target_athlete_id) : null,
+        target_athlete_name: null,
+        selected_day: selected_day || null,
+        activate_now: activate_now || false,
+        round_number,
+        used_at: new Date().toISOString(),
+        status: 'active'
+      };
+
+      if (target_athlete_id) {
+        const target = athletes.find(a => normalizeId(a.id) === normalizeId(target_athlete_id));
+        usage.target_athlete_name = target?.name || 'Unknown';
+      }
+
+      jokerUsage.push(usage);
+      resultUsage = usage;
+      return jokerUsage;
+    });
+
+    if (error) {
+      return res.status(400).json({ error });
     }
 
-    jokerUsage.push(usage);
-    await safeWriteJSON(JOKERS_FILE, jokerUsage);
-
     console.log(`🃏 Joker ${joker_id} utilisé par ${athlete?.name} pour round ${round_number}`);
-    res.json({ success: true, usage });
+    res.json({ success: true, usage: resultUsage });
   } catch (error) {
     console.error('Erreur joker:', error);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -510,6 +570,19 @@ app.get('/api/admin/jokers', async (req, res) => {
     res.json({ count: jokerUsage.length, jokers: jokerUsage });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Admin: Télécharger jokers_usage.json (format tableau, importable directement)
+app.get('/api/admin/jokers/download', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = await fs.readFile(JOKERS_FILE, 'utf8');
+    res.setHeader('Content-Disposition', 'attachment; filename=jokers_usage.json');
+    res.setHeader('Content-Type', 'application/json');
+    res.send(data);
+  } catch {
+    res.status(404).json({ error: 'Fichier non trouvé' });
   }
 });
 
@@ -660,12 +733,12 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
         timeout: 20000
       });
 
-      const validTypes = ['Run', 'TrailRun', 'Hike', 'Walk', 'Ride', 'MountainBikeRide', 'GravelRide', 'BackcountrySki', 'NordicSki', 'Snowshoe'];
+      // Utilise VALID_SPORTS importé de shared-config
       let newCount = 0;
       let updatedCount = 0;
 
       for (const act of response.data) {
-        if (!validTypes.includes(act.sport_type) && !validTypes.includes(act.type)) continue;
+        if (!VALID_SPORTS.includes(act.sport_type) && !VALID_SPORTS.includes(act.type)) continue;
 
         const existingIndex = activities.findIndex(a => a.id === act.id);
 
@@ -911,10 +984,10 @@ async function processOneWebhook(event) {
       return;
     }
 
-    const validTypes = ['Run', 'TrailRun', 'Hike', 'Walk', 'Ride', 'MountainBikeRide', 'GravelRide', 'BackcountrySki', 'NordicSki', 'Snowshoe'];
+    // Utilise VALID_SPORTS importé de shared-config
     const actType = stravaActivity.sport_type || stravaActivity.type;
 
-    if (!validTypes.includes(actType)) {
+    if (!VALID_SPORTS.includes(actType)) {
       console.log(`   → Ignoré (type: ${actType})`);
       await logWebhook(event, 'ignored', { reason: 'invalid_type', type: actType });
       return;
@@ -1156,7 +1229,7 @@ app.get('/api/admin/strava/status', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const response = await axios.get('https://www.strava.com/api/v3/push_subscriptions', {
-      params: { client_id: STRAVA_CLIENT_ID, client_secret: STRAVA_CLIENT_SECRET }
+      params: { client_id: STRAVA_CONFIG.clientId, client_secret: STRAVA_CONFIG.clientSecret }
     });
     res.json({ active: response.data.length > 0, subscriptions: response.data });
   } catch (error) {
@@ -1168,7 +1241,7 @@ app.post('/api/admin/strava/subscribe', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const check = await axios.get('https://www.strava.com/api/v3/push_subscriptions', {
-      params: { client_id: STRAVA_CLIENT_ID, client_secret: STRAVA_CLIENT_SECRET }
+      params: { client_id: STRAVA_CONFIG.clientId, client_secret: STRAVA_CONFIG.clientSecret }
     });
 
     if (check.data.length > 0) {
@@ -1176,8 +1249,8 @@ app.post('/api/admin/strava/subscribe', async (req, res) => {
     }
 
     const response = await axios.post('https://www.strava.com/api/v3/push_subscriptions', {
-      client_id: STRAVA_CLIENT_ID,
-      client_secret: STRAVA_CLIENT_SECRET,
+      client_id: STRAVA_CONFIG.clientId,
+      client_secret: STRAVA_CONFIG.clientSecret,
       callback_url: 'https://versant-app.fr/api/webhook/strava',
       verify_token: STRAVA_VERIFY_TOKEN
     });
@@ -1289,13 +1362,7 @@ app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res)
 // ============================================
 const frozenResults = require('./frozen-results.js');
 
-// Configuration pour frozen-results (doit correspondre au frontend)
-const CHALLENGE_CONFIG = {
-  yearStartDate: '2026-02-02',
-  yearEndDate: '2026-12-31',
-  roundDurationDays: 5,
-  eliminationsPerRound: 2
-};
+// CHALLENGE_CONFIG est importé depuis shared-config.js (source unique de vérité)
 
 // ============================================
 // FROZEN RESULTS ROUTES

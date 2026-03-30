@@ -200,35 +200,12 @@ export function renderActiveJokersSection(container, data) {
     let statusHtml = '';
     let statusClass = 'active';
 
-    if (joker.jokerId === 'duel' && ranking) {
-      const challenger = ranking.find(r => String(r.participant.id) === String(joker.participantId));
-      const target = ranking.find(r => String(r.participant.id) === String(joker.targetId));
-
-      if (challenger && target) {
-        const challengerWins = challenger.totalElevation > target.totalElevation;
-        statusClass = challengerWins ? 'winning' : 'losing';
-
-        statusHtml = `
-          <div class="duel-status">
-            <div class="duel-competitor ${challengerWins ? 'winning' : 'losing'}">
-              <span class="competitor-name">${joker.participantName}</span>
-              <span class="competitor-elevation">${formatElevation(challenger.totalElevation)}</span>
-              ${challengerWins ? '<span class="duel-badge">⚔️ EN TÊTE</span>' : ''}
-            </div>
-            <div class="duel-vs">VS</div>
-            <div class="duel-competitor ${!challengerWins ? 'winning' : 'losing'}">
-              <span class="competitor-name">${joker.targetName}</span>
-              <span class="competitor-elevation">${formatElevation(target.totalElevation)}</span>
-              ${!challengerWins ? '<span class="duel-badge">🎯 EN TÊTE</span>' : ''}
-            </div>
-          </div>
-          <div class="duel-stakes">Enjeu : 25% du D+ du perdant</div>
-        `;
-      }
+    if (joker.jokerId === 'voleur') {
+      statusHtml = `<div class="joker-effect">🦹 ${joker.participantName} vole la meilleure activité de ${joker.targetName}</div>`;
     } else if (joker.jokerId === 'multiplicateur') {
       statusHtml = `<div class="joker-effect">×1.5 sur tout le D+ de ${joker.participantName}</div>`;
     } else if (joker.jokerId === 'sabotage') {
-      statusHtml = `<div class="joker-effect">-25% du D+ de ${joker.targetName}</div>`;
+      statusHtml = `<div class="joker-effect">-30% du D+ de ${joker.targetName}</div>`;
     } else if (joker.jokerId === 'bouclier') {
       statusHtml = `<div class="joker-effect">${joker.participantName} est protégé contre l'élimination</div>`;
     }

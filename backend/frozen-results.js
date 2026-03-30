@@ -17,6 +17,15 @@
 const fs = require('fs').promises;
 const path = require('path');
 
+// Import configuration partagée (source unique de vérité)
+const {
+  VALID_SPORTS, isValidSport,
+  MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
+  getMainPoints, getEliminatedPoints,
+  BONUS_IDS,
+  getRoundDates, getSeasonNumber, getRoundInSeason
+} = require('./shared-config');
+
 // Import de la fonction d'application des bonus
 let applyBonusEffectsForRound = null;
 try {
@@ -29,31 +38,6 @@ try {
 // Configuration
 const DATA_DIR = path.join(__dirname, 'data');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
-
-// Sports valides pour le challenge (doit correspondre à config.js frontend)
-const VALID_SPORTS = [
-  'Run', 'TrailRun',
-  'Hike', 'Walk', 'Snowshoe',
-  'Ride', 'MountainBikeRide', 'GravelRide',
-  'BackcountrySki', 'NordicSki'
-];
-
-function isValidSport(type) {
-  return !type || VALID_SPORTS.includes(type);
-}
-
-// Points par position dans le challenge principal
-const MAIN_CHALLENGE_POINTS = {
-  1: 24, 2: 21, 3: 18, 4: 15, 5: 12, 6: 10, 7: 8, 8: 6, 9: 5, 10: 4, 11: 3, 12: 2, 13: 1
-};
-
-// Points pour les éliminés
-const ELIMINATED_CHALLENGE_POINTS = {
-  1: 10, 2: 8, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1
-};
-
-const getMainPoints = (pos) => MAIN_CHALLENGE_POINTS[pos] ?? 0;
-const getEliminatedPoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? 0;
 
 // ============================================
 // UTILITAIRES DE FICHIER
@@ -71,33 +55,6 @@ async function loadFrozenResults() {
 async function saveFrozenResults(data) {
   data.lastUpdated = new Date().toISOString();
   await fs.writeFile(FROZEN_FILE, JSON.stringify(data, null, 2));
-}
-
-// ============================================
-// CALCUL DES DATES DE ROUND
-// ============================================
-
-function getRoundDates(roundNumber, config) {
-  const yearStart = new Date(config.yearStartDate);
-  const start = new Date(yearStart);
-  start.setDate(start.getDate() + (roundNumber - 1) * config.roundDurationDays);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(start);
-  end.setDate(end.getDate() + config.roundDurationDays - 1);
-  end.setHours(23, 59, 59, 999);
-
-  return { start, end };
-}
-
-function getSeasonNumber(roundNumber, totalParticipants, eliminationsPerRound) {
-  const roundsPerSeason = Math.ceil((totalParticipants - 1) / eliminationsPerRound);
-  return Math.ceil(roundNumber / roundsPerSeason);
-}
-
-function getRoundInSeason(roundNumber, totalParticipants, eliminationsPerRound) {
-  const roundsPerSeason = Math.ceil((totalParticipants - 1) / eliminationsPerRound);
-  return ((roundNumber - 1) % roundsPerSeason) + 1;
 }
 
 // ============================================
@@ -243,10 +200,7 @@ async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
     return null;
   }
 
-  // Liste des bonus disponibles
-  const BONUS_IDS = ['embuscade', 'ravitaillement', 'duel', 'brouillard', 'marquage', 'trap', 'second_souffle', 'kamikaze', 'malediction'];
-
-  // Tirer 2 bonus au hasard
+  // Tirer 2 bonus au hasard (utilise BONUS_IDS importé de shared-config)
   const shuffled = [...BONUS_IDS].sort(() => Math.random() - 0.5);
   const choices = shuffled.slice(0, 2);
 

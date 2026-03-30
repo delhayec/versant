@@ -18,7 +18,7 @@
       "refresh_token": "xyz789...",
       "expires_at": 1737897600
     },
-    "jokers": ["duel", "multiplicateur", "bouclier", "sabotage"],
+    "jokers": ["voleur", "multiplicateur", "bouclier", "sabotage"],
     "active": true
   }
 ]
