@@ -1234,6 +1234,7 @@ body {
   -webkit-text-fill-color: white;
 }
 
+/* Pilules avec fond (utilisées dans l'historique) */
 .pts-main {
   background: rgba(16, 185, 129, 0.85);
   color: white;
@@ -1254,13 +1255,44 @@ body {
   color: white;
 }
 
-.season-pts-detail .pts-main,
-.season-pts-detail .pts-elim,
-.season-pts-detail .pts-rescape {
-  font-size: 0.7rem;
-  padding: 1px 5px;
-  border-radius: 3px;
+/* Texte coloré sans fond (utilisé dans le classement général) */
+.pts-text-main {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.pts-text-rescape {
+  color: #f59e0b;
   font-weight: 600;
+}
+
+.pts-text-elim {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+/* En-têtes colorés du classement général */
+.header-main {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.header-elim {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+.season-pts-detail {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: baseline;
+}
+
+.season-pts-detail .pts-text-main,
+.season-pts-detail .pts-text-elim,
+.season-pts-detail .pts-text-rescape {
+  font-size: 0.85rem;
 }
 
 /* Badge pour les éliminés de la saison en cours */
@@ -2872,21 +2904,6 @@ body {
   display: inline-flex;
   gap: 4px;
   align-items: center;
-}
-
-.season-pts-detail .pts-main {
-  color: #10b981;
-  font-weight: 600;
-}
-
-.season-pts-detail .pts-elim {
-  color: #a855f7;
-  font-size: 0.85em;
-}
-
-.season-pts-detail .pts-rescape {
-  color: #f59e0b;
-  font-size: 0.85em;
 }
 
 .pts-zero {

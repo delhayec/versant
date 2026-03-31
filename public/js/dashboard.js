@@ -289,7 +289,7 @@ async function renderStats() {
   const athletesList = athletes.length > 0 ? athletes : [currentUser];
 
   // Déterminer le statut du joueur (actif ou éliminé)
-  const eliminationInfo = getEliminationInfo(userId, frozenResults);
+  const eliminationInfo = getEliminationInfo(userId, frozenResults, athletesList);
   const isEliminated = eliminationInfo.isEliminated;
 
   // Calculer les dates du round actuel
@@ -487,20 +487,31 @@ async function loadAllAthletes() {
 }
 
 /**
- * Détermine si un joueur est éliminé et à quel round
+ * Détermine si un joueur est éliminé dans la saison en cours et à quel round
  */
-function getEliminationInfo(athleteId, frozenResults) {
+function getEliminationInfo(athleteId, frozenResults, allAthletes = []) {
   const aid = String(athleteId);
 
   if (!frozenResults || !frozenResults.rounds) {
     return { isEliminated: false, round: null };
   }
 
+  // Calculer la saison en cours
+  const currentRound = getCurrentRound();
+  const totalAthletes = allAthletes.length || 15;
+  const roundsPerSeason = Math.ceil((totalAthletes - 1) / 2);
+  const currentSeason = Math.ceil(currentRound / roundsPerSeason);
+  const seasonStartRound = (currentSeason - 1) * roundsPerSeason + 1;
+  const seasonEndRound = currentSeason * roundsPerSeason;
+
   for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
+    const rn = parseInt(roundNum);
+    if (rn < seasonStartRound || rn > seasonEndRound) continue;
+
     if (roundData.eliminations) {
       const eliminated = roundData.eliminations.find(e => String(e.id) === aid);
       if (eliminated) {
-        return { isEliminated: true, round: parseInt(roundNum) };
+        return { isEliminated: true, round: rn, roundInSeason: ((rn - 1) % roundsPerSeason) + 1 };
       }
     }
   }
@@ -509,14 +520,23 @@ function getEliminationInfo(athleteId, frozenResults) {
 }
 
 /**
- * Récupère les athlètes encore actifs (non éliminés)
+ * Récupère les athlètes encore actifs (non éliminés dans la saison en cours)
  */
 function getActiveAthletes(frozenResults, allAthletes) {
   const eliminatedIds = new Set();
 
   if (frozenResults && frozenResults.rounds) {
-    for (const roundData of Object.values(frozenResults.rounds)) {
-      if (roundData.eliminations) {
+    // Calculer quelle saison on est
+    const currentRound = getCurrentRound();
+    const roundsPerSeason = Math.ceil((allAthletes.length - 1) / 2); // 2 éliminations par round
+    const currentSeason = Math.ceil(currentRound / roundsPerSeason);
+    const seasonStartRound = (currentSeason - 1) * roundsPerSeason + 1;
+    const seasonEndRound = currentSeason * roundsPerSeason;
+
+    // Ne compter que les éliminés de la saison en cours
+    for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
+      const rn = parseInt(roundNum);
+      if (rn >= seasonStartRound && rn <= seasonEndRound && roundData.eliminations) {
         roundData.eliminations.forEach(e => eliminatedIds.add(String(e.id)));
       }
     }
@@ -543,20 +563,31 @@ function calculateRankingFromActivities(activities, athletes) {
 }
 
 /**
- * Calcule le classement des éliminés (D+ depuis leur élimination)
+ * Calcule le classement des éliminés de la saison en cours (D+ depuis leur élimination)
  */
 function calculateEliminatedRanking(frozenResults, allActivities, allAthletes) {
   const eliminated = [];
 
   if (!frozenResults || !frozenResults.rounds) return [];
 
+  // Calculer la saison en cours
+  const currentRound = getCurrentRound();
+  const totalAthletes = allAthletes.length || 15;
+  const roundsPerSeason = Math.ceil((totalAthletes - 1) / 2);
+  const currentSeason = Math.ceil(currentRound / roundsPerSeason);
+  const seasonStartRound = (currentSeason - 1) * roundsPerSeason + 1;
+  const seasonEndRound = currentSeason * roundsPerSeason;
+
   for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
+    const rn = parseInt(roundNum);
+    if (rn < seasonStartRound || rn > seasonEndRound) continue;
+
     if (roundData.eliminations) {
       roundData.eliminations.forEach(e => {
         eliminated.push({
           id: e.id,
           name: e.name,
-          eliminatedRound: parseInt(roundNum)
+          eliminatedRound: rn
         });
       });
     }
@@ -577,12 +608,9 @@ function calculateEliminatedRanking(frozenResults, allActivities, allAthletes) {
 }
 
 /**
- * Calcule le classement général (points accumulés)
+ * Calcule le classement général (points accumulés depuis les résultats figés)
  */
 function calculateGeneralRanking(frozenResults, allAthletes) {
-  // Points par position dans un round (24 joueurs max)
-  const pointsTable = [24, 21, 18, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-
   const pointsMap = {};
   allAthletes.forEach(a => {
     pointsMap[String(a.id)] = { id: a.id, name: a.name, points: 0 };
@@ -591,9 +619,10 @@ function calculateGeneralRanking(frozenResults, allAthletes) {
   if (frozenResults && frozenResults.rounds) {
     for (const roundData of Object.values(frozenResults.rounds)) {
       if (roundData.ranking) {
-        roundData.ranking.forEach((entry, index) => {
-          const pts = pointsTable[index] || 1;
-          if (pointsMap[String(entry.id)]) {
+        roundData.ranking.forEach(entry => {
+          // Utiliser les mainPoints stockés dans les frozen results
+          const pts = entry.mainPoints || 0;
+          if (pts > 0 && pointsMap[String(entry.id)]) {
             pointsMap[String(entry.id)].points += pts;
           }
         });
