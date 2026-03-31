@@ -1419,7 +1419,7 @@ function renderFinalStandings(container) {
       <div>Rang</div>
       <div>Athlète</div>
       <div class="hide-mobile" title="Points des saisons précédentes">Saisons préc.</div>
-      <div class="hide-mobile" title="Points de la saison actuelle (Principal + Éliminés)">Saison ${currentSeasonNumber}</div>
+      <div class="hide-mobile" title="Points de la saison actuelle"><span class="header-main">Principal</span> · <span class="header-elim">Éliminé</span></div>
       <div>Total</div>
     </div>`;
 
@@ -1436,30 +1436,28 @@ function renderFinalStandings(container) {
       statusBadge = `<span class="elim-badge">Élim. R${elimData?.eliminatedRound || '?'}</span>`;
     }
 
-    // Afficher les détails de la saison actuelle avec pilules
-    const currentSeasonDetails = [];
+    // Colonne saison actuelle : valeurs colorées texte (pas de fond)
+    const currentSeasonParts = [];
     if (e.currentSeasonMain > 0) {
-      currentSeasonDetails.push(`<span class="pts-main" title="Points challenge principal">${e.currentSeasonMain}</span>`);
+      currentSeasonParts.push(`<span class="pts-text-main">${e.currentSeasonMain}</span>`);
     }
     if (e.currentSeasonRescape > 0) {
-      currentSeasonDetails.push(`<span class="pts-rescape" title="Points rescapé">+${e.currentSeasonRescape}</span>`);
+      currentSeasonParts.push(`<span class="pts-text-rescape">+${e.currentSeasonRescape}</span>`);
     }
     if (e.currentSeasonElim > 0) {
-      currentSeasonDetails.push(`<span class="pts-elim" title="Points challenge éliminés">+${e.currentSeasonElim}</span>`);
+      currentSeasonParts.push(`<span class="pts-text-elim">+${e.currentSeasonElim}</span>`);
     }
-    const currentSeasonHtml = currentSeasonDetails.length > 0
-      ? `<span class="season-pts-detail">${currentSeasonDetails.join(' ')}</span>`
+    const currentSeasonHtml = currentSeasonParts.length > 0
+      ? `<span class="season-pts-detail">${currentSeasonParts.join(' ')}</span>`
       : `<span class="pts-zero">-</span>`;
 
-    // Détail du total
-    const totalBreakdown = [];
-    if (e.totalMainPoints > 0) totalBreakdown.push(`<span class="pts-main" title="Challenge principal">${e.totalMainPoints}</span>`);
-    if (e.totalRescapePoints > 0) totalBreakdown.push(`<span class="pts-rescape" title="Rescapé">+${e.totalRescapePoints}</span>`);
-    if (e.totalEliminatedPoints > 0) totalBreakdown.push(`<span class="pts-elim" title="Challenge éliminés">+${e.totalEliminatedPoints}</span>`);
-    if (e.bonusPoints > 0) totalBreakdown.push(`<span class="pts-bonus" title="Bonus">+${e.bonusPoints}</span>`);
-    const totalDetail = totalBreakdown.length > 1
-      ? `<div class="standings-total-detail">${totalBreakdown.join(' ')}</div>`
-      : '';
+    // Détail du total en hover uniquement
+    const hoverParts = [];
+    if (e.totalMainPoints > 0) hoverParts.push(`Principal: ${e.totalMainPoints}`);
+    if (e.totalRescapePoints > 0) hoverParts.push(`Rescapé: +${e.totalRescapePoints}`);
+    if (e.totalEliminatedPoints > 0) hoverParts.push(`Éliminé: +${e.totalEliminatedPoints}`);
+    if (e.bonusPoints > 0) hoverParts.push(`Bonus: +${e.bonusPoints}`);
+    const hoverTitle = hoverParts.length > 1 ? hoverParts.join(' \u00B7 ') : '';
 
     html += `<div class="standings-row ${isActive ? '' : 'eliminated'}">
       <div class="standings-rank">${e.rank}</div>
@@ -1469,7 +1467,7 @@ function renderFinalStandings(container) {
       </div>
       <div class="standings-points prev hide-mobile">${e.previousSeasonTotal || '-'}</div>
       <div class="standings-points current hide-mobile">${currentSeasonHtml}</div>
-      <div class="standings-total">${e.totalPoints}${totalDetail}</div>
+      <div class="standings-total"${hoverTitle ? ` title="${hoverTitle}"` : ''}>${e.totalPoints}</div>
     </div>`;
   });
 
@@ -1612,7 +1610,7 @@ async function renderArsenalSection(container, roundNumber) {
           const bonusType = BONUS_TYPES?.[b.bonus_id];
 
           // Calculer les infos supplémentaires pour le hover
-          const hoverInfo = calculateBonusHoverInfo(b, athlete, target);
+          const hoverInfo = calculateBonusHoverInfo(b, athlete, target, currentRoundNumber);
 
           return {
             ...b,
@@ -1666,18 +1664,18 @@ async function renderArsenalSection(container, roundNumber) {
 /**
  * Calcule les informations supplémentaires pour le hover d'un bonus
  */
-function calculateBonusHoverInfo(bonus, athlete, target) {
+function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
   const bonusId = bonus.bonus_id;
   if (!bonusId || bonus.status === 'pending') return null;
 
   const athleteId = bonus.athlete_id;
   const targetId = bonus.target_athlete_id;
+  const effectRound = bonus.used_in_round || roundNumber;
 
   switch (bonusId) {
     case 'embuscade': {
-      // Calculer le D+ potentiel des activités de la cible (>20min)
       if (!targetId) return null;
-      const targetActivities = getEligibleActivitiesForBonus(targetId);
+      const targetActivities = getEligibleActivitiesForBonus(targetId, effectRound);
       if (targetActivities.length === 0) return "Aucune activité éligible";
       const elevations = targetActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
@@ -1687,7 +1685,7 @@ function calculateBonusHoverInfo(bonus, athlete, target) {
 
     case 'ravitaillement': {
       // Calculer le D+ potentiel des activités de l'éliminé
-      const athleteActivities = getEligibleActivitiesForBonus(athleteId);
+      const athleteActivities = getEligibleActivitiesForBonus(athleteId, effectRound);
       if (athleteActivities.length === 0) return "Aucune activité éligible";
       const elevations = athleteActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
@@ -1795,9 +1793,17 @@ function getRoundElevation(athleteId, roundDates) {
 /**
  * Récupère les activités éligibles pour un bonus (>20min)
  */
-function getEligibleActivitiesForBonus(athleteId) {
+function getEligibleActivitiesForBonus(athleteId, roundNumber) {
   if (!allActivities) return [];
-  return allActivities.filter(a => {
+
+  // Si un numéro de round est fourni, filtrer par les dates de ce round
+  let activities = allActivities;
+  if (roundNumber) {
+    const roundDates = getRoundDates(roundNumber);
+    activities = filterByPeriod(allActivities, roundDates.start, roundDates.end);
+  }
+
+  return activities.filter(a => {
     if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
     const duration = a.moving_time || a.elapsed_time || 0;
     return duration >= 20 * 60; // 20 minutes en secondes
