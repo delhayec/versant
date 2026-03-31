@@ -2245,7 +2245,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   const rankingHtml = ranking.map((entry, idx) => {
     const isEliminated = eliminatedIds.has(entry.id);
     const position = idx + 1;
-    const isRescape = (idx === rescapeIndex) && !isFinaleRound && eliminations.length > 0;
+    const isRescape = (String(entry.id) === rescapeId) && !isFinaleRound && eliminations.length > 0;
 
     // Points gagnés par cet athlète dans ce round
     const mainPts = entry.mainPoints || 0;
