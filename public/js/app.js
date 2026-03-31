@@ -279,6 +279,111 @@ function getRescapeFromPreviousRound(currentRoundNumber) {
   return null;
 }
 
+/**
+ * Calcule les points rescapé pour tous les joueurs d'une saison.
+ * Règles :
+ *   - Rescapé = avant-avant-dernier du classement (juste au-dessus des 2 éliminés)
+ *   - 1ère fois consécutive : jeton (0 pts)
+ *   - 2ème fois consécutive : +2 pts
+ *   - 3ème+ consécutive : +2 pts chaque fois
+ *   - Si le joueur quitte la position rescapé : compteur reset
+ *
+ * @param {number} seasonNumber
+ * @returns {Object} { [athleteId]: { totalPoints, streaks: [{round, consecutive, points}] } }
+ */
+function calculateRescapePointsForSeason(seasonNumber) {
+  const result = {};
+  PARTICIPANTS.forEach(p => {
+    result[p.id] = { totalPoints: 0, streaks: [] };
+  });
+
+  if (!frozenResultsCache?.rounds) return result;
+
+  const roundsPerSeason = getRoundsPerSeason();
+  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
+  const seasonEndRound = seasonNumber * roundsPerSeason;
+
+  // Tracker le compteur consécutif par joueur
+  const consecutiveCount = {};
+  PARTICIPANTS.forEach(p => { consecutiveCount[p.id] = 0; });
+
+  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
+    const round = frozenResultsCache.rounds[String(roundNum)];
+    if (!round?.frozen || !round.ranking || round.ranking.length < 4) continue;
+
+    const eliminations = round.eliminations || [];
+    if (eliminations.length === 0) continue;
+
+    // Trouver le rescapé de ce round
+    const eliminatedIds = new Set(eliminations.map(e => String(e.id)));
+    const roundInSeason = ((roundNum - 1) % roundsPerSeason) + 1;
+    const isFinale = roundInSeason === roundsPerSeason;
+
+    // Pas de rescapé en finale
+    if (isFinale) {
+      PARTICIPANTS.forEach(p => { consecutiveCount[p.id] = 0; });
+      continue;
+    }
+
+    // Le rescapé = dernier survivant du classement (dernier non-éliminé)
+    const survivors = round.ranking.filter(e => !eliminatedIds.has(String(e.id)));
+    const rescapeEntry = survivors.length > 0 ? survivors[survivors.length - 1] : null;
+    const rescapeId = rescapeEntry ? String(rescapeEntry.id) : null;
+
+    // Mettre à jour les compteurs
+    PARTICIPANTS.forEach(p => {
+      const pid = p.id;
+      if (eliminatedIds.has(pid)) {
+        // Éliminé → reset
+        consecutiveCount[pid] = 0;
+        return;
+      }
+
+      if (pid === rescapeId) {
+        consecutiveCount[pid]++;
+        const streak = consecutiveCount[pid];
+        let pts = 0;
+        if (streak >= 2) {
+          pts = 2;
+        }
+        result[pid].streaks.push({
+          round: roundNum,
+          roundInSeason,
+          consecutive: streak,
+          points: pts
+        });
+        result[pid].totalPoints += pts;
+      } else {
+        // Pas rescapé ce round → reset
+        consecutiveCount[pid] = 0;
+      }
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Récupère les infos rescapé d'un round spécifique (pour l'affichage historique)
+ */
+function getRescapeInfoForRound(globalRoundNumber) {
+  const roundsPerSeason = getRoundsPerSeason();
+  const seasonNumber = Math.ceil(globalRoundNumber / roundsPerSeason);
+  const rescapeData = calculateRescapePointsForSeason(seasonNumber);
+
+  for (const [athleteId, data] of Object.entries(rescapeData)) {
+    const streak = data.streaks.find(s => s.round === globalRoundNumber);
+    if (streak) {
+      return {
+        athleteId,
+        consecutive: streak.consecutive,
+        points: streak.points
+      };
+    }
+  }
+  return null;
+}
+
 // ============================================
 // ÉCRAN D'ATTENTE AVANT LE CHALLENGE
 // ============================================
@@ -814,6 +919,7 @@ function calculateYearlyStandings(activities, currentDate) {
       participant: p,
       totalMainPoints: 0,
       totalEliminatedPoints: 0,
+      totalRescapePoints: 0,
       totalPoints: 0,
       wins: 0,
       seasonsPlayed: 0,
@@ -830,24 +936,19 @@ function calculateYearlyStandings(activities, currentDate) {
     const elimPointsMap = {};
     elimRanking.forEach(e => elimPointsMap[e.participant.id] = e.points);
 
+    // Calculer les points rescapé de cette saison
+    const rescapeData = calculateRescapePointsForSeason(s);
+
     // Calcul des points pour TOUS les participants
     PARTICIPANTS.forEach(p => {
       const elim = sData.eliminated.find(e => e.id === p.id);
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        // RÈGLE DE POINTS:
-        // Position = nombre d'actifs au début du round - index dans les éliminés
-        // Les éliminés sont triés du pire au meilleur (dernier du classement = index 0)
-        // Donc: dernier → position la plus basse, avant-dernier → position légèrement meilleure
         const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
         const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-
-        // Trouver tous les éliminés du même round
         const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
         const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
-
-        // Position = actifs au début - index (dernier = position la plus basse)
         const position = activeAtRoundStart - indexInRound;
         mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
         elimPts = elimPointsMap[p.id] || 0;
@@ -858,15 +959,21 @@ function calculateYearlyStandings(activities, currentDate) {
         mainPts = getMainChallengePoints(2);
       }
 
+      // Points rescapé
+      const rescapePts = rescapeData[p.id]?.totalPoints || 0;
+
       if (sData.seasonComplete || elim) {
         totals[p.id].totalMainPoints += mainPts;
+        totals[p.id].totalEliminatedPoints += elimPts;
+        totals[p.id].totalRescapePoints += rescapePts;
+        totals[p.id].totalPoints += mainPts + elimPts + rescapePts;
         if (sData.seasonComplete) {
-          totals[p.id].totalEliminatedPoints += elimPts;
-          totals[p.id].totalPoints += mainPts + elimPts;
           totals[p.id].seasonsPlayed++;
-        } else {
-          totals[p.id].totalPoints += mainPts;
         }
+      } else {
+        // Saison en cours : ajouter les points rescapé même pour les joueurs encore actifs
+        totals[p.id].totalRescapePoints += rescapePts;
+        totals[p.id].totalPoints += rescapePts;
       }
     });
   }
@@ -1276,12 +1383,13 @@ function renderFinalStandings(container) {
   const enrichedStandings = standings.map(e => {
     const id = String(e.participant.id);
     const frozen = frozenPoints[id] || { mainPoints: 0, elimPoints: 0, bonusPoints: 0, wins: 0 };
-    const prevSeason = previousSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, total: 0 };
-    const currSeason = currentSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, total: 0 };
+    const prevSeason = previousSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
+    const currSeason = currentSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
 
     // Utiliser les points figés s'ils sont supérieurs (plus fiables)
     const mainPts = Math.max(e.totalMainPoints || 0, frozen.mainPoints);
     const elimPts = e.totalEliminatedPoints || 0;
+    const rescapePts = e.totalRescapePoints || 0;
     const bonusPts = frozen.bonusPoints || 0;
     const wins = Math.max(e.wins || 0, frozen.wins);
 
@@ -1289,12 +1397,14 @@ function renderFinalStandings(container) {
       ...e,
       totalMainPoints: mainPts,
       totalEliminatedPoints: elimPts,
+      totalRescapePoints: rescapePts,
       bonusPoints: bonusPts,
-      totalPoints: mainPts + elimPts + bonusPts,
+      totalPoints: mainPts + elimPts + rescapePts + bonusPts,
       wins: wins,
       previousSeasonTotal: prevSeason.total,
       currentSeasonMain: currSeason.mainPoints,
       currentSeasonElim: currSeason.elimPoints,
+      currentSeasonRescape: currSeason.rescapePoints,
       currentSeasonTotal: currSeason.total
     };
   });
@@ -1331,12 +1441,25 @@ function renderFinalStandings(container) {
     if (e.currentSeasonMain > 0) {
       currentSeasonDetails.push(`<span class="pts-main" title="Points challenge principal">${e.currentSeasonMain}</span>`);
     }
+    if (e.currentSeasonRescape > 0) {
+      currentSeasonDetails.push(`<span class="pts-rescape" title="Points rescapé">+${e.currentSeasonRescape}</span>`);
+    }
     if (e.currentSeasonElim > 0) {
       currentSeasonDetails.push(`<span class="pts-elim" title="Points challenge éliminés">+${e.currentSeasonElim}</span>`);
     }
     const currentSeasonHtml = currentSeasonDetails.length > 0
       ? `<span class="season-pts-detail">${currentSeasonDetails.join(' ')}</span>`
       : `<span class="pts-zero">-</span>`;
+
+    // Détail du total
+    const totalBreakdown = [];
+    if (e.totalMainPoints > 0) totalBreakdown.push(`<span class="pts-main" title="Challenge principal">${e.totalMainPoints}</span>`);
+    if (e.totalRescapePoints > 0) totalBreakdown.push(`<span class="pts-rescape" title="Rescapé">+${e.totalRescapePoints}</span>`);
+    if (e.totalEliminatedPoints > 0) totalBreakdown.push(`<span class="pts-elim" title="Challenge éliminés">+${e.totalEliminatedPoints}</span>`);
+    if (e.bonusPoints > 0) totalBreakdown.push(`<span class="pts-bonus" title="Bonus">+${e.bonusPoints}</span>`);
+    const totalDetail = totalBreakdown.length > 1
+      ? `<div class="standings-total-detail">${totalBreakdown.join(' ')}</div>`
+      : '';
 
     html += `<div class="standings-row ${isActive ? '' : 'eliminated'}">
       <div class="standings-rank">${e.rank}</div>
@@ -1346,7 +1469,7 @@ function renderFinalStandings(container) {
       </div>
       <div class="standings-points prev hide-mobile">${e.previousSeasonTotal || '-'}</div>
       <div class="standings-points current hide-mobile">${currentSeasonHtml}</div>
-      <div class="standings-total">${e.totalPoints}</div>
+      <div class="standings-total">${e.totalPoints}${totalDetail}</div>
     </div>`;
   });
 
@@ -1360,7 +1483,7 @@ function calculatePointsForSeason(seasonNumber) {
   const pointsMap = {};
 
   PARTICIPANTS.forEach(p => {
-    pointsMap[p.id] = { mainPoints: 0, elimPoints: 0, total: 0 };
+    pointsMap[p.id] = { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
   });
 
   if (!frozenResultsCache?.rounds || seasonNumber < 1) return pointsMap;
@@ -1383,9 +1506,30 @@ function calculatePointsForSeason(seasonNumber) {
     }
   }
 
+  // Calculer les elimPoints via calculateEliminatedChallenge
+  const seasonDates = getSeasonDates(seasonNumber);
+  const sData = simulateSeasonEliminations(allActivities, seasonNumber, new Date());
+
+  if (sData.eliminated.length > 0) {
+    const endDate = sData.seasonComplete ? seasonDates.end : new Date();
+    const elimRanking = calculateEliminatedChallenge(allActivities, sData.eliminated, seasonDates, endDate);
+    for (const e of elimRanking) {
+      const id = String(e.participant.id);
+      if (pointsMap[id]) {
+        pointsMap[id].elimPoints = e.points || 0;
+      }
+    }
+  }
+
+  // Calculer les points rescapé
+  const rescapeData = calculateRescapePointsForSeason(seasonNumber);
+  for (const id in pointsMap) {
+    pointsMap[id].rescapePoints = rescapeData[id]?.totalPoints || 0;
+  }
+
   // Calculer le total
   for (const id in pointsMap) {
-    pointsMap[id].total = pointsMap[id].mainPoints + pointsMap[id].elimPoints;
+    pointsMap[id].total = pointsMap[id].mainPoints + pointsMap[id].elimPoints + pointsMap[id].rescapePoints;
   }
 
   return pointsMap;
@@ -1822,16 +1966,57 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
   // Récupérer les jokers actifs ce round
   const activeJokers = getActiveJokersForRound(globalRound);
 
+  // Identifier le rescapé
+  const rescapeIdx = rankingWithEffects.length - roundEliminated.length - 1;
+  const isFinale = roundInSeason === getRoundsPerSeason();
+
+  // Calculer les mainPoints pour les éliminés de ce round
+  const elimsBeforeThisRound = seasonData.eliminated.filter(e => e.eliminatedRound < roundInSeason).length;
+  const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+
   // Générer le HTML du classement pour le dropdown
   const rankingHtml = rankingWithEffects.map((entry, idx) => {
     const isEliminated = roundEliminated.some(e => e.id === entry.participant.id);
     const position = idx + 1;
+    const isRescape = (idx === rescapeIdx) && !isFinale && roundEliminated.length > 0;
+
+    // Calculer les points pour les éliminés
+    let mainPts = 0;
+    if (isEliminated) {
+      const sameRoundElims = roundEliminated;
+      const elimIdx = sameRoundElims.findIndex(e => e.id === entry.participant.id);
+      const elimPosition = activeAtRoundStart - elimIdx;
+      mainPts = getMainChallengePoints(Math.max(1, Math.min(elimPosition, PARTICIPANTS.length)));
+    } else if (isFinale && position <= 3) {
+      mainPts = getMainChallengePoints(position);
+    }
+
+    let pointsBadges = '';
+    if (mainPts > 0) {
+      pointsBadges += `<span class="history-pts-badge" title="Points challenge principal">${mainPts} pts</span>`;
+    }
+    if (isRescape) {
+      const rescapeInfo = getRescapeInfoForRound(globalRound);
+      if (rescapeInfo) {
+        const streak = rescapeInfo.consecutive;
+        const rescPts = rescapeInfo.points;
+        if (streak === 1) {
+          pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">🎫 rescapé</span>`;
+        } else {
+          pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">🎫 rescapé ×${streak} (+${rescPts})</span>`;
+        }
+      } else {
+        pointsBadges += `<span class="history-rescape-badge">🎫 rescapé</span>`;
+      }
+    }
+
     return `
-      <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''}">
+      <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''} ${isRescape ? 'rescape' : ''}">
         <span class="history-rank">${position}</span>
         <span class="history-name">${entry.participant.name}</span>
         <span class="history-elevation">${formatElevation(entry.totalElevation, false)}</span>
         ${isEliminated ? '<span class="history-elim-badge">Éliminé</span>' : ''}
+        ${pointsBadges}
       </div>
     `;
   }).join('');
@@ -2049,10 +2234,38 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   // Récupérer les bonus utilisés ce round pour calculer les effets
   const roundBonuses = getBonusesUsedInRound(globalRound);
 
+  // Identifier le rescapé = dernier survivant (dernier non-éliminé du classement)
+  const survivorEntries = ranking.filter(e => !eliminatedIds.has(e.id));
+  const rescapeEntry = survivorEntries.length > 0 ? survivorEntries[survivorEntries.length - 1] : null;
+  const rescapeId = rescapeEntry ? String(rescapeEntry.id) : null;
+  const isFinaleRound = frozenRound.roundInSeason === getRoundsPerSeason();
+  const rescapeInfo = getRescapeInfoForRound(globalRound);
+
   // Générer le HTML du classement pour le dropdown avec pilules bonus
   const rankingHtml = ranking.map((entry, idx) => {
     const isEliminated = eliminatedIds.has(entry.id);
     const position = idx + 1;
+    const isRescape = (idx === rescapeIndex) && !isFinaleRound && eliminations.length > 0;
+
+    // Points gagnés par cet athlète dans ce round
+    const mainPts = entry.mainPoints || 0;
+
+    // Construire les badges de points
+    let pointsBadges = '';
+    if (mainPts > 0) {
+      pointsBadges += `<span class="history-pts-badge" title="Points challenge principal">${mainPts} pts</span>`;
+    }
+    if (isRescape && rescapeInfo) {
+      const streak = rescapeInfo.consecutive;
+      const rescPts = rescapeInfo.points;
+      if (streak === 1) {
+        pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">🎫 rescapé</span>`;
+      } else {
+        pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">🎫 rescapé ×${streak} (+${rescPts})</span>`;
+      }
+    } else if (isRescape) {
+      pointsBadges += `<span class="history-rescape-badge">🎫 rescapé</span>`;
+    }
 
     // Calculer les pilules de bonus éphémères pour ce joueur
     let bonusPills = '';
@@ -2084,11 +2297,12 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
     }
 
     return `
-      <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''}">
+      <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''} ${isRescape ? 'rescape' : ''}">
         <span class="history-rank">${position}</span>
         <span class="history-name">${entry.name}</span>
         <span class="history-elevation">${formatElevation(entry.elevation || 0, false)}${bonusPills ? ` ${bonusPills}` : ''}</span>
         ${isEliminated ? '<span class="history-elim-badge">Éliminé</span>' : ''}
+        ${pointsBadges}
       </div>
     `;
   }).join('');

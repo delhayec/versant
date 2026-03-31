@@ -1216,13 +1216,60 @@ body {
   background-clip: text;
 }
 
+.standings-total-detail {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.standings-total-detail .pts-main,
+.standings-total-detail .pts-elim,
+.standings-total-detail .pts-rescape,
+.standings-total-detail .pts-bonus {
+  font-size: 0.6rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  -webkit-text-fill-color: white;
+}
+
+.pts-main {
+  background: rgba(16, 185, 129, 0.85);
+  color: white;
+}
+
+.pts-rescape {
+  background: rgba(245, 158, 11, 0.85);
+  color: white;
+}
+
+.pts-elim {
+  background: rgba(168, 85, 247, 0.85);
+  color: white;
+}
+
+.pts-bonus {
+  background: rgba(59, 130, 246, 0.85);
+  color: white;
+}
+
+.season-pts-detail .pts-main,
+.season-pts-detail .pts-elim,
+.season-pts-detail .pts-rescape {
+  font-size: 0.7rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
 /* Badge pour les éliminés de la saison en cours */
 .elim-badge {
   font-size: 0.65rem;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(239, 68, 68, 0.2);
-  color: var(--accent-danger);
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
   font-family: var(--font-mono);
   margin-left: 6px;
 }
@@ -1915,11 +1962,40 @@ body {
 .history-elim-badge {
   font-size: 0.7rem;
   padding: 2px 8px;
-  background: var(--accent-danger);
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
   color: white;
   border-radius: 4px;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.history-pts-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-radius: 4px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.history-rescape-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.history-rescape-badge.has-points {
+  background: linear-gradient(135deg, #f59e0b, #b45309);
+  font-weight: 700;
+}
+
+.history-ranking-row.rescape {
+  border-left: 3px solid #f59e0b;
 }
 
 /* ============================================
@@ -2799,11 +2875,16 @@ body {
 }
 
 .season-pts-detail .pts-main {
-  color: var(--accent-primary);
+  color: #10b981;
   font-weight: 600;
 }
 
 .season-pts-detail .pts-elim {
+  color: #a855f7;
+  font-size: 0.85em;
+}
+
+.season-pts-detail .pts-rescape {
   color: #f59e0b;
   font-size: 0.85em;
 }
