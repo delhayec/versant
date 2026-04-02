@@ -77,6 +77,20 @@ function getRoundInSeason(roundNumber, totalParticipants, eliminationsPerRound =
 }
 
 // ============================================
+// SAISONS
+// ============================================
+const SEASON_PLANNING = {
+  1: "standard", 2: "standard", 3: "standard",
+  4: "team", 5: "standard", 6: "standard",
+  7: "standard", 8: "standard", 9: "standard",
+  10: "standard", 11: "standard", 12: "standard"
+};
+
+function isTeamSeason(seasonNumber) {
+  return SEASON_PLANNING[seasonNumber] === 'team';
+}
+
+// ============================================
 // BONUS ÉPHÉMÈRES (IDs pour tirage au sort)
 // ============================================
 const BONUS_IDS = [
@@ -86,6 +100,8 @@ const BONUS_IDS = [
 
 module.exports = {
   CHALLENGE_CONFIG,
+  SEASON_PLANNING,
+  isTeamSeason,
   VALID_SPORTS,
   isValidSport,
   MAIN_CHALLENGE_POINTS,

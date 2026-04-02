@@ -76,20 +76,23 @@ export const SEASON_TYPES = {
   team: {
     id: "team",
     name: "Équipes",
-    description: "Par équipes aléatoires - D+ cumulé",
+    description: "Par équipes de 3 – D+ cumulé – toute l'équipe dernière est éliminée",
     metric: "elevation",
     isTeamBased: true,
     teamSize: 3,
-    reshuffleEachRound: true
+    eliminateWholeTeam: true,
+    reshuffleEachRound: true,
+    balancingMethod: "points", // Équilibrage sur les points du classement général
+    candidateCount: 16 // Nombre de partitions candidates parmi lesquelles tirer au sort
   }
 };
 
 // Planning des types de saisons sur l'année
 export const SEASON_PLANNING = {
   1: "standard", 2: "standard", 3: "standard",
-  4: "standard", 5: "team", 6: "standard",
+  4: "team", 5: "standard", 6: "standard",
   7: "standard", 8: "standard", 9: "standard",
-  10: "team", 11: "standard", 12: "standard"
+  10: "standard", 11: "standard", 12: "standard"
 };
 
 export function getSeasonType(seasonNumber) {
@@ -576,25 +579,86 @@ export function getRoundsPerSeason() {
   return Math.ceil((count - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
 }
 
-export function getSeasonDurationDays() {
-  return getRoundsPerSeason() * CHALLENGE_CONFIG.roundDurationDays;
+/**
+ * Retourne le nombre de rounds pour une saison donnée.
+ * Saison standard = ceil((N-1)/2), Saison équipe = ceil((N-1)/3) + 1 (finale)
+ */
+export function getRoundsForSeason(seasonNumber) {
+  const seasonType = getSeasonType(seasonNumber);
+  const count = PARTICIPANTS.length || 13;
+
+  if (seasonType?.isTeamBased) {
+    const teamSize = seasonType.teamSize || 3;
+    // Chaque round élimine 1 équipe complète (teamSize joueurs)
+    // Rounds d'élim = ceil((count - teamSize) / teamSize)
+    // +1 pour la finale (dernières équipes s'affrontent)
+    return Math.ceil((count - teamSize) / teamSize) + 1;
+  }
+
+  return Math.ceil((count - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
+}
+
+/**
+ * Retourne le round global du premier round d'une saison
+ */
+export function getSeasonStartRound(seasonNumber) {
+  let globalRound = 1;
+  for (let s = 1; s < seasonNumber; s++) {
+    globalRound += getRoundsForSeason(s);
+  }
+  return globalRound;
+}
+
+/**
+ * Nombre de jours d'une saison
+ */
+export function getSeasonDurationDays(seasonNumber) {
+  const sn = seasonNumber || 1;
+  return getRoundsForSeason(sn) * CHALLENGE_CONFIG.roundDurationDays;
+}
+
+/**
+ * Jour de début d'une saison (en jours depuis yearStartDate)
+ */
+function getSeasonStartDay(seasonNumber) {
+  let day = 0;
+  for (let s = 1; s < seasonNumber; s++) {
+    day += getRoundsForSeason(s) * CHALLENGE_CONFIG.roundDurationDays;
+  }
+  return day;
 }
 
 export function getTotalSeasons() {
-  return Math.floor(365 / getSeasonDurationDays());
+  let totalDays = 0;
+  let s = 0;
+  while (totalDays < 365) {
+    s++;
+    totalDays += getRoundsForSeason(s) * CHALLENGE_CONFIG.roundDurationDays;
+  }
+  return s - 1; // La dernière saison dépasse → on ne la compte pas
 }
 
 export function getSeasonNumber(date) {
   const start = new Date(CHALLENGE_CONFIG.yearStartDate);
   const days = Math.floor((date - start) / (1000 * 60 * 60 * 24));
-  return Math.max(1, Math.floor(days / getSeasonDurationDays()) + 1);
+  let accumulated = 0;
+  let s = 1;
+  while (s <= 20) { // max 20 saisons
+    const seasonDays = getRoundsForSeason(s) * CHALLENGE_CONFIG.roundDurationDays;
+    if (accumulated + seasonDays > days) return s;
+    accumulated += seasonDays;
+    s++;
+  }
+  return s;
 }
 
 export function getSeasonDates(seasonNumber) {
   const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const duration = getSeasonDurationDays();
+  const startDay = getSeasonStartDay(seasonNumber);
+  const duration = getRoundsForSeason(seasonNumber) * CHALLENGE_CONFIG.roundDurationDays;
+
   const start = new Date(yearStart);
-  start.setDate(start.getDate() + (seasonNumber - 1) * duration);
+  start.setDate(start.getDate() + startDay);
   const end = new Date(start);
   end.setDate(end.getDate() + duration - 1);
   end.setHours(23, 59, 59, 999);
@@ -613,8 +677,9 @@ export function getGlobalRoundNumber(date) {
 
 export function getRoundInSeason(date) {
   const globalRound = getGlobalRoundNumber(date);
-  const roundsPerSeason = getRoundsPerSeason();
-  return ((globalRound - 1) % roundsPerSeason) + 1;
+  const seasonNumber = getSeasonNumber(date);
+  const seasonStartRound = getSeasonStartRound(seasonNumber);
+  return globalRound - seasonStartRound + 1;
 }
 
 export function getRoundDates(globalRoundNumber) {
@@ -627,8 +692,9 @@ export function getRoundDates(globalRoundNumber) {
   return { start, end };
 }
 
-export function isFinaleRound(roundInSeason) {
-  return roundInSeason === getRoundsPerSeason();
+export function isFinaleRound(roundInSeason, seasonNumber) {
+  const sn = seasonNumber || getSeasonNumber(new Date());
+  return roundInSeason === getRoundsForSeason(sn);
 }
 
 export function isLastDayOfRound(date, globalRoundNumber) {
@@ -645,34 +711,40 @@ export function isLastDayOfRound(date, globalRoundNumber) {
 // ============================================
 export function generateRoundsSchedule() {
   const schedule = [];
-  const roundsPerSeason = getRoundsPerSeason();
   const totalSeasons = getTotalSeasons();
-  const totalRounds = roundsPerSeason * totalSeasons;
   const specialRules = Object.keys(ROUND_RULES).filter(k => ROUND_RULES[k].isSpecial);
+  let globalRound = 1;
 
-  for (let i = 1; i <= totalRounds; i++) {
-    const seasonNumber = Math.ceil(i / roundsPerSeason);
-    const roundInSeason = ((i - 1) % roundsPerSeason) + 1;
-    let rule = 'standard';
+  for (let s = 1; s <= totalSeasons; s++) {
+    const roundsThisSeason = getRoundsForSeason(s);
+    const seasonType = getSeasonType(s);
 
-    // Règle spéciale tous les X rounds (sauf finale)
-    if (roundInSeason % CHALLENGE_CONFIG.specialRuleFrequency === 0 && roundInSeason !== roundsPerSeason) {
-      const ruleIndex = Math.floor(i / CHALLENGE_CONFIG.specialRuleFrequency) % specialRules.length;
-      rule = specialRules[ruleIndex];
+    for (let r = 1; r <= roundsThisSeason; r++) {
+      let rule = 'standard';
 
-      // Handicap pas en saison 1
-      if (rule === 'handicap' && seasonNumber === 1) {
-        rule = 'combinado';
+      // Règle spéciale tous les X rounds (sauf finale, sauf saisons équipe)
+      if (!seasonType?.isTeamBased &&
+          r % CHALLENGE_CONFIG.specialRuleFrequency === 0 &&
+          r !== roundsThisSeason) {
+        const ruleIndex = Math.floor(globalRound / CHALLENGE_CONFIG.specialRuleFrequency) % specialRules.length;
+        rule = specialRules[ruleIndex];
+
+        // Handicap pas en saison 1
+        if (rule === 'handicap' && s === 1) {
+          rule = 'combinado';
+        }
       }
-    }
 
-    schedule.push({
-      number: i,
-      season: seasonNumber,
-      roundInSeason,
-      rule,
-      dates: getRoundDates(i)
-    });
+      schedule.push({
+        number: globalRound,
+        season: s,
+        seasonType: seasonType?.id || 'standard',
+        roundInSeason: r,
+        rule,
+        dates: getRoundDates(globalRound)
+      });
+      globalRound++;
+    }
   }
 
   return schedule;
@@ -685,6 +757,156 @@ export function getRoundInfo(globalRoundNumber) {
   if (!schedule) return null;
   const rule = ROUND_RULES[schedule.rule] || ROUND_RULES.standard;
   return { ...schedule, ruleDetails: rule };
+}
+
+// ============================================
+// FORMATION DES ÉQUIPES (Saison Team)
+// ============================================
+
+/**
+ * Couleurs d'équipe pour l'affichage
+ */
+export const TEAM_COLORS = [
+  { bg: 'rgba(249, 115, 22, 0.15)', border: '#f97316', name: 'Orange' },
+  { bg: 'rgba(34, 211, 238, 0.15)', border: '#22d3ee', name: 'Cyan' },
+  { bg: 'rgba(168, 85, 247, 0.15)', border: '#a855f7', name: 'Violet' },
+  { bg: 'rgba(16, 185, 129, 0.15)', border: '#10b981', name: 'Vert' },
+  { bg: 'rgba(244, 63, 94, 0.15)', border: '#f43f5e', name: 'Rose' },
+  { bg: 'rgba(234, 179, 8, 0.15)', border: '#eab308', name: 'Or' },
+];
+
+/**
+ * Forme des équipes équilibrées par points du classement général.
+ * Brute-force exhaustif pour ≤12 joueurs, échantillonnage pour 13+.
+ *
+ * @param {Array} athletes - Liste des athlètes actifs [{id, name, ...}]
+ * @param {Object} pointsMap - Points par athlète {id: points}
+ * @param {number} seed - Graine pour le tirage (basé sur le round number pour reproductibilité)
+ * @returns {Array} Équipes [{ index, color, members: [{id, name, points}], totalPoints }]
+ */
+export function formBalancedTeams(athletes, pointsMap, seed = 0) {
+  const n = athletes.length;
+  if (n < 2) return [{ index: 0, color: TEAM_COLORS[0], members: athletes.map(a => ({ ...a, points: pointsMap[a.id] || 0 })), totalPoints: 0 }];
+
+  // Déterminer la structure des équipes
+  let teamsOf3 = Math.floor(n / 3);
+  let teamsOf2 = 0;
+  const remainder = n % 3;
+
+  if (remainder === 1) {
+    teamsOf3 -= 1;
+    teamsOf2 = 2;
+  } else if (remainder === 2) {
+    teamsOf2 = 1;
+  }
+
+  // Préparer les athlètes avec leurs points
+  const players = athletes.map(a => ({
+    ...a,
+    points: pointsMap[a.id] || 0
+  }));
+
+  // Générateur pseudo-aléatoire reproductible
+  function seededRandom(s) {
+    let state = s | 0 || 1;
+    return function() {
+      state = (state * 1103515245 + 12345) & 0x7fffffff;
+      return state / 0x7fffffff;
+    };
+  }
+
+  const random = seededRandom(seed);
+
+  // Fonction d'évaluation : écart-type des sommes de points
+  function evaluate(teams) {
+    const sums = teams.map(t => t.reduce((s, p) => s + p.points, 0));
+    const mean = sums.reduce((s, v) => s + v, 0) / sums.length;
+    const variance = sums.reduce((s, v) => s + (v - mean) ** 2, 0) / sums.length;
+    return Math.sqrt(variance);
+  }
+
+  // Former les équipes à partir d'un tableau mélangé
+  function buildTeams(arr) {
+    const teams = [];
+    let idx = 0;
+    for (let t = 0; t < teamsOf3; t++) { teams.push(arr.slice(idx, idx + 3)); idx += 3; }
+    for (let t = 0; t < teamsOf2; t++) { teams.push(arr.slice(idx, idx + 2)); idx += 2; }
+    return teams;
+  }
+
+  let candidates;
+
+  if (n <= 12) {
+    // BRUTE FORCE : énumérer toutes les partitions
+    candidates = [];
+
+    function* generatePartitions(remaining, teams, teamsOf3Left, teamsOf2Left) {
+      if (remaining.length === 0) {
+        yield teams.map(t => [...t]);
+        return;
+      }
+
+      // Prendre le premier joueur restant (il doit aller dans une équipe)
+      const first = remaining[0];
+      const rest = remaining.slice(1);
+
+      if (teamsOf3Left > 0) {
+        // Former une équipe de 3 avec 'first' + 2 parmi 'rest'
+        for (let i = 0; i < rest.length; i++) {
+          for (let j = i + 1; j < rest.length; j++) {
+            const team = [first, rest[i], rest[j]];
+            const newRemaining = rest.filter((_, k) => k !== i && k !== j);
+            yield* generatePartitions(newRemaining, [...teams, team], teamsOf3Left - 1, teamsOf2Left);
+          }
+        }
+      }
+
+      if (teamsOf2Left > 0) {
+        // Former une équipe de 2 avec 'first' + 1 parmi 'rest'
+        for (let i = 0; i < rest.length; i++) {
+          const team = [first, rest[i]];
+          const newRemaining = rest.filter((_, k) => k !== i);
+          yield* generatePartitions(newRemaining, [...teams, team], teamsOf3Left, teamsOf2Left - 1);
+        }
+      }
+    }
+
+    for (const partition of generatePartitions(players, [], teamsOf3, teamsOf2)) {
+      const stdDev = evaluate(partition);
+      candidates.push({ teams: partition, stdDev });
+    }
+  } else {
+    // ÉCHANTILLONNAGE pour 13+ joueurs
+    candidates = [];
+    const NUM_SAMPLES = 50000;
+
+    for (let sample = 0; sample < NUM_SAMPLES; sample++) {
+      const shuffled = [...players];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const teams = buildTeams(shuffled);
+      const stdDev = evaluate(teams);
+      candidates.push({ teams, stdDev });
+    }
+  }
+
+  // Trier par écart-type et garder les 16 meilleurs
+  candidates.sort((a, b) => a.stdDev - b.stdDev);
+  const KEEP_BEST = Math.min(16, candidates.length);
+  const best = candidates.slice(0, KEEP_BEST);
+
+  // Tirer une partition au hasard parmi les meilleures
+  const chosen = best[Math.floor(random() * best.length)];
+
+  // Formater le résultat : membres triés par points desc dans chaque équipe
+  return chosen.teams.map((members, teamIdx) => ({
+    index: teamIdx,
+    color: TEAM_COLORS[teamIdx % TEAM_COLORS.length],
+    members: members.sort((a, b) => b.points - a.points),
+    totalPoints: members.reduce((s, p) => s + p.points, 0)
+  }));
 }
 
 // ============================================
