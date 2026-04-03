@@ -38,6 +38,7 @@ try {
 // Configuration
 const DATA_DIR = path.join(__dirname, 'data');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
+const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
 
 // ============================================
 // UTILITAIRES DE FICHIER
@@ -278,7 +279,7 @@ async function importFrozenResults(importData, options = { merge: true }) {
  * Calcule et fige les résultats d'un round terminé
  * ATTENTION: Cette méthode recalcule tout - préférer freezeRoundWithData()
  */
-function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, config, previousRounds) {
+async function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, config, previousRounds) {
   const roundDates = getRoundDates(roundNumber, config);
   const totalParticipants = athletes.length;
   const seasonNumber = getSeasonNumber(roundNumber, totalParticipants, config.eliminationsPerRound);
@@ -343,6 +344,9 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
   );
 
   applyJokerEffects(ranking, activeJokers, roundActivities, athletes);
+
+  // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
+  await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities);
 
   // Trier par D+ décroissant
   ranking.sort((a, b) => b.elevation - a.elevation);
@@ -456,6 +460,118 @@ function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, co
 }
 
 /**
+ * Applique les effets des bonus éphémères sur le classement
+ * Doit être appelé AVANT le tri et le calcul des éliminations.
+ *
+ * Bonus qui affectent les joueurs actifs :
+ * - ravitaillement : la meilleure activité du possesseur est donnée à la cible (D+ ajouté)
+ * - embuscade : une activité aléatoire est volée à la cible (D+ retiré)
+ */
+async function applyEphemeralBonusEffects(ranking, roundNumber, roundActivities) {
+  let bonuses = [];
+  try {
+    const raw = await fs.readFile(BONUSES_FILE, 'utf8');
+    bonuses = JSON.parse(raw);
+  } catch (e) {
+    // Pas de fichier bonus ou erreur de lecture → rien à appliquer
+    return;
+  }
+
+  if (!Array.isArray(bonuses) || bonuses.length === 0) return;
+
+  const normalizeId = (id) => id === null || id === undefined ? null : String(id).trim();
+
+  for (let i = 0; i < bonuses.length; i++) {
+    const bonus = bonuses[i];
+
+    // Seulement les bonus utilisés ce round
+    if (bonus.used_in_round !== roundNumber) continue;
+
+    switch (bonus.bonus_id) {
+      case 'ravitaillement': {
+        // La meilleure activité du possesseur est donnée à la cible
+        const ownerActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id || a.athlete?.id) === normalizeId(bonus.athlete_id)
+        );
+
+        if (ownerActivities.length > 0) {
+          const bestActivity = ownerActivities.reduce((best, curr) =>
+            (curr.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? curr : best
+          );
+          const amount = Math.round(bestActivity.total_elevation_gain || 0);
+
+          const target = ranking.find(e => e.id === normalizeId(bonus.target_athlete_id));
+          if (target && amount > 0) {
+            target.elevation += amount;
+            target.ravitaillementReceived = { from: bonus.athlete_name, amount, activity: bestActivity.name };
+            console.log(`🎁 Ravitaillement: +${amount} m pour ${target.name} (de ${bonus.athlete_name})`);
+          }
+
+          // Mettre à jour le résultat de l'effet dans bonuses.json
+          bonuses[i].effect_applied = true;
+          bonuses[i].effect_result = {
+            bonusElevation: amount,
+            activityId: bestActivity.id,
+            activityName: bestActivity.name
+          };
+          bonuses[i].effect_applied_at = new Date().toISOString();
+        } else {
+          bonuses[i].effect_applied = true;
+          bonuses[i].effect_result = { bonusElevation: 0, error: 'Aucune activité trouvée' };
+          bonuses[i].effect_applied_at = new Date().toISOString();
+        }
+        break;
+      }
+
+      case 'embuscade': {
+        // Une activité aléatoire est volée à la cible
+        const targetActivities = roundActivities.filter(a =>
+          normalizeId(a.athlete_id || a.athlete?.id) === normalizeId(bonus.target_athlete_id)
+        );
+
+        if (targetActivities.length > 0) {
+          const randomIndex = Math.floor(Math.random() * targetActivities.length);
+          const stolenActivity = targetActivities[randomIndex];
+          const amount = Math.round(stolenActivity.total_elevation_gain || 0);
+
+          const target = ranking.find(e => e.id === normalizeId(bonus.target_athlete_id));
+          if (target && amount > 0) {
+            target.elevation = Math.max(0, target.elevation - amount);
+            target.embuscadeReceived = { by: bonus.athlete_name, amount, activity: stolenActivity.name };
+            console.log(`🏹 Embuscade: -${amount} m pour ${target.name} (par ${bonus.athlete_name})`);
+          }
+
+          bonuses[i].effect_applied = true;
+          bonuses[i].effect_result = {
+            stolenElevation: amount,
+            stolenActivityId: stolenActivity.id,
+            stolenActivityName: stolenActivity.name
+          };
+          bonuses[i].effect_applied_at = new Date().toISOString();
+        } else {
+          bonuses[i].effect_applied = true;
+          bonuses[i].effect_result = { stolenElevation: 0, error: 'Aucune activité éligible trouvée' };
+          bonuses[i].effect_applied_at = new Date().toISOString();
+        }
+        break;
+      }
+
+      default:
+        // Les autres bonus (marquage, malediction, kamikaze, etc.) n'affectent pas
+        // les joueurs actifs dans le challenge principal
+        break;
+    }
+  }
+
+  // Sauvegarder les résultats d'effets dans bonuses.json
+  try {
+    await fs.writeFile(BONUSES_FILE, JSON.stringify(bonuses, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('⚠️ Impossible de sauvegarder bonuses.json après application:', e.message);
+  }
+}
+
+/**
  * Applique les effets des jokers sur le classement
  */
 function applyJokerEffects(ranking, activeJokers, activities, athletes) {
@@ -543,7 +659,7 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
     return data.rounds[String(roundNumber)];
   }
 
-  const results = calculateRoundResults(
+  const results = await calculateRoundResults(
     roundNumber,
     activities,
     athletes,
