@@ -25,12 +25,12 @@ import {
 import {
   initializeJokersState, useJoker as jokerUse,
   addJoker, removeJoker, applyJokerEffects,
-  getJokerStock, getActiveJokersForRound, getJokerStatusForRound
+  getJokerStock, getActiveJokersForRound, getPendingJokersForNextRound, getJokerStatusForRound
 } from './jokers.js';
 
 import {
   formatElevation, formatPosition,
-  renderCombinedBanner, renderActiveJokersSection, renderRanking,
+  renderCombinedBanner, renderRanking,
   renderJokersGuide, renderArsenal, showNotification,
   showContextMenu, hideContextMenu, showTargetSelectionModal
 } from './ui.js';
@@ -105,7 +105,7 @@ function getBonusHistoryDescription(bonus) {
       return `${icon} ${athleteName} a tendu une embuscade à ${targetName} (${stolenAmount > 0 ? '-' + fmtElev(stolenAmount) : 'aucune activité volée'})`;
     case 'ravitaillement':
       const bonusAmount = effectResult?.bonusElevation || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a reçu un ravitaillement (+${fmtElev(bonusAmount)})`;
+      return `${icon} ${athleteName} a ravitaillé ${targetName || 'un joueur'} (+${fmtElev(bonusAmount)})`;
     case 'duel':
       const duelResult = effectResult?.won ? 'gagné' : 'perdu';
       const duelAmount = effectResult?.amount || 0;
@@ -1239,30 +1239,6 @@ function renderAll() {
       });
     }
 
-    // Jokers actifs
-    let jokersSection = document.getElementById('activeJokersSection');
-    if (!jokersSection) {
-      const rankingContainer = document.getElementById('rankingContainer');
-      if (rankingContainer?.parentElement) {
-        jokersSection = document.createElement('div');
-        jokersSection.id = 'activeJokersSection';
-        jokersSection.className = 'active-jokers-section';
-        rankingContainer.parentElement.insertBefore(jokersSection, rankingContainer);
-      }
-    }
-    if (jokersSection) {
-      // Calculer le classement actuel pour l'affichage des duels
-      const roundDates = getRoundDates(currentRoundNumber);
-      const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
-      const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
-      const ranking = calculateRanking(roundActivities, seasonData?.active || []);
-
-      renderActiveJokersSection(jokersSection, {
-        currentRoundNumber,
-        ranking
-      });
-    }
-
     // Classement
     const rankingContainer = document.getElementById('rankingContainer');
     if (rankingContainer) {
@@ -1513,6 +1489,22 @@ function renderEliminatedChallenge(container) {
     }
     bonusEffectsByAthlete[eliminated.id] = effects;
   }
+
+  // Appliquer les bonus éphémères au D+ total des éliminés
+  ranking.forEach(e => {
+    const bonusEffects = bonusEffectsByAthlete[e.participant.id] || { gained: 0, lost: 0 };
+    const netBonus = bonusEffects.gained - bonusEffects.lost;
+    if (netBonus !== 0) {
+      e.totalElevation = Math.max(0, e.totalElevation + netBonus);
+    }
+  });
+
+  // Re-trier et re-assigner les positions après application des bonus
+  ranking.sort((a, b) => b.totalElevation - a.totalElevation);
+  ranking.forEach((e, i) => {
+    e.position = i + 1;
+    e.points = getEliminatedChallengePoints(e.position);
+  });
 
   let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
   ranking.forEach(e => {
@@ -1852,15 +1844,37 @@ async function renderArsenalSection(container, roundNumber) {
   // Récupérer les jokers actifs ce round
   const activeJokers = getActiveJokersForRound(roundNumber);
 
-  // Enrichir avec les noms des joueurs
+  // Calculer le ranking avec effets pour avoir les montants (voleur, sabotage, etc.)
+  const roundDates = getRoundDates(roundNumber);
+  const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
+  const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
+  const ranking = calculateRanking(roundActivities, seasonData?.active || []);
+  const rankingWithEffects = applyJokerEffects(ranking, roundNumber, roundActivities);
+
+  // Enrichir avec les noms des joueurs et les montants d'effets
   const enrichedJokers = activeJokers.map(joker => {
     const athlete = getParticipantById(joker.athleteId);
     const target = joker.targetId ? getParticipantById(joker.targetId) : null;
+
+    // Récupérer les montants d'effets depuis le ranking calculé
+    let effectAmount = 0;
+    if (joker.jokerId === 'voleur' && joker.targetId) {
+      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === joker.targetId);
+      effectAmount = targetEntry?.jokerEffects?.bonuses?.stolen?.amount || 0;
+    } else if (joker.jokerId === 'sabotage' && joker.targetId) {
+      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === joker.targetId);
+      effectAmount = targetEntry?.jokerEffects?.bonuses?.sabotaged?.amount || 0;
+    } else if (joker.jokerId === 'multiplicateur') {
+      const participantEntry = rankingWithEffects.find(e => String(e.participant.id) === joker.participantId);
+      effectAmount = participantEntry?.jokerEffects?.bonuses?.multiplier?.amount || 0;
+    }
+
     return {
       ...joker,
       joker_id: joker.jokerId,
       athlete_name: athlete?.name || 'Joueur',
-      target_athlete_name: target?.name || null
+      target_athlete_name: target?.name || null,
+      effectAmount
     };
   });
 
@@ -1920,8 +1934,22 @@ async function renderArsenalSection(container, roundNumber) {
     // Ignorer
   }
 
+  // Récupérer les jokers programmés pour le prochain round
+  const pendingJokers = getPendingJokersForNextRound(roundNumber);
+  const enrichedPendingJokers = pendingJokers.map(joker => {
+    const athlete = getParticipantById(joker.athleteId);
+    const target = joker.targetId ? getParticipantById(joker.targetId) : null;
+    return {
+      ...joker,
+      joker_id: joker.jokerId,
+      athlete_name: athlete?.name || 'Joueur',
+      target_athlete_name: target?.name || null
+    };
+  });
+
   renderArsenal(container, {
     activeJokers: enrichedJokers,
+    pendingJokers: enrichedPendingJokers,
     bonuses,
     currentRoundNumber: roundNumber,
     showPreviousRoundEffects,
@@ -1996,8 +2024,18 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
     }
 
     case 'second_souffle': {
+      // Trouver le round d'élimination (depuis le bonus ou les données de saison)
+      let elimRound = bonus.elimination_round;
+      if (!elimRound && seasonData?.eliminated) {
+        const elimEntry = seasonData.eliminated.find(e => String(e.id) === String(athleteId));
+        if (elimEntry) {
+          const roundsPerSeason2 = getRoundsPerSeason();
+          elimRound = (elimEntry.eliminatedSeason - 1) * roundsPerSeason2 + elimEntry.eliminatedRound;
+        }
+      }
+      if (!elimRound) return "Aucune donnée d'élimination";
       // Trouver l'activité la plus faible
-      const activities = getEliminatedActivities(athleteId, bonus.elimination_round);
+      const activities = getEliminatedActivities(athleteId, elimRound);
       if (activities.length === 0) return "Aucune activité depuis l'élimination";
       const minActivity = activities.reduce((min, a) =>
         (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
@@ -2010,7 +2048,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
     case 'kamikaze': {
       // Calculer le D+ du round actuel pour les deux joueurs
       if (!targetId) return "Cible non définie";
-      const roundDates = getRoundDates(currentRoundNumber);
+      const roundDates = getRoundDates(effectRound);
 
       // D+ du round de l'éliminé (celui qui utilise le bonus)
       const athleteRoundElev = getRoundElevation(athleteId, roundDates);
@@ -2026,7 +2064,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
     case 'malediction': {
       // Calculer le D+ volé ce round et le cumul
       if (!targetId) return "Cible non définie";
-      const roundDates = getRoundDates(currentRoundNumber);
+      const roundDates = getRoundDates(effectRound);
 
       const targetRoundElev = getRoundElevation(targetId, roundDates);
       const stolenThisRound = Math.round(targetRoundElev * 0.10);

@@ -598,6 +598,7 @@ export function renderParticipants(container, data) {
 export function renderArsenal(container, data) {
   const {
     activeJokers = [],
+    pendingJokers = [],
     bonuses = [],
     currentRoundNumber,
     showPreviousRoundEffects = false,
@@ -665,15 +666,36 @@ export function renderArsenal(container, data) {
       const jokerType = JOKER_TYPES[joker.joker_id];
       if (!jokerType) return;
 
+      const amount = joker.effectAmount || 0;
+      const fmtAmt = amount > 0 ? formatElevation(amount, false) : '0';
+
+      // Description spécifique selon le type de joker
+      let description = '';
+      let hoverTitle = '';
+      switch (joker.joker_id) {
+        case 'voleur':
+          description = `🦹 ${joker.athlete_name} a volé ${joker.target_athlete_name || 'un joueur'} (-${fmtAmt} m D+)`;
+          hoverTitle = amount > 0 ? `Meilleure activité volée : ${fmtAmt} m D+ retirés à ${joker.target_athlete_name} et ajoutés à ${joker.athlete_name}` : 'En attente de calcul...';
+          break;
+        case 'bouclier':
+          description = `🛡️ ${joker.athlete_name} a utilisé le bouclier (protection)`;
+          hoverTitle = `${joker.athlete_name} est protégé(e) contre l'élimination ce round`;
+          break;
+        case 'multiplicateur':
+          description = `✨ ×1.5 sur tout le D+ de ${joker.athlete_name}${amount > 0 ? ` (+${fmtAmt} m bonus)` : ''}`;
+          hoverTitle = amount > 0 ? `+${fmtAmt} m D+ bonus grâce au multiplicateur` : 'En attente de calcul...';
+          break;
+        case 'sabotage':
+          description = `💣 ${joker.athlete_name} a saboté ${joker.target_athlete_name || 'un joueur'} (-${fmtAmt} m D+)`;
+          hoverTitle = amount > 0 ? `${fmtAmt} m D+ retirés à ${joker.target_athlete_name} (-30%)` : 'En attente de calcul...';
+          break;
+        default:
+          description = `${jokerType.icon} ${joker.athlete_name}${joker.target_athlete_name ? ' → ' + joker.target_athlete_name : ''} (${jokerType.name})`;
+      }
+
       html += `
-        <div class="active-joker-item">
-          <span class="joker-icon">${jokerType.icon}</span>
-          <span class="joker-source">${joker.athlete_name || 'Joueur'}</span>
-          ${joker.target_athlete_name ? `
-            <span class="joker-arrow">→</span>
-            <span class="joker-target">${joker.target_athlete_name}</span>
-          ` : ''}
-          <span class="joker-type">${jokerType.name}</span>
+        <div class="active-joker-item" ${hoverTitle ? `title="${hoverTitle}"` : ''}>
+          <span class="joker-description">${description}</span>
         </div>
       `;
     });
@@ -683,6 +705,32 @@ export function renderArsenal(container, data) {
       </div>
     </div>
   `;
+
+  // === JOKERS PROGRAMMÉS POUR LE PROCHAIN ROUND ===
+  if (pendingJokers.length > 0) {
+    const nextRound = currentRoundNumber + 1;
+    html += `
+      <div class="arsenal-card">
+        <div class="arsenal-card-title">
+          <span class="icon">⏰</span>
+          Programmés pour le Round ${nextRound}
+        </div>
+        <div class="active-jokers-list">
+    `;
+    pendingJokers.forEach(joker => {
+      const jokerType = JOKER_TYPES[joker.joker_id];
+      if (!jokerType) return;
+      html += `
+        <div class="active-joker-item pending">
+          <span class="joker-description">${jokerType.icon} ${joker.athlete_name}${joker.target_athlete_name ? ' → ' + joker.target_athlete_name : ''} (${jokerType.name})</span>
+        </div>
+      `;
+    });
+    html += `
+        </div>
+      </div>
+    `;
+  }
 
   // === BONUS ÉPHÉMÈRES (seulement s'il y en a d'actifs/disponibles) ===
   if (bonuses.length > 0) {
