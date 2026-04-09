@@ -206,6 +206,19 @@ async function initializeServer() {
       await fs.writeFile(file, JSON.stringify([], null, 2));
     }
   }
+
+  // Migration: corriger le format de jokers_usage.json si nécessaire
+  try {
+    const raw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+    if (!Array.isArray(raw)) {
+      const normalized = normalizeJokerUsage(raw);
+      await fs.writeFile(JOKERS_FILE, JSON.stringify(normalized, null, 2));
+      console.log(`🔧 Migration jokers_usage.json: format objet → tableau (${normalized.length} entrées)`);
+    }
+  } catch (e) {
+    console.warn('⚠️ Impossible de migrer jokers_usage.json:', e.message);
+  }
+
   console.log('✅ Serveur initialisé');
 }
 
