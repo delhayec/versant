@@ -120,6 +120,25 @@ async function safeWriteJSON(filePath, data) {
 }
 
 /**
+ * Normalise les données de jokers_usage.json
+ * Gère le format objet {athletes, usage, config} ET le format tableau []
+ * Retourne toujours un tableau plat d'utilisations
+ */
+function normalizeJokerUsage(data) {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object' && Array.isArray(data.usage)) return data.usage;
+  return [];
+}
+
+/**
+ * Lit jokers_usage.json et retourne un tableau normalisé
+ */
+async function readJokerUsage() {
+  const raw = await safeReadJSON(JOKERS_FILE, []);
+  return normalizeJokerUsage(raw);
+}
+
+/**
  * Lecture-modification-écriture atomique.
  * Le lock est maintenu pendant tout le cycle, éliminant les race conditions.
  * @param {string} filePath - Chemin du fichier JSON
@@ -362,7 +381,7 @@ app.get('/api/auth/me', async (req, res) => {
     if (!athlete) return res.status(404).json({ error: 'Athlète non trouvé' });
 
     // Calculer les jokers restants
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
     const usedByAthlete = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(athleteId));
 
     const availableJokers = JOKER_IDS.filter(jokerId => {
@@ -450,7 +469,7 @@ app.get('/api/athletes/:leagueId', async (req, res) => {
 // Récupérer TOUS les jokers utilisés (pour le tableau principal)
 app.get('/api/jokers/all', async (req, res) => {
   try {
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
     res.json(jokerUsage);
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
@@ -460,7 +479,7 @@ app.get('/api/jokers/all', async (req, res) => {
 // Récupérer les jokers d'un round spécifique
 app.get('/api/jokers/round/:roundNumber', async (req, res) => {
   try {
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
     const roundJokers = jokerUsage.filter(j => j.round_number === parseInt(req.params.roundNumber) && j.status === 'active');
     res.json(roundJokers);
   } catch (error) {
@@ -471,7 +490,7 @@ app.get('/api/jokers/round/:roundNumber', async (req, res) => {
 // Récupérer mes jokers (authentifié)
 app.get('/api/jokers/my', requireAuth, async (req, res) => {
   try {
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
     const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
 
     // Calculer le stock restant
@@ -499,11 +518,28 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const athlete = athletes.find(a => normalizeId(a.id) === normalizeId(req.athleteId));
 
+    // Vérifier si l'athlète est éliminé (pas le droit d'utiliser de joker)
+    try {
+      const frozenData = await frozenResults.getAllFrozenResults();
+      if (frozenData?.rounds) {
+        const athleteId = normalizeId(req.athleteId);
+        for (const roundKey of Object.keys(frozenData.rounds)) {
+          const round = frozenData.rounds[roundKey];
+          if (round?.eliminations?.some(e => normalizeId(e.id) === athleteId)) {
+            return res.status(403).json({ error: 'Les joueurs éliminés ne peuvent pas utiliser de jokers' });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Impossible de vérifier le statut éliminé:', e.message);
+    }
+
     // Lecture-vérification-écriture atomique (pas de race condition)
     let resultUsage = null;
     let error = null;
 
-    await safeModifyJSON(JOKERS_FILE, (jokerUsage) => {
+    await safeModifyJSON(JOKERS_FILE, (rawData) => {
+      const jokerUsage = normalizeJokerUsage(rawData);
       const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
       const usedCount = myUsage.filter(j => j.joker_id === joker_id).length;
 
@@ -566,7 +602,7 @@ app.get('/api/admin/jokers', async (req, res) => {
   if (!checkAdmin(req, res)) return;
 
   try {
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
     res.json({ count: jokerUsage.length, jokers: jokerUsage });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
@@ -1273,7 +1309,7 @@ app.get('/api/admin/diagnostic', async (req, res) => {
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
   const webhookLogs = await safeReadJSON(WEBHOOK_LOG_FILE, []);
   const failedWebhooks = await safeReadJSON(FAILED_WEBHOOKS_FILE, []);
-  const jokers = await safeReadJSON(JOKERS_FILE, []);
+  const jokers = await readJokerUsage();
 
   const now = Date.now() / 1000;
   const last24h = Date.now() - 24 * 60 * 60 * 1000;
@@ -1428,7 +1464,7 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
     const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
 
     const result = await frozenResults.freezeRoundResults(
       roundNumber,
@@ -1456,7 +1492,7 @@ app.post('/api/admin/auto-freeze', async (req, res) => {
     const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
 
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activities,
@@ -1583,7 +1619,7 @@ cron.schedule('5 0 * * *', async () => {
     const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
-    const jokerUsage = await safeReadJSON(JOKERS_FILE, []);
+    const jokerUsage = await readJokerUsage();
     
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activities, leagueAthletes, jokerUsage, CHALLENGE_CONFIG

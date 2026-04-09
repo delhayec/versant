@@ -21,6 +21,7 @@ let allActivities = [];
 let jokerUsageCache = [];
 let bonusData = null; // Bonus éphémère du joueur
 let bonusChoices = null; // Choix de bonus en attente
+let isPlayerEliminated = false; // Statut éliminé du joueur courant
 
 // ============================================
 // AUTHENTIFICATION
@@ -137,7 +138,10 @@ async function loadJokersFromServer() {
       console.warn('⚠️ Impossible de charger les jokers');
       return [];
     }
-    jokerUsageCache = await res.json();
+    const data = await res.json();
+    // Normaliser: gérer le format objet {athletes, usage, config} ET le format tableau []
+    jokerUsageCache = Array.isArray(data) ? data :
+      (data && Array.isArray(data.usage)) ? data.usage : [];
     return jokerUsageCache;
   } catch (error) {
     console.error('❌ Erreur chargement jokers:', error);
@@ -291,6 +295,7 @@ async function renderStats() {
   // Déterminer le statut du joueur (actif ou éliminé)
   const eliminationInfo = getEliminationInfo(userId, frozenResults, athletesList);
   const isEliminated = eliminationInfo.isEliminated;
+  isPlayerEliminated = isEliminated;
 
   // Calculer les dates du round actuel
   const currentRound = getCurrentRound();
@@ -669,6 +674,18 @@ function renderActivities() {
 function renderJokers() {
   const grid = document.getElementById('jokersGrid');
   if (!grid || !currentUser) return;
+
+  // Si le joueur est éliminé, afficher un message et désactiver tous les jokers
+  if (isPlayerEliminated) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: rgba(255,255,255,0.5);">
+        <div style="font-size: 2rem; margin-bottom: 12px;">👻</div>
+        <div style="font-size: 0.9rem;">Les joueurs éliminés ne peuvent pas utiliser de jokers.</div>
+        <div style="font-size: 0.8rem; margin-top: 8px; color: rgba(255,255,255,0.3);">Concentre-toi sur le challenge des éliminés et tes bonus éphémères !</div>
+      </div>
+    `;
+    return;
+  }
 
   const jokerStock = getJokerStock(currentUser.id);
   const currentRound = getCurrentRound();

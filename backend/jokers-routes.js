@@ -35,10 +35,14 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
       }
 
       const { leagueId } = req.params;
-      let athletes = [], jokerUsage = [];
+      let athletes = [], jokerUsageRaw = [];
 
       try { athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8')); } catch (e) {}
-      try { jokerUsage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+
+      // Normaliser: gérer le format objet {athletes, usage, config} ET le format tableau []
+      const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
+        (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
 
       const leagueAthletes = athletes.filter(a => a.league_id === leagueId);
 
@@ -110,8 +114,10 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
       const athlete = athletes.find(a => String(a.id) === String(athleteId));
       if (!athlete) return res.status(404).json({ error: 'Athlète non trouvé' });
 
-      let jokerUsage = [];
-      try { jokerUsage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+      let jokerUsageRaw = [];
+      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+      let jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
+        (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
 
       const INITIAL_STOCK = 2;
       const changes = [];
@@ -186,8 +192,10 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
       const leagueAthletes = athletes.filter(a => a.league_id === leagueId);
 
       // Vider les usages de jokers pour cette ligue
-      let jokerUsage = [];
-      try { jokerUsage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+      let jokerUsageRaw = [];
+      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+      const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
+        (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
 
       const leagueAthleteIds = new Set(leagueAthletes.map(a => String(a.id)));
       const remaining = jokerUsage.filter(u => !leagueAthleteIds.has(String(u.athlete_id)));
@@ -211,7 +219,9 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
       const { usageId } = req.params;
       const { result } = req.body;
 
-      const jokerUsage = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+      const jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+      const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
+        (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
       const usageIndex = jokerUsage.findIndex(j => j.id === usageId);
       if (usageIndex < 0) return res.status(404).json({ error: 'Usage non trouvé' });
 

@@ -55,7 +55,10 @@ export async function loadJokersFromServer() {
       return jokerUsageCache;
     }
 
-    jokerUsageCache = await response.json();
+    const data = await response.json();
+    // Normaliser: gérer le format objet {athletes, usage, config} ET le format tableau []
+    jokerUsageCache = Array.isArray(data) ? data :
+      (data && Array.isArray(data.usage)) ? data.usage : [];
     cacheTimestamp = Date.now();
 
     return jokerUsageCache;
