@@ -26,6 +26,10 @@ const { createJokersRoutes } = require('./jokers-routes');
 // Import du module bonus éphémères
 const { createBonusesRoutes } = require('./bonuses-routes');
 
+// Import du module frozen results
+const frozenResults = require('./frozen-results.js');
+
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -1466,12 +1470,7 @@ app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res)
   }
 });
 
-// ============================================
-// FROZEN RESULTS MODULE
-// ============================================
-const frozenResults = require('./frozen-results.js');
 
-// CHALLENGE_CONFIG est importé depuis shared-config.js (source unique de vérité)
 
 // ============================================
 // FROZEN RESULTS ROUTES
