@@ -23,10 +23,61 @@ function createInitialJokersStock() {
   };
 }
 
-function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requireAuth }) {
+function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PASSWORD, requireAuth }) {
+
+  /**
+   * Lit jokers_usage.json ET fusionne avec les jokersUsed des frozen_results.json
+   * Source unique de vérité pour le calcul du stock
+   */
+  async function readMergedJokerUsage() {
+    // 1) Lire jokers_usage.json (normaliser format objet vs tableau)
+    let jokerUsageRaw = [];
+    try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+    const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
+      (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
+
+    // 2) Lire frozen_results.json et extraire les jokersUsed
+    try {
+      if (FROZEN_FILE) {
+        const frozenData = JSON.parse(await fs.readFile(FROZEN_FILE, 'utf8'));
+        if (frozenData?.rounds) {
+          for (const [roundKey, roundData] of Object.entries(frozenData.rounds)) {
+            const jokersUsed = roundData.jokersUsed || [];
+            for (const joker of jokersUsed) {
+              // Éviter les doublons (même athlète + même joker + même round)
+              const alreadyExists = jokerUsage.some(j =>
+                String(j.athlete_id) === String(joker.athleteId) &&
+                j.joker_id === joker.jokerId &&
+                j.round_number === parseInt(roundKey)
+              );
+              if (!alreadyExists) {
+                jokerUsage.push({
+                  id: `frozen-${roundKey}-${joker.athleteId}-${joker.jokerId}`,
+                  athlete_id: String(joker.athleteId),
+                  athlete_name: joker.athleteName || 'Inconnu',
+                  joker_id: joker.jokerId,
+                  target_athlete_id: joker.targetId ? String(joker.targetId) : null,
+                  target_athlete_name: joker.targetName || null,
+                  round_number: parseInt(roundKey),
+                  used_at: roundData.frozenAt || new Date().toISOString(),
+                  status: 'active',
+                  resolved: true,
+                  source: 'frozen_results'
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // frozen_results.json pas encore disponible
+    }
+
+    return jokerUsage;
+  }
 
   // GET /api/admin/jokers/:leagueId
-  // Retourne le stock calculé depuis les utilisations (comme le frontend)
+  // Retourne le stock calculé depuis les utilisations (jokers_usage + frozen_results)
   router.get('/admin/jokers/:leagueId', async (req, res) => {
     try {
       const password = req.headers['x-admin-password'];
@@ -35,14 +86,10 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
       }
 
       const { leagueId } = req.params;
-      let athletes = [], jokerUsageRaw = [];
-
+      let athletes = [];
       try { athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8')); } catch (e) {}
-      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
 
-      // Normaliser: gérer le format objet {athletes, usage, config} ET le format tableau []
-      const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
-        (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
+      const jokerUsage = await readMergedJokerUsage();
 
       const leagueAthletes = athletes.filter(a => a.league_id === leagueId);
 
@@ -114,30 +161,40 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
       const athlete = athletes.find(a => String(a.id) === String(athleteId));
       if (!athlete) return res.status(404).json({ error: 'Athlète non trouvé' });
 
+      // Lire le fichier jokers_usage.json (seul fichier modifiable)
       let jokerUsageRaw = [];
       try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
       let jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
         (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
+
+      // Lire aussi les frozen results pour connaître le stock RÉEL
+      const mergedUsage = await readMergedJokerUsage();
 
       const INITIAL_STOCK = 2;
       const changes = [];
 
       // Pour chaque type de joker, ajuster les utilisations
       for (const [jokerId, desiredStock] of Object.entries(jokerStock)) {
-        // Compter les utilisations actuelles
-        const currentUsages = jokerUsage.filter(
+        // Compter les utilisations TOTALES (fichier + frozen) pour connaître le stock réel
+        const totalUsages = mergedUsage.filter(
           u => String(u.athlete_id) === String(athleteId) && u.joker_id === jokerId
         );
-        const currentStock = Math.max(0, INITIAL_STOCK - currentUsages.length);
+        const currentStock = Math.max(0, INITIAL_STOCK - totalUsages.length);
+
+        // Compter seulement les utilisations dans le fichier (modifiables)
+        const fileUsages = jokerUsage.filter(
+          u => String(u.athlete_id) === String(athleteId) && u.joker_id === jokerId
+        );
 
         if (desiredStock === currentStock) continue; // Pas de changement
 
         if (desiredStock > currentStock) {
-          // Augmenter le stock = supprimer des utilisations (les plus récentes d'abord)
-          const toRemove = currentStock - desiredStock; // nombre négatif
-          const usagesToRemove = currentUsages
+          // Augmenter le stock = supprimer des utilisations du fichier (les plus récentes d'abord)
+          // On ne peut supprimer que les entrées du fichier, pas celles des frozen results
+          const toRemove = desiredStock - currentStock;
+          const usagesToRemove = fileUsages
             .sort((a, b) => new Date(b.used_at) - new Date(a.used_at))
-            .slice(0, Math.abs(toRemove));
+            .slice(0, toRemove);
 
           usagesToRemove.forEach(u => {
             const idx = jokerUsage.findIndex(j => j.id === u.id);
@@ -146,6 +203,10 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, ADMIN_PASSWORD, requir
               changes.push(`${jokerId}: supprimé usage ${u.id}`);
             }
           });
+
+          // Si on n'a pas pu supprimer assez (car certains usages sont dans frozen),
+          // on ne peut pas aller plus haut que le stock réel le permet
+          // (pas de message d'erreur, on fait au mieux)
         } else {
           // Diminuer le stock = ajouter des utilisations fictives
           const toAdd = currentStock - desiredStock;

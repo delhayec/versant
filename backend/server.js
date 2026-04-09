@@ -139,6 +139,50 @@ async function readJokerUsage() {
 }
 
 /**
+ * Lit jokers_usage.json ET complète avec les jokers des frozen results
+ * Source de vérité unifiée pour le stock de jokers
+ */
+async function readJokerUsageWithFrozen() {
+  const jokerUsage = await readJokerUsage();
+
+  try {
+    const frozenData = await frozenResults.getAllFrozenResults();
+    if (frozenData?.rounds) {
+      for (const [roundKey, roundData] of Object.entries(frozenData.rounds)) {
+        const jokersUsed = roundData.jokersUsed || [];
+        for (const joker of jokersUsed) {
+          // Vérifier si cette utilisation existe déjà (par athlete + joker + round)
+          const alreadyExists = jokerUsage.some(j =>
+            String(j.athlete_id) === String(joker.athleteId) &&
+            j.joker_id === joker.jokerId &&
+            j.round_number === parseInt(roundKey)
+          );
+          if (alreadyExists) continue;
+
+          jokerUsage.push({
+            id: `frozen-${roundKey}-${joker.athleteId}-${joker.jokerId}`,
+            athlete_id: String(joker.athleteId),
+            athlete_name: joker.athleteName || 'Inconnu',
+            joker_id: joker.jokerId,
+            target_athlete_id: joker.targetId ? String(joker.targetId) : null,
+            target_athlete_name: joker.targetName || null,
+            round_number: parseInt(roundKey),
+            used_at: roundData.frozenAt || new Date().toISOString(),
+            status: 'active',
+            resolved: true,
+            source: 'frozen_results'
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // frozenResults peut ne pas être encore chargé au démarrage
+  }
+
+  return jokerUsage;
+}
+
+/**
  * Lecture-modification-écriture atomique.
  * Le lock est maintenu pendant tout le cycle, éliminant les race conditions.
  * @param {string} filePath - Chemin du fichier JSON
@@ -266,6 +310,7 @@ function checkAdmin(req, res) {
 const jokersRouter = createJokersRoutes({
   ATHLETES_FILE,
   JOKERS_FILE,
+  FROZEN_FILE: path.join(DATA_DIR, 'frozen_results.json'),
   ADMIN_PASSWORD,
   requireAuth
 });
@@ -482,7 +527,7 @@ app.get('/api/athletes/:leagueId', async (req, res) => {
 // Récupérer TOUS les jokers utilisés (pour le tableau principal)
 app.get('/api/jokers/all', async (req, res) => {
   try {
-    const jokerUsage = await readJokerUsage();
+    const jokerUsage = await readJokerUsageWithFrozen();
     res.json(jokerUsage);
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
@@ -492,7 +537,7 @@ app.get('/api/jokers/all', async (req, res) => {
 // Récupérer les jokers d'un round spécifique
 app.get('/api/jokers/round/:roundNumber', async (req, res) => {
   try {
-    const jokerUsage = await readJokerUsage();
+    const jokerUsage = await readJokerUsageWithFrozen();
     const roundJokers = jokerUsage.filter(j => j.round_number === parseInt(req.params.roundNumber) && j.status === 'active');
     res.json(roundJokers);
   } catch (error) {
@@ -503,7 +548,7 @@ app.get('/api/jokers/round/:roundNumber', async (req, res) => {
 // Récupérer mes jokers (authentifié)
 app.get('/api/jokers/my', requireAuth, async (req, res) => {
   try {
-    const jokerUsage = await readJokerUsage();
+    const jokerUsage = await readJokerUsageWithFrozen();
     const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
 
     // Calculer le stock restant
@@ -547,6 +592,20 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
       console.warn('⚠️ Impossible de vérifier le statut éliminé:', e.message);
     }
 
+    // Pré-calculer le nombre d'usages dans frozen results pour cet athlète et ce joker
+    let frozenUsageCount = 0;
+    try {
+      const frozenData = await frozenResults.getAllFrozenResults();
+      if (frozenData?.rounds) {
+        for (const [roundKey, roundData] of Object.entries(frozenData.rounds)) {
+          const jokersUsed = roundData.jokersUsed || [];
+          frozenUsageCount += jokersUsed.filter(j =>
+            String(j.athleteId) === normalizeId(req.athleteId) && j.jokerId === joker_id
+          ).length;
+        }
+      }
+    } catch (e) {}
+
     // Lecture-vérification-écriture atomique (pas de race condition)
     let resultUsage = null;
     let error = null;
@@ -554,9 +613,10 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
     await safeModifyJSON(JOKERS_FILE, (rawData) => {
       const jokerUsage = normalizeJokerUsage(rawData);
       const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
-      const usedCount = myUsage.filter(j => j.joker_id === joker_id).length;
+      const fileUsedCount = myUsage.filter(j => j.joker_id === joker_id).length;
+      const totalUsedCount = fileUsedCount + frozenUsageCount;
 
-      if (usedCount >= INITIAL_JOKER_STOCK) {
+      if (totalUsedCount >= INITIAL_JOKER_STOCK) {
         error = 'Plus de joker disponible';
         return jokerUsage; // Pas de modification
       }
