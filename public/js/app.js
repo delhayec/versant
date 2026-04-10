@@ -981,8 +981,13 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
 
       const toEliminate = [];
 
-      // Déterminer si c'est une finale (3 joueurs ou moins restants)
-      const isCurrentRoundFinale = active.length <= CHALLENGE_CONFIG.eliminationsPerRound + 1;
+      // Vérifier si ce round a une règle spéciale avec override d'éliminations
+      const roundSpecialRule = getSpecialRuleForRound(globalRound);
+      const roundRuleDetails = roundSpecialRule ? (ROUND_RULES[roundSpecialRule] || null) : null;
+      const roundElimCount = roundRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound;
+
+      // Déterminer si c'est une finale
+      const isCurrentRoundFinale = active.length <= roundElimCount + 1;
 
       // Joueurs éligibles (sans bouclier)
       const eligibleForElimination = rankingWithEffects.filter(e => !e.jokerEffects?.hasShield);
@@ -1010,8 +1015,8 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
           });
         });
       } else {
-        // RÈGLE NORMALE: éliminer les 2 derniers
-        const eliminationsNeeded = CHALLENGE_CONFIG.eliminationsPerRound;
+        // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap)
+        const eliminationsNeeded = roundElimCount;
 
         // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
         if (roundInSeason === 1 && lateRegistrations.length > 0) {
@@ -1358,8 +1363,8 @@ function renderAll() {
         seasonStats[p.id] = calculateStats(pActivities);
       });
 
-      // Marquer la zone de danger
-      const elimCount = CHALLENGE_CONFIG.eliminationsPerRound;
+      // Marquer la zone de danger (prend en compte l'override d'éliminations du handicap)
+      const elimCount = currentRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound;
       ranking.forEach((e, i) => {
         e.isInDangerZone = i >= ranking.length - elimCount;
         if (e.jokerEffects?.hasShield && e.isInDangerZone) {

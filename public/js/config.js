@@ -354,14 +354,15 @@ export const ROUND_RULES = {
     id: "handicap",
     name: "Handicap",
     icon: "⚖️",
-    description: "Top 10 avec malus, 5 derniers avec bonus",
-    fullDescription: "Top 10 du classement général avec malus dégressif (1ᵉʳ : -50%, 2ᵉ : -40%, …, 10ᵉ : -5%). Les 5 derniers du classement bénéficient d'une majoration de +10%.",
+    description: "Top 10 malus, 5 derniers bonus, 4 éliminés",
+    fullDescription: "Top 10 du classement général avec malus dégressif (1ᵉʳ : -50%, 2ᵉ : -40%, …, 10ᵉ : -5%). Les 5 derniers bénéficient de +10%. ⚠️ 4 éliminés au lieu de 2 !",
     isSpecial: true,
     notInFirstSeason: true,
     parameters: {
       malusPerPosition: { 1: 50, 2: 40, 3: 35, 4: 30, 5: 25, 6: 20, 7: 15, 8: 10, 9: 7, 10: 5 },
       bonusLastCount: 5,
-      bonusLastPercent: 10
+      bonusLastPercent: 10,
+      eliminationsOverride: 4
     }
   },
   combinado: {
