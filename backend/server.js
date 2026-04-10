@@ -53,6 +53,7 @@ const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const FAILED_WEBHOOKS_FILE = path.join(DATA_DIR, 'failed_webhooks.json');
 const WEBHOOK_LOG_FILE = path.join(DATA_DIR, 'webhook_log.json');
+const SPECIAL_RULES_FILE = path.join(DATA_DIR, 'special_rules.json');
 
 // ============================================
 // UTILITAIRES
@@ -255,6 +256,13 @@ async function initializeServer() {
     }
   }
 
+  // Initialiser special_rules.json en tant qu'objet (pas tableau)
+  try {
+    await fs.access(SPECIAL_RULES_FILE);
+  } catch {
+    await fs.writeFile(SPECIAL_RULES_FILE, JSON.stringify({}, null, 2));
+  }
+
   // Migration: corriger le format de jokers_usage.json si nécessaire
   try {
     const raw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
@@ -338,6 +346,63 @@ app.get('/api/config', (req, res) => {
 // Client ID Strava (public, pas un secret)
 app.get('/api/strava-client-id', (req, res) => {
   res.json({ clientId: STRAVA_CONFIG.clientId });
+});
+
+// ============================================
+// SPECIAL RULES ROUTES
+// ============================================
+
+// GET public - retourne les overrides de règles spéciales {roundNumber: ruleId}
+app.get('/api/special-rules', async (req, res) => {
+  try {
+    const rules = await safeReadJSON(SPECIAL_RULES_FILE, {});
+    res.json(rules);
+  } catch (error) {
+    res.json({});
+  }
+});
+
+// POST admin - définir la règle spéciale pour un round
+app.post('/api/admin/special-rules', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const { roundNumber, rule } = req.body;
+    if (!roundNumber) return res.status(400).json({ error: 'roundNumber requis' });
+
+    const rules = await safeReadJSON(SPECIAL_RULES_FILE, {});
+
+    if (!rule || rule === 'standard') {
+      // Supprimer l'override pour revenir à standard
+      delete rules[String(roundNumber)];
+    } else {
+      rules[String(roundNumber)] = rule;
+    }
+
+    await fs.writeFile(SPECIAL_RULES_FILE, JSON.stringify(rules, null, 2));
+    res.json({ success: true, rules });
+  } catch (error) {
+    console.error('Erreur special-rules:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE admin - supprimer toutes les règles spéciales
+app.delete('/api/admin/special-rules', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    await fs.writeFile(SPECIAL_RULES_FILE, JSON.stringify({}, null, 2));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 // ============================================

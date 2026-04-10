@@ -283,6 +283,46 @@
         <!-- Gestion des Jokers -->
         <div class="info-box" style="grid-column: 1 / -1;">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            ⚖️ Règles Spéciales des Rounds
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
+            Définissez manuellement la règle spéciale pour un round. La règle par défaut est "Standard" (pas de règle spéciale).
+          </p>
+
+          <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end;">
+            <div>
+              <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 6px; font-size: 13px;">N° Round</label>
+              <input type="number" id="specialRuleRound" placeholder="N° round" min="1" max="100" style="width: 100px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+            </div>
+            <div>
+              <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 6px; font-size: 13px;">Règle</label>
+              <select id="specialRuleSelect" style="padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; min-width: 180px;">
+                <option value="standard">📊 Standard (par défaut)</option>
+                <option value="handicap">⚖️ Handicap (Top 10 malus / 5 derniers bonus)</option>
+                <option value="combinado">🔄 Combiné (×2 si 2 sports/jour)</option>
+                <option value="double_weekend">📅 Double Weekend (×2 sam/dim)</option>
+                <option value="pentes_raides">📐 Pentes Raides (>15%)</option>
+                <option value="hors_bitume">🌲 Hors Bitume</option>
+              </select>
+            </div>
+            <button id="setSpecialRuleBtn" style="padding: 10px 20px; background: #f97316; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+              ✅ Appliquer
+            </button>
+            <button id="removeSpecialRuleBtn" style="padding: 10px 20px; background: rgba(239,68,68,0.3); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; cursor: pointer;">
+              🗑️ Supprimer
+            </button>
+          </div>
+
+          <div id="specialRulesResult" style="font-size: 14px; margin-bottom: 12px;"></div>
+
+          <div id="specialRulesList" style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; max-height: 300px; overflow-y: auto;">
+            <p style="color: rgba(255,255,255,0.5);">Chargement des règles...</p>
+          </div>
+        </div>
+
+        <!-- Gestion des Jokers -->
+        <div class="info-box" style="grid-column: 1 / -1;">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
             🃏 Gestion des Jokers
           </h3>
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">

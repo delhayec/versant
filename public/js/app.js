@@ -19,7 +19,7 @@ import {
   getMainChallengePoints, getEliminatedChallengePoints,
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
-  formBalancedTeams
+  formBalancedTeams, loadSpecialRulesOverrides, getSpecialRuleForRound
 } from './config.js';
 
 import {
@@ -659,6 +659,62 @@ function calculateRanking(activities, activeParticipants) {
     .map((entry, index) => ({ ...entry, position: index + 1 }));
 }
 
+/**
+ * Applique la règle Handicap sur le ranking du round
+ * - Top 10 du classement général : malus dégressif sur le D+
+ * - 5 derniers du classement général : bonus de +10%
+ * Le ranking est re-trié après application
+ */
+function applyHandicapRule(ranking, yearlyStandings) {
+  const rule = ROUND_RULES.handicap;
+  if (!rule?.parameters) return ranking;
+
+  const { malusPerPosition, bonusLastCount, bonusLastPercent } = rule.parameters;
+
+  // Créer un map rang classement général → participant
+  const generalRankMap = {};
+  const totalParticipants = yearlyStandings.length;
+  yearlyStandings.forEach(e => {
+    generalRankMap[String(e.participant.id)] = e.rank;
+  });
+
+  const adjusted = ranking.map(entry => {
+    const pid = String(entry.participant.id);
+    const generalRank = generalRankMap[pid];
+    const rawElevation = entry.totalElevation;
+    let adjustmentPercent = 0;
+    let adjustmentLabel = null;
+
+    if (generalRank && malusPerPosition[generalRank]) {
+      // Malus pour le top 10
+      adjustmentPercent = -malusPerPosition[generalRank];
+      adjustmentLabel = `${adjustmentPercent}% (${generalRank}${generalRank === 1 ? 'ᵉʳ' : 'ᵉ'} au général)`;
+    } else if (generalRank && totalParticipants - generalRank < bonusLastCount) {
+      // Bonus pour les 5 derniers
+      adjustmentPercent = bonusLastPercent;
+      adjustmentLabel = `+${adjustmentPercent}% (${generalRank}${generalRank === 1 ? 'ᵉʳ' : 'ᵉ'} au général)`;
+    }
+
+    const adjustedElevation = adjustmentPercent !== 0
+      ? Math.round(rawElevation * (1 + adjustmentPercent / 100))
+      : rawElevation;
+
+    return {
+      ...entry,
+      rawElevation,
+      adjustmentPercent,
+      adjustmentLabel,
+      totalElevation: adjustedElevation
+    };
+  });
+
+  // Re-trier par D+ ajusté
+  adjusted.sort((a, b) => b.totalElevation - a.totalElevation);
+  adjusted.forEach((e, i) => { e.position = i + 1; });
+
+  return adjusted;
+}
+
 // ============================================
 // SIMULATION DES ÉLIMINATIONS
 // ============================================
@@ -1228,6 +1284,10 @@ function renderAll() {
 
     yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
 
+    // Detect special rule for current round
+    const bannerSpecialRule = getSpecialRuleForRound(currentRoundNumber);
+    const bannerRuleDetails = bannerSpecialRule ? (ROUND_RULES[bannerSpecialRule] || null) : null;
+
     // Banner
     const seasonBanner = document.getElementById('seasonBanner');
     if (seasonBanner) {
@@ -1235,7 +1295,9 @@ function renderAll() {
         currentSeasonNumber,
         currentRoundNumber,
         seasonData,
-        currentDate: today
+        currentDate: today,
+        specialRule: bannerSpecialRule,
+        specialRuleDetails: bannerRuleDetails
       });
     }
 
@@ -1276,6 +1338,15 @@ function renderAll() {
 
       ranking = applyJokerEffects(ranking, currentRoundNumber);
 
+      // Détecter la règle spéciale du round courant
+      const currentRule = getSpecialRuleForRound(currentRoundNumber);
+      const currentRuleDetails = currentRule ? (ROUND_RULES[currentRule] || null) : null;
+
+      // Appliquer le handicap si actif
+      if (currentRule === 'handicap' && yearlyStandingsCache) {
+        ranking = applyHandicapRule(ranking, yearlyStandingsCache);
+      }
+
       // Stats saison pour chaque participant
       const seasonDates = getSeasonDates(currentSeasonNumber);
       const seasonStats = {};
@@ -1314,7 +1385,9 @@ function renderAll() {
         eliminationsCount: elimCount,
         currentRoundNumber,
         rescapeId,
-        ephemeralEffects
+        ephemeralEffects,
+        specialRule: currentRule,
+        specialRuleDetails: currentRuleDetails
       });
       } // fin else mode standard
     }
@@ -2806,6 +2879,9 @@ async function init() {
 
     // Charger les résultats figés AVANT tout calcul
     await loadFrozenResults();
+
+    // Charger les règles spéciales manuelles
+    await loadSpecialRulesOverrides();
 
     // Charger les bonus éphémères
     await loadBonuses();

@@ -354,11 +354,15 @@ export const ROUND_RULES = {
     id: "handicap",
     name: "Handicap",
     icon: "⚖️",
-    description: "Top 5 annuel avec malus",
-    fullDescription: "Top 5 du classement général: 5e=-5%, 4e=-10%, 3e=-15%, 2e=-20%, 1er=-25%",
+    description: "Top 10 avec malus, 5 derniers avec bonus",
+    fullDescription: "Top 10 du classement général avec malus dégressif (1ᵉʳ : -50%, 2ᵉ : -40%, …, 10ᵉ : -5%). Les 5 derniers du classement bénéficient d'une majoration de +10%.",
     isSpecial: true,
     notInFirstSeason: true,
-    parameters: { malusPerPosition: { 1: 25, 2: 20, 3: 15, 4: 10, 5: 5 } }
+    parameters: {
+      malusPerPosition: { 1: 50, 2: 40, 3: 35, 4: 30, 5: 25, 6: 20, 7: 15, 8: 10, 9: 7, 10: 5 },
+      bonusLastCount: 5,
+      bonusLastPercent: 10
+    }
   },
   combinado: {
     id: "combinado",
@@ -709,10 +713,34 @@ export function isLastDayOfRound(date, globalRoundNumber) {
 // ============================================
 // GÉNÉRATION DU PLANNING DES ROUNDS
 // ============================================
+
+// Overrides manuels des règles spéciales (chargé depuis le serveur)
+let specialRulesOverrides = {};
+
+/**
+ * Charge les overrides de règles spéciales depuis le serveur
+ */
+export async function loadSpecialRulesOverrides() {
+  try {
+    const response = await fetchWithTimeout('/api/special-rules', 5000);
+    if (response.ok) {
+      specialRulesOverrides = await response.json();
+    }
+  } catch (e) {
+    console.warn('⚠️ Impossible de charger les règles spéciales:', e);
+  }
+}
+
+/**
+ * Retourne la règle spéciale pour un round donné (depuis les overrides serveur)
+ */
+export function getSpecialRuleForRound(globalRoundNumber) {
+  return specialRulesOverrides[String(globalRoundNumber)] || null;
+}
+
 export function generateRoundsSchedule() {
   const schedule = [];
   const totalSeasons = getTotalSeasons();
-  const specialRules = Object.keys(ROUND_RULES).filter(k => ROUND_RULES[k].isSpecial);
   let globalRound = 1;
 
   for (let s = 1; s <= totalSeasons; s++) {
@@ -720,19 +748,13 @@ export function generateRoundsSchedule() {
     const seasonType = getSeasonType(s);
 
     for (let r = 1; r <= roundsThisSeason; r++) {
+      // La règle est "standard" par défaut, les overrides sont appliqués dynamiquement via getSpecialRuleForRound()
       let rule = 'standard';
 
-      // Règle spéciale tous les X rounds (sauf finale, sauf saisons équipe)
-      if (!seasonType?.isTeamBased &&
-          r % CHALLENGE_CONFIG.specialRuleFrequency === 0 &&
-          r !== roundsThisSeason) {
-        const ruleIndex = Math.floor(globalRound / CHALLENGE_CONFIG.specialRuleFrequency) % specialRules.length;
-        rule = specialRules[ruleIndex];
-
-        // Handicap pas en saison 1
-        if (rule === 'handicap' && s === 1) {
-          rule = 'combinado';
-        }
+      // Appliquer l'override si défini manuellement par l'admin
+      const override = specialRulesOverrides[String(globalRound)];
+      if (override && !seasonType?.isTeamBased && r !== roundsThisSeason) {
+        rule = override;
       }
 
       schedule.push({

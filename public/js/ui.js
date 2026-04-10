@@ -55,7 +55,7 @@ export function formatDateRange(start, end) {
 // ============================================
 
 export function renderCombinedBanner(container, data) {
-  const { currentSeasonNumber, currentRoundNumber, seasonData, currentDate } = data;
+  const { currentSeasonNumber, currentRoundNumber, seasonData, currentDate, specialRule, specialRuleDetails } = data;
 
   const seasonDates = getSeasonDates(currentSeasonNumber);
   const roundDates = getRoundDates(currentRoundNumber);
@@ -77,6 +77,11 @@ export function renderCombinedBanner(container, data) {
   // Formater avec zéros devant
   const pad = (n) => String(n).padStart(2, '0');
 
+  // Badge règle spéciale dans le banner
+  const ruleBadge = specialRule && specialRuleDetails?.isSpecial
+    ? `<span class="banner-rule-badge" title="${specialRuleDetails.fullDescription}">${specialRuleDetails.icon} ${specialRuleDetails.name}</span>`
+    : '';
+
   container.innerHTML = `
     <div class="banner-unified">
       <div class="banner-block banner-season-block">
@@ -90,6 +95,7 @@ export function renderCombinedBanner(container, data) {
         <span class="banner-label">ROUND</span>
         <span class="banner-value">${roundInSeason}</span>
         ${isRoundActive ? `<span class="banner-day">J${dayInRound}/5</span>` : ''}
+        ${ruleBadge}
       </div>
 
       <div class="banner-separator"></div>
@@ -245,7 +251,7 @@ export function renderActiveJokersSection(container, data) {
 // ============================================
 
 export function renderRanking(container, data) {
-  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, rescapeId, ephemeralEffects } = data;
+  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, rescapeId, ephemeralEffects, specialRule, specialRuleDetails } = data;
 
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
@@ -261,15 +267,49 @@ export function renderRanking(container, data) {
     return;
   }
 
-  let html = `
-    <div class="ranking-header">
-      <div>Pos.</div>
-      <div>Athlète</div>
-      <div>D+ Round</div>
-      <div>D+ Saison</div>
-      <div>Jokers</div>
-    </div>
-  `;
+  const isHandicap = specialRule === 'handicap';
+  const isSpecial = specialRule && specialRuleDetails?.isSpecial;
+
+  // Section règle spéciale active
+  let specialRuleHtml = '';
+  if (isSpecial && specialRuleDetails) {
+    specialRuleHtml = `
+      <div class="special-rule-banner">
+        <div class="special-rule-icon">${specialRuleDetails.icon}</div>
+        <div class="special-rule-info">
+          <span class="special-rule-name">${specialRuleDetails.name}</span>
+          <span class="special-rule-desc">${specialRuleDetails.fullDescription}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // En-têtes adaptatifs
+  let headerHtml;
+  if (isHandicap) {
+    headerHtml = `
+      <div class="ranking-header ranking-header-handicap">
+        <div>Pos.</div>
+        <div>Athlète</div>
+        <div>D+ Brut</div>
+        <div>Ajust.</div>
+        <div>D+ Final</div>
+        <div class="hide-mobile">D+ Saison</div>
+      </div>
+    `;
+  } else {
+    headerHtml = `
+      <div class="ranking-header">
+        <div>Pos.</div>
+        <div>Athlète</div>
+        <div>D+ Round</div>
+        <div>D+ Saison</div>
+        <div>Jokers</div>
+      </div>
+    `;
+  }
+
+  let html = specialRuleHtml + headerHtml;
 
   ranking.forEach((entry, i) => {
     const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
@@ -287,35 +327,82 @@ export function renderRanking(container, data) {
     // Générer les pilules pour les effets de bonus éphémères
     const ephemeralPills = renderEphemeralBonusPills(ephemeral);
 
-    html += `
-      <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
-        <div class="position ${posClass}">
-          ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
-        </div>
-        <div class="athlete-info">
-          <div class="athlete-avatar-wrapper">
-            <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
-              ${getAthleteInitials(entry.participant.id)}
+    if (isHandicap) {
+      // Mode Handicap : colonnes D+ Brut / Ajust. / D+ Final
+      const rawElev = entry.rawElevation ?? entry.totalElevation;
+      const adjPercent = entry.adjustmentPercent || 0;
+      const finalElev = entry.totalElevation;
+
+      let adjHtml;
+      if (adjPercent < 0) {
+        adjHtml = `<span class="handicap-malus">${adjPercent}%</span>`;
+      } else if (adjPercent > 0) {
+        adjHtml = `<span class="handicap-bonus">+${adjPercent}%</span>`;
+      } else {
+        adjHtml = `<span class="handicap-none">—</span>`;
+      }
+
+      html += `
+        <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
+          <div class="position ${posClass}">
+            ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
+          </div>
+          <div class="athlete-info">
+            <div class="athlete-avatar-wrapper">
+              <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
+                ${getAthleteInitials(entry.participant.id)}
+              </div>
+              ${bonusIndicators}
             </div>
-            ${bonusIndicators}
+            <div class="athlete-details">
+              <span class="athlete-name">${entry.participant.name}</span>
+              ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent">🎫 Rescapé</span>' : ''}
+              ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
+              ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
+              ${entry.adjustmentLabel ? `<span class="athlete-status handicap-tag" title="${entry.adjustmentLabel}">⚖️ ${entry.adjustmentLabel}</span>` : ''}
+            </div>
           </div>
-          <div class="athlete-details">
-            <span class="athlete-name">${entry.participant.name}</span>
-            ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">🎫 Rescapé</span>' : ''}
-            ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
-            ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
+          <div class="elevation-cell elevation-raw">${formatElevation(rawElev)}</div>
+          <div class="elevation-cell elevation-adj">${adjHtml}</div>
+          <div class="elevation-cell elevation-final">
+            <span class="elevation-primary">${formatElevation(finalElev)}</span>
+            ${ephemeralPills}
+          </div>
+          <div class="elevation-secondary hide-mobile">${formatElevation(seasonElev)}</div>
+        </div>
+      `;
+    } else {
+      // Mode standard
+      html += `
+        <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
+          <div class="position ${posClass}">
+            ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
+          </div>
+          <div class="athlete-info">
+            <div class="athlete-avatar-wrapper">
+              <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
+                ${getAthleteInitials(entry.participant.id)}
+              </div>
+              ${bonusIndicators}
+            </div>
+            <div class="athlete-details">
+              <span class="athlete-name">${entry.participant.name}</span>
+              ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">🎫 Rescapé</span>' : ''}
+              ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
+              ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
+            </div>
+          </div>
+          <div class="elevation-cell">
+            ${renderElevationWithBonuses(entry.totalElevation, effects.bonuses)}
+            ${ephemeralPills}
+          </div>
+          <div class="elevation-secondary">${formatElevation(seasonElev)}</div>
+          <div class="jokers-cell">
+            ${renderJokerBadges(entry.participant.id, data.currentRoundNumber)}
           </div>
         </div>
-        <div class="elevation-cell">
-          ${renderElevationWithBonuses(entry.totalElevation, effects.bonuses)}
-          ${ephemeralPills}
-        </div>
-        <div class="elevation-secondary">${formatElevation(seasonElev)}</div>
-        <div class="jokers-cell">
-          ${renderJokerBadges(entry.participant.id, data.currentRoundNumber)}
-        </div>
-      </div>
-    `;
+      `;
+    }
   });
 
   container.innerHTML = html;
