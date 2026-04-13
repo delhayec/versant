@@ -292,56 +292,27 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber) {
       }
     }
 
-    // Trap - le piège donne du D+ copié au propriétaire du piège
-    if (bonus.bonus_id === 'trap' && String(bonus.athlete_id) === normalizedId) {
-      const amount = result?.elevation_gained || result?.stolenElevation || 0;
-      if (amount > 0) {
-        const victimName = result?.victim_name || 'un joueur';
-        effects.gained += amount;
-        effects.details.push({ type: 'trap_gain', amount, from: victimName, icon: '🪤' });
-      }
-    }
-
-    // Second Souffle - double la plus petite activité (effet fin de saison, appliqué au dernier round)
-    if (bonus.bonus_id === 'second_souffle' && String(bonus.athlete_id) === normalizedId) {
-      // Calculer le gain : trouver la plus petite activité depuis l'élimination
-      const elimRound = bonus.elimination_round;
-      if (elimRound) {
-        const elimActivities = getEliminatedActivities(normalizedId, elimRound);
-        if (elimActivities.length > 0) {
-          const minActivity = elimActivities.reduce((min, a) =>
-            (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
-          );
-          const amount = Math.round(minActivity.total_elevation_gain || 0);
-          if (amount > 0) {
-            const actName = minActivity.name || 'activité';
-            effects.gained += amount;
-            effects.details.push({ type: 'second_souffle', amount, activityName: actName, icon: '🔥' });
-          }
-        }
-      }
-    }
-
-    // Duel - pas d'effet D+, mais on note pour l'affichage
-    if (bonus.bonus_id === 'duel' && String(bonus.athlete_id) === normalizedId) {
-      effects.details.push({ type: 'duel', amount: 0, icon: '⚔️' });
-    }
-
-    // Brouillard - pas d'effet D+, mais on note pour l'affichage
-    if (bonus.bonus_id === 'brouillard' && String(bonus.athlete_id) === normalizedId) {
-      effects.details.push({ type: 'brouillard', amount: 0, icon: '🌫️' });
-    }
+    // Note: trap, second_souffle, duel, brouillard sont des bonus saisonniers
+    // traités par getSeasonalBonusEffectsForEliminatedAthlete() (appelé une seule fois)
   }
 
-  // Also check ALL bonuses (live + archived) for passive/seasonal effects
-  // second_souffle and trap may have status='active' or 'chosen' rather than 'used'
-  const allAthleteBonus = getAllBonusesForAthlete(normalizedId);
-  for (const bonus of allAthleteBonus) {
-    // Skip if already processed in round-specific loop
-    if (bonus.used_in_round === roundNumber && bonus.status === 'used') continue;
+  return effects;
+}
 
-    // Second Souffle with status 'active' or 'available' — check if not already added
-    if (bonus.bonus_id === 'second_souffle' && (bonus.status === 'active' || bonus.status === 'chosen')) {
+/**
+ * Calcule les effets des bonus SAISONNIERS (one-shot) pour un éliminé.
+ * Appelé UNE SEULE FOIS par athlète par saison (pas par round).
+ * Gère: second_souffle, trap, duel, brouillard
+ */
+function getSeasonalBonusEffectsForEliminatedAthlete(athleteId) {
+  const effects = { gained: 0, lost: 0, details: [] };
+  const normalizedId = String(athleteId);
+
+  const allAthleteBonus = getAllBonusesForAthlete(normalizedId);
+
+  for (const bonus of allAthleteBonus) {
+    // Second Souffle — double la plus petite activité
+    if (bonus.bonus_id === 'second_souffle' && (bonus.status === 'active' || bonus.status === 'chosen' || bonus.status === 'used')) {
       const alreadyAdded = effects.details.some(d => d.type === 'second_souffle');
       if (!alreadyAdded) {
         const elimRound = bonus.elimination_round;
@@ -362,8 +333,8 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber) {
       }
     }
 
-    // Trap with status 'active' and already triggered
-    if (bonus.bonus_id === 'trap' && bonus.status === 'active') {
+    // Trap — D+ copié du dernier éliminé
+    if (bonus.bonus_id === 'trap') {
       const result = bonus.effect_result;
       const alreadyAdded = effects.details.some(d => d.type === 'trap_gain');
       if (!alreadyAdded && result?.elevation_gained) {
@@ -374,7 +345,7 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber) {
       }
     }
 
-    // Duel with any status
+    // Duel — info only
     if (bonus.bonus_id === 'duel') {
       const alreadyAdded = effects.details.some(d => d.type === 'duel');
       if (!alreadyAdded) {
@@ -382,7 +353,7 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber) {
       }
     }
 
-    // Brouillard with any status
+    // Brouillard — info only
     if (bonus.bonus_id === 'brouillard') {
       const alreadyAdded = effects.details.some(d => d.type === 'brouillard');
       if (!alreadyAdded) {
@@ -1330,6 +1301,11 @@ function calculateYearlyStandings(activities, currentDate) {
         gained += roundEffects.gained;
         lost += roundEffects.lost;
       }
+      // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
+      const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id);
+      gained += seasonalEffects.gained;
+      lost += seasonalEffects.lost;
+
       const netBonus = gained - lost;
       if (netBonus !== 0) {
         e.totalElevation = Math.max(0, e.totalElevation + netBonus);
@@ -1447,6 +1423,12 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
       lost += roundEffects.lost;
       details.push(...roundEffects.details);
     }
+    // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
+    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id);
+    gained += seasonalEffects.gained;
+    lost += seasonalEffects.lost;
+    details.push(...seasonalEffects.details);
+
     const netBonus = gained - lost;
     if (netBonus !== 0) {
       e.rawElevation = e.totalElevation;
@@ -1761,7 +1743,7 @@ function renderEliminatedChallenge(container) {
   const bonusEffectsByAthlete = {};
   for (const eliminated of seasonData.eliminated) {
     const effects = { gained: 0, lost: 0, details: [] };
-    // Parcourir tous les rounds de la saison pour cumuler les effets
+    // Parcourir tous les rounds de la saison pour cumuler les effets par-round
     const roundsPerSeason = getRoundsPerSeason();
     const seasonStartRound = (currentSeasonNumber - 1) * roundsPerSeason + 1;
     const seasonEndRound = currentSeasonNumber * roundsPerSeason;
@@ -1771,6 +1753,12 @@ function renderEliminatedChallenge(container) {
       effects.lost += roundEffects.lost;
       effects.details.push(...roundEffects.details);
     }
+    // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
+    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(eliminated.id);
+    effects.gained += seasonalEffects.gained;
+    effects.lost += seasonalEffects.lost;
+    effects.details.push(...seasonalEffects.details);
+
     bonusEffectsByAthlete[eliminated.id] = effects;
   }
 
@@ -2099,6 +2087,11 @@ function calculatePointsForSeason(seasonNumber) {
         gained += fx.gained;
         lost += fx.lost;
       }
+      // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
+      const seasonalFx = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id);
+      gained += seasonalFx.gained;
+      lost += seasonalFx.lost;
+
       const netBonus = gained - lost;
       if (netBonus !== 0) {
         e.totalElevation = Math.max(0, e.totalElevation + netBonus);
