@@ -39,6 +39,42 @@ try {
 const DATA_DIR = path.join(__dirname, 'data');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
 const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
+const SPECIAL_RULES_FILE = path.join(DATA_DIR, 'special_rules.json');
+
+// Définition des règles spéciales (miroir de config.js frontend)
+const ROUND_RULES_BACKEND = {
+  handicap: {
+    id: 'handicap',
+    parameters: {
+      malusPerPosition: { 1: 50, 2: 40, 3: 35, 4: 30, 5: 25, 6: 20, 7: 15, 8: 10, 9: 7, 10: 5 },
+      bonusLastCount: 5,
+      bonusLastPercent: 10,
+      eliminationsOverride: 4
+    }
+  }
+};
+
+/**
+ * Charge les overrides de règles spéciales depuis le fichier JSON
+ */
+async function loadSpecialRules() {
+  try {
+    const data = await fs.readFile(SPECIAL_RULES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Retourne la règle spéciale et ses paramètres pour un round donné
+ */
+async function getSpecialRuleForRound(roundNumber) {
+  const rules = await loadSpecialRules();
+  const ruleId = rules[String(roundNumber)];
+  if (!ruleId || ruleId === 'standard') return null;
+  return { id: ruleId, ...(ROUND_RULES_BACKEND[ruleId] || {}) };
+}
 
 // ============================================
 // UTILITAIRES DE FICHIER
@@ -89,6 +125,9 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
     return { success: false, error: 'missing_eliminations' };
   }
 
+  // Charger la règle spéciale pour ce round (pour traçabilité)
+  const specialRule = await getSpecialRuleForRound(roundNumber);
+
   // Construire l'objet de résultat
   const frozenRound = {
     roundNumber: roundNumber,
@@ -101,6 +140,7 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
     frozen: true,
     frozenAt: new Date().toISOString(),
     frozenMethod: 'frontend_data', // Indique que les données viennent du frontend
+    specialRule: specialRule?.id || roundData.specialRule || null, // Règle spéciale appliquée
     activeParticipants: roundData.activeParticipants || roundData.ranking.map(r => String(r.id)),
     ranking: roundData.ranking.map(entry => ({
       id: String(entry.id),
@@ -348,7 +388,57 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
   await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities);
 
-  // Trier par D+ décroissant
+  // Vérifier si ce round a une règle spéciale
+  const specialRule = await getSpecialRuleForRound(roundNumber);
+
+  // Appliquer le handicap si actif (malus/bonus sur le D+)
+  if (specialRule?.id === 'handicap' && specialRule.parameters) {
+    const { malusPerPosition, bonusLastCount, bonusLastPercent } = specialRule.parameters;
+
+    // Calculer le classement général pour déterminer les rangs
+    // On utilise les rounds précédents figés pour construire un classement partiel
+    const generalStandings = {};
+    athletes.forEach(a => { generalStandings[String(a.id)] = { points: 0 }; });
+    Object.values(previousRounds).forEach(r => {
+      if (!r.frozen || !r.ranking) return;
+      r.ranking.forEach(e => {
+        if (generalStandings[e.id]) {
+          generalStandings[e.id].points += (e.mainPoints || 0);
+        }
+      });
+    });
+
+    // Trier pour obtenir les rangs
+    const sortedGeneral = Object.entries(generalStandings)
+      .sort((a, b) => b[1].points - a[1].points);
+    const generalRankMap = {};
+    sortedGeneral.forEach(([id], idx) => { generalRankMap[id] = idx + 1; });
+    const totalInGeneral = sortedGeneral.length;
+
+    ranking.forEach(entry => {
+      const rank = generalRankMap[entry.id];
+      if (!rank) return;
+
+      entry.rawElevation = entry.elevation;
+      let adjustPercent = 0;
+
+      if (malusPerPosition[rank]) {
+        adjustPercent = -malusPerPosition[rank];
+      } else if (totalInGeneral - rank < bonusLastCount) {
+        adjustPercent = bonusLastPercent;
+      }
+
+      if (adjustPercent !== 0) {
+        entry.elevation = Math.round(entry.elevation * (1 + adjustPercent / 100));
+        entry.handicapAdjustment = adjustPercent;
+        entry.generalRank = rank;
+      }
+    });
+
+    console.log(`⚖️ Round ${roundNumber}: Handicap appliqué (${Object.keys(malusPerPosition).length} malus, ${bonusLastCount} bonus)`);
+  }
+
+  // Trier par D+ décroissant (après handicap)
   ranking.sort((a, b) => b.elevation - a.elevation);
 
   // Attribuer les positions
@@ -357,17 +447,14 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   });
 
   // ============================================
-  // NOUVELLES RÈGLES D'ÉLIMINATION (à partir du R7)
+  // RÈGLES D'ÉLIMINATION
   // ============================================
-  // - Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+ (et seulement eux)
-  // - Sinon → éliminer les 2 derniers (règle normale)
-  // - Finale: éliminer tous sauf 1
-  //
-  // Note: Les rounds 1-6 utilisent les anciennes règles (2 derniers toujours)
-  // pour ne pas casser les résultats déjà figés
-  // ============================================
+  // Prend en compte l'override d'éliminations des règles spéciales (ex: handicap → 4)
 
   const eliminations = [];
+
+  // Nombre d'éliminations (peut être overridé par la règle spéciale)
+  const eliminationsForThisRound = specialRule?.parameters?.eliminationsOverride || config.eliminationsPerRound;
 
   // Joueurs éligibles (sans bouclier)
   const eligibleForElimination = ranking.filter(e => !e.hasShield);
@@ -389,9 +476,8 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     toEliminate = zeroElevationPlayers;
     console.log(`📋 Round ${roundNumber}: ${zeroElevationPlayers.length} joueurs à 0 D+ → tous éliminés`);
   } else {
-    // RÈGLE NORMALE: éliminer les 2 derniers
-    const eliminationsNeeded = config.eliminationsPerRound;
-    toEliminate = eligibleForElimination.slice(-eliminationsNeeded);
+    // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap)
+    toEliminate = eligibleForElimination.slice(-eliminationsForThisRound);
   }
 
   // Trier par position (du pire au meilleur) pour l'attribution des points
@@ -441,6 +527,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     frozen: true,
     frozenAt: new Date().toISOString(),
     frozenMethod: 'calculated', // Indique que c'est recalculé
+    specialRule: specialRule?.id || null, // Règle spéciale appliquée
     activeParticipants,
     ranking,
     eliminations,
