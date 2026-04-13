@@ -4662,3 +4662,59 @@ body {
   white-space: nowrap;
   cursor: help;
 }
+
+/* ============================================
+   BONUS DETAILS IN ELIMINATED CHALLENGE HISTORY
+   ============================================ */
+
+.history-bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.history-bonus-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.history-bonus-detail.gained {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.history-bonus-detail.lost {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.history-bonus-detail.info {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  color: #22d3ee;
+}
+
+/* Pilule info style for duel/brouillard in live eliminated challenge */
+.bonus-tag.ephemeral-info {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  color: #22d3ee;
+}
+
+@media (max-width: 768px) {
+  .history-bonus-list {
+    flex-direction: column;
+  }
+  .history-bonus-detail {
+    font-size: 0.65rem;
+  }
+}
