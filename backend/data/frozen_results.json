@@ -1876,7 +1876,7 @@
       }
     }
   },
-  "lastUpdated": "2026-04-13T12:00:00.000Z",
+  "lastUpdated": "2026-04-13T14:00:00.000Z",
   "seasonBonuses": {
     "2": [
       {
@@ -1891,7 +1891,7 @@
         "chosen_at": "2026-03-23T20:00:00.000Z",
         "used_at": "2026-03-24T08:00:00.000Z",
         "effect_result": {
-          "stolenElevation": 808,
+          "stolenElevation": 892,
           "stolenActivityName": "activité volée"
         }
       },
