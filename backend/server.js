@@ -406,6 +406,51 @@ app.delete('/api/admin/special-rules', async (req, res) => {
 });
 
 // ============================================
+// SEASON BONUSES ARCHIVE (dans frozen_results)
+// ============================================
+
+// GET public - retourne les bonus archivés pour une saison
+app.get('/api/season-bonuses/:seasonNumber', async (req, res) => {
+  try {
+    const frozen = await frozenResults.getAllFrozenResults();
+    const seasonNumber = parseInt(req.params.seasonNumber);
+    const bonuses = frozen.seasonBonuses?.[String(seasonNumber)] || [];
+    res.json(bonuses);
+  } catch (error) {
+    res.json([]);
+  }
+});
+
+// POST admin - archiver les bonus d'une saison dans frozen_results
+app.post('/api/admin/season-bonuses/:seasonNumber', async (req, res) => {
+  try {
+    const password = req.headers['x-admin-password'];
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Non autorisé' });
+    }
+
+    const seasonNumber = parseInt(req.params.seasonNumber);
+    const { bonuses } = req.body;
+    if (!bonuses || !Array.isArray(bonuses)) {
+      return res.status(400).json({ error: 'bonuses (array) requis' });
+    }
+
+    const frozen = await frozenResults.getAllFrozenResults();
+    if (!frozen.seasonBonuses) frozen.seasonBonuses = {};
+    frozen.seasonBonuses[String(seasonNumber)] = bonuses;
+    frozen.lastUpdated = new Date().toISOString();
+
+    const FROZEN_FILE_PATH = path.join(DATA_DIR, 'frozen_results.json');
+    await fs.writeFile(FROZEN_FILE_PATH, JSON.stringify(frozen, null, 2));
+
+    res.json({ success: true, count: bonuses.length });
+  } catch (error) {
+    console.error('Erreur season-bonuses:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ============================================
 // AUTH ROUTES
 // ============================================
 app.post('/api/auth/strava/exchange', async (req, res) => {

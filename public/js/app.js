@@ -48,6 +48,7 @@ let yearlyStandingsCache = null;
 let isAdminMode = false;
 let frozenResultsCache = null; // Cache des résultats figés
 let bonusesCache = []; // Cache des bonus éphémères
+let seasonBonusesCache = {}; // Cache des bonus archivés par saison (depuis frozen_results)
 
 // ============================================
 // CHARGEMENT DES RÉSULTATS FIGÉS
@@ -57,6 +58,8 @@ async function loadFrozenResults() {
     const response = await fetch('/api/frozen-results');
     if (response.ok) {
       frozenResultsCache = await response.json();
+      // Charger les bonus archivés dans frozen_results
+      seasonBonusesCache = frozenResultsCache.seasonBonuses || {};
     }
   } catch (error) {
     console.warn('⚠️ Impossible de charger les résultats figés:', error);
@@ -81,9 +84,54 @@ async function loadBonuses() {
 
 /**
  * Récupère les bonus utilisés pour un round donné
+ * Cherche d'abord dans bonusesCache (live), puis dans seasonBonusesCache (archivé)
  */
 function getBonusesUsedInRound(roundNumber) {
-  return bonusesCache.filter(b => b.used_in_round === roundNumber && b.status === 'used');
+  const liveBonuses = bonusesCache.filter(b => b.used_in_round === roundNumber && b.status === 'used');
+  if (liveBonuses.length > 0) return liveBonuses;
+
+  // Fallback: chercher dans les bonus archivés par saison
+  for (const [seasonNum, bonuses] of Object.entries(seasonBonusesCache)) {
+    const archived = bonuses.filter(b => b.used_in_round === roundNumber && b.status === 'used');
+    if (archived.length > 0) return archived;
+  }
+  return [];
+}
+
+/**
+ * Récupère les bonus archivés pour un athlète donné (toutes saisons)
+ */
+function getArchivedBonusesForAthlete(athleteId) {
+  const normalizedId = String(athleteId);
+  const result = [];
+  for (const [seasonNum, bonuses] of Object.entries(seasonBonusesCache)) {
+    for (const b of bonuses) {
+      if (String(b.athlete_id) === normalizedId) {
+        result.push({ ...b, archivedSeason: parseInt(seasonNum) });
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Récupère TOUS les bonus d'un athlète (live + archivés) pour le calcul des effets
+ */
+function getAllBonusesForAthlete(athleteId) {
+  const normalizedId = String(athleteId);
+  const live = bonusesCache.filter(b => String(b.athlete_id) === normalizedId);
+  const archived = getArchivedBonusesForAthlete(normalizedId);
+  // Dédupliquer par bonus_id + athlete_id
+  const seen = new Set(live.map(b => `${b.bonus_id}_${b.athlete_id}_${b.used_in_round || ''}`));
+  const deduped = [...live];
+  for (const a of archived) {
+    const key = `${a.bonus_id}_${a.athlete_id}_${a.used_in_round || ''}`;
+    if (!seen.has(key)) {
+      deduped.push(a);
+      seen.add(key);
+    }
+  }
+  return deduped;
 }
 
 /**
@@ -285,10 +333,10 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber) {
     }
   }
 
-  // Also check ALL bonuses (not just used_in_round) for passive/seasonal effects
-  // second_souffle and trap may have status='active' rather than 'used'
-  for (const bonus of bonusesCache) {
-    if (String(bonus.athlete_id) !== normalizedId) continue;
+  // Also check ALL bonuses (live + archived) for passive/seasonal effects
+  // second_souffle and trap may have status='active' or 'chosen' rather than 'used'
+  const allAthleteBonus = getAllBonusesForAthlete(normalizedId);
+  for (const bonus of allAthleteBonus) {
     // Skip if already processed in round-specific loop
     if (bonus.used_in_round === roundNumber && bonus.status === 'used') continue;
 
@@ -2171,14 +2219,20 @@ async function renderArsenalSection(container, roundNumber) {
   });
 
   // Récupérer les bonus éphémères ACTIFS (non utilisés ou utilisés ce round)
+  // Exclure les bonus de saisons précédentes (leur elimination_round est dans une saison terminée)
   let bonuses = [];
   try {
     const res = await fetch('/api/bonuses/all');
     if (res.ok) {
       const allBonuses = await res.json();
-      // Filtrer: garder uniquement les bonus non utilisés OU utilisés ce round
+      const currentSeasonStartRound = getSeasonStartRound(currentSeasonNumber);
+      // Filtrer: garder uniquement les bonus de la saison courante, non utilisés OU utilisés ce round
       bonuses = allBonuses
-        .filter(b => !b.used_in_round || b.used_in_round === roundNumber)
+        .filter(b => {
+          // Exclure les bonus dont le round d'élimination est avant la saison courante
+          if (b.elimination_round && b.elimination_round < currentSeasonStartRound) return false;
+          return !b.used_in_round || b.used_in_round === roundNumber;
+        })
         .map(b => {
           const athlete = getParticipantById(b.athlete_id);
           const target = b.target_athlete_id ? getParticipantById(b.target_athlete_id) : null;

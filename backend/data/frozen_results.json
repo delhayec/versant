@@ -1,6 +1,1926 @@
 {
   "version": "1.0",
-  "description": "Résultats figés par round - ne change jamais une fois le round terminé",
-  "rounds": {},
-  "lastUpdated": null
+  "rounds": {
+    "1": {
+      "roundNumber": 1,
+      "seasonNumber": 1,
+      "roundInSeason": 1,
+      "dates": {
+        "start": "2026-02-02T00:00:00.000Z",
+        "end": "2026-02-06T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-08T09:51:33.466Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "84388438",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "100399073",
+        "3989319",
+        "8716867",
+        "68391361",
+        "31184097",
+        "119310419",
+        "3762537",
+        "45072827"
+      ],
+      "ranking": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 2615,
+          "activitiesCount": 2,
+          "originalElevation": 2615,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 1697,
+          "activitiesCount": 3,
+          "originalElevation": 1697,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 821,
+          "activitiesCount": 1,
+          "originalElevation": 821,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 771,
+          "activitiesCount": 2,
+          "originalElevation": 771,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 578,
+          "activitiesCount": 5,
+          "originalElevation": 578,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 354,
+          "activitiesCount": 1,
+          "originalElevation": 354,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 321,
+          "activitiesCount": 1,
+          "originalElevation": 321,
+          "position": 7,
+          "mainPoints": 0
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 315,
+          "activitiesCount": 2,
+          "originalElevation": 315,
+          "position": 8,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 284,
+          "activitiesCount": 1,
+          "originalElevation": 284,
+          "position": 9,
+          "mainPoints": 0
+        },
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "elevation": 252,
+          "activitiesCount": 2,
+          "originalElevation": 252,
+          "position": 10,
+          "mainPoints": 0
+        },
+        {
+          "id": "3989319",
+          "name": "Da M",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 11,
+          "mainPoints": 0
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 12,
+          "mainPoints": 0
+        },
+        {
+          "id": "119310419",
+          "name": "Max2Peuf",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 13,
+          "mainPoints": 0
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 14,
+          "mainPoints": 0,
+          "eliminatedPosition": 14
+        },
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 15,
+          "mainPoints": 0,
+          "eliminatedPosition": 15
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "elevation": 0,
+          "reason": "zero_elevation",
+          "position": 15
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 0,
+          "reason": "zero_elevation",
+          "position": 14
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 20,
+        "totalElevation": 8008,
+        "eliminationsCount": 2
+      }
+    },
+    "2": {
+      "roundNumber": 2,
+      "seasonNumber": 1,
+      "roundInSeason": 2,
+      "dates": {
+        "start": "2026-02-07T00:00:00.000Z",
+        "end": "2026-02-11T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-08T09:51:33.467Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "84388438",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "100399073",
+        "3989319",
+        "8716867",
+        "68391361",
+        "31184097",
+        "119310419"
+      ],
+      "ranking": [
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 2621,
+          "activitiesCount": 3,
+          "originalElevation": 2621,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 2009,
+          "activitiesCount": 3,
+          "originalElevation": 2009,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 1795,
+          "activitiesCount": 3,
+          "originalElevation": 1795,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 1717,
+          "activitiesCount": 1,
+          "originalElevation": 1717,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1114,
+          "activitiesCount": 3,
+          "originalElevation": 1114,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1100,
+          "activitiesCount": 3,
+          "originalElevation": 1100,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 224,
+          "activitiesCount": 2,
+          "originalElevation": 224,
+          "position": 7,
+          "mainPoints": 0
+        },
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "elevation": 208,
+          "activitiesCount": 1,
+          "originalElevation": 208,
+          "position": 8,
+          "mainPoints": 0
+        },
+        {
+          "id": "3989319",
+          "name": "Da M",
+          "elevation": 129,
+          "activitiesCount": 1,
+          "originalElevation": 129,
+          "position": 9,
+          "mainPoints": 0
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 93,
+          "activitiesCount": 1,
+          "originalElevation": 93,
+          "position": 10,
+          "mainPoints": 0
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 47,
+          "activitiesCount": 1,
+          "originalElevation": 47,
+          "position": 11,
+          "mainPoints": 0
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 12,
+          "mainPoints": 2,
+          "eliminatedPosition": 12
+        },
+        {
+          "id": "119310419",
+          "name": "Max2Peuf",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 13,
+          "mainPoints": 1,
+          "eliminatedPosition": 13
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "119310419",
+          "name": "Max2Peuf",
+          "elevation": 0,
+          "reason": "zero_elevation",
+          "position": 13
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 0,
+          "reason": "zero_elevation",
+          "position": 12
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 24,
+        "totalElevation": 11057,
+        "eliminationsCount": 2
+      }
+    },
+    "3": {
+      "roundNumber": 3,
+      "seasonNumber": 1,
+      "roundInSeason": 3,
+      "dates": {
+        "start": "2026-02-12T00:00:00.000Z",
+        "end": "2026-02-16T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-08T09:51:33.470Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "84388438",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "3989319",
+        "8716867",
+        "68391361",
+        "31184097"
+      ],
+      "ranking": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 1990,
+          "activitiesCount": 4,
+          "originalElevation": 1990,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 916,
+          "activitiesCount": 3,
+          "originalElevation": 916,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 872,
+          "activitiesCount": 3,
+          "originalElevation": 872,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 748,
+          "activitiesCount": 3,
+          "originalElevation": 748,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 559,
+          "activitiesCount": 2,
+          "originalElevation": 559,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 500,
+          "activitiesCount": 3,
+          "originalElevation": 500,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 447,
+          "activitiesCount": 1,
+          "originalElevation": 447,
+          "position": 7,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 317,
+          "activitiesCount": 2,
+          "originalElevation": 317,
+          "position": 8,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 255,
+          "activitiesCount": 2,
+          "originalElevation": 255,
+          "position": 9,
+          "mainPoints": 0
+        },
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "elevation": 247,
+          "activitiesCount": 1,
+          "originalElevation": 247,
+          "position": 10,
+          "mainPoints": 4,
+          "eliminatedPosition": 10
+        },
+        {
+          "id": "3989319",
+          "name": "Da M",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 11,
+          "mainPoints": 3,
+          "eliminatedPosition": 11
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "3989319",
+          "name": "Da M",
+          "elevation": 0,
+          "reason": "zero_elevation",
+          "position": 11
+        },
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "elevation": 247,
+          "reason": "last_position",
+          "position": 10
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 27,
+        "totalElevation": 6851,
+        "eliminationsCount": 2
+      }
+    },
+    "4": {
+      "roundNumber": 4,
+      "seasonNumber": 1,
+      "roundInSeason": 4,
+      "dates": {
+        "start": "2026-02-17T00:00:00.000Z",
+        "end": "2026-02-21T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-08T09:51:33.471Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "84388438",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "8716867",
+        "31184097"
+      ],
+      "ranking": [
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 2173,
+          "activitiesCount": 3,
+          "originalElevation": 2173,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1919,
+          "activitiesCount": 2,
+          "originalElevation": 1919,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 1689,
+          "activitiesCount": 4,
+          "originalElevation": 1689,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 1468,
+          "activitiesCount": 2,
+          "originalElevation": 1468,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 1279,
+          "activitiesCount": 3,
+          "originalElevation": 1279,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 791,
+          "activitiesCount": 2,
+          "originalElevation": 791,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 680,
+          "activitiesCount": 3,
+          "originalElevation": 680,
+          "position": 7,
+          "mainPoints": 6,
+          "eliminatedPosition": 8
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 630,
+          "activitiesCount": 2,
+          "originalElevation": 630,
+          "hasShield": true,
+          "position": 8,
+          "mainPoints": 0
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 286,
+          "activitiesCount": 5,
+          "originalElevation": 286,
+          "position": 9,
+          "mainPoints": 5,
+          "eliminatedPosition": 9
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 286,
+          "reason": "last_position",
+          "position": 9
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 680,
+          "reason": "last_position",
+          "position": 7
+        }
+      ],
+      "jokersUsed": [
+        {
+          "athleteId": "3953180",
+          "athleteName": "Clement D",
+          "jokerId": "bouclier",
+          "targetId": null,
+          "targetName": null
+        }
+      ],
+      "stats": {
+        "totalActivities": 34,
+        "totalElevation": 10915,
+        "eliminationsCount": 2
+      }
+    },
+    "5": {
+      "roundNumber": 5,
+      "seasonNumber": 1,
+      "roundInSeason": 5,
+      "dates": {
+        "start": "2026-02-22T00:00:00.000Z",
+        "end": "2026-02-26T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-08T09:51:33.472Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "8716867",
+        "31184097"
+      ],
+      "ranking": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 2590,
+          "activitiesCount": 5,
+          "originalElevation": 2590,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 2120,
+          "activitiesCount": 4,
+          "originalElevation": 2120,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1397,
+          "activitiesCount": 5,
+          "originalElevation": 1397,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 1372,
+          "activitiesCount": 4,
+          "originalElevation": 1372,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1277,
+          "activitiesCount": 3,
+          "originalElevation": 1277,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 1164,
+          "activitiesCount": 5,
+          "originalElevation": 1164,
+          "position": 6,
+          "mainPoints": 10,
+          "eliminatedPosition": 6
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 7,
+          "mainPoints": 8,
+          "eliminatedPosition": 7
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 0,
+          "reason": "zero_elevation",
+          "position": 7
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 1164,
+          "reason": "last_position",
+          "position": 6
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 42,
+        "totalElevation": 9920,
+        "eliminationsCount": 2
+      }
+    },
+    "6": {
+      "roundNumber": 6,
+      "seasonNumber": 1,
+      "roundInSeason": 6,
+      "dates": {
+        "start": "2026-02-27T00:00:00.000Z",
+        "end": "2026-03-03T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-08T09:51:33.473Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "8716867"
+      ],
+      "ranking": [
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 2535,
+          "activitiesCount": 6,
+          "originalElevation": 2535,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 2514,
+          "activitiesCount": 8,
+          "originalElevation": 2514,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 2469,
+          "activitiesCount": 6,
+          "originalElevation": 2469,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 2002,
+          "activitiesCount": 3,
+          "originalElevation": 2002,
+          "position": 4,
+          "mainPoints": 15,
+          "eliminatedPosition": 4
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1198,
+          "activitiesCount": 4,
+          "originalElevation": 1198,
+          "position": 5,
+          "mainPoints": 12,
+          "eliminatedPosition": 5
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1198,
+          "reason": "last_position",
+          "position": 5
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 2002,
+          "reason": "last_position",
+          "position": 4
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 46,
+        "totalElevation": 10718,
+        "eliminationsCount": 2
+      }
+    },
+    "7": {
+      "roundNumber": 7,
+      "seasonNumber": 1,
+      "roundInSeason": 7,
+      "dates": {
+        "start": "2026-03-04T00:00:00.000Z",
+        "end": "2026-03-08T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-09T00:05:00.254Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "6635902",
+        "87904944",
+        "8716867"
+      ],
+      "ranking": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 4142,
+          "activitiesCount": 6,
+          "originalElevation": 4142,
+          "position": 1,
+          "mainPoints": 24,
+          "isWinner": true
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 3215,
+          "activitiesCount": 3,
+          "originalElevation": 3215,
+          "position": 2,
+          "mainPoints": 21,
+          "eliminatedPosition": 2
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 1720,
+          "activitiesCount": 3,
+          "originalElevation": 1720,
+          "position": 3,
+          "mainPoints": 18,
+          "eliminatedPosition": 3
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 1720,
+          "reason": "last_position",
+          "position": 3
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 3215,
+          "reason": "last_position",
+          "position": 2
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 37,
+        "totalElevation": 9077,
+        "eliminationsCount": 2
+      }
+    },
+    "8": {
+      "roundNumber": 8,
+      "seasonNumber": 2,
+      "roundInSeason": 1,
+      "dates": {
+        "start": "2026-03-09T00:00:00.000Z",
+        "end": "2026-03-13T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-14T00:05:00.645Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "84388438",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "100399073",
+        "3989319",
+        "8716867",
+        "68391361",
+        "31184097",
+        "119310419",
+        "3762537",
+        "45072827"
+      ],
+      "ranking": [
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 1721,
+          "activitiesCount": 2,
+          "originalElevation": 1721,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 986,
+          "activitiesCount": 3,
+          "originalElevation": 986,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 947,
+          "activitiesCount": 2,
+          "originalElevation": 947,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 943,
+          "activitiesCount": 4,
+          "originalElevation": 943,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 847,
+          "activitiesCount": 2,
+          "originalElevation": 847,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 831,
+          "activitiesCount": 3,
+          "originalElevation": 831,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 685,
+          "activitiesCount": 1,
+          "originalElevation": 685,
+          "position": 7,
+          "mainPoints": 0
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 533,
+          "activitiesCount": 3,
+          "originalElevation": 533,
+          "position": 8,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 530,
+          "activitiesCount": 3,
+          "originalElevation": 530,
+          "position": 9,
+          "mainPoints": 0
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 376,
+          "activitiesCount": 4,
+          "originalElevation": 376,
+          "position": 10,
+          "mainPoints": 0
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 327,
+          "activitiesCount": 4,
+          "originalElevation": 327,
+          "position": 11,
+          "mainPoints": 0
+        },
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "elevation": 303,
+          "activitiesCount": 1,
+          "originalElevation": 303,
+          "position": 12,
+          "mainPoints": 0
+        },
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "elevation": 90,
+          "activitiesCount": 1,
+          "originalElevation": 90,
+          "position": 13,
+          "mainPoints": 0
+        },
+        {
+          "id": "3989319",
+          "name": "Da M",
+          "elevation": 19,
+          "activitiesCount": 1,
+          "originalElevation": 19,
+          "position": 14,
+          "mainPoints": 0,
+          "eliminatedPosition": 14
+        },
+        {
+          "id": "119310419",
+          "name": "Max2Peuf",
+          "elevation": 0,
+          "activitiesCount": 0,
+          "originalElevation": 0,
+          "position": 15,
+          "mainPoints": 0,
+          "eliminatedPosition": 15
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "119310419",
+          "name": "Max2Peuf",
+          "elevation": 0,
+          "reason": "zero_elevation",
+          "position": 15
+        },
+        {
+          "id": "3989319",
+          "name": "Da M",
+          "elevation": 19,
+          "reason": "last_position",
+          "position": 14
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 34,
+        "totalElevation": 9138,
+        "eliminationsCount": 2
+      }
+    },
+    "9": {
+      "roundNumber": 9,
+      "seasonNumber": 2,
+      "roundInSeason": 2,
+      "dates": {
+        "start": "2026-03-14T00:00:00.000Z",
+        "end": "2026-03-18T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-19T00:05:00.083Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "84388438",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "100399073",
+        "8716867",
+        "68391361",
+        "31184097",
+        "3762537",
+        "45072827"
+      ],
+      "ranking": [
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 1877,
+          "activitiesCount": 3,
+          "originalElevation": 1877,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 1734,
+          "activitiesCount": 2,
+          "originalElevation": 1734,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 1715,
+          "activitiesCount": 3,
+          "originalElevation": 1715,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 1503,
+          "activitiesCount": 4,
+          "originalElevation": 1503,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 1382,
+          "activitiesCount": 1,
+          "originalElevation": 1382,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1315,
+          "activitiesCount": 2,
+          "originalElevation": 1315,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1185,
+          "activitiesCount": 2,
+          "originalElevation": 1185,
+          "position": 7,
+          "mainPoints": 0
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 870,
+          "activitiesCount": 2,
+          "originalElevation": 870,
+          "position": 8,
+          "mainPoints": 0
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 664,
+          "activitiesCount": 3,
+          "originalElevation": 664,
+          "position": 9,
+          "mainPoints": 0
+        },
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "elevation": 307,
+          "activitiesCount": 2,
+          "originalElevation": 307,
+          "position": 10,
+          "mainPoints": 0
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 255,
+          "activitiesCount": 3,
+          "originalElevation": 255,
+          "position": 11,
+          "mainPoints": 0
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 113,
+          "activitiesCount": 4,
+          "originalElevation": 113,
+          "position": 12,
+          "mainPoints": 2,
+          "eliminatedPosition": 12
+        },
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "elevation": 80,
+          "activitiesCount": 1,
+          "originalElevation": 80,
+          "position": 13,
+          "mainPoints": 1,
+          "eliminatedPosition": 13
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "elevation": 80,
+          "reason": "last_position",
+          "position": 13
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "elevation": 113,
+          "reason": "last_position",
+          "position": 12
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 33,
+        "totalElevation": 13000,
+        "eliminationsCount": 2
+      }
+    },
+    "10": {
+      "roundNumber": 10,
+      "seasonNumber": 2,
+      "roundInSeason": 3,
+      "dates": {
+        "start": "2026-03-19T00:00:00.000Z",
+        "end": "2026-03-23T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-24T00:05:00.505Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "84388438",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "100399073",
+        "8716867",
+        "3762537",
+        "45072827"
+      ],
+      "ranking": [
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 4479,
+          "activitiesCount": 2,
+          "originalElevation": 4479,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 3436,
+          "activitiesCount": 4,
+          "originalElevation": 3436,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 1497,
+          "activitiesCount": 3,
+          "originalElevation": 1497,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 1482,
+          "activitiesCount": 3,
+          "originalElevation": 1482,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1437,
+          "activitiesCount": 3,
+          "originalElevation": 1437,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 1357,
+          "activitiesCount": 4,
+          "originalElevation": 1357,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 1319,
+          "activitiesCount": 2,
+          "originalElevation": 1319,
+          "position": 7,
+          "mainPoints": 0
+        },
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "elevation": 1276,
+          "activitiesCount": 3,
+          "originalElevation": 1276,
+          "position": 8,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1248,
+          "activitiesCount": 5,
+          "originalElevation": 1248,
+          "position": 9,
+          "mainPoints": 0
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 1198,
+          "activitiesCount": 3,
+          "originalElevation": 1198,
+          "position": 10,
+          "mainPoints": 4,
+          "eliminatedPosition": 10
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 28,
+          "activitiesCount": 3,
+          "originalElevation": 28,
+          "position": 11,
+          "mainPoints": 3,
+          "eliminatedPosition": 11
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "elevation": 28,
+          "reason": "last_position",
+          "position": 11
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "elevation": 1198,
+          "reason": "last_position",
+          "position": 10
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 42,
+        "totalElevation": 18757,
+        "eliminationsCount": 2
+      }
+    },
+    "11": {
+      "roundNumber": 11,
+      "seasonNumber": 2,
+      "roundInSeason": 4,
+      "dates": {
+        "start": "2026-03-24T00:00:00.000Z",
+        "end": "2026-03-28T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-03-29T00:05:00.103Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "6635902",
+        "1841009",
+        "87904944",
+        "110979265",
+        "100399073",
+        "3762537",
+        "45072827"
+      ],
+      "ranking": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 4252,
+          "activitiesCount": 4,
+          "originalElevation": 4252,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 3536,
+          "activitiesCount": 4,
+          "originalElevation": 3536,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 2959,
+          "activitiesCount": 4,
+          "originalElevation": 2959,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 2816,
+          "activitiesCount": 3,
+          "originalElevation": 2816,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 2167,
+          "activitiesCount": 4,
+          "originalElevation": 2167,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 1989,
+          "activitiesCount": 5,
+          "originalElevation": 1989,
+          "position": 6,
+          "mainPoints": 0
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 1980,
+          "activitiesCount": 3,
+          "originalElevation": 1980,
+          "position": 7,
+          "mainPoints": 0
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1805,
+          "activitiesCount": 7,
+          "originalElevation": 1805,
+          "position": 8,
+          "mainPoints": 6,
+          "eliminatedPosition": 8
+        },
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "elevation": 315,
+          "activitiesCount": 1,
+          "originalElevation": 315,
+          "position": 9,
+          "mainPoints": 5,
+          "eliminatedPosition": 9
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "elevation": 315,
+          "reason": "last_position",
+          "position": 9
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "elevation": 1805,
+          "reason": "last_position",
+          "position": 8
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 46,
+        "totalElevation": 21819,
+        "eliminationsCount": 2
+      }
+    },
+    "12": {
+      "roundNumber": 12,
+      "seasonNumber": 2,
+      "roundInSeason": 5,
+      "dates": {
+        "start": "2026-03-29T00:00:00.000Z",
+        "end": "2026-04-02T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-04-03T00:05:00.869Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "5231535",
+        "6635902",
+        "1841009",
+        "87904944",
+        "100399073",
+        "3762537"
+      ],
+      "ranking": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 2806,
+          "activitiesCount": 8,
+          "originalElevation": 2806,
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 2379,
+          "activitiesCount": 3,
+          "originalElevation": 2379,
+          "position": 2,
+          "mainPoints": 0
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 1993,
+          "activitiesCount": 6,
+          "originalElevation": 1993,
+          "position": 3,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1933,
+          "activitiesCount": 3,
+          "originalElevation": 1327,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 1835,
+          "activitiesCount": 4,
+          "originalElevation": 1835,
+          "position": 5,
+          "mainPoints": 0
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 1789,
+          "activitiesCount": 4,
+          "originalElevation": 1789,
+          "position": 6,
+          "mainPoints": 10,
+          "eliminatedPosition": 6
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 67,
+          "activitiesCount": 2,
+          "originalElevation": 67,
+          "position": 7,
+          "mainPoints": 8,
+          "eliminatedPosition": 7
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "elevation": 67,
+          "reason": "last_position",
+          "position": 7,
+          "zeroElimination": false
+        },
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "elevation": 1789,
+          "reason": "last_position",
+          "position": 6,
+          "zeroElimination": false
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 38,
+        "totalElevation": 12802,
+        "eliminationsCount": 2
+      }
+    },
+    "13": {
+      "roundNumber": 13,
+      "seasonNumber": 2,
+      "roundInSeason": 6,
+      "dates": {
+        "start": "2026-04-03T00:00:00.000Z",
+        "end": "2026-04-07T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-04-08T00:05:00.400Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "3953180",
+        "1841009",
+        "87904944",
+        "100399073",
+        "3762537"
+      ],
+      "ranking": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 5193,
+          "activitiesCount": 7,
+          "originalElevation": 8551,
+          "theftReceived": {
+            "by": "Clement D",
+            "amount": 3358,
+            "activity": "Morning Ride"
+          },
+          "position": 1,
+          "mainPoints": 0
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 3748,
+          "activitiesCount": 3,
+          "originalElevation": 3748,
+          "position": 2,
+          "mainPoints": 15,
+          "eliminatedPosition": 4
+        },
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 3457,
+          "activitiesCount": 2,
+          "originalElevation": 99,
+          "theftDone": {
+            "from": "Guillaume B",
+            "amount": 3358,
+            "activity": "Morning Ride"
+          },
+          "position": 3,
+          "mainPoints": 12,
+          "eliminatedPosition": 5
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 1655,
+          "activitiesCount": 4,
+          "originalElevation": 1655,
+          "hasShield": true,
+          "position": 4,
+          "mainPoints": 0
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1467,
+          "activitiesCount": 1,
+          "originalElevation": 1467,
+          "hasShield": true,
+          "position": 5,
+          "mainPoints": 0
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "elevation": 3457,
+          "reason": "last_position",
+          "position": 3
+        },
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "elevation": 3748,
+          "reason": "last_position",
+          "position": 2
+        }
+      ],
+      "jokersUsed": [
+        {
+          "athleteId": "6635902",
+          "athleteName": "Baptiste I",
+          "jokerId": "voleur",
+          "targetId": "87904944",
+          "targetName": "Guillaume B"
+        },
+        {
+          "athleteId": "3953180",
+          "athleteName": "Clement D",
+          "jokerId": "voleur",
+          "targetId": "87904944",
+          "targetName": "Guillaume B"
+        },
+        {
+          "athleteId": "100399073",
+          "athleteName": "Leo B",
+          "jokerId": "bouclier",
+          "targetId": null,
+          "targetName": null
+        },
+        {
+          "athleteId": "1841009",
+          "athleteName": "Mariana S",
+          "jokerId": "bouclier",
+          "targetId": null,
+          "targetName": null
+        }
+      ],
+      "stats": {
+        "totalActivities": 35,
+        "totalElevation": 15520,
+        "eliminationsCount": 2
+      }
+    },
+    "14": {
+      "roundNumber": 14,
+      "seasonNumber": 2,
+      "roundInSeason": 7,
+      "dates": {
+        "start": "2026-04-08T00:00:00.000Z",
+        "end": "2026-04-12T23:59:59.999Z"
+      },
+      "frozen": true,
+      "frozenAt": "2026-04-13T00:05:00.021Z",
+      "frozenMethod": "calculated",
+      "activeParticipants": [
+        "1841009",
+        "87904944",
+        "100399073"
+      ],
+      "ranking": [
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "elevation": 2855,
+          "activitiesCount": 4,
+          "originalElevation": 2855,
+          "position": 1,
+          "mainPoints": 24,
+          "isWinner": true
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 2234,
+          "activitiesCount": 4,
+          "originalElevation": 2234,
+          "position": 2,
+          "mainPoints": 21,
+          "eliminatedPosition": 2
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1154,
+          "activitiesCount": 2,
+          "originalElevation": 1154,
+          "position": 3,
+          "mainPoints": 18,
+          "eliminatedPosition": 3
+        }
+      ],
+      "eliminations": [
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "elevation": 1154,
+          "reason": "last_position",
+          "position": 3
+        },
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "elevation": 2234,
+          "reason": "last_position",
+          "position": 2
+        }
+      ],
+      "jokersUsed": [],
+      "stats": {
+        "totalActivities": 51,
+        "totalElevation": 6243,
+        "eliminationsCount": 2
+      }
+    }
+  },
+  "lastUpdated": "2026-04-13T12:00:00.000Z",
+  "seasonBonuses": {
+    "2": [
+      {
+        "bonus_id": "embuscade",
+        "athlete_id": "84388438",
+        "athlete_name": "Rémi S",
+        "target_athlete_id": "110979265",
+        "target_athlete_name": "Pef",
+        "elimination_round": 10,
+        "status": "used",
+        "used_in_round": 11,
+        "chosen_at": "2026-03-23T20:00:00.000Z",
+        "used_at": "2026-03-24T08:00:00.000Z",
+        "effect_result": {
+          "stolenElevation": 808,
+          "stolenActivityName": "activité volée"
+        }
+      },
+      {
+        "bonus_id": "ravitaillement",
+        "athlete_id": "110979265",
+        "athlete_name": "Pef",
+        "target_athlete_id": "1841009",
+        "target_athlete_name": "Mariana S",
+        "elimination_round": 11,
+        "status": "used",
+        "used_in_round": 12,
+        "chosen_at": "2026-03-29T20:00:00.000Z",
+        "used_at": "2026-03-30T08:00:00.000Z",
+        "effect_result": {
+          "givenElevation": 606
+        }
+      },
+      {
+        "bonus_id": "second_souffle",
+        "athlete_id": "6635902",
+        "athlete_name": "Baptiste I",
+        "target_athlete_id": null,
+        "target_athlete_name": null,
+        "elimination_round": 12,
+        "status": "active",
+        "chosen_at": "2026-04-03T08:00:00.000Z",
+        "effect_result": null
+      }
+    ]
+  }
 }
