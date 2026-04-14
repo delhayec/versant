@@ -292,7 +292,7 @@ export function renderRanking(container, data) {
         <div>Pos.</div>
         <div>Athlète</div>
         <div>D+ Brut</div>
-        <div>Ajust.</div>
+        <div class="hide-mobile-sm">Ajust.</div>
         <div>D+ Final</div>
         <div class="hide-mobile">D+ Saison</div>
       </div>
@@ -359,11 +359,11 @@ export function renderRanking(container, data) {
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent">🎫 Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
-              ${entry.adjustmentLabel ? `<span class="athlete-status handicap-tag" title="${entry.adjustmentLabel}">⚖️ ${entry.adjustmentLabel}</span>` : ''}
+              ${entry.adjustmentLabel ? `<span class="athlete-status handicap-tag" title="${entry.adjustmentLabel}">${entry.adjustmentLabel}</span>` : ''}
             </div>
           </div>
           <div class="elevation-cell elevation-raw">${formatElevation(rawElev)}</div>
-          <div class="elevation-cell elevation-adj">${adjHtml}</div>
+          <div class="elevation-cell elevation-adj hide-mobile-sm">${adjHtml}</div>
           <div class="elevation-cell elevation-final">
             <span class="elevation-primary">${formatElevation(finalElev)}</span>
             ${ephemeralPills}

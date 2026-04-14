@@ -4563,12 +4563,12 @@ body {
 
 /* Ranking header variant for handicap mode */
 .ranking-header-handicap {
-  grid-template-columns: 60px minmax(140px, 1fr) 100px 80px 110px 110px !important;
+  grid-template-columns: 50px minmax(120px, 1fr) 90px 70px 100px 100px !important;
 }
 
 .ranking-header-handicap + .ranking-row,
 .ranking-header-handicap ~ .ranking-row {
-  grid-template-columns: 60px minmax(140px, 1fr) 100px 80px 110px 110px !important;
+  grid-template-columns: 50px minmax(120px, 1fr) 90px 70px 100px 100px !important;
 }
 
 /* Handicap adjustment display */
@@ -4576,24 +4576,24 @@ body {
   color: #ef4444;
   font-weight: 600;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .handicap-bonus {
   color: #10b981;
   font-weight: 600;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .handicap-none {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .elevation-raw {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .elevation-final .elevation-primary {
@@ -4601,10 +4601,15 @@ body {
 }
 
 .handicap-tag {
-  font-size: 0.65rem !important;
+  font-size: 0.6rem !important;
   background: rgba(249, 115, 22, 0.12) !important;
   border: 1px solid rgba(249, 115, 22, 0.25) !important;
   color: #f97316 !important;
+  padding: 1px 5px !important;
+}
+
+.hide-mobile-sm {
+  display: block;
 }
 
 /* Mobile responsive for handicap */
@@ -4620,29 +4625,66 @@ body {
     font-size: 1.5rem;
   }
 
+  .hide-mobile-sm {
+    display: none !important;
+  }
+
+  /* 4 colonnes sur mobile : Pos / Athlète / Brut / Final */
   .ranking-header-handicap {
-    grid-template-columns: 40px 1fr 70px 55px 80px !important;
+    grid-template-columns: 32px 1fr 62px 72px !important;
+    padding: 10px 10px;
+    font-size: 0.6rem;
+    gap: 4px;
   }
 
   .ranking-header-handicap + .ranking-row,
   .ranking-header-handicap ~ .ranking-row {
-    grid-template-columns: 40px 1fr 70px 55px 80px !important;
+    grid-template-columns: 32px 1fr 62px 72px !important;
+    padding: 8px 10px;
+    gap: 4px;
   }
 
-  .ranking-header-handicap > *:nth-child(6),
-  .ranking-header-handicap ~ .ranking-row > *:nth-child(6) {
-    display: none;
+  /* Cacher D+ Saison (6ème colonne) — déjà via hide-mobile */
+
+  .ranking-header-handicap .elevation-raw,
+  .ranking-header-handicap ~ .ranking-row .elevation-raw {
+    font-size: 0.72rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .elevation-final {
+    font-size: 0.75rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .elevation-final .elevation-primary {
+    font-size: 0.8rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .athlete-name {
+    font-size: 0.78rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .handicap-tag {
+    font-size: 0.55rem !important;
+    padding: 0px 4px !important;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .athlete-avatar {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.6rem;
   }
 }
 
 @media (max-width: 480px) {
   .ranking-header-handicap {
-    grid-template-columns: 35px 1fr 60px 45px 70px !important;
+    grid-template-columns: 28px 1fr 55px 65px !important;
+    font-size: 0.55rem;
   }
 
   .ranking-header-handicap + .ranking-row,
   .ranking-header-handicap ~ .ranking-row {
-    grid-template-columns: 35px 1fr 60px 45px 70px !important;
+    grid-template-columns: 28px 1fr 55px 65px !important;
   }
 }
 
@@ -4710,11 +4752,57 @@ body {
   color: #22d3ee;
 }
 
+/* Eliminated challenge history rows — allow wrapping */
+.eliminated-challenge-list .history-ranking-row {
+  align-items: start;
+  min-height: auto;
+}
+
 @media (max-width: 768px) {
+  .eliminated-challenge-list .history-ranking-row {
+    grid-template-columns: 28px 1fr auto auto;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
   .history-bonus-list {
     flex-direction: column;
+    gap: 2px;
   }
+
   .history-bonus-detail {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    white-space: normal;
   }
+
+  /* Short labels on mobile via CSS — hide long text, show short */
+  .history-bonus-detail .bonus-long {
+    display: none;
+  }
+  .history-bonus-detail .bonus-short {
+    display: inline;
+  }
+
+  .history-name-block .history-name {
+    font-size: 0.78rem;
+  }
+
+  .history-elevation {
+    font-size: 0.7rem;
+    min-width: 45px;
+  }
+
+  .history-points {
+    font-size: 0.7rem;
+    min-width: 40px;
+  }
+}
+
+/* Desktop: show long text, hide short */
+.history-bonus-detail .bonus-short {
+  display: none;
+}
+.history-bonus-detail .bonus-long {
+  display: inline;
 }

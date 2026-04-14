@@ -2782,36 +2782,37 @@ function renderCompletedEliminatedChallenge(summary) {
       if (detail.amount === 0 && detail.type !== 'duel' && detail.type !== 'brouillard') continue;
 
       let desc = '';
+      const fmtAmt = formatElevation(detail.amount, false);
       switch (detail.type) {
         case 'embuscade_gain':
-          desc = `<span class="history-bonus-detail gained">🏹 +${formatElevation(detail.amount, false)} m volés à ${detail.from}</span>`;
+          desc = `<span class="history-bonus-detail gained">🏹 <span class="bonus-long">+${fmtAmt} m volés à ${detail.from}</span><span class="bonus-short">+embuscade : ${fmtAmt} m</span></span>`;
           break;
         case 'trap_gain':
-          desc = `<span class="history-bonus-detail gained">🪤 +${formatElevation(detail.amount, false)} m piégés sur ${detail.from}</span>`;
+          desc = `<span class="history-bonus-detail gained">🪤 <span class="bonus-long">+${fmtAmt} m piégés sur ${detail.from}</span><span class="bonus-short">+piège : ${fmtAmt} m</span></span>`;
           break;
         case 'second_souffle':
-          desc = `<span class="history-bonus-detail gained">🔥 +${formatElevation(detail.amount, false)} m (second souffle : x2 sur "${detail.activityName}")</span>`;
+          desc = `<span class="history-bonus-detail gained">🔥 <span class="bonus-long">+${fmtAmt} m (second souffle : x2 sur "${detail.activityName}")</span><span class="bonus-short">+second souffle : ${fmtAmt} m</span></span>`;
           break;
         case 'malediction_gain':
-          desc = `<span class="history-bonus-detail gained">🪬 +${formatElevation(detail.amount, false)} m maudits à ${detail.from}</span>`;
+          desc = `<span class="history-bonus-detail gained">🪬 <span class="bonus-long">+${fmtAmt} m maudits à ${detail.from}</span><span class="bonus-short">+malédiction : ${fmtAmt} m</span></span>`;
           break;
         case 'marquage':
-          desc = `<span class="history-bonus-detail lost">🎯 -${formatElevation(detail.amount, false)} m (marqué par ${detail.by})</span>`;
+          desc = `<span class="history-bonus-detail lost">🎯 <span class="bonus-long">-${fmtAmt} m (marqué par ${detail.by})</span><span class="bonus-short">-marquage : ${fmtAmt} m</span></span>`;
           break;
         case 'malediction_victim':
-          desc = `<span class="history-bonus-detail lost">🪬 -${formatElevation(detail.amount, false)} m (maudit par ${detail.by})</span>`;
+          desc = `<span class="history-bonus-detail lost">🪬 <span class="bonus-long">-${fmtAmt} m (maudit par ${detail.by})</span><span class="bonus-short">-malédiction : ${fmtAmt} m</span></span>`;
           break;
         case 'kamikaze_victim':
-          desc = `<span class="history-bonus-detail lost">💣 -${formatElevation(detail.amount, false)} m (kamikaze par ${detail.by})</span>`;
+          desc = `<span class="history-bonus-detail lost">💣 <span class="bonus-long">-${fmtAmt} m (kamikaze par ${detail.by})</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
           break;
         case 'kamikaze_self':
-          desc = `<span class="history-bonus-detail lost">💣 -${formatElevation(detail.amount, false)} m (kamikaze auto)</span>`;
+          desc = `<span class="history-bonus-detail lost">💣 <span class="bonus-long">-${fmtAmt} m (kamikaze auto)</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
           break;
         case 'duel':
-          desc = `<span class="history-bonus-detail info">⚔️ Duel en cours</span>`;
+          desc = `<span class="history-bonus-detail info">⚔️ <span class="bonus-long">Duel en cours</span><span class="bonus-short">Duel</span></span>`;
           break;
         case 'brouillard':
-          desc = `<span class="history-bonus-detail info">🌫️ Brouillard actif</span>`;
+          desc = `<span class="history-bonus-detail info">🌫️ <span class="bonus-long">Brouillard actif</span><span class="bonus-short">Brouillard</span></span>`;
           break;
       }
       if (desc) bonusHtml += desc;
