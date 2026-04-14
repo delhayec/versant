@@ -2614,11 +2614,17 @@ body {
     grid-template-columns: 50px 1fr 100px;
   }
 
-  .ranking-header > *:nth-child(4),
-  .ranking-header > *:nth-child(5),
-  .ranking-row > *:nth-child(4),
-  .ranking-row > *:nth-child(5) {
+  .ranking-header:not(.ranking-header-handicap) > *:nth-child(4),
+  .ranking-header:not(.ranking-header-handicap) > *:nth-child(5),
+  .ranking-header:not(.ranking-header-handicap) ~ .ranking-row > *:nth-child(4),
+  .ranking-header:not(.ranking-header-handicap) ~ .ranking-row > *:nth-child(5) {
     display: none;
+  }
+
+  /* Fix: ne pas appliquer la grille 3-colonnes aux lignes handicap (elles ont leur propre grille) */
+  .ranking-header-handicap,
+  .ranking-header-handicap ~ .ranking-row {
+    grid-template-columns: 32px 1fr 62px 72px !important;
   }
 
   .rounds-table-header,
