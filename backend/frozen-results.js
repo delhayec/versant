@@ -345,9 +345,12 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   const roundEnd = roundDates.end.getTime();
 
   const roundActivities = activities.filter(a => {
-    // Vérifier la date
-    const actDate = new Date(a.start_date).getTime();
-    if (actDate < roundStart || actDate > roundEnd) return false;
+    // Utiliser l'heure de FIN de l'activité (start + elapsed_time)
+    // pour rattacher l'activité au round où elle se termine
+    const start = new Date(a.start_date).getTime();
+    const elapsedMs = (a.elapsed_time || 0) * 1000;
+    const actEndDate = start + elapsedMs;
+    if (actEndDate < roundStart || actEndDate > roundEnd) return false;
 
     // Ignorer les activités exclues par l'admin
     if (a.excluded) return false;

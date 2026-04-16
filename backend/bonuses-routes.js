@@ -489,8 +489,11 @@ async function applyBonusEffectsForRound(roundNumber, activities, config) {
                        'BackcountrySki', 'NordicSki', 'AlpineSki', 'Snowshoe', 'RockClimbing'];
 
   const roundActivities = activities.filter(a => {
-    const actDate = new Date(a.start_date);
-    const isInRound = actDate >= roundStart && actDate <= roundEnd;
+    // Utiliser l'heure de FIN (start + elapsed_time) pour rattacher l'activité au bon round
+    const start = new Date(a.start_date).getTime();
+    const elapsedMs = (a.elapsed_time || 0) * 1000;
+    const actEndDate = new Date(start + elapsedMs);
+    const isInRound = actEndDate >= roundStart && actEndDate <= roundEnd;
     const isValidSport = validSports.includes(a.sport_type) || validSports.includes(a.type);
     const isLongEnough = (a.moving_time || 0) >= 1200; // 20 minutes
     return isInRound && isValidSport && isLongEnough;

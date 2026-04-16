@@ -723,13 +723,26 @@ function parseActivitiesData(data) {
 // FILTRAGE DES ACTIVITÉS
 // ============================================
 
+/**
+ * Retourne l'heure de fin d'une activité (start_date + elapsed_time).
+ * Permet de rattacher une activité à son bon round même si elle
+ * commence avant minuit et finit après (ex: ski de rando à 23h jour 5 → 8h jour 6).
+ * L'activité compte pour le round où elle se termine.
+ */
+function getActivityEndTime(activity) {
+  const start = new Date(activity.start_date).getTime();
+  const elapsedMs = (activity.elapsed_time || 0) * 1000;
+  return start + elapsedMs;
+}
+
 function filterByPeriod(activities, startDate, endDate) {
   const start = new Date(startDate).setHours(0, 0, 0, 0);
   const end = new Date(endDate).setHours(23, 59, 59, 999);
   return activities.filter(a => {
     // Ignorer les activités exclues par l'admin
     if (a.excluded) return false;
-    const date = new Date(a.start_date).getTime();
+    // Utiliser l'heure de FIN pour rattacher l'activité au bon round
+    const date = getActivityEndTime(a);
     return date >= start && date <= end;
   });
 }
@@ -2428,10 +2441,12 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
  */
 function getRoundElevation(athleteId, roundDates) {
   if (!allActivities) return 0;
+  const startMs = roundDates.start.getTime();
+  const endMs = roundDates.end.getTime();
   const activities = allActivities.filter(a => {
     if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
-    const date = new Date(a.start_date);
-    return date >= roundDates.start && date <= roundDates.end;
+    const endTime = getActivityEndTime(a);
+    return endTime >= startMs && endTime <= endMs;
   });
   return activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
 }
@@ -2475,10 +2490,13 @@ function getEliminatedElevationSince(athleteId, eliminationRound) {
   const roundDates = getRoundDates(eliminationRound);
   const startDate = new Date(roundDates.end);
   startDate.setDate(startDate.getDate() + 1);
+  const startMs = startDate.getTime();
 
   const activities = allActivities.filter(a => {
     if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
-    return new Date(a.start_date) >= startDate;
+    // Utiliser l'heure de fin : une activité commencée avant minuit mais finie après
+    // doit être rattachée au round où elle se termine
+    return getActivityEndTime(a) >= startMs;
   });
 
   return activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
@@ -2491,10 +2509,11 @@ function getEliminatedActivities(athleteId, eliminationRound) {
   const roundDates = getRoundDates(eliminationRound);
   const startDate = new Date(roundDates.end);
   startDate.setDate(startDate.getDate() + 1);
+  const startMs = startDate.getTime();
 
   return allActivities.filter(a => {
     if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
-    return new Date(a.start_date) >= startDate;
+    return getActivityEndTime(a) >= startMs;
   });
 }
 
