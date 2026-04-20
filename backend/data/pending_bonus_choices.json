@@ -1,18 +1,13 @@
 {
-  "3989319": {
-    "choices": ["trap", "second_souffle"],
-    "elimination_round": 8,
-    "athlete_name": "Da M",
-    "elevation": 19,
-    "created_at": "2026-03-14T00:05:00.645Z",
-    "expires_at": "2026-12-31T23:59:59.999Z"
-  },
-  "31184097": {
-    "choices": ["marquage", "embuscade"],
-    "elimination_round": 9,
-    "athlete_name": "1000N",
-    "elevation": 113,
-    "created_at": "2026-03-19T00:05:00.083Z",
+  "68391361": {
+    "choices": [
+      "marquage",
+      "trap"
+    ],
+    "elimination_round": 15,
+    "athlete_name": "Elodie F",
+    "elevation": 45,
+    "created_at": "2026-04-18T00:05:00.000Z",
     "expires_at": "2026-12-31T23:59:59.999Z"
   }
 }
