@@ -2,10 +2,10 @@
  * ============================================
  * VERSANT - GESTION DES RÉSULTATS FIGÉS
  * ============================================
- * 
+ *
  * Ce module stocke les résultats de chaque round de façon DÉFINITIVE.
  * Une fois un round terminé, ses résultats ne changent JAMAIS.
- * 
+ *
  * IMPORTANT: Deux modes de fonctionnement:
  * 1. freezeRoundResults() - Recalcule les résultats (ancienne méthode)
  * 2. freezeRoundWithData() - Accepte les données pré-calculées du frontend (RECOMMANDÉ)
@@ -474,10 +474,10 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   if (isFinale) {
     // FINALE: éliminer tous sauf 1
     toEliminate = eligibleForElimination.slice(1); // Garder seulement le premier
-  } else if (useNewRules && zeroElevationPlayers.length >= 2) {
-    // NOUVELLE RÈGLE: Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+
+  } else if (useNewRules && zeroElevationPlayers.length >= 2 && zeroElevationPlayers.length >= eliminationsForThisRound) {
+    // Si le nombre de joueurs à 0 D+ dépasse le nombre d'éliminations prévues → tous éliminés
     toEliminate = zeroElevationPlayers;
-    console.log(`📋 Round ${roundNumber}: ${zeroElevationPlayers.length} joueurs à 0 D+ → tous éliminés`);
+    console.log(`📋 Round ${roundNumber}: ${zeroElevationPlayers.length} joueurs à 0 D+ (≥${eliminationsForThisRound}) → tous éliminés`);
   } else {
     // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap)
     toEliminate = eligibleForElimination.slice(-eliminationsForThisRound);

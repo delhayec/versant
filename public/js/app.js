@@ -1135,8 +1135,9 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
             zeroElimination: entry.totalElevation === 0
           });
         });
-      } else if (useNewRules && zeroElevationPlayers.length >= 2) {
-        // NOUVELLE RÈGLE (R7+): Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+
+      } else if (useNewRules && zeroElevationPlayers.length >= 2 && zeroElevationPlayers.length >= roundElimCount) {
+        // NOUVELLE RÈGLE (R7+): Si le nombre de joueurs à 0 D+ est ≥ au nombre d'éliminations prévues,
+        // éliminer TOUS les 0 D+ (peut dépasser roundElimCount)
         zeroElevationPlayers.forEach(entry => {
           toEliminate.push({
             ...entry.participant,
@@ -1145,6 +1146,7 @@ function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
         });
       } else {
         // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap)
+        // Les joueurs à 0 D+ sont naturellement en bas du classement
         const eliminationsNeeded = roundElimCount;
 
         // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
