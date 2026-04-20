@@ -57,6 +57,7 @@
       <div class="nav-links">
         <a href="#ranking" class="nav-link active">Classement</a>
         <a href="rules.html" class="nav-link">Règles</a>
+        <a href="stats.html" class="nav-link" id="statsLink" style="display:none;">Stats</a>
         <a href="dashboard.html" class="nav-link nav-link-with-badge" id="dashboardLink" style="display:none;">
           Dashboard
           <span class="nav-badge" id="dashboardBadge" style="display:none;">!</span>
@@ -154,10 +155,12 @@
   const dashboardLink = document.getElementById('dashboardLink');
   const dashboardBadge = document.getElementById('dashboardBadge');
   const loginLink = document.getElementById('loginLink');
+  const statsLink = document.getElementById('statsLink');
 
   if (athleteId || token) {
     // Utilisateur connecté
     if (dashboardLink) dashboardLink.style.display = 'inline-flex';
+    if (statsLink) statsLink.style.display = 'inline-flex';
     if (loginLink) loginLink.style.display = 'none';
 
     // Vérifier s'il y a des notifications (bonus à choisir)

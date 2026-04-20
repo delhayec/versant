@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stats — Challenge Versant 2026</title>
+
+  <!-- CACHE CONTROL -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS principal (variables, nav, footer) -->
+  <link rel="stylesheet" href="css/style.css?v=20260417">
+  <!-- CSS spécifique à la page stats -->
+  <link rel="stylesheet" href="css/stats.css?v=20260417">
+
+  <!-- Leaflet pour la carte -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-content">
+      <div class="loading-icon">📊</div>
+      <div class="loading-title">Stats</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loadingText">Chargement des données...</div>
+    </div>
+  </div>
+
+  <!-- Hero compact -->
+  <section class="hero stats-hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <span class="hero-eyebrow">Challenge 2026 • Data-Viz</span>
+      <h1 class="hero-title">
+        <span class="title-line">Stats</span>
+        <span class="title-line accent">pour geeks</span>
+      </h1>
+      <p class="hero-description">
+        Toutes les données du challenge depuis le 2 février 2026.
+      </p>
+    </div>
+  </section>
+
+  <!-- Navigation -->
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <span class="brand-icon">◭️</span>
+        <span class="brand-text">Versant</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Classement</a>
+        <a href="rules.html" class="nav-link">Règles</a>
+        <a href="stats.html" class="nav-link active">Stats</a>
+        <a href="dashboard.html" class="nav-link" id="dashboardLink" style="display:none;">Dashboard</a>
+        <a href="login.html" class="nav-link" id="loginLink">Connexion</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Barre de filtres sticky -->
+  <div class="stats-filters" id="statsFilters" style="display:none;">
+    <div class="stats-filters-inner">
+      <div class="filter-group">
+        <label for="athleteSelect">Athlète</label>
+        <select id="athleteSelect">
+          <option value="">Tous</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="sportSelect">Sport</label>
+        <select id="sportSelect">
+          <option value="">Tous</option>
+        </select>
+      </div>
+      <button id="btnToggleRanking" class="btn-toggle-ranking">
+        🏆 Tableau détaillé
+      </button>
+    </div>
+  </div>
+
+  <!-- 01. Vue d'ensemble -->
+  <section class="stats-section" id="overviewSection">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <h2 class="section-title">Vue d'ensemble</h2>
+      <p class="section-desc">Chiffres-clés du challenge depuis le début</p>
+    </div>
+
+    <div id="statsContainer" class="stats-grid">
+      <div class="stat-card stat-primary">
+        <div class="stat-icon">↑</div>
+        <div class="stat-content">
+          <span class="stat-value" id="totalElevation">0</span>
+          <span class="stat-unit">m D+</span>
+        </div>
+        <span class="stat-label">Dénivelé cumulé</span>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">◉</div>
+        <div class="stat-content">
+          <span class="stat-value" id="totalActivities">0</span>
+        </div>
+        <span class="stat-label">Activités</span>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">→</div>
+        <div class="stat-content">
+          <span class="stat-value" id="totalDistance">0</span>
+          <span class="stat-unit">km</span>
+        </div>
+        <span class="stat-label">Distance</span>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">◷</div>
+        <div class="stat-content">
+          <span class="stat-value" id="totalTime">0</span>
+          <span class="stat-unit">h</span>
+        </div>
+        <span class="stat-label">Temps total</span>
+      </div>
+
+      <div class="stat-card stat-highlight">
+        <div class="stat-icon">★</div>
+        <div class="stat-content">
+          <span class="stat-value-small" id="bestDay">-</span>
+        </div>
+        <span class="stat-label">Meilleur jour</span>
+      </div>
+
+      <div class="stat-card stat-highlight">
+        <div class="stat-icon">◆</div>
+        <div class="stat-content">
+          <span class="stat-value-small" id="bestWeek">-</span>
+        </div>
+        <span class="stat-label">Meilleure semaine</span>
+      </div>
+
+      <div class="stat-card stat-chart">
+        <div class="stat-label" style="margin-bottom: 12px;">Répartition par sport</div>
+        <div id="sportPieChart"></div>
+      </div>
+
+      <div class="stat-card stat-ranking-mini">
+        <div class="stat-label">Classement D+</div>
+        <div class="mini-ranking-container">
+          <button class="ranking-nav-btn ranking-prev" id="rankingPrev">‹</button>
+          <div class="mini-ranking-slider" id="miniRankingSlider"></div>
+          <button class="ranking-nav-btn ranking-next" id="rankingNext">›</button>
+        </div>
+        <div class="ranking-dots" id="rankingDots"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02. Explorations (carte) -->
+  <section class="map-section" id="mapSection">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <h2 class="section-title">Explorations</h2>
+      <p class="section-desc">Traces GPS de toutes les activités</p>
+    </div>
+
+    <div class="map-layout">
+      <aside id="countryStatsContainer" class="country-panel"></aside>
+      <div id="map" class="map-container"></div>
+      <aside id="legendContainer" class="legend-panel"></aside>
+    </div>
+  </section>
+
+  <!-- 03. Flux d'activités (Sankey) -->
+  <section class="sankey-section">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <h2 class="section-title">Flux d'activités</h2>
+      <p class="section-desc">Qui fait quoi — athlètes ↔ sports</p>
+    </div>
+
+    <div class="sankey-container">
+      <div id="sankeyChart"></div>
+    </div>
+  </section>
+
+  <!-- 04. Calendrier (heatmap) -->
+  <section class="heatmap-section">
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <h2 class="section-title">Calendrier</h2>
+      <p class="section-desc">Dénivelé quotidien + performance hebdo/mensuelle</p>
+    </div>
+
+    <div class="heatmap-container">
+      <div class="heatmap-layout">
+        <div class="heatmap-legend">
+          <div class="legend-title">Dénivelé quotidien</div>
+          <div class="legend-scale">
+            <div class="legend-gradient"></div>
+            <div class="legend-labels">
+              <span>Max</span>
+              <span>0 m</span>
+            </div>
+          </div>
+          <div class="legend-note">Jours sans activité en sombre</div>
+        </div>
+        <div class="heatmap-main">
+          <div id="calendarHeatmap"></div>
+        </div>
+      </div>
+
+      <div class="performance-bars">
+        <div class="performance-section">
+          <h4>Performance hebdomadaire</h4>
+          <div class="bars-wrapper">
+            <div id="weeklyBars" class="bars-container"></div>
+          </div>
+        </div>
+        <div class="performance-section">
+          <h4>Performance mensuelle</h4>
+          <div class="bars-wrapper">
+            <div id="monthlyBars" class="bars-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05. Rythmes (ridgeline par sport) -->
+  <section class="ridgeline-section">
+    <div class="section-header">
+      <span class="section-number">05</span>
+      <h2 class="section-title">Rythmes</h2>
+      <p class="section-desc">Répartition horaire des activités par sport</p>
+    </div>
+
+    <div class="ridgeline-container">
+      <div id="ridgelineChart"></div>
+    </div>
+  </section>
+
+  <!-- 06. Rythmes par jour de round -->
+  <section class="round-ridgeline-section">
+    <div class="section-header">
+      <span class="section-number">06</span>
+      <h2 class="section-title">Rythmes par jour de round</h2>
+      <p class="section-desc">À quel moment du round les gens bougent-ils ? Jour 1 → Jour 5</p>
+    </div>
+
+    <div class="ridgeline-container">
+      <div id="roundRidgelineChart"></div>
+    </div>
+  </section>
+
+  <!-- 07. Sorties en groupe -->
+  <section class="social-section">
+    <div class="section-header">
+      <span class="section-number">07</span>
+      <h2 class="section-title">Sorties en groupe</h2>
+      <p class="section-desc">Qui sort avec qui — détection par match horaire + GPS</p>
+    </div>
+
+    <div class="social-container">
+      <div class="social-sidebar">
+        <div class="social-legend">
+          <h4>Sports</h4>
+          <div class="social-legend-items" id="socialLegendItems"></div>
+        </div>
+        <div class="social-stats" id="socialStats"></div>
+      </div>
+      <div class="social-graph-wrapper">
+        <div id="socialGraph"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08. Évolution des points par round -->
+  <section class="points-section">
+    <div class="section-header">
+      <span class="section-number">08</span>
+      <h2 class="section-title">Évolution des points</h2>
+      <p class="section-desc">Le challenge round après round — qui a grimpé, qui a chuté ?</p>
+    </div>
+
+    <div class="points-chart-wrapper">
+      <div class="points-toggle">
+        <button class="points-toggle-btn active" data-mode="cumulative">Points cumulés</button>
+        <button class="points-toggle-btn" data-mode="bump">Classement (bump)</button>
+      </div>
+      <div id="pointsChart"></div>
+    </div>
+  </section>
+
+  <!-- 09. Achievements + tableau détaillé (toggle) -->
+  <section class="ranking-stats-section" id="rankingStatsSection" style="display: none;">
+    <div class="section-header">
+      <span class="section-number">09</span>
+      <h2 class="section-title">🏆 Tableau détaillé</h2>
+      <p class="section-desc">Classements thématiques et stats complètes par athlète</p>
+    </div>
+
+    <div class="achievements-container">
+      <h3 class="achievements-title">🏆 Achievements</h3>
+      <div class="achievements-grid" id="achievementsGrid"></div>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="rankingTable">
+        <thead>
+          <tr>
+            <th data-sort="athlete_id">Athlète</th>
+            <th data-sort="total_elevation">D+ (m)</th>
+            <th data-sort="activity_count">Activités</th>
+            <th data-sort="total_distance">Distance (km)</th>
+            <th data-sort="total_time">Temps (h)</th>
+            <th data-sort="elevation_per_distance">D+/km</th>
+            <th data-sort="elevation_per_time">D+/h</th>
+            <th data-sort="elevation_per_activity">D+/Act</th>
+            <th data-sort="best_elevation">Record</th>
+          </tr>
+        </thead>
+        <tbody id="rankingTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">◭️ Versant</div>
+      <p class="footer-text">Challenge à élimination • Données Strava</p>
+    </div>
+  </footer>
+
+  <!-- Scripts externes (seulement sur stats.html) -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <!-- Redirection si non connecté -->
+  <script>
+    (function() {
+      const token = localStorage.getItem('versant_token');
+      const athleteId = localStorage.getItem('versant_athlete_id');
+      if (!token && !athleteId) {
+        window.location.href = 'login.html?redirect=stats.html';
+      }
+    })();
+  </script>
+
+  <!-- Safety timeout du loader -->
+  <script>
+    setTimeout(function() {
+      var loader = document.getElementById('loadingScreen');
+      if (loader && !loader.classList.contains('hidden')) {
+        loader.classList.add('hidden');
+      }
+    }, 30000);
+  </script>
+
+  <!-- Affichage nav en fonction du statut de connexion -->
+  <script>
+    const token = localStorage.getItem('versant_token');
+    const athleteId = localStorage.getItem('versant_athlete_id');
+    const dashboardLink = document.getElementById('dashboardLink');
+    const loginLink = document.getElementById('loginLink');
+    if (athleteId || token) {
+      if (dashboardLink) dashboardLink.style.display = 'inline-flex';
+      if (loginLink) loginLink.style.display = 'none';
+    }
+  </script>
+
+  <!-- Module principal -->
+  <script type="module" src="js/stats.js?v=20260417"></script>
+</body>
+</html>
