@@ -28,6 +28,12 @@ import {
   getAthleteColor as configAthleteColor
 } from './config.js';
 
+// Moteur de calcul du classement (fidèle à app.js)
+import {
+  computeFinalStandings,
+  computeStandingsAtEndOfSeason
+} from './standings-engine.js';
+
 // ============================================
 // CONSTANTES & HELPERS
 // ============================================
@@ -202,7 +208,11 @@ function normalizeActivity(a) {
     max_speed: a.max_speed || 0,
     average_speed: a.average_speed || 0,
     kudos_count: a.kudos_count || 0,
-    achievement_count: a.achievement_count || 0
+    achievement_count: a.achievement_count || 0,
+    timezone: a.timezone || null,
+    location_country: a.location_country || null,
+    location_state: a.location_state || null,
+    location_city: a.location_city || null
   };
 }
 
@@ -821,7 +831,20 @@ function renderMapLegend(activities, colorMode) {
   const countryContainer = document.getElementById('countryStatsContainer');
   if (!legendContainer || !countryContainer) return;
 
-  legendContainer.innerHTML = '<h3>Légende</h3>';
+  // Compter les activités avec/sans trace GPS
+  const totalActs = activities.length;
+  const withPolyline = activities.filter(a => a.map && a.map.summary_polyline).length;
+  const withoutPolyline = totalActs - withPolyline;
+
+  const gpsCounterHTML = withoutPolyline > 0
+    ? `<div class="gps-counter">
+         <span class="gps-counter-main">${withPolyline} traces GPS</span>
+         <span class="gps-counter-sub">sur ${totalActs} activités</span>
+         <div class="gps-counter-info">Les ${withoutPolyline} activité${withoutPolyline > 1 ? 's' : ''} manuelle${withoutPolyline > 1 ? 's' : ''} (sans GPS) ne ${withoutPolyline > 1 ? 'sont' : 'est'} pas visible${withoutPolyline > 1 ? 's' : ''} sur la carte.</div>
+       </div>`
+    : '';
+
+  legendContainer.innerHTML = '<h3>Légende</h3>' + gpsCounterHTML;
 
   if (colorMode === 'sport') {
     const sports = new Set();
@@ -854,42 +877,101 @@ function renderMapLegend(activities, colorMode) {
     }
   }
 
-  // Panneau "Top zones" : on regroupe par centaine de km² (buckets lat/lon grossiers)
-  // Pas de géocodage online : on liste les régions GPS les plus denses
-  const regionBuckets = new Map();
+  // Panneau "Top zones" : regroupement par pays/région
+  // On utilise le champ timezone quand disponible (format "(GMT+01:00) Europe/Paris")
+  // et on fallback sur une détection approximative par coordonnées GPS.
+  const TZ_TO_COUNTRY = {
+    'Europe/Paris': '🇫🇷 France',
+    'Europe/London': '🇬🇧 Royaume-Uni',
+    'Europe/Madrid': '🇪🇸 Espagne',
+    'Europe/Rome': '🇮🇹 Italie',
+    'Europe/Berlin': '🇩🇪 Allemagne',
+    'Europe/Zurich': '🇨🇭 Suisse',
+    'Europe/Vienna': '🇦🇹 Autriche',
+    'Europe/Amsterdam': '🇳🇱 Pays-Bas',
+    'Europe/Brussels': '🇧🇪 Belgique',
+    'Europe/Oslo': '🇳🇴 Norvège',
+    'Europe/Stockholm': '🇸🇪 Suède',
+    'Europe/Lisbon': '🇵🇹 Portugal',
+    'Africa/Algiers': '🇩🇿 Algérie',
+    'Africa/Casablanca': '🇲🇦 Maroc',
+    'America/New_York': '🇺🇸 USA (Est)',
+    'America/Denver': '🇺🇸 USA (Ouest)',
+    'America/Los_Angeles': '🇺🇸 USA (Ouest)',
+  };
+
+  // Fallback : devine le pays par coordonnées (boîtes grossières)
+  const guessCountryFromCoords = (lat, lon) => {
+    if (lat >= 42 && lat <= 51.5 && lon >= -5 && lon <= 8.5) return '🇫🇷 France';
+    if (lat >= 36 && lat <= 44 && lon >= -9.5 && lon <= 3.5) return '🇪🇸 Espagne';
+    if (lat >= 36 && lat <= 47.5 && lon >= 6.5 && lon <= 18.5) return '🇮🇹 Italie';
+    if (lat >= 45.5 && lat <= 47.9 && lon >= 5.5 && lon <= 10.6) return '🇨🇭 Suisse';
+    if (lat >= 49 && lat <= 55 && lon >= 5.5 && lon <= 15) return '🇩🇪 Allemagne';
+    if (lat >= 49 && lat <= 58 && lon >= -8 && lon <= 2) return '🇬🇧 Royaume-Uni';
+    if (lat >= 58 && lat <= 71.5 && lon >= 4 && lon <= 31) return '🇳🇴 Norvège';
+    if (lat >= 35 && lat <= 42 && lon >= -6 && lon <= 10) return '🇲🇦 Maghreb';
+    return null;
+  };
+
+  const countryBuckets = new Map();
+  let unknownLocationCount = 0;
+
   for (const a of activities) {
-    if (!a.start_latlng || a.start_latlng.length < 2) continue;
-    const [lat, lon] = a.start_latlng;
-    // bucket approximatif ~50km
-    const key = `${Math.round(lat * 2) / 2},${Math.round(lon * 2) / 2}`;
-    if (!regionBuckets.has(key)) {
-      regionBuckets.set(key, { lat, lon, count: 0, elevation: 0, athletes: new Set() });
+    // Extraire la timezone en enlevant "(GMT±HH:MM) " s'il est présent
+    let country = null;
+    if (a.timezone) {
+      const match = a.timezone.match(/(?:\([^)]+\)\s*)?(.+)$/);
+      const tz = match ? match[1].trim() : a.timezone.trim();
+      country = TZ_TO_COUNTRY[tz] || null;
     }
-    const r = regionBuckets.get(key);
+
+    // Fallback: deviner par coordonnées
+    if (!country && a.start_latlng && a.start_latlng.length >= 2) {
+      country = guessCountryFromCoords(a.start_latlng[0], a.start_latlng[1]);
+    }
+
+    if (!country) {
+      unknownLocationCount++;
+      continue;
+    }
+
+    if (!countryBuckets.has(country)) {
+      countryBuckets.set(country, { count: 0, elevation: 0, distance: 0, athletes: new Set() });
+    }
+    const r = countryBuckets.get(country);
     r.count++;
     r.elevation += a.total_elevation_gain || 0;
+    r.distance += a.distance || 0;
     r.athletes.add(a.athlete_id);
   }
 
-  const topRegions = [...regionBuckets.values()]
-    .sort((a, b) => b.elevation - a.elevation)
-    .slice(0, 10);
+  const topCountries = [...countryBuckets.entries()]
+    .sort((a, b) => b[1].elevation - a[1].elevation);
 
   countryContainer.innerHTML = '<h3>Zones actives</h3>';
-  topRegions.forEach((r, i) => {
+  topCountries.forEach(([country, r], i) => {
     countryContainer.insertAdjacentHTML('beforeend', `
       <div class="country-item">
         <div class="country-name">
           <span class="country-badge">${i + 1}</span>
-          ${r.lat.toFixed(2)}°, ${r.lon.toFixed(2)}°
+          ${country}
         </div>
         <div class="country-stats-line">↑ ${formatElevation(r.elevation)} m D+</div>
         <div class="country-stats-line">◉ ${r.count} activités</div>
         <div class="country-stats-line">👥 ${r.athletes.size} athlète${r.athletes.size > 1 ? 's' : ''}</div>
       </div>`);
   });
-  countryContainer.insertAdjacentHTML('beforeend', `
-    <div class="country-summary">${regionBuckets.size} zones distinctes</div>`);
+
+  if (unknownLocationCount > 0) {
+    countryContainer.insertAdjacentHTML('beforeend', `
+      <div class="country-summary">
+        ${countryBuckets.size} pays identifié${countryBuckets.size > 1 ? 's' : ''}
+        · ${unknownLocationCount} activité${unknownLocationCount > 1 ? 's' : ''} sans localisation
+      </div>`);
+  } else {
+    countryContainer.insertAdjacentHTML('beforeend', `
+      <div class="country-summary">${countryBuckets.size} pays identifié${countryBuckets.size > 1 ? 's' : ''}</div>`);
+  }
 }
 
 // ============================================
@@ -1072,9 +1154,6 @@ function renderWeeklyBars(data, year) {
   const container = document.getElementById('weeklyBars');
   if (!container) return;
 
-  // Objectif annuel de D+ : on se base sur le D+ total des participants × facteur indicatif
-  // Plutôt que 1M/52 comme recapmillion, on fait un target proportionnel à la moyenne actuelle
-  // ou simplement : target = percentile 50 des semaines non vides × 1.2
   const weeklyData = new Map();
   for (const a of data) {
     const d = new Date(a.start_date);
@@ -1088,34 +1167,23 @@ function renderWeeklyBars(data, year) {
     allWeeks.push({ week: `S${i}`, value: weeklyData.get(i) || 0 });
   }
 
-  const nonZero = allWeeks.filter(w => w.value > 0).map(w => w.value).sort((a, b) => a - b);
-  const median = nonZero.length > 0 ? nonZero[Math.floor(nonZero.length / 2)] : 0;
-  const target = median * 1.2 || 5000;
-  const maxValue = Math.max(...allWeeks.map(w => w.value), target * 1.2);
-  const objectiveHeight = (target / maxValue) * 100;
+  const maxValue = Math.max(...allWeeks.map(w => w.value), 1);
 
   const barsHTML = allWeeks.map((w, i) => {
     const height = (w.value / maxValue) * 100;
     const weekNum = i + 1;
     const showLabel = weekNum % 4 === 1;
-    const diff = w.value - target;
-    const diffSign = diff >= 0 ? '+' : '';
-    const diffClass = diff >= 0 ? 'positive' : 'negative';
     return `
       <div class="perf-bar" style="height:${Math.max(height, 2)}%;transition:height .5s ease-out ${i * 15}ms">
         <div class="perf-bar-tooltip">
           <strong>S${weekNum}</strong><br>
-          ↑ ${formatElevation(w.value)} m<br>
-          <span class="diff-${diffClass}">${diffSign}${formatElevation(diff)} m</span>
+          ↑ ${formatElevation(w.value)} m
         </div>
         ${showLabel ? `<span class="perf-bar-label">${weekNum}</span>` : ''}
       </div>`;
   }).join('');
 
-  container.innerHTML = barsHTML + `
-    <div class="objective-line" style="bottom:${objectiveHeight}%">
-      <span class="objective-label">Médiane × 1.2 = ${formatElevation(target)} m</span>
-    </div>`;
+  container.innerHTML = barsHTML;
 }
 
 function renderMonthlyBars(data, year) {
@@ -1130,32 +1198,21 @@ function renderMonthlyBars(data, year) {
     monthlyData[d.getMonth()] += a.total_elevation_gain || 0;
   }
 
-  const nonZero = monthlyData.filter(v => v > 0).sort((a, b) => a - b);
-  const median = nonZero.length > 0 ? nonZero[Math.floor(nonZero.length / 2)] : 0;
-  const target = median * 1.2 || 20000;
-  const maxValue = Math.max(...monthlyData, target * 1.2);
-  const objectiveHeight = (target / maxValue) * 100;
+  const maxValue = Math.max(...monthlyData, 1);
 
   const barsHTML = monthlyData.map((v, i) => {
     const height = (v / maxValue) * 100;
-    const diff = v - target;
-    const diffSign = diff >= 0 ? '+' : '';
-    const diffClass = diff >= 0 ? 'positive' : 'negative';
     return `
       <div class="perf-bar" style="height:${Math.max(height, 2)}%;transition:height .6s ease-out ${i * 50}ms">
         <div class="perf-bar-tooltip">
           <strong>${monthNames[i]}</strong><br>
-          ↑ ${formatElevation(v)} m<br>
-          <span class="diff-${diffClass}">${diffSign}${formatElevation(diff)} m</span>
+          ↑ ${formatElevation(v)} m
         </div>
         <span class="perf-bar-label">${monthNames[i]}</span>
       </div>`;
   }).join('');
 
-  container.innerHTML = barsHTML + `
-    <div class="objective-line" style="bottom:${objectiveHeight}%">
-      <span class="objective-label">Médiane × 1.2 = ${formatElevation(target)} m</span>
-    </div>`;
+  container.innerHTML = barsHTML;
 }
 
 // ============================================
@@ -1630,12 +1687,15 @@ function renderSocialStats(athleteIds, links, groups) {
 }
 
 // ============================================
-// ÉVOLUTION DES POINTS PAR ROUND
+// ÉVOLUTION DES POINTS SAISON PAR SAISON
 // ============================================
+// Utilise standings-engine.js (même moteur que la page index)
+// pour garantir que les points affichés sont identiques à ceux du classement général.
 
 let pointsChart = null;
-let pointsMode = 'cumulative'; // 'cumulative' ou 'bump'
+let pointsMode = 'cumulative'; // 'cumulative' (line) ou 'bump' (rang)
 let frozenResultsCache = null;
+let bonusesCache = [];
 
 async function loadFrozenResults() {
   if (frozenResultsCache !== null) return frozenResultsCache;
@@ -1652,94 +1712,106 @@ async function loadFrozenResults() {
   return frozenResultsCache;
 }
 
+async function loadBonuses() {
+  try {
+    const response = await fetch('/api/bonuses/all');
+    if (response.ok) {
+      bonusesCache = await response.json();
+    }
+  } catch (e) {
+    bonusesCache = [];
+  }
+  return bonusesCache;
+}
+
 /**
- * Calcule la série de points (cumulatifs) pour chaque athlète, round par round.
- *
- * Logique backend (voir backend/frozen-results.js) :
- *   - ranking[round] contient TOUS les participants actifs au début du round
- *     (triés par D+ décroissant, positions 1 à N)
- *   - seuls les ÉLIMINÉS du round reçoivent mainPoints > 0 (via getMainPoints)
- *   - les non-éliminés ont mainPoints = 0
- *   - exception finale : le gagnant (seul non-éliminé) reçoit getMainPoints(1)
- *   - le champ `mainPoints` est AUTORITATIF dans frozen_results.json, on le lit tel quel
- *
- * Challenge éliminés (fin de saison) : pas encore présent dans les données,
- * on l'intégrera quand le backend le produira.
+ * Calcule l'évolution des points saison par saison pour tous les athlètes.
+ * - Pour chaque saison complétée : snapshot du classement à la fin de la saison
+ * - Pour la saison en cours : snapshot du classement actuel
+ * Utilise le même moteur que la page index (standings-engine.js).
  */
 async function computePointsEvolution() {
   const frozen = await loadFrozenResults();
+  await loadBonuses();
+
   const rounds = frozen.rounds || {};
   const roundNumbers = Object.keys(rounds).map(n => parseInt(n, 10)).sort((a, b) => a - b);
-
   if (roundNumbers.length === 0) return null;
 
+  // Déterminer les saisons à afficher
+  const today = new Date();
+  const currentSeason = getSeasonNumber(today);
+
+  // Filtrer les saisons qui ont au moins un round figé
+  const seasons = [];
+  for (let s = 1; s <= currentSeason; s++) {
+    const startRound = getSeasonStartRound(s);
+    const hasFrozen = rounds[String(startRound)]?.frozen;
+    if (hasFrozen) seasons.push(s);
+  }
+
+  if (seasons.length === 0) return null;
+
+  // Pour chaque saison, calculer le classement à sa fin
+  // (snapshot cumulatif : contient les points de toutes les saisons jusqu'à celle-là incluse)
   const byAthlete = {};
   PARTICIPANTS.forEach(p => {
     byAthlete[String(p.id)] = {
       name: p.name,
-      cumulative: [],    // série cumulative [{round, points}]
-      ranks: [],         // série classement [{round, rank}]
-      eliminated: false,
-      eliminatedAtRound: null
+      cumulative: [],        // [{season, points, breakdown}]
+      ranks: [],             // [{season, rank}]
+      eliminatedAtSeason: null
     };
   });
 
-  const cumulativeByAthlete = {};
-  PARTICIPANTS.forEach(p => { cumulativeByAthlete[String(p.id)] = 0; });
+  const baseParams = {
+    activities: allActivities,
+    frozenResults: frozen,
+    bonuses: bonusesCache
+  };
 
-  for (const r of roundNumbers) {
-    const round = rounds[r];
-    if (!round || !round.ranking) continue;
+  for (const s of seasons) {
+    const isCurrentSeason = s === currentSeason;
+    const standings = isCurrentSeason
+      ? computeFinalStandings({ ...baseParams, currentDate: today })
+      : computeStandingsAtEndOfSeason(baseParams, s);
 
-    // Lecture directe des mainPoints depuis le JSON (source de vérité).
-    // Le backend y stocke : 0 pour les survivants, > 0 pour les éliminés/vainqueurs.
-    round.ranking.forEach(entry => {
-      const id = String(entry.id);
-      if (!byAthlete[id]) return;
-      cumulativeByAthlete[id] += entry.mainPoints || 0;
-    });
-
-    // Marquer les athlètes éliminés ce round (pour le style de ligne en pointillé)
-    const eliminationsThisRound = round.eliminations || [];
-    for (const elim of eliminationsThisRound) {
-      const id = String(elim.id);
-      if (byAthlete[id]) {
-        byAthlete[id].eliminated = true;
-        byAthlete[id].eliminatedAtRound = r;
-      }
-    }
-
-    // Challenge éliminés (futur) : si le JSON stocke un jour un champ `eliminatedPoints`
-    // sur chaque entry, il sera lu ici :
-    round.ranking.forEach(entry => {
-      const id = String(entry.id);
-      if (!byAthlete[id]) return;
-      if (typeof entry.eliminatedPoints === 'number') {
-        cumulativeByAthlete[id] += entry.eliminatedPoints;
-      }
-    });
-
-    // Snapshot des totaux pour ce round
-    PARTICIPANTS.forEach(p => {
-      const id = String(p.id);
+    for (const entry of standings) {
+      const id = String(entry.participant.id);
+      if (!byAthlete[id]) continue;
       byAthlete[id].cumulative.push({
-        round: r,
-        points: cumulativeByAthlete[id]
+        season: s,
+        points: entry.totalPoints,
+        breakdown: {
+          main: entry.totalMainPoints,
+          elim: entry.totalEliminatedPoints,
+          rescape: entry.totalRescapePoints,
+          bonus: entry.bonusPoints
+        }
       });
-    });
-
-    // Snapshot des rangs à la fin de ce round
-    // Tri secondaire stable par id pour éviter que les athlètes à égalité (ex. tous à 0)
-    // ne sautillent entre les rangs d'un round à l'autre
-    const snapshot = PARTICIPANTS
-      .map(p => ({ id: String(p.id), pts: cumulativeByAthlete[String(p.id)] }))
-      .sort((a, b) => (b.pts - a.pts) || a.id.localeCompare(b.id));
-    snapshot.forEach((s, i) => {
-      byAthlete[s.id].ranks.push({ round: r, rank: i + 1 });
-    });
+      byAthlete[id].ranks.push({ season: s, rank: entry.rank });
+    }
   }
 
-  return { roundNumbers, byAthlete };
+  // Marquer les athlètes éliminés dans chaque saison (pour le style en pointillé)
+  for (const s of seasons) {
+    const startRound = getSeasonStartRound(s);
+    const roundsPerSeason = getRoundsForSeason(s);
+    for (let r = startRound; r < startRound + roundsPerSeason; r++) {
+      const round = rounds[String(r)];
+      if (!round?.frozen) continue;
+      for (const elim of (round.eliminations || [])) {
+        const id = String(elim.id);
+        if (byAthlete[id] && byAthlete[id].eliminatedAtSeason === null) {
+          // ne marquer que la PREMIÈRE élimination (pour la ligne pointillée)
+          // noter que les éliminés rejouent aux saisons suivantes (active = [...PARTICIPANTS] à chaque saison)
+          // donc on n'utilise pas ce flag pour déterminer la présence, juste pour le style.
+        }
+      }
+    }
+  }
+
+  return { seasons, byAthlete };
 }
 
 async function renderPointsChart() {
@@ -1747,33 +1819,42 @@ async function renderPointsChart() {
   if (!dom) return;
 
   const data = await computePointsEvolution();
-  if (!data || data.roundNumbers.length === 0) {
-    dom.innerHTML = '<div class="chart-loading">Aucun round terminé pour l\'instant</div>';
+  if (!data || data.seasons.length === 0) {
+    dom.innerHTML = '<div class="chart-loading">Aucune saison terminée</div>';
     return;
   }
 
   if (pointsChart) pointsChart.dispose();
   pointsChart = echarts.init(dom);
 
-  const { roundNumbers, byAthlete } = data;
+  const { seasons, byAthlete } = data;
+
+  // Filtre : si on a sélectionné un athlète, on met en surbrillance les autres
+  const selectedAthleteId = document.getElementById('athleteSelect').value;
 
   if (pointsMode === 'cumulative') {
-    // Line chart cumulatif
-    const series = Object.entries(byAthlete).map(([id, info]) => ({
-      name: info.name,
-      type: 'line',
-      data: info.cumulative.map(e => e.points),
-      smooth: true,
-      symbol: info.eliminated ? 'emptyCircle' : 'circle',
-      symbolSize: 6,
-      lineStyle: {
-        width: 2.5,
-        color: getAthleteColor(id),
-        type: info.eliminated ? 'dashed' : 'solid'
-      },
-      itemStyle: { color: getAthleteColor(id) },
-      emphasis: { focus: 'series', lineStyle: { width: 4 } }
-    }));
+    // Line chart cumulatif (points totaux saison par saison)
+    const series = Object.entries(byAthlete).map(([id, info]) => {
+      const isHighlighted = !selectedAthleteId || String(id) === String(selectedAthleteId);
+      return {
+        name: info.name,
+        type: 'line',
+        data: info.cumulative.map(e => e.points),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: {
+          width: isHighlighted ? 3 : 1,
+          color: getAthleteColor(id),
+          opacity: isHighlighted ? 1 : 0.15
+        },
+        itemStyle: {
+          color: getAthleteColor(id),
+          opacity: isHighlighted ? 1 : 0.15
+        },
+        emphasis: { focus: 'series', lineStyle: { width: 5 } }
+      };
+    });
 
     pointsChart.setOption({
       backgroundColor: 'transparent',
@@ -1784,12 +1865,17 @@ async function renderPointsChart() {
         textStyle: { color: '#fff', fontFamily: "'Inter',sans-serif" },
         formatter: params => {
           params.sort((a, b) => b.value - a.value);
-          const round = params[0].axisValue;
-          let html = `<strong>Round ${round}</strong><br/>`;
-          for (const p of params.slice(0, 8)) {
-            html += `${p.marker}${p.seriesName} : <strong>${p.value}</strong> pts<br/>`;
+          const seasonLabel = params[0].axisValue;
+          let html = `<strong>${seasonLabel}</strong><br/>`;
+          for (const p of params.slice(0, 10)) {
+            // Récupérer le breakdown
+            const athleteInfo = Object.values(byAthlete).find(a => a.name === p.seriesName);
+            const seasonIdx = params[0].dataIndex;
+            const bd = athleteInfo?.cumulative[seasonIdx]?.breakdown;
+            const bdStr = bd ? ` <span style="opacity:0.6;font-size:10px">(P:${bd.main} É:${bd.elim} R:${bd.rescape} B:${bd.bonus})</span>` : '';
+            html += `${p.marker}${p.seriesName} : <strong>${p.value}</strong> pts${bdStr}<br/>`;
           }
-          if (params.length > 8) html += `<em>… et ${params.length - 8} autres</em>`;
+          if (params.length > 10) html += `<em>… et ${params.length - 10} autres</em>`;
           return html;
         }
       },
@@ -1802,7 +1888,7 @@ async function renderPointsChart() {
       grid: { left: 60, right: 40, top: 60, bottom: 50 },
       xAxis: {
         type: 'category',
-        data: roundNumbers.map(r => `R${r}`),
+        data: seasons.map(s => `Saison ${s}`),
         axisLabel: { color: 'rgba(255,255,255,0.6)', fontFamily: "'Space Mono',monospace" },
         axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
       },
@@ -1816,31 +1902,37 @@ async function renderPointsChart() {
       series
     });
   } else {
-    // Bump chart (rank évolution)
+    // Bump chart (rang saison par saison)
     const nAthletes = PARTICIPANTS.length;
-    const series = Object.entries(byAthlete).map(([id, info]) => ({
-      name: info.name,
-      type: 'line',
-      data: info.ranks.map(r => r.rank),
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 12,
-      lineStyle: {
-        width: 3,
-        color: getAthleteColor(id),
-        type: info.eliminated ? 'dashed' : 'solid'
-      },
-      itemStyle: { color: getAthleteColor(id) },
-      emphasis: { focus: 'series', lineStyle: { width: 5 } },
-      label: {
-        show: true,
-        position: 'right',
-        formatter: params => params.dataIndex === info.ranks.length - 1 ? info.name : '',
-        color: getAthleteColor(id),
-        fontSize: 11,
-        fontWeight: 600
-      }
-    }));
+    const series = Object.entries(byAthlete).map(([id, info]) => {
+      const isHighlighted = !selectedAthleteId || String(id) === String(selectedAthleteId);
+      return {
+        name: info.name,
+        type: 'line',
+        data: info.ranks.map(r => r.rank),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 14,
+        lineStyle: {
+          width: isHighlighted ? 3.5 : 1.5,
+          color: getAthleteColor(id),
+          opacity: isHighlighted ? 1 : 0.15
+        },
+        itemStyle: {
+          color: getAthleteColor(id),
+          opacity: isHighlighted ? 1 : 0.15
+        },
+        emphasis: { focus: 'series', lineStyle: { width: 5 } },
+        label: {
+          show: isHighlighted,
+          position: 'right',
+          formatter: params => params.dataIndex === info.ranks.length - 1 ? info.name : '',
+          color: getAthleteColor(id),
+          fontSize: 11,
+          fontWeight: 600
+        }
+      };
+    });
 
     pointsChart.setOption({
       backgroundColor: 'transparent',
@@ -1851,10 +1943,11 @@ async function renderPointsChart() {
         textStyle: { color: '#fff', fontFamily: "'Inter',sans-serif" },
         formatter: params => {
           params.sort((a, b) => a.value - b.value);
-          const round = params[0].axisValue;
-          let html = `<strong>${round}</strong><br/>`;
-          for (const p of params.slice(0, 8)) {
-            html += `${p.marker}${p.seriesName} : ${p.value}<sup>${p.value === 1 ? 'er' : 'e'}</sup><br/>`;
+          const seasonLabel = params[0].axisValue;
+          let html = `<strong>${seasonLabel}</strong><br/>`;
+          for (const p of params.slice(0, 10)) {
+            const suffix = p.value === 1 ? 'er' : 'e';
+            html += `${p.marker}${p.seriesName} : ${p.value}<sup>${suffix}</sup><br/>`;
           }
           return html;
         }
@@ -1863,7 +1956,7 @@ async function renderPointsChart() {
       grid: { left: 60, right: 150, top: 30, bottom: 40 },
       xAxis: {
         type: 'category',
-        data: roundNumbers.map(r => `R${r}`),
+        data: seasons.map(s => `Saison ${s}`),
         axisLabel: { color: 'rgba(255,255,255,0.6)', fontFamily: "'Space Mono',monospace" },
         axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
       },
@@ -1881,6 +1974,172 @@ async function renderPointsChart() {
     });
   }
 }
+
+// ============================================
+// MONEY TIME — répartition du D+ dans un round
+// ============================================
+// Pour chaque athlète, on calcule la part de son D+ total réalisée :
+//   - J1, J2, J3, J4 (jours 1 à 4 du round)
+//   - J5 avant 19h (le dernier jour, avant la dernière ligne droite)
+//   - "Money Time" : J5 à partir de 19h (les dernières heures)
+// Affiché en barres horizontales stackées, normalisées à 100 % par athlète.
+
+let moneyTimeChart = null;
+
+async function computeMoneyTime() {
+  const frozen = await loadFrozenResults();
+  const rounds = frozen.rounds || {};
+  const roundNumbers = Object.keys(rounds).map(n => parseInt(n, 10)).sort((a, b) => a - b);
+  if (roundNumbers.length === 0) return null;
+
+  // Structure : par athlète, 6 buckets (en m de D+)
+  const byAthlete = {};
+  PARTICIPANTS.forEach(p => {
+    byAthlete[String(p.id)] = {
+      name: p.name,
+      buckets: [0, 0, 0, 0, 0, 0] // J1, J2, J3, J4, J5-avant19, MoneyTime
+    };
+  });
+
+  // Pour chaque round figé, calculer les limites de chaque jour et répartir les activités
+  for (const r of roundNumbers) {
+    if (!rounds[r]?.frozen) continue;
+    const roundDates = getRoundDates(r);
+    // 5 jours du round. J1 = roundDates.start, J5 = roundDates.end
+    const dayStarts = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(roundDates.start);
+      d.setDate(d.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      dayStarts.push(d.getTime());
+    }
+    // J5 19h — seuil du money time
+    const j5End = new Date(dayStarts[4]);
+    j5End.setHours(19, 0, 0, 0);
+    const j5MoneyTimeStart = j5End.getTime();
+    const roundEndMs = roundDates.end.getTime();
+
+    // Filtrer les activités qui se terminent dans ce round
+    for (const a of allActivities) {
+      const end = new Date(a.start_date).getTime() + (a.elapsed_time || 0) * 1000;
+      if (end < dayStarts[0] || end > roundEndMs) continue;
+
+      const id = String(a.athlete_id);
+      if (!byAthlete[id]) continue;
+
+      const elev = a.total_elevation_gain || 0;
+      if (elev <= 0) continue;
+
+      // Déterminer le bucket via l'heure de fin
+      let bucket = 0;
+      if (end >= j5MoneyTimeStart) bucket = 5;            // Money Time
+      else if (end >= dayStarts[4]) bucket = 4;           // J5 avant 19h
+      else if (end >= dayStarts[3]) bucket = 3;           // J4
+      else if (end >= dayStarts[2]) bucket = 2;           // J3
+      else if (end >= dayStarts[1]) bucket = 1;           // J2
+      else bucket = 0;                                    // J1
+
+      byAthlete[id].buckets[bucket] += elev;
+    }
+  }
+
+  // Ne garder que les athlètes qui ont du D+ et normaliser à 100 %
+  const entries = Object.entries(byAthlete)
+    .map(([id, info]) => {
+      const total = info.buckets.reduce((s, v) => s + v, 0);
+      if (total === 0) return null;
+      const pct = info.buckets.map(v => (v / total) * 100);
+      return { id, name: info.name, buckets: info.buckets, pct, total };
+    })
+    .filter(Boolean);
+
+  // Trier par % Money Time décroissant (les plus "procrastinateurs" en haut)
+  entries.sort((a, b) => b.pct[5] - a.pct[5]);
+
+  return entries;
+}
+
+async function renderMoneyTimeChart() {
+  const dom = document.getElementById('moneyTimeChart');
+  if (!dom) return;
+
+  const entries = await computeMoneyTime();
+  if (!entries || entries.length === 0) {
+    dom.innerHTML = '<div class="chart-loading">Aucune donnée disponible</div>';
+    return;
+  }
+
+  if (moneyTimeChart) moneyTimeChart.dispose();
+  moneyTimeChart = echarts.init(dom);
+
+  const labels = ['J1', 'J2', 'J3', 'J4', 'J5 (avant 19h)', 'Money Time (J5 ≥ 19h)'];
+  const colors = ['#5B8FF9', '#4A7FE8', '#3A6FD5', '#2A5FC2', '#1A4FAF', '#FF4757'];
+
+  // Construire les séries : une par bucket
+  const series = labels.map((label, i) => ({
+    name: label,
+    type: 'bar',
+    stack: 'total',
+    data: entries.map(e => ({
+      value: e.pct[i].toFixed(1),
+      rawElev: e.buckets[i]
+    })),
+    itemStyle: { color: colors[i] },
+    emphasis: { focus: 'series' },
+    label: i === 5 ? {
+      show: true,
+      position: 'insideRight',
+      formatter: params => params.value >= 8 ? `${params.value}%` : '',
+      color: '#fff',
+      fontWeight: 700,
+      fontSize: 11
+    } : { show: false }
+  }));
+
+  moneyTimeChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(10,10,15,0.95)',
+      borderColor: 'rgba(255,255,255,0.08)',
+      textStyle: { color: '#fff', fontFamily: "'Inter',sans-serif" },
+      formatter: params => {
+        const name = params[0].name;
+        let html = `<strong>${name}</strong><br/>`;
+        params.forEach(p => {
+          const raw = p.data?.rawElev ?? 0;
+          html += `${p.marker}${p.seriesName} : <strong>${p.value}%</strong> (${formatElevation(raw)} m)<br/>`;
+        });
+        return html;
+      }
+    },
+    legend: { show: false },
+    grid: { left: 120, right: 60, top: 20, bottom: 40 },
+    xAxis: {
+      type: 'value',
+      max: 100,
+      axisLabel: {
+        color: 'rgba(255,255,255,0.6)',
+        fontFamily: "'Space Mono',monospace",
+        formatter: '{value}%'
+      },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+    },
+    yAxis: {
+      type: 'category',
+      data: entries.map(e => e.name),
+      axisLabel: {
+        color: 'rgba(255,255,255,0.85)',
+        fontSize: 12,
+        fontFamily: "'Inter',sans-serif"
+      },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+    },
+    series
+  });
+}
+
 
 // ============================================
 // TABLE DÉTAILLÉE + ACHIEVEMENTS
@@ -2288,6 +2547,9 @@ async function init() {
           // Points chart (nécessite fetch)
           renderPointsChart();
 
+          // Money Time (nécessite fetch aussi)
+          renderMoneyTimeChart();
+
           // Sorties de groupe : le PLUS LOURD → on le fait via requestIdleCallback si dispo
           const ric = window.requestIdleCallback || function(cb) { return setTimeout(cb, 100); };
           ric(() => {
@@ -2303,7 +2565,7 @@ async function init() {
 
     // Resize handler global
     window.addEventListener('resize', () => {
-      [sportPieChart, sankeyChart, calendarChart, ridgelineChart, pointsChart].forEach(c => {
+      [sportPieChart, sankeyChart, calendarChart, ridgelineChart, pointsChart, moneyTimeChart].forEach(c => {
         if (c) c.resize();
       });
       if (window.roundRidgeChart) window.roundRidgeChart.resize();

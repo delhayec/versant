@@ -573,6 +573,38 @@
   color: var(--text-secondary);
 }
 
+/* GPS trace counter */
+.gps-counter {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.gps-counter-main {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.gps-counter-sub {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.gps-counter-info {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+  font-style: italic;
+}
+
 /* Leaflet overrides */
 .leaflet-container {
   background: var(--bg-primary) !important;
@@ -1273,5 +1305,88 @@
   .stat-card.stat-chart,
   .stat-card.stat-ranking-mini {
     grid-column: span 1;
+  }
+}
+
+/* ============================================ */
+/* MONEY TIME                                   */
+/* ============================================ */
+
+.moneytime-section {
+  max-width: 1400px;
+  margin: 80px auto 0;
+  padding: 0 40px;
+}
+
+.moneytime-chart-wrapper {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 30px;
+  backdrop-filter: blur(10px);
+}
+
+#moneyTimeChart {
+  width: 100%;
+  height: 500px;
+  min-height: 500px;
+}
+
+.moneytime-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mt-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+}
+
+.mt-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.mt-j1 { background: #5B8FF9; }
+.mt-j2 { background: #4A7FE8; }
+.mt-j3 { background: #3A6FD5; }
+.mt-j4 { background: #2A5FC2; }
+.mt-j5 { background: #1A4FAF; }
+.mt-mt {
+  background: linear-gradient(135deg, #FF4757, #FF6B7A);
+  box-shadow: 0 0 8px rgba(255, 71, 87, 0.5);
+}
+
+@media (max-width: 768px) {
+  .moneytime-section {
+    padding: 0 20px;
+  }
+
+  .moneytime-chart-wrapper {
+    padding: 20px 16px;
+  }
+
+  #moneyTimeChart {
+    height: 420px;
+    min-height: 420px;
+  }
+
+  .moneytime-legend {
+    gap: 12px;
+  }
+
+  .mt-legend-item {
+    font-size: 0.72rem;
   }
 }
