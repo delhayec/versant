@@ -1363,10 +1363,7 @@
 .mt-j3 { background: #fbbf24; }
 .mt-j4 { background: #f97316; }
 .mt-j5 { background: #ef4444; }
-.mt-mt {
-  background: linear-gradient(135deg, #FF4757, #FF6B7A);
-  box-shadow: 0 0 8px rgba(255, 71, 87, 0.5);
-}
+.mt-mt { background: #ce2828; }
 
 @media (max-width: 768px) {
   .moneytime-section {

@@ -2073,7 +2073,7 @@ async function renderMoneyTimeChart() {
   moneyTimeChart = echarts.init(dom);
 
   const labels = ['J1', 'J2', 'J3', 'J4', 'J5 (avant 19h)', 'Money Time (J5 ≥ 19h)'];
-  const colors = ['#5B8FF9', '#4A7FE8', '#3A6FD5', '#2A5FC2', '#1A4FAF', '#FF4757'];
+  const colors = ['#22d3ee', '#10b981', '#fbbf24', '#f97316', '#ef4444', '#ce2828'];
 
   // Construire les séries : une par bucket
   const series = labels.map((label, i) => ({
