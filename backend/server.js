@@ -1703,6 +1703,51 @@ app.post('/api/admin/unfreeze-round/:roundNumber', async (req, res) => {
   }
 });
 
+// Admin: Figer le classement final du challenge des éliminés pour une saison
+// Phase 2 — voir BACKEND_TODO.md
+app.post('/api/admin/freeze-elim-challenge/:seasonNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  try {
+    const seasonNumber = parseInt(req.params.seasonNumber);
+    if (Number.isNaN(seasonNumber) || seasonNumber < 1) {
+      return res.status(400).json({ error: 'invalid_season_number' });
+    }
+    const leagueId = req.body?.leagueId || 'versant-2026';
+    const force = req.body?.force === true;
+
+    const result = await frozenResults.freezeEliminatedChallengeForSeason(seasonNumber, {
+      leagueId,
+      force,
+      currentDate: req.body?.currentDate ? new Date(req.body.currentDate) : undefined
+    });
+
+    if (!result.success) {
+      return res.status(409).json(result);
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('Erreur freeze-elim-challenge:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Défiger le classement du challenge des éliminés pour une saison
+app.post('/api/admin/unfreeze-elim-challenge/:seasonNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  try {
+    const seasonNumber = parseInt(req.params.seasonNumber);
+    if (Number.isNaN(seasonNumber) || seasonNumber < 1) {
+      return res.status(400).json({ error: 'invalid_season_number' });
+    }
+    const success = await frozenResults.unfreezeEliminatedChallengeForSeason(seasonNumber);
+    res.json({ success, seasonNumber });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin: Réinitialiser tous les résultats figés
 app.post('/api/admin/reset-frozen', async (req, res) => {
   if (!checkAdmin(req, res)) return;

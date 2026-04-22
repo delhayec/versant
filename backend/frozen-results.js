@@ -35,6 +35,9 @@ try {
   console.warn('⚠️ Impossible de charger bonuses-routes pour auto-apply');
 }
 
+// Import du moteur de challenge éliminés (CommonJS)
+const elimChallenge = require('./elim-challenge');
+
 // Configuration
 const DATA_DIR = path.join(__dirname, 'data');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
@@ -95,6 +98,145 @@ async function saveFrozenResults(data) {
 }
 
 // ============================================
+// ENRICHISSEMENT: bonusesUsed, jokersUsed, rescapeInfo
+// ============================================
+
+/**
+ * Charge les bonus utilisés dans un round donné depuis bonuses.json.
+ * Retourne une copie filtrée (status === 'used' && used_in_round === roundNumber).
+ */
+async function loadBonusesUsedInRound(roundNumber) {
+  try {
+    const raw = await fs.readFile(BONUSES_FILE, 'utf8');
+    const all = JSON.parse(raw);
+    if (!Array.isArray(all)) return [];
+    return all
+      .filter(b => b && b.status === 'used' && Number(b.used_in_round) === Number(roundNumber))
+      // Clone chaque bonus pour ne pas partager la référence avec le fichier sur disque
+      .map(b => JSON.parse(JSON.stringify(b)));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Charge les jokers actifs (status === 'active') d'un round donné depuis jokers_usage.json.
+ * Retourne une liste normalisée en camelCase (athleteId, jokerId, ...) avec `status` et `effect_result`.
+ */
+async function loadJokersUsedInRound(roundNumber) {
+  const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
+  try {
+    const raw = await fs.readFile(JOKERS_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    const usage = Array.isArray(data) ? data : (data && Array.isArray(data.usage) ? data.usage : []);
+    return usage
+      .filter(j => j && Number(j.round_number) === Number(roundNumber) && j.status === 'active')
+      .map(j => ({
+        athleteId: j.athlete_id != null ? String(j.athlete_id) : null,
+        athleteName: j.athlete_name || null,
+        jokerId: j.joker_id || null,
+        targetId: j.target_athlete_id != null ? String(j.target_athlete_id) : null,
+        targetName: j.target_athlete_name || null,
+        status: j.status || 'active',
+        effect_result: j.effect_result || null
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Enrichit un tableau jokersUsed existant (ex: venant du frontend) avec `status` et
+ * `effect_result` lus depuis jokers_usage.json. Ne casse rien si le fichier est absent.
+ */
+async function enrichJokersUsed(jokersUsed, roundNumber) {
+  if (!Array.isArray(jokersUsed) || jokersUsed.length === 0) return jokersUsed || [];
+
+  let diskUsage = [];
+  try {
+    const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
+    const raw = await fs.readFile(JOKERS_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    diskUsage = Array.isArray(data) ? data : (data && Array.isArray(data.usage) ? data.usage : []);
+  } catch {
+    // Pas de fichier : on retourne tel quel avec des défauts sûrs
+  }
+
+  return jokersUsed.map(j => {
+    // Chercher l'entrée correspondante sur disque
+    const match = diskUsage.find(d =>
+      Number(d.round_number) === Number(roundNumber) &&
+      String(d.athlete_id) === String(j.athleteId || j.athlete_id) &&
+      d.joker_id === (j.jokerId || j.joker_id)
+    );
+    return {
+      athleteId: j.athleteId != null ? String(j.athleteId) : (j.athlete_id != null ? String(j.athlete_id) : null),
+      athleteName: j.athleteName || j.athlete_name || null,
+      jokerId: j.jokerId || j.joker_id || null,
+      targetId: j.targetId != null ? String(j.targetId) : (j.target_athlete_id != null ? String(j.target_athlete_id) : null),
+      targetName: j.targetName || j.target_athlete_name || null,
+      status: j.status || match?.status || 'active',
+      effect_result: j.effect_result || match?.effect_result || null
+    };
+  });
+}
+
+/**
+ * Calcule rescapeInfo pour un round : dernier survivant = dernier non-éliminé.
+ * Ne s'applique PAS en finale de saison (tous éliminés sauf le gagnant).
+ * `consecutive` est calculé en regardant les rounds précédents de la saison.
+ *
+ * @param {Object} roundData - Doit contenir ranking, eliminations, seasonNumber, roundInSeason
+ * @param {Object} allRounds - Map roundKey -> roundData (pour consulter les rounds précédents)
+ * @param {number} roundNumber - Numéro global du round
+ * @param {number} totalParticipants - Nombre total de participants de l'année
+ * @param {number} eliminationsPerRound - Config.eliminationsPerRound
+ * @returns {Object|null} rescapeInfo ou null si pas applicable
+ */
+function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants, eliminationsPerRound) {
+  if (!roundData || !Array.isArray(roundData.ranking) || !Array.isArray(roundData.eliminations)) {
+    return null;
+  }
+
+  const roundsPerSeason = Math.ceil((totalParticipants - 1) / eliminationsPerRound);
+  const seasonNumber = roundData.seasonNumber || Math.ceil(roundNumber / roundsPerSeason);
+  const roundInSeason = roundData.roundInSeason || (((roundNumber - 1) % roundsPerSeason) + 1);
+  const isFinale = roundInSeason === roundsPerSeason;
+
+  if (isFinale) return null;
+
+  // Dernier survivant = dernier du ranking parmi les non-éliminés
+  const eliminatedIds = new Set(roundData.eliminations.map(e => String(e.id)));
+  const survivors = roundData.ranking.filter(r => !eliminatedIds.has(String(r.id)));
+  if (survivors.length === 0) return null;
+
+  // Les rankings sont déjà triés par position (1 = meilleur). Le dernier survivant = dernier du tableau.
+  // On s'appuie sur `position` si elle est présente, sinon sur l'ordre.
+  const sortedSurvivors = [...survivors].sort((a, b) => (a.position || 0) - (b.position || 0));
+  const rescape = sortedSurvivors[sortedSurvivors.length - 1];
+  if (!rescape) return null;
+
+  // Compter les rescapés consécutifs dans la saison courante
+  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
+  let consecutive = 1;
+  for (let prevR = roundNumber - 1; prevR >= seasonStartRound; prevR--) {
+    const prev = allRounds[String(prevR)];
+    if (prev && prev.rescapeInfo && String(prev.rescapeInfo.athleteId) === String(rescape.id)) {
+      consecutive++;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    athleteId: String(rescape.id),
+    athleteName: rescape.name,
+    consecutive,
+    points: consecutive >= 2 ? 2 : 0
+  };
+}
+
+// ============================================
 // NOUVELLE MÉTHODE: FREEZE AVEC DONNÉES PRÉ-CALCULÉES
 // ============================================
 
@@ -150,6 +292,7 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
       originalElevation: entry.originalElevation || entry.elevation || 0,
       position: entry.position,
       mainPoints: entry.mainPoints || 0,
+      bonusPoints: entry.bonusPoints || 0,
       eliminatedPosition: entry.eliminatedPosition,
       hasShield: entry.hasShield || entry.jokerEffects?.hasShield || false,
       jokerEffects: entry.jokerEffects || null
@@ -163,12 +306,44 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
       zeroElimination: elim.zeroElimination || elim.elevation === 0
     })),
     jokersUsed: roundData.jokersUsed || [],
+    bonusesUsed: [],
+    rescapeInfo: null,
     stats: roundData.stats || {
       totalActivities: roundData.ranking.reduce((sum, r) => sum + (r.activitiesCount || 0), 0),
       totalElevation: roundData.ranking.reduce((sum, r) => sum + (r.elevation || 0), 0),
       eliminationsCount: roundData.eliminations.length
     }
   };
+
+  // Enrichissement jokersUsed: ajouter status + effect_result quand disponibles
+  frozenRound.jokersUsed = await enrichJokersUsed(frozenRound.jokersUsed, roundNumber);
+
+  // Enrichissement bonusesUsed: lire depuis bonuses.json (snapshot initial, re-snapshot après auto-apply)
+  frozenRound.bonusesUsed = await loadBonusesUsedInRound(roundNumber);
+
+  // Enrichissement rescapeInfo: dernier survivant + nombre de fois consécutives
+  // Utilise les rounds DÉJÀ figés pour compter les consécutifs
+  const totalParticipantsForRescape =
+    roundData.totalParticipants ||
+    (frozenRound.activeParticipants?.length || 0) + (frozenRound.eliminations?.length || 0);
+  // Fallback: si on n'a pas le total, on utilise activeParticipants + éliminations de tous les rounds passés
+  let totalParticipants = totalParticipantsForRescape;
+  if (!totalParticipants || totalParticipants < 2) {
+    // Essayer de récupérer depuis le 1er round figé
+    const firstRound = data.rounds[String(1)] || data.rounds[String(2)];
+    if (firstRound && Array.isArray(firstRound.activeParticipants)) {
+      totalParticipants = firstRound.activeParticipants.length;
+    }
+  }
+  if (totalParticipants && totalParticipants >= 2) {
+    frozenRound.rescapeInfo = computeRescapeInfo(
+      frozenRound,
+      data.rounds,
+      roundNumber,
+      totalParticipants,
+      2 // eliminationsPerRound par défaut (aligné avec shared-config.CHALLENGE_CONFIG)
+    );
+  }
 
   // Sauvegarder
   data.rounds[roundKey] = frozenRound;
@@ -184,6 +359,13 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
         yearStartDate: roundData.dates?.start || new Date().toISOString(),
         roundDurationDays: 5
       });
+      // Re-snapshot des bonus utilisés après application (effect_result peut avoir été ajouté)
+      const refreshedBonuses = await loadBonusesUsedInRound(roundNumber);
+      if (refreshedBonuses.length > 0) {
+        frozenRound.bonusesUsed = refreshedBonuses;
+        data.rounds[roundKey] = frozenRound;
+        await saveFrozenResults(data);
+      }
     } catch (e) {
       console.warn(`⚠️ Erreur application auto bonus round ${roundNumber}:`, e.message);
     }
@@ -199,12 +381,40 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
     }
   }
 
+  // Phase 2 : si on vient de figer la FINALE d'une saison, figer automatiquement
+  // le classement final du challenge des éliminés pour cette saison.
+  // Détection : roundInSeason === roundsPerSeason calculé depuis les participants.
+  let eliminatedChallengeFrozen = null;
+  try {
+    const totalParticipants =
+      (frozenRound.activeParticipants?.length || 0) + (frozenRound.eliminations?.length || 0);
+    if (totalParticipants >= 2) {
+      const roundsPerSeason = Math.ceil((totalParticipants - 1) / 2);
+      const isFinale = frozenRound.roundInSeason === roundsPerSeason;
+      if (isFinale) {
+        eliminatedChallengeFrozen = await freezeEliminatedChallengeForSeason(
+          frozenRound.seasonNumber,
+          { force: options.force === true }
+        );
+        if (eliminatedChallengeFrozen?.success) {
+          console.log(
+            `🏔️ Auto-freeze challenge éliminés saison ${frozenRound.seasonNumber} ` +
+            `(${eliminatedChallengeFrozen.ranking.length} athlètes)`
+          );
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(`⚠️ Erreur auto-freeze challenge éliminés saison ${frozenRound.seasonNumber}:`, e.message);
+  }
+
   return {
     success: true,
     round: frozenRound,
     method: 'frontend_data',
     appliedBonuses: appliedBonuses.length,
-    bonusChoiceGenerated
+    bonusChoiceGenerated,
+    eliminatedChallengeFrozen
   };
 }
 
@@ -377,7 +587,8 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
       name: athlete?.name || `Athlète ${participantId}`,
       elevation: Math.round(elevation),
       activitiesCount: pActivities.length,
-      originalElevation: Math.round(elevation)
+      originalElevation: Math.round(elevation),
+      bonusPoints: 0
     };
   });
 
@@ -519,7 +730,19 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     }
   });
 
-  return {
+  const jokersUsedEnriched = activeJokers.map(j => ({
+    athleteId: j.athlete_id != null ? String(j.athlete_id) : null,
+    athleteName: j.athlete_name,
+    jokerId: j.joker_id,
+    targetId: j.target_athlete_id != null ? String(j.target_athlete_id) : null,
+    targetName: j.target_athlete_name,
+    status: j.status || 'active',
+    effect_result: j.effect_result || null
+  }));
+
+  const bonusesUsed = await loadBonusesUsedInRound(roundNumber);
+
+  const result = {
     roundNumber,
     seasonNumber,
     roundInSeason,
@@ -534,19 +757,29 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     activeParticipants,
     ranking,
     eliminations,
-    jokersUsed: activeJokers.map(j => ({
-      athleteId: j.athlete_id,
-      athleteName: j.athlete_name,
-      jokerId: j.joker_id,
-      targetId: j.target_athlete_id,
-      targetName: j.target_athlete_name
-    })),
+    jokersUsed: jokersUsedEnriched,
+    bonusesUsed,
+    rescapeInfo: null,
     stats: {
       totalActivities: roundActivities.length,
       totalElevation: ranking.reduce((sum, e) => sum + e.elevation, 0),
       eliminationsCount: eliminations.length
     }
   };
+
+  // Calculer rescapeInfo à partir du résultat construit
+  const totalParticipants2 = athletes.length;
+  if (totalParticipants2 >= 2) {
+    result.rescapeInfo = computeRescapeInfo(
+      result,
+      previousRounds,
+      roundNumber,
+      totalParticipants2,
+      config.eliminationsPerRound || 2
+    );
+  }
+
+  return result;
 }
 
 /**
@@ -857,6 +1090,192 @@ async function unfreezeRound(roundNumber) {
   return false;
 }
 
+// ============================================
+// PHASE 2 : CHALLENGE ÉLIMINÉS FIGÉ PAR SAISON
+// ============================================
+
+/**
+ * Charge les activités d'une ligue depuis le fichier JSON.
+ * Retourne [] si le fichier n'existe pas.
+ */
+async function loadLeagueActivities(leagueId) {
+  try {
+    const file = path.join(DATA_DIR, 'leagues', `${leagueId}_activities.json`);
+    const raw = await fs.readFile(file, 'utf8');
+    const parsed = JSON.parse(raw);
+    // Le fichier peut être soit un tableau direct, soit { activities: [...] }
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.activities)) return parsed.activities;
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Charge tous les bonus (status "used" ou autre) depuis bonuses.json.
+ */
+async function loadAllBonuses() {
+  try {
+    const raw = await fs.readFile(BONUSES_FILE, 'utf8');
+    const all = JSON.parse(raw);
+    return Array.isArray(all) ? all : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Récupère la liste des éliminés d'une saison depuis les rounds figés.
+ * Format de sortie compatible avec computeEliminatedChallengeRankingForSeason :
+ *   [{ id, name, eliminatedRound (GLOBAL), eliminatedSeason }]
+ */
+function getEliminatedListFromFrozenRounds(frozenRoundsMap, seasonNumber) {
+  const out = [];
+  const seenIds = new Set();
+  // Itérer dans l'ordre croissant des rounds pour avoir le bon elimination_round (le premier)
+  const keys = Object.keys(frozenRoundsMap)
+    .map(k => Number(k))
+    .filter(n => !Number.isNaN(n))
+    .sort((a, b) => a - b);
+
+  for (const roundNumber of keys) {
+    const round = frozenRoundsMap[String(roundNumber)];
+    if (!round || !round.frozen) continue;
+    if (Number(round.seasonNumber) !== Number(seasonNumber)) continue;
+    if (!Array.isArray(round.eliminations)) continue;
+
+    for (const elim of round.eliminations) {
+      const id = String(elim.id);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      out.push({
+        id,
+        name: elim.name,
+        eliminatedRound: roundNumber,
+        eliminatedSeason: seasonNumber
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Calcule la plage de dates d'une saison à partir des rounds figés.
+ * Fallback si aucun round figé : renvoie les dates du 1er et dernier round
+ * attendus pour la saison (basé sur CHALLENGE_CONFIG).
+ */
+function getSeasonDatesFromFrozen(frozenRoundsMap, seasonNumber) {
+  const seasonRounds = Object.values(frozenRoundsMap || {})
+    .filter(r => r && Number(r.seasonNumber) === Number(seasonNumber));
+
+  if (seasonRounds.length > 0) {
+    const starts = seasonRounds
+      .map(r => r.dates?.start ? new Date(r.dates.start) : null)
+      .filter(d => d && !Number.isNaN(d.getTime()));
+    const ends = seasonRounds
+      .map(r => r.dates?.end ? new Date(r.dates.end) : null)
+      .filter(d => d && !Number.isNaN(d.getTime()));
+    if (starts.length && ends.length) {
+      return {
+        start: new Date(Math.min(...starts.map(d => d.getTime()))),
+        end: new Date(Math.max(...ends.map(d => d.getTime())))
+      };
+    }
+  }
+  // Fallback : rien de figé → on ne peut pas calculer
+  return null;
+}
+
+/**
+ * Fige le classement final du challenge des éliminés pour une saison donnée
+ * et l'enregistre dans frozen_results.eliminatedChallengeRankings[seasonNumber].
+ *
+ * @param {number} seasonNumber - Numéro de la saison à figer
+ * @param {Object} [options]
+ * @param {string} [options.leagueId] - ID de ligue pour charger les activités (défaut : CHALLENGE_CONFIG.leagueId)
+ * @param {Date} [options.currentDate] - Borne sup du calcul (défaut : now)
+ * @param {boolean} [options.force] - Écraser une valeur existante
+ * @returns {Object} { success, ranking?, error? }
+ */
+async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
+  const data = await loadFrozenResults();
+
+  // Vérifier si déjà figé
+  if (!data.eliminatedChallengeRankings) data.eliminatedChallengeRankings = {};
+  if (data.eliminatedChallengeRankings[String(seasonNumber)] && !options.force) {
+    return {
+      success: false,
+      error: 'already_frozen',
+      existing: data.eliminatedChallengeRankings[String(seasonNumber)]
+    };
+  }
+
+  // Récupérer la liste des éliminés
+  const eliminatedList = getEliminatedListFromFrozenRounds(data.rounds || {}, seasonNumber);
+  if (eliminatedList.length === 0) {
+    return { success: false, error: 'no_eliminations_found', seasonNumber };
+  }
+
+  // Déterminer la plage de dates
+  const seasonDates = getSeasonDatesFromFrozen(data.rounds || {}, seasonNumber);
+  if (!seasonDates) {
+    return { success: false, error: 'season_dates_unavailable', seasonNumber };
+  }
+
+  // Charger les activités et les bonus
+  const { CHALLENGE_CONFIG } = require('./shared-config');
+  const leagueId = options.leagueId || CHALLENGE_CONFIG.leagueId;
+  const activities = await loadLeagueActivities(leagueId);
+  const bonusesCache = await loadAllBonuses();
+  const seasonBonusesCache = data.seasonBonuses || {};
+
+  // Date courante (par défaut : maintenant)
+  const currentDate = options.currentDate || new Date();
+
+  // Calculer
+  const ranking = elimChallenge.computeEliminatedChallengeRankingForSeason({
+    seasonNumber,
+    activities,
+    eliminatedList,
+    seasonDates,
+    currentDate,
+    bonusesCache,
+    seasonBonusesCache,
+    frozenRoundsMap: data.rounds || {}
+  });
+
+  // Stocker
+  data.eliminatedChallengeRankings[String(seasonNumber)] = {
+    frozenAt: new Date().toISOString(),
+    seasonNumber,
+    ranking
+  };
+  await saveFrozenResults(data);
+
+  console.log(`🏔️ Challenge éliminés saison ${seasonNumber} figé : ${ranking.length} athlète(s)`);
+
+  return {
+    success: true,
+    seasonNumber,
+    ranking,
+    frozenAt: data.eliminatedChallengeRankings[String(seasonNumber)].frozenAt
+  };
+}
+
+/**
+ * Défige le classement challenge éliminés d'une saison (admin).
+ */
+async function unfreezeEliminatedChallengeForSeason(seasonNumber) {
+  const data = await loadFrozenResults();
+  if (data.eliminatedChallengeRankings && data.eliminatedChallengeRankings[String(seasonNumber)]) {
+    delete data.eliminatedChallengeRankings[String(seasonNumber)];
+    await saveFrozenResults(data);
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
   getAllFrozenResults,
   getFrozenRoundResult,
@@ -868,6 +1287,9 @@ module.exports = {
   resetAllFrozenResults,
   isRoundFrozen,
   unfreezeRound,
+  // Phase 2 : challenge éliminés par saison
+  freezeEliminatedChallengeForSeason,
+  unfreezeEliminatedChallengeForSeason,
   getRoundDates,
   getSeasonNumber,
   getRoundInSeason

@@ -998,6 +998,30 @@ export function simulateSeasonEliminations(activities, seasonNumber, currentDate
 // ============================================
 
 /**
+ * Retourne le classement figé du challenge éliminés pour une saison, s'il existe.
+ * Source : frozen_results.json → eliminatedChallengeRankings[seasonNumber].ranking
+ *
+ * Format retourné compatible avec le résultat de calculateEliminatedChallenge +
+ * application des bonus : objets avec { participant, id, name, totalElevation,
+ * rawElevation, bonusEffects, position, points }.
+ *
+ * Permet à calculateYearlyStandings/calculatePointsForSeason d'éviter le
+ * recalcul complet (bonus éphémères + saisonniers + retri) pour les saisons
+ * déjà terminées et figées.
+ *
+ * @returns {Array|null} ranking (copie défensive) ou null si absent/invalide.
+ */
+export function getCachedEliminatedChallengeRanking(seasonNumber, frozenResultsCache) {
+  if (!frozenResultsCache || typeof frozenResultsCache !== 'object') return null;
+  const cache = frozenResultsCache.eliminatedChallengeRankings;
+  if (!cache || typeof cache !== 'object') return null;
+  const entry = cache[String(seasonNumber)];
+  if (!entry || !Array.isArray(entry.ranking)) return null;
+  // Copie défensive pour éviter que les consommateurs modifient la source
+  return entry.ranking.map(r => ({ ...r, bonusEffects: r.bonusEffects ? { ...r.bonusEffects } : undefined }));
+}
+
+/**
  * Calcule le classement du challenge des éliminés.
  * PORTÉ DEPUIS : app.js::calculateEliminatedChallenge()
  */
@@ -1089,40 +1113,56 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
     if (currentDate < seasonDates.start) continue;
 
     const sData = simulateSeasonEliminations(activities, s, currentDate, frozenResultsCache);
-    const elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, sData.seasonComplete ? seasonDates.end : currentDate);
 
-    // Appliquer les bonus éphémères sur le classement des éliminés
-    const roundsPerSeasonForBonus = getRoundsPerSeason();
-    const seasonStartRound = (s - 1) * roundsPerSeasonForBonus + 1;
-    const seasonEndRound = s * roundsPerSeasonForBonus;
+    // Phase 3 : si le classement challenge éliminés est figé pour cette saison,
+    // on le lit directement au lieu de recalculer. On vérifie aussi sData.seasonComplete
+    // pour éviter de lire un cache périmé si jamais il a été figé par erreur.
+    const cached = sData.seasonComplete ? getCachedEliminatedChallengeRanking(s, frozenResultsCache) : null;
+    let elimRanking;
 
-    elimRanking.forEach(e => {
-      let gained = 0, lost = 0;
-      for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-        const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, roundNum, bonusesCache, seasonBonusesCache);
-        gained += roundEffects.gained;
-        lost += roundEffects.lost;
-      }
-      // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-      const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, activities);
-      gained += seasonalEffects.gained;
-      lost += seasonalEffects.lost;
+    if (cached) {
+      // Réutiliser directement : position, points, bonusEffects déjà figés
+      elimRanking = cached;
+    } else {
+      elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, sData.seasonComplete ? seasonDates.end : currentDate);
 
-      const netBonus = gained - lost;
-      if (netBonus !== 0) {
-        e.totalElevation = Math.max(0, e.totalElevation + netBonus);
-      }
-    });
+      // Appliquer les bonus éphémères sur le classement des éliminés
+      const roundsPerSeasonForBonus = getRoundsPerSeason();
+      const seasonStartRound = (s - 1) * roundsPerSeasonForBonus + 1;
+      const seasonEndRound = s * roundsPerSeasonForBonus;
 
-    // Re-trier et re-attribuer les points après bonus
-    elimRanking.sort((a, b) => b.totalElevation - a.totalElevation);
-    elimRanking.forEach((e, i) => {
-      e.position = i + 1;
-      e.points = getEliminatedChallengePoints(e.position);
-    });
+      elimRanking.forEach(e => {
+        let gained = 0, lost = 0;
+        for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
+          const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, roundNum, bonusesCache, seasonBonusesCache);
+          gained += roundEffects.gained;
+          lost += roundEffects.lost;
+        }
+        // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
+        const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, activities);
+        gained += seasonalEffects.gained;
+        lost += seasonalEffects.lost;
+
+        const netBonus = gained - lost;
+        if (netBonus !== 0) {
+          e.totalElevation = Math.max(0, e.totalElevation + netBonus);
+        }
+      });
+
+      // Re-trier et re-attribuer les points après bonus
+      elimRanking.sort((a, b) => b.totalElevation - a.totalElevation);
+      elimRanking.forEach((e, i) => {
+        e.position = i + 1;
+        e.points = getEliminatedChallengePoints(e.position);
+      });
+    }
 
     const elimPointsMap = {};
-    elimRanking.forEach(e => elimPointsMap[e.participant.id] = e.points);
+    elimRanking.forEach(e => {
+      // Compatibilité : cached a `id`, calcul dynamique a `participant.id`
+      const id = String(e.participant?.id ?? e.id);
+      elimPointsMap[id] = e.points;
+    });
 
     // Calculer les points rescapé de cette saison
     const rescapeData = calculateRescapePointsForSeason(s, frozenResultsCache);
@@ -1259,40 +1299,49 @@ export function calculatePointsForSeason(seasonNumber, activities, currentDate, 
   const sData = simulateSeasonEliminations(activities, seasonNumber, currentDate, frozenResultsCache);
 
   if (sData.eliminated.length > 0) {
-    const endDate = sData.seasonComplete ? seasonDates.end : currentDate;
-    const elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, endDate);
+    // Phase 3 : lire le cache figé en priorité si la saison est complète
+    const cached = sData.seasonComplete ? getCachedEliminatedChallengeRanking(seasonNumber, frozenResultsCache) : null;
+    let elimRanking;
 
-    // Appliquer les bonus éphémères sur le classement des éliminés
-    const bonusSeasonStart = (seasonNumber - 1) * roundsPerSeason + 1;
-    const bonusSeasonEnd = seasonNumber * roundsPerSeason;
+    if (cached) {
+      elimRanking = cached;
+    } else {
+      const endDate = sData.seasonComplete ? seasonDates.end : currentDate;
+      elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, endDate);
 
-    elimRanking.forEach(e => {
-      let gained = 0, lost = 0;
-      for (let rn = bonusSeasonStart; rn <= bonusSeasonEnd; rn++) {
-        const fx = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, rn, bonusesCache, seasonBonusesCache);
-        gained += fx.gained;
-        lost += fx.lost;
-      }
-      // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-      const seasonalFx = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, activities);
-      gained += seasonalFx.gained;
-      lost += seasonalFx.lost;
+      // Appliquer les bonus éphémères sur le classement des éliminés
+      const bonusSeasonStart = (seasonNumber - 1) * roundsPerSeason + 1;
+      const bonusSeasonEnd = seasonNumber * roundsPerSeason;
 
-      const netBonus = gained - lost;
-      if (netBonus !== 0) {
-        e.totalElevation = Math.max(0, e.totalElevation + netBonus);
-      }
-    });
+      elimRanking.forEach(e => {
+        let gained = 0, lost = 0;
+        for (let rn = bonusSeasonStart; rn <= bonusSeasonEnd; rn++) {
+          const fx = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, rn, bonusesCache, seasonBonusesCache);
+          gained += fx.gained;
+          lost += fx.lost;
+        }
+        // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
+        const seasonalFx = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, activities);
+        gained += seasonalFx.gained;
+        lost += seasonalFx.lost;
 
-    // Re-trier et re-attribuer les points après bonus
-    elimRanking.sort((a, b) => b.totalElevation - a.totalElevation);
-    elimRanking.forEach((e, i) => {
-      e.position = i + 1;
-      e.points = getEliminatedChallengePoints(e.position);
-    });
+        const netBonus = gained - lost;
+        if (netBonus !== 0) {
+          e.totalElevation = Math.max(0, e.totalElevation + netBonus);
+        }
+      });
+
+      // Re-trier et re-attribuer les points après bonus
+      elimRanking.sort((a, b) => b.totalElevation - a.totalElevation);
+      elimRanking.forEach((e, i) => {
+        e.position = i + 1;
+        e.points = getEliminatedChallengePoints(e.position);
+      });
+    }
 
     for (const e of elimRanking) {
-      const id = String(e.participant.id);
+      // Compatibilité : cached a `id`, calcul dynamique a `participant.id`
+      const id = String(e.participant?.id ?? e.id);
       if (pointsMap[id]) {
         pointsMap[id].elimPoints = e.points || 0;
       }

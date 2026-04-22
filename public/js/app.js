@@ -37,6 +37,44 @@ import {
 
 import { getCurrentDate, setSimulatedDate, initDemoMode } from './demo.js';
 
+import {
+  // Bonus helpers
+  getBonusesUsedInRound,
+  getArchivedBonusesForAthlete,
+  getAllBonusesForAthlete,
+  getEphemeralBonusEffectsForActiveAthlete,
+  getEphemeralBonusEffectsForEliminatedAthlete,
+  getSeasonalBonusEffectsForEliminatedAthlete,
+  // Frozen helpers
+  getFrozenRound,
+  getRescapeFromPreviousRound,
+  calculateRescapePointsForSeason,
+  getRescapeInfoForRound,
+  // Activity helpers
+  getActivityEndTime,
+  filterByPeriod,
+  filterByParticipant,
+  calculateStats,
+  calculateRanking,
+  applyHandicapRule,
+  // Simulations
+  simulateTeamSeasonEliminations,
+  simulateSeasonEliminations,
+  // Elim challenge
+  calculateEliminatedChallenge,
+  countEliminationsBeforeRound,
+  // Standings orchestrators
+  calculateYearlyStandings,
+  calculatePointsFromFrozenResults,
+  calculatePointsForSeason,
+  // Eliminated athlete helpers
+  getRoundElevation,
+  getEligibleActivitiesForBonus,
+  findCoEliminated,
+  getEliminatedElevationSince,
+  getEliminatedActivities
+} from './standings-engine.js';
+
 // ============================================
 // ÉTAT GLOBAL
 // ============================================
@@ -83,58 +121,6 @@ async function loadBonuses() {
 }
 
 /**
- * Récupère les bonus utilisés pour un round donné
- * Cherche d'abord dans bonusesCache (live), puis dans seasonBonusesCache (archivé)
- */
-function getBonusesUsedInRound(roundNumber) {
-  const liveBonuses = bonusesCache.filter(b => b.used_in_round === roundNumber && b.status === 'used');
-  if (liveBonuses.length > 0) return liveBonuses;
-
-  // Fallback: chercher dans les bonus archivés par saison
-  for (const [seasonNum, bonuses] of Object.entries(seasonBonusesCache)) {
-    const archived = bonuses.filter(b => b.used_in_round === roundNumber && b.status === 'used');
-    if (archived.length > 0) return archived;
-  }
-  return [];
-}
-
-/**
- * Récupère les bonus archivés pour un athlète donné (toutes saisons)
- */
-function getArchivedBonusesForAthlete(athleteId) {
-  const normalizedId = String(athleteId);
-  const result = [];
-  for (const [seasonNum, bonuses] of Object.entries(seasonBonusesCache)) {
-    for (const b of bonuses) {
-      if (String(b.athlete_id) === normalizedId) {
-        result.push({ ...b, archivedSeason: parseInt(seasonNum) });
-      }
-    }
-  }
-  return result;
-}
-
-/**
- * Récupère TOUS les bonus d'un athlète (live + archivés) pour le calcul des effets
- */
-function getAllBonusesForAthlete(athleteId) {
-  const normalizedId = String(athleteId);
-  const live = bonusesCache.filter(b => String(b.athlete_id) === normalizedId);
-  const archived = getArchivedBonusesForAthlete(normalizedId);
-  // Dédupliquer par bonus_id + athlete_id
-  const seen = new Set(live.map(b => `${b.bonus_id}_${b.athlete_id}_${b.used_in_round || ''}`));
-  const deduped = [...live];
-  for (const a of archived) {
-    const key = `${a.bonus_id}_${a.athlete_id}_${a.used_in_round || ''}`;
-    if (!seen.has(key)) {
-      deduped.push(a);
-      seen.add(key);
-    }
-  }
-  return deduped;
-}
-
-/**
  * Génère la description d'un bonus pour l'historique
  */
 function getBonusHistoryDescription(bonus) {
@@ -178,329 +164,6 @@ function getBonusHistoryDescription(bonus) {
     default:
       return `${icon} ${athleteName} a utilisé ${bonusType?.name || bonus.bonus_id}${targetName ? ' sur ' + targetName : ''}`;
   }
-}
-
-/**
- * Calcule les effets des bonus éphémères pour un joueur ACTIF (challenge principal)
- * Ces effets s'appliquent sur le D+ du round en cours
- * @param {string} athleteId - ID du joueur actif
- * @param {number} roundNumber - Numéro du round
- * @returns {Object} Effets: { gained: number, lost: number, details: [] }
- */
-function getEphemeralBonusEffectsForActiveAthlete(athleteId, roundNumber) {
-  const effects = { gained: 0, lost: 0, details: [] };
-  const normalizedId = String(athleteId);
-
-  const roundBonuses = getBonusesUsedInRound(roundNumber);
-
-  for (const bonus of roundBonuses) {
-    const result = bonus.effect_result;
-    if (!result) continue;
-
-    // Embuscade - le joueur actif (cible) PERD du D+ dans le challenge principal
-    if (bonus.bonus_id === 'embuscade') {
-      const amount = result.stolenElevation || 0;
-      if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
-        effects.lost += amount;
-        effects.details.push({ type: 'embuscade_victim', amount, by: bonus.athlete_name, icon: '🏹' });
-      }
-    }
-
-    // Ravitaillement - le joueur actif (cible) GAGNE du D+ dans le challenge principal
-    if (bonus.bonus_id === 'ravitaillement') {
-      const amount = result.bonusElevation || 0;
-      if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
-        effects.gained += amount;
-        effects.details.push({ type: 'ravitaillement', amount, from: bonus.athlete_name, icon: '🍖' });
-      }
-    }
-
-    // Note: marquage, malédiction, kamikaze sont des bonus entre éliminés ou ciblent des éliminés
-    // Ils ne s'appliquent pas aux joueurs actifs dans le challenge principal
-  }
-
-  return effects;
-}
-
-/**
- * Calcule les effets des bonus éphémères pour un joueur ÉLIMINÉ (challenge des éliminés)
- * Ces effets s'appliquent sur le D+ cumulé depuis l'élimination
- * @param {string} athleteId - ID du joueur éliminé
- * @param {number} roundNumber - Numéro du round
- * @returns {Object} Effets: { gained: number, lost: number, details: [] }
- */
-function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber) {
-  const effects = { gained: 0, lost: 0, details: [] };
-  const normalizedId = String(athleteId);
-
-  const roundBonuses = getBonusesUsedInRound(roundNumber);
-
-  for (const bonus of roundBonuses) {
-    const result = bonus.effect_result;
-
-    // Embuscade - l'éliminé (attaquant) GAGNE du D+ dans le challenge des éliminés
-    if (bonus.bonus_id === 'embuscade') {
-      const amount = result?.stolenElevation || 0;
-      if (amount > 0 && String(bonus.athlete_id) === normalizedId) {
-        effects.gained += amount;
-        effects.details.push({ type: 'embuscade_gain', amount, from: bonus.target_athlete_name, icon: '🏹' });
-      }
-    }
-
-    // Ravitaillement - l'éliminé donne mais ne perd rien (c'est une copie)
-    // Pas d'effet négatif pour l'éliminé
-
-    // Marquage - pénalité 20% sur un autre éliminé
-    if (bonus.bonus_id === 'marquage') {
-      const amount = result?.penaltyAmount || 0;
-      if (amount > 0 && String(bonus.target_athlete_id) === normalizedId) {
-        effects.lost += amount;
-        effects.details.push({ type: 'marquage', amount, by: bonus.athlete_name, icon: '🎯' });
-      }
-    }
-
-    // Malédiction - vol 10% par round entre éliminés
-    if (bonus.bonus_id === 'malediction') {
-      const amount = result?.stolenThisRound || 0;
-      if (amount > 0) {
-        if (String(bonus.target_athlete_id) === normalizedId) {
-          effects.lost += amount;
-          effects.details.push({ type: 'malediction_victim', amount, by: bonus.athlete_name, icon: '🪬' });
-        }
-        if (String(bonus.athlete_id) === normalizedId) {
-          effects.gained += amount;
-          effects.details.push({ type: 'malediction_gain', amount, from: bonus.target_athlete_name, icon: '🪬' });
-        }
-      }
-    }
-
-    // Kamikaze - perte mutuelle entre éliminés
-    if (bonus.bonus_id === 'kamikaze') {
-      if (String(bonus.target_athlete_id) === normalizedId) {
-        const amount = result?.targetPenalty || 0;
-        if (amount > 0) {
-          effects.lost += amount;
-          effects.details.push({ type: 'kamikaze_victim', amount, by: bonus.athlete_name, icon: '💣' });
-        }
-      }
-      if (String(bonus.athlete_id) === normalizedId) {
-        const amount = result?.userPenalty || 0;
-        if (amount > 0) {
-          effects.lost += amount;
-          effects.details.push({ type: 'kamikaze_self', amount, icon: '💣' });
-        }
-      }
-    }
-
-    // Note: trap, second_souffle, duel, brouillard sont des bonus saisonniers
-    // traités par getSeasonalBonusEffectsForEliminatedAthlete() (appelé une seule fois)
-  }
-
-  return effects;
-}
-
-/**
- * Calcule les effets des bonus SAISONNIERS (one-shot) pour un éliminé.
- * Appelé UNE SEULE FOIS par athlète par saison (pas par round).
- * Gère: second_souffle, trap, duel, brouillard
- */
-function getSeasonalBonusEffectsForEliminatedAthlete(athleteId) {
-  const effects = { gained: 0, lost: 0, details: [] };
-  const normalizedId = String(athleteId);
-
-  const allAthleteBonus = getAllBonusesForAthlete(normalizedId);
-
-  for (const bonus of allAthleteBonus) {
-    // Second Souffle — double la plus petite activité
-    if (bonus.bonus_id === 'second_souffle' && (bonus.status === 'active' || bonus.status === 'chosen' || bonus.status === 'used')) {
-      const alreadyAdded = effects.details.some(d => d.type === 'second_souffle');
-      if (!alreadyAdded) {
-        const elimRound = bonus.elimination_round;
-        if (elimRound) {
-          const elimActivities = getEliminatedActivities(normalizedId, elimRound);
-          if (elimActivities.length > 0) {
-            const minActivity = elimActivities.reduce((min, a) =>
-              (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
-            );
-            const amount = Math.round(minActivity.total_elevation_gain || 0);
-            if (amount > 0) {
-              const actName = minActivity.name || 'activité';
-              effects.gained += amount;
-              effects.details.push({ type: 'second_souffle', amount, activityName: actName, icon: '🔥' });
-            }
-          }
-        }
-      }
-    }
-
-    // Trap — D+ copié du dernier éliminé
-    if (bonus.bonus_id === 'trap') {
-      const result = bonus.effect_result;
-      const alreadyAdded = effects.details.some(d => d.type === 'trap_gain');
-      if (!alreadyAdded && result?.elevation_gained) {
-        const amount = result.elevation_gained;
-        const victimName = result.victim_name || 'un joueur';
-        effects.gained += amount;
-        effects.details.push({ type: 'trap_gain', amount, from: victimName, icon: '🪤' });
-      }
-    }
-
-    // Duel — info only
-    if (bonus.bonus_id === 'duel') {
-      const alreadyAdded = effects.details.some(d => d.type === 'duel');
-      if (!alreadyAdded) {
-        effects.details.push({ type: 'duel', amount: 0, icon: '⚔️' });
-      }
-    }
-
-    // Brouillard — info only
-    if (bonus.bonus_id === 'brouillard') {
-      const alreadyAdded = effects.details.some(d => d.type === 'brouillard');
-      if (!alreadyAdded) {
-        effects.details.push({ type: 'brouillard', amount: 0, icon: '🌫️' });
-      }
-    }
-  }
-
-  return effects;
-}
-
-/**
- * Récupère les bonus éphémères actifs pour un joueur (pas encore utilisés ou en cours)
- */
-function getFrozenRound(globalRoundNumber) {
-  if (!frozenResultsCache?.rounds) return null;
-  return frozenResultsCache.rounds[String(globalRoundNumber)] || null;
-}
-
-/**
- * Récupère l'ID du rescapé du round précédent
- * Le rescapé est l'avant-avant-dernier du classement (juste au-dessus des 2 éliminés)
- */
-function getRescapeFromPreviousRound(currentRoundNumber) {
-  const previousRound = currentRoundNumber - 1;
-  if (previousRound < 1) return null;
-
-  const frozenRound = getFrozenRound(previousRound);
-  if (!frozenRound || !frozenRound.ranking || frozenRound.ranking.length < 4) {
-    return null;
-  }
-
-  // L'avant-avant-dernier = position ranking.length - 2 (0-indexed: length - 3)
-  // Exemple: 10 joueurs -> positions 0-9, éliminés = 8,9, rescapé = 7
-  const rescapeIndex = frozenRound.ranking.length - 3;
-  const rescapeEntry = frozenRound.ranking[rescapeIndex];
-
-  if (rescapeEntry) {
-    return String(rescapeEntry.id);
-  }
-
-  return null;
-}
-
-/**
- * Calcule les points rescapé pour tous les joueurs d'une saison.
- * Règles :
- *   - Rescapé = avant-avant-dernier du classement (juste au-dessus des 2 éliminés)
- *   - 1ère fois consécutive : jeton (0 pts)
- *   - 2ème fois consécutive : +2 pts
- *   - 3ème+ consécutive : +2 pts chaque fois
- *   - Si le joueur quitte la position rescapé : compteur reset
- *
- * @param {number} seasonNumber
- * @returns {Object} { [athleteId]: { totalPoints, streaks: [{round, consecutive, points}] } }
- */
-function calculateRescapePointsForSeason(seasonNumber) {
-  const result = {};
-  PARTICIPANTS.forEach(p => {
-    result[p.id] = { totalPoints: 0, streaks: [] };
-  });
-
-  if (!frozenResultsCache?.rounds) return result;
-
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  const seasonEndRound = seasonNumber * roundsPerSeason;
-
-  // Tracker le compteur consécutif par joueur
-  const consecutiveCount = {};
-  PARTICIPANTS.forEach(p => { consecutiveCount[p.id] = 0; });
-
-  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-    const round = frozenResultsCache.rounds[String(roundNum)];
-    if (!round?.frozen || !round.ranking || round.ranking.length < 4) continue;
-
-    const eliminations = round.eliminations || [];
-    if (eliminations.length === 0) continue;
-
-    // Trouver le rescapé de ce round
-    const eliminatedIds = new Set(eliminations.map(e => String(e.id)));
-    const roundInSeason = ((roundNum - 1) % roundsPerSeason) + 1;
-    const isFinale = roundInSeason === roundsPerSeason;
-
-    // Pas de rescapé en finale
-    if (isFinale) {
-      PARTICIPANTS.forEach(p => { consecutiveCount[p.id] = 0; });
-      continue;
-    }
-
-    // Le rescapé = dernier survivant du classement (dernier non-éliminé)
-    const survivors = round.ranking.filter(e => !eliminatedIds.has(String(e.id)));
-    const rescapeEntry = survivors.length > 0 ? survivors[survivors.length - 1] : null;
-    const rescapeId = rescapeEntry ? String(rescapeEntry.id) : null;
-
-    // Mettre à jour les compteurs
-    PARTICIPANTS.forEach(p => {
-      const pid = p.id;
-      if (eliminatedIds.has(pid)) {
-        // Éliminé → reset
-        consecutiveCount[pid] = 0;
-        return;
-      }
-
-      if (pid === rescapeId) {
-        consecutiveCount[pid]++;
-        const streak = consecutiveCount[pid];
-        let pts = 0;
-        if (streak >= 2) {
-          pts = 2;
-        }
-        result[pid].streaks.push({
-          round: roundNum,
-          roundInSeason,
-          consecutive: streak,
-          points: pts
-        });
-        result[pid].totalPoints += pts;
-      } else {
-        // Pas rescapé ce round → reset
-        consecutiveCount[pid] = 0;
-      }
-    });
-  }
-
-  return result;
-}
-
-/**
- * Récupère les infos rescapé d'un round spécifique (pour l'affichage historique)
- */
-function getRescapeInfoForRound(globalRoundNumber) {
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonNumber = Math.ceil(globalRoundNumber / roundsPerSeason);
-  const rescapeData = calculateRescapePointsForSeason(seasonNumber);
-
-  for (const [athleteId, data] of Object.entries(rescapeData)) {
-    const streak = data.streaks.find(s => s.round === globalRoundNumber);
-    if (streak) {
-      return {
-        athleteId,
-        consecutive: streak.consecutive,
-        points: streak.points
-      };
-    }
-  }
-  return null;
 }
 
 // ============================================
@@ -723,667 +386,20 @@ function parseActivitiesData(data) {
 // FILTRAGE DES ACTIVITÉS
 // ============================================
 
-/**
- * Retourne l'heure de fin d'une activité (start_date + elapsed_time).
- * Permet de rattacher une activité à son bon round même si elle
- * commence avant minuit et finit après (ex: ski de rando à 23h jour 5 → 8h jour 6).
- * L'activité compte pour le round où elle se termine.
- */
-function getActivityEndTime(activity) {
-  const start = new Date(activity.start_date).getTime();
-  const elapsedMs = (activity.elapsed_time || 0) * 1000;
-  return start + elapsedMs;
-}
-
-function filterByPeriod(activities, startDate, endDate) {
-  const start = new Date(startDate).setHours(0, 0, 0, 0);
-  const end = new Date(endDate).setHours(23, 59, 59, 999);
-  return activities.filter(a => {
-    // Ignorer les activités exclues par l'admin
-    if (a.excluded) return false;
-    // Utiliser l'heure de FIN pour rattacher l'activité au bon round
-    const date = getActivityEndTime(a);
-    return date >= start && date <= end;
-  });
-}
-
-function filterByParticipant(activities, participantId) {
-  const pid = String(participantId);
-  return activities.filter(a => {
-    // Supporter les deux formats: athlete.id (sync) et athlete_id (ancien webhook)
-    const athleteId = a.athlete?.id || a.athlete_id;
-    return String(athleteId) === pid;
-  });
-}
-
 // ============================================
 // CALCULS STATISTIQUES
 // ============================================
-
-function calculateStats(activities) {
-  return {
-    elevation: activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0),
-    distance: activities.reduce((sum, a) => sum + (a.distance || 0), 0),
-    activities: activities.length,
-    movingTime: activities.reduce((sum, a) => sum + (a.moving_time || 0), 0)
-  };
-}
-
-function calculateRanking(activities, activeParticipants) {
-  const participantsList = activeParticipants.length > 0 ? activeParticipants : PARTICIPANTS;
-
-  return participantsList
-    .map(participant => {
-      const pActivities = filterByParticipant(activities, participant.id);
-      const stats = calculateStats(pActivities);
-      return {
-        participant,
-        totalElevation: stats.elevation,
-        totalDistance: stats.distance,
-        activityCount: stats.activities,
-        activities: pActivities
-      };
-    })
-    .sort((a, b) => b.totalElevation - a.totalElevation)
-    .map((entry, index) => ({ ...entry, position: index + 1 }));
-}
-
-/**
- * Applique la règle Handicap sur le ranking du round
- * - Top 10 du classement général : malus dégressif sur le D+
- * - 5 derniers du classement général : bonus de +10%
- * Le ranking est re-trié après application
- */
-function applyHandicapRule(ranking, yearlyStandings) {
-  const rule = ROUND_RULES.handicap;
-  if (!rule?.parameters) return ranking;
-
-  const { malusPerPosition, bonusLastCount, bonusLastPercent } = rule.parameters;
-
-  // Créer un map rang classement général → participant
-  const generalRankMap = {};
-  const totalParticipants = yearlyStandings.length;
-  yearlyStandings.forEach(e => {
-    generalRankMap[String(e.participant.id)] = e.rank;
-  });
-
-  const adjusted = ranking.map(entry => {
-    const pid = String(entry.participant.id);
-    const generalRank = generalRankMap[pid];
-    const rawElevation = entry.totalElevation;
-    let adjustmentPercent = 0;
-    let adjustmentLabel = null;
-
-    if (generalRank && malusPerPosition[generalRank]) {
-      // Malus pour le top 10
-      adjustmentPercent = -malusPerPosition[generalRank];
-      adjustmentLabel = `${adjustmentPercent}% (${generalRank}${generalRank === 1 ? 'ᵉʳ' : 'ᵉ'} au général)`;
-    } else if (generalRank && totalParticipants - generalRank < bonusLastCount) {
-      // Bonus pour les 5 derniers
-      adjustmentPercent = bonusLastPercent;
-      adjustmentLabel = `+${adjustmentPercent}% (${generalRank}${generalRank === 1 ? 'ᵉʳ' : 'ᵉ'} au général)`;
-    }
-
-    const adjustedElevation = adjustmentPercent !== 0
-      ? Math.round(rawElevation * (1 + adjustmentPercent / 100))
-      : rawElevation;
-
-    return {
-      ...entry,
-      rawElevation,
-      adjustmentPercent,
-      adjustmentLabel,
-      totalElevation: adjustedElevation
-    };
-  });
-
-  // Re-trier par D+ ajusté
-  adjusted.sort((a, b) => b.totalElevation - a.totalElevation);
-  adjusted.forEach((e, i) => { e.position = i + 1; });
-
-  return adjusted;
-}
 
 // ============================================
 // SIMULATION DES ÉLIMINATIONS
 // ============================================
 
-/**
- * Simulation pour les saisons en mode ÉQUIPE.
- * - Équipes de 3 (ou 2 si N non divisible par 3)
- * - L'équipe avec le moins de D+ cumulé est éliminée (tous les membres)
- * - Points attribués selon le classement interne de l'équipe éliminée
- * - Retirage des équipes à chaque round
- */
-function simulateTeamSeasonEliminations(activities, seasonNumber, currentDate) {
-  const seasonDates = getSeasonDates(seasonNumber);
-  const seasonStartRound = getSeasonStartRound(seasonNumber);
-  const maxRounds = getRoundsForSeason(seasonNumber);
-
-  let active = [...PARTICIPANTS];
-  const eliminated = [];
-  const roundResults = [];
-
-  // Calculer les points du classement général pour l'équilibrage
-  const yearlyStandings = yearlyStandingsCache || [];
-  const pointsMap = {};
-  yearlyStandings.forEach(e => { pointsMap[e.participant.id] = e.totalPoints || 0; });
-  PARTICIPANTS.forEach(p => { if (!(p.id in pointsMap)) pointsMap[p.id] = 0; });
-
-  for (let roundInSeason = 1; roundInSeason <= maxRounds; roundInSeason++) {
-    if (active.length <= 1) break;
-
-    const globalRound = seasonStartRound + roundInSeason - 1;
-    const roundDates = getRoundDates(globalRound);
-
-    // Round pas encore commencé
-    if (currentDate < roundDates.start) break;
-
-    // Round en cours (pas terminé)
-    if (currentDate <= roundDates.end) {
-      // Former les équipes pour l'affichage du round en cours
-      const teams = formBalancedTeams(active, pointsMap, globalRound);
-
-      // Calculer le D+ par athlète pour le round en cours
-      const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
-      const teamsWithElevation = teams.map(team => {
-        const membersWithElev = team.members.map(m => {
-          const acts = roundActivities.filter(a => String(a.athlete?.id || a.athlete_id) === String(m.id));
-          const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
-          return { ...m, elevation: elev };
-        }).sort((a, b) => b.elevation - a.elevation);
-
-        return {
-          ...team,
-          members: membersWithElev,
-          totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0)
-        };
-      }).sort((a, b) => b.totalElevation - a.totalElevation);
-
-      roundResults.push({
-        round: roundInSeason,
-        status: 'active',
-        active: [...active],
-        teams: teamsWithElevation,
-        eliminated: []
-      });
-      break;
-    }
-
-    // ============================================
-    // ROUND TERMINÉ — vérifier si figé
-    // ============================================
-    const frozenRound = getFrozenRound(globalRound);
-
-    if (frozenRound && frozenRound.frozen) {
-      // Utiliser les résultats figés
-      frozenRound.eliminations.forEach(elim => {
-        const participant = PARTICIPANTS.find(p => String(p.id) === String(elim.id));
-        if (participant) {
-          eliminated.push({
-            ...participant,
-            eliminatedRound: roundInSeason,
-            eliminatedSeason: seasonNumber,
-            zeroElimination: elim.reason === 'zero_elevation'
-          });
-          active = active.filter(a => String(a.id) !== String(elim.id));
-        }
-      });
-
-      roundResults.push({
-        round: roundInSeason,
-        status: 'completed',
-        ranking: frozenRound.ranking,
-        teams: frozenRound.teams || null,
-        eliminated: frozenRound.eliminations.map(e => e.id),
-        frozen: true
-      });
-    } else {
-      // CALCULER — round terminé mais pas encore figé
-      const teams = formBalancedTeams(active, pointsMap, globalRound);
-      const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
-
-      // Calculer D+ par athlète et par équipe
-      const teamsWithElevation = teams.map(team => {
-        const membersWithElev = team.members.map(m => {
-          const acts = roundActivities.filter(a => String(a.athlete?.id || a.athlete_id) === String(m.id));
-          const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
-          return { ...m, elevation: elev };
-        }).sort((a, b) => b.elevation - a.elevation);
-
-        return {
-          ...team,
-          members: membersWithElev,
-          totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0)
-        };
-      }).sort((a, b) => b.totalElevation - a.totalElevation);
-
-      // L'équipe dernière est éliminée (tous les membres)
-      const lastTeam = teamsWithElevation[teamsWithElevation.length - 1];
-
-      // Points : les membres de l'équipe éliminée sont classés par D+ individuel
-      // Ils occupent les dernières positions (15ème, 14ème, 13ème pour la première élim)
-      const teamMembersSorted = [...lastTeam.members].sort((a, b) => a.elevation - b.elevation);
-
-      teamMembersSorted.forEach((member, idx) => {
-        const position = active.length - idx; // 15, 14, 13...
-        const mainPts = getMainChallengePoints(position);
-
-        eliminated.push({
-          ...PARTICIPANTS.find(p => p.id === member.id) || member,
-          eliminatedRound: roundInSeason,
-          eliminatedSeason: seasonNumber,
-          zeroElimination: member.elevation === 0,
-          teamElimination: true,
-          mainPoints: mainPts
-        });
-        active = active.filter(a => a.id !== member.id);
-      });
-
-      roundResults.push({
-        round: roundInSeason,
-        status: 'completed',
-        teams: teamsWithElevation,
-        eliminatedTeamIndex: teamsWithElevation.length - 1,
-        eliminated: lastTeam.members.map(m => m.id)
-      });
-    }
-
-    // Saison terminée ?
-    if (active.length <= 3) {
-      // Finale : les derniers joueurs restants s'affrontent individuellement
-      // (ou la dernière équipe gagne)
-      return {
-        seasonComplete: active.length <= 1,
-        winner: active.length === 1 ? active[0] : null,
-        active,
-        eliminated,
-        roundResults,
-        isTeamSeason: true,
-        actualRoundsPlayed: roundInSeason
-      };
-    }
-  }
-
-  return {
-    seasonComplete: false,
-    active,
-    eliminated,
-    roundResults,
-    isTeamSeason: true,
-    actualRoundsPlayed: roundResults.length
-  };
-}
-
-function simulateSeasonEliminations(activities, seasonNumber, currentDate) {
-  const seasonType = getSeasonType(seasonNumber);
-
-  // Branchement vers la logique Équipe si applicable
-  if (seasonType?.isTeamBased) {
-    return simulateTeamSeasonEliminations(activities, seasonNumber, currentDate);
-  }
-
-  const seasonDates = getSeasonDates(seasonNumber);
-
-  // TOUS les participants (éligibles + tardifs) pour le calcul du nombre de rounds
-  let active = [...PARTICIPANTS];
-  const eliminated = [];
-  const roundResults = [];
-
-  // Inscriptions tardives = éliminées d'office au Round 1 (comptent dans le quota)
-  const lateRegistrations = getLateRegistrations();
-
-  // Calculer le nombre de rounds pour cette saison
-  const maxRoundsPerSeason = getRoundsForSeason(seasonNumber);
-  const seasonStartRoundGlobal = getSeasonStartRound(seasonNumber);
-
-  for (let roundInSeason = 1; roundInSeason <= maxRoundsPerSeason; roundInSeason++) {
-    // VÉRIFICATION: Si plus qu'un seul joueur actif, la saison est finie
-    if (active.length <= 1) {
-      break;
-    }
-
-    const globalRound = seasonStartRoundGlobal + roundInSeason - 1;
-    const roundDates = getRoundDates(globalRound);
-
-    // Round pas encore commencé
-    if (currentDate < roundDates.start) break;
-
-    // Round en cours (pas encore terminé)
-    if (currentDate <= roundDates.end) {
-      roundResults.push({
-        round: roundInSeason,
-        status: 'active',
-        active: [...active],
-        eliminated: []
-      });
-      break;
-    }
-
-    // ============================================
-    // VÉRIFIER SI LE ROUND EST FIGÉ
-    // ============================================
-    const frozenRound = getFrozenRound(globalRound);
-
-    if (frozenRound && frozenRound.frozen) {
-      // UTILISER LES RÉSULTATS FIGÉS
-
-      // Appliquer les éliminations depuis les données figées
-      frozenRound.eliminations.forEach(elim => {
-        const participant = PARTICIPANTS.find(p => String(p.id) === String(elim.id));
-        if (participant) {
-          eliminated.push({
-            ...participant,
-            eliminatedRound: roundInSeason,
-            eliminatedSeason: seasonNumber,
-            zeroElimination: elim.reason === 'zero_elevation'
-          });
-          active = active.filter(a => String(a.id) !== String(elim.id));
-        }
-      });
-
-      roundResults.push({
-        round: roundInSeason,
-        status: 'completed',
-        ranking: frozenRound.ranking,
-        eliminated: frozenRound.eliminations.map(e => e.id),
-        frozen: true
-      });
-
-    } else {
-      // CALCULER LES RÉSULTATS (round non figé - RÈGLES SIMPLES)
-      const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
-      const ranking = calculateRanking(roundActivities, active);
-
-      // Appliquer les effets des jokers
-      const rankingWithEffects = applyJokerEffects(ranking, globalRound);
-
-      // ============================================
-      // RÈGLES D'ÉLIMINATION
-      // ============================================
-      // Anciennes règles (R1-R6): Éliminer les 2 derniers du classement
-      // Nouvelles règles (R7+):
-      // - Si ≥2 joueurs à 0 D+ → éliminer TOUS les 0 D+ (et seulement eux)
-      // - Sinon → éliminer les 2 derniers
-      // - Finale: Éliminer tous sauf 1
-      // ============================================
-
-      const toEliminate = [];
-
-      // Vérifier si ce round a une règle spéciale avec override d'éliminations
-      const roundSpecialRule = getSpecialRuleForRound(globalRound);
-      const roundRuleDetails = roundSpecialRule ? (ROUND_RULES[roundSpecialRule] || null) : null;
-      const roundElimCount = roundRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound;
-
-      // Déterminer si c'est une finale
-      const isCurrentRoundFinale = active.length <= roundElimCount + 1;
-
-      // Joueurs éligibles (sans bouclier)
-      const eligibleForElimination = rankingWithEffects.filter(e => !e.jokerEffects?.hasShield);
-
-      // Joueurs à 0 D+ (éligibles uniquement)
-      const zeroElevationPlayers = eligibleForElimination.filter(e => e.totalElevation === 0);
-
-      // Appliquer les nouvelles règles seulement à partir du R7
-      const useNewRules = globalRound >= 7;
-
-      if (isCurrentRoundFinale) {
-        // FINALE: éliminer tous sauf 1
-        eligibleForElimination.slice(1).forEach(entry => {
-          toEliminate.push({
-            ...entry.participant,
-            zeroElimination: entry.totalElevation === 0
-          });
-        });
-      } else if (useNewRules && zeroElevationPlayers.length >= 2 && zeroElevationPlayers.length >= roundElimCount) {
-        // NOUVELLE RÈGLE (R7+): Si le nombre de joueurs à 0 D+ est ≥ au nombre d'éliminations prévues,
-        // éliminer TOUS les 0 D+ (peut dépasser roundElimCount)
-        zeroElevationPlayers.forEach(entry => {
-          toEliminate.push({
-            ...entry.participant,
-            zeroElimination: true
-          });
-        });
-      } else {
-        // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap)
-        // Les joueurs à 0 D+ sont naturellement en bas du classement
-        const eliminationsNeeded = roundElimCount;
-
-        // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
-        if (roundInSeason === 1 && lateRegistrations.length > 0) {
-          lateRegistrations.forEach(p => {
-            if (toEliminate.length < eliminationsNeeded && active.find(a => a.id === p.id)) {
-              toEliminate.push({
-                ...p,
-                zeroElimination: false,
-                lateRegistration: true
-              });
-            }
-          });
-        }
-
-        // Compléter avec les derniers du classement
-        for (let i = eligibleForElimination.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
-          const entry = eligibleForElimination[i];
-          // Skip si déjà dans toEliminate (inscription tardive)
-          if (toEliminate.find(e => e.id === entry.participant.id)) continue;
-
-          toEliminate.push({
-            ...entry.participant,
-            zeroElimination: entry.totalElevation === 0
-          });
-        }
-      }
-
-      toEliminate.forEach(p => {
-        eliminated.push({
-          ...p,
-          eliminatedRound: roundInSeason,
-          eliminatedSeason: seasonNumber,
-          zeroElimination: p.zeroElimination || false,
-          lateRegistration: p.lateRegistration || false
-        });
-        active = active.filter(a => a.id !== p.id);
-      });
-
-      roundResults.push({
-        round: roundInSeason,
-        status: 'completed',
-        ranking: rankingWithEffects,
-        eliminated: toEliminate.map(p => p.id)
-      });
-    }
-
-    // Vérifier si la saison est terminée (un seul joueur restant)
-    if (active.length <= 1) {
-      return {
-        seasonComplete: true,
-        winner: active[0] || null,
-        active,
-        eliminated,
-        roundResults,
-        actualRoundsPlayed: roundInSeason
-      };
-    }
-  }
-
-  return {
-    seasonComplete: false,
-    active,
-    eliminated,
-    roundResults,
-    actualRoundsPlayed: roundResults.length
-  };
-}
-
 // ============================================
 // CHALLENGE DES ÉLIMINÉS
 // ============================================
-
-function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, currentDate) {
-  const ranking = [];
-  const endDate = currentDate < seasonDates.end ? currentDate : seasonDates.end;
-  const roundsPerSeason = getRoundsPerSeason();
-
-  for (const p of eliminatedList) {
-    // Calculer le round global à partir du round dans la saison et de la saison d'élimination
-    const globalRound = (p.eliminatedSeason - 1) * roundsPerSeason + p.eliminatedRound;
-    const roundDates = getRoundDates(globalRound);
-
-    // L'éliminé peut participer dès la fin de son round d'élimination
-    const eliminationDate = new Date(roundDates.end);
-
-    // Vérifier que le round d'élimination est bien terminé
-    if (currentDate < eliminationDate) continue;
-
-    // Les activités comptent à partir du lendemain de l'élimination
-    const startDate = new Date(eliminationDate);
-    startDate.setDate(startDate.getDate() + 1);
-    startDate.setHours(0, 0, 0, 0);
-
-    // Même si pas encore d'activités, l'éliminé doit apparaître
-    let pActs = [];
-    let stats = { elevation: 0, distance: 0, activities: 0 };
-
-    if (startDate <= endDate) {
-      pActs = filterByParticipant(filterByPeriod(activities, startDate, endDate), p.id);
-      stats = calculateStats(pActs);
-    }
-
-    ranking.push({
-      participant: p,
-      totalElevation: stats.elevation,
-      totalDistance: stats.distance,
-      activityCount: stats.activities,
-      eliminatedRound: p.eliminatedRound,
-      eliminatedSeason: p.eliminatedSeason,
-      daysSinceElimination: Math.max(0, Math.floor((endDate - eliminationDate) / 86400000))
-    });
-  }
-
-  ranking.sort((a, b) => b.totalElevation - a.totalElevation);
-  ranking.forEach((e, i) => {
-    e.position = i + 1;
-    e.points = getEliminatedChallengePoints(e.position);
-  });
-  return ranking;
-}
 // ============================================
 // CLASSEMENT ANNUEL
 // ============================================
-
-/**
- * Compte le nombre total d'éliminés avant un round donné dans une saison
- */
-function countEliminationsBeforeRound(eliminatedList, roundInSeason) {
-  return eliminatedList.filter(e => e.eliminatedRound < roundInSeason).length;
-}
-
-function calculateYearlyStandings(activities, currentDate) {
-  const currentSeason = getSeasonNumber(currentDate);
-  const totals = {};
-
-  // Initialiser pour TOUS les participants
-  PARTICIPANTS.forEach(p => {
-    totals[p.id] = {
-      participant: p,
-      totalMainPoints: 0,
-      totalEliminatedPoints: 0,
-      totalRescapePoints: 0,
-      totalPoints: 0,
-      wins: 0,
-      seasonsPlayed: 0,
-      isLateRegistration: !wasRegisteredBeforeStart(p)
-    };
-  });
-
-  for (let s = 1; s <= currentSeason; s++) {
-    const seasonDates = getSeasonDates(s);
-    if (currentDate < seasonDates.start) continue;
-
-    const sData = simulateSeasonEliminations(activities, s, currentDate);
-    const elimRanking = calculateEliminatedChallenge(activities, sData.eliminated, seasonDates, sData.seasonComplete ? seasonDates.end : currentDate);
-
-    // Appliquer les bonus éphémères sur le classement des éliminés (embuscade, marquage, etc.)
-    const roundsPerSeasonForBonus = getRoundsPerSeason();
-    const seasonStartRound = (s - 1) * roundsPerSeasonForBonus + 1;
-    const seasonEndRound = s * roundsPerSeasonForBonus;
-
-    elimRanking.forEach(e => {
-      let gained = 0, lost = 0;
-      for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-        const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, roundNum);
-        gained += roundEffects.gained;
-        lost += roundEffects.lost;
-      }
-      // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-      const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id);
-      gained += seasonalEffects.gained;
-      lost += seasonalEffects.lost;
-
-      const netBonus = gained - lost;
-      if (netBonus !== 0) {
-        e.totalElevation = Math.max(0, e.totalElevation + netBonus);
-      }
-    });
-
-    // Re-trier et re-attribuer les points après bonus
-    elimRanking.sort((a, b) => b.totalElevation - a.totalElevation);
-    elimRanking.forEach((e, i) => {
-      e.position = i + 1;
-      e.points = getEliminatedChallengePoints(e.position);
-    });
-
-    const elimPointsMap = {};
-    elimRanking.forEach(e => elimPointsMap[e.participant.id] = e.points);
-
-    // Calculer les points rescapé de cette saison
-    const rescapeData = calculateRescapePointsForSeason(s);
-
-    // Calcul des points pour TOUS les participants
-    PARTICIPANTS.forEach(p => {
-      const elim = sData.eliminated.find(e => e.id === p.id);
-      let mainPts = 0, elimPts = 0;
-
-      if (elim) {
-        const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-        const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-        const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
-        const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
-        const position = activeAtRoundStart - indexInRound;
-        mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
-        elimPts = elimPointsMap[p.id] || 0;
-      } else if (sData.winner?.id === p.id) {
-        mainPts = getMainChallengePoints(1);
-        totals[p.id].wins++;
-      } else if (sData.seasonComplete) {
-        mainPts = getMainChallengePoints(2);
-      }
-
-      // Points rescapé
-      const rescapePts = rescapeData[p.id]?.totalPoints || 0;
-
-      if (sData.seasonComplete || elim) {
-        totals[p.id].totalMainPoints += mainPts;
-        totals[p.id].totalEliminatedPoints += elimPts;
-        totals[p.id].totalRescapePoints += rescapePts;
-        totals[p.id].totalPoints += mainPts + elimPts + rescapePts;
-        if (sData.seasonComplete) {
-          totals[p.id].seasonsPlayed++;
-        }
-      } else {
-        // Saison en cours : ajouter les points rescapé même pour les joueurs encore actifs
-        totals[p.id].totalRescapePoints += rescapePts;
-        totals[p.id].totalPoints += rescapePts;
-      }
-    });
-  }
-
-  const standings = Object.values(totals);
-  standings.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
-  standings.forEach((e, i) => e.rank = i + 1);
-  return standings;
-}
 
 // ============================================
 // RÉSUMÉ DE SAISON (pour l'historique)
@@ -1391,7 +407,7 @@ function calculateYearlyStandings(activities, currentDate) {
 
 function getSeasonSummary(activities, seasonNumber, currentDate) {
   const seasonDates = getSeasonDates(seasonNumber);
-  const sData = simulateSeasonEliminations(activities, seasonNumber, currentDate);
+  const sData = simulateSeasonEliminations(activities, seasonNumber, currentDate, frozenResultsCache, yearlyStandingsCache);
   const rounds = [];
   const roundsPerSeason = getRoundsPerSeason();
 
@@ -1433,13 +449,13 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
     let gained = 0, lost = 0;
     const details = [];
     for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-      const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, roundNum);
+      const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, roundNum, bonusesCache, seasonBonusesCache);
       gained += roundEffects.gained;
       lost += roundEffects.lost;
       details.push(...roundEffects.details);
     }
     // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id);
+    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, allActivities);
     gained += seasonalEffects.gained;
     lost += seasonalEffects.lost;
     details.push(...seasonalEffects.details);
@@ -1488,9 +504,9 @@ function renderAll() {
 
     currentRoundNumber = getGlobalRoundNumber(today);
 
-    seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today);
+    seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today, frozenResultsCache, yearlyStandingsCache);
 
-    yearlyStandingsCache = calculateYearlyStandings(allActivities, today);
+    yearlyStandingsCache = calculateYearlyStandings(allActivities, today, frozenResultsCache, bonusesCache, seasonBonusesCache);
 
     // Detect special rule for current round
     const bannerSpecialRule = getSpecialRuleForRound(currentRoundNumber);
@@ -1577,12 +593,12 @@ function renderAll() {
       });
 
       // Calculer le rescapé du round précédent (depuis frozen results)
-      const rescapeId = getRescapeFromPreviousRound(currentRoundNumber);
+      const rescapeId = getRescapeFromPreviousRound(currentRoundNumber, frozenResultsCache);
 
       // Calculer les effets des bonus éphémères pour chaque participant ACTIF
       const ephemeralEffects = {};
       ranking.forEach(e => {
-        ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForActiveAthlete(e.participant.id, currentRoundNumber);
+        ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForActiveAthlete(e.participant.id, currentRoundNumber, bonusesCache, seasonBonusesCache);
       });
 
       renderRanking(rankingContainer, {
@@ -1763,13 +779,13 @@ function renderEliminatedChallenge(container) {
     const seasonStartRound = (currentSeasonNumber - 1) * roundsPerSeason + 1;
     const seasonEndRound = currentSeasonNumber * roundsPerSeason;
     for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-      const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(eliminated.id, roundNum);
+      const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(eliminated.id, roundNum, bonusesCache, seasonBonusesCache);
       effects.gained += roundEffects.gained;
       effects.lost += roundEffects.lost;
       effects.details.push(...roundEffects.details);
     }
     // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(eliminated.id);
+    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(eliminated.id, bonusesCache, seasonBonusesCache, allActivities);
     effects.gained += seasonalEffects.gained;
     effects.lost += seasonalEffects.lost;
     effects.details.push(...seasonalEffects.details);
@@ -1894,65 +910,17 @@ function getBonusRecipientsForSeason(seasonNumber) {
 // RENDU: CLASSEMENT GÉNÉRAL
 // ============================================
 
-/**
- * Calcule les points depuis les résultats figés
- * Cette fonction utilise les données figées pour obtenir un calcul précis des points
- */
-function calculatePointsFromFrozenResults() {
-  const pointsMap = {};
-
-  // Initialiser pour tous les participants
-  PARTICIPANTS.forEach(p => {
-    pointsMap[p.id] = {
-      mainPoints: 0,        // Points du challenge principal (toutes saisons confondues)
-      elimPoints: 0,        // Points du challenge éliminés
-      bonusPoints: 0,       // Points bonus (jokers, etc.)
-      currentRoundPoints: 0, // Points potentiels du round actuel
-      wins: 0
-    };
-  });
-
-  if (!frozenResultsCache?.rounds) return pointsMap;
-
-  // Parcourir tous les rounds figés
-  const frozenRounds = Object.entries(frozenResultsCache.rounds)
-    .map(([key, value]) => ({ roundNum: parseInt(key), ...value }))
-    .sort((a, b) => a.roundNum - b.roundNum);
-
-  for (const round of frozenRounds) {
-    if (!round.frozen || !round.ranking) continue;
-
-    // Ajouter les mainPoints de chaque participant dans ce round
-    for (const entry of round.ranking) {
-      const id = String(entry.id);
-      if (!pointsMap[id]) continue;
-
-      // Les mainPoints sont attribués aux éliminés et au gagnant dans frozen_results
-      if (entry.mainPoints > 0) {
-        pointsMap[id].mainPoints += entry.mainPoints;
-      }
-
-      // Vérifier si c'est un gagnant de saison
-      if (entry.isWinner) {
-        pointsMap[id].wins++;
-      }
-    }
-  }
-
-  return pointsMap;
-}
-
 function renderFinalStandings(container) {
   const activeIds = new Set((seasonData?.active || []).map(p => p.id));
 
   // Calculer les points depuis les résultats figés pour plus de précision
-  const frozenPoints = calculatePointsFromFrozenResults();
+  const frozenPoints = calculatePointsFromFrozenResults(frozenResultsCache);
 
   // Calculer les points de la saison précédente
-  const previousSeasonPoints = calculatePointsForSeason(currentSeasonNumber - 1);
+  const previousSeasonPoints = calculatePointsForSeason(currentSeasonNumber - 1, allActivities, getCurrentDate(), frozenResultsCache, bonusesCache, seasonBonusesCache);
 
   // Calculer les points de la saison actuelle (jusqu'au dernier round figé)
-  const currentSeasonPoints = calculatePointsForSeason(currentSeasonNumber);
+  const currentSeasonPoints = calculatePointsForSeason(currentSeasonNumber, allActivities, getCurrentDate(), frozenResultsCache, bonusesCache, seasonBonusesCache);
 
   // Utiliser yearlyStandingsCache mais l'enrichir avec les données figées
   const standings = yearlyStandingsCache || [];
@@ -2052,96 +1020,6 @@ function renderFinalStandings(container) {
   container.innerHTML = html;
 }
 
-/**
- * Calcule les points pour une saison donnée depuis les résultats figés
- */
-function calculatePointsForSeason(seasonNumber) {
-  const pointsMap = {};
-
-  PARTICIPANTS.forEach(p => {
-    pointsMap[p.id] = { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
-  });
-
-  if (!frozenResultsCache?.rounds || seasonNumber < 1) return pointsMap;
-
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  const seasonEndRound = seasonNumber * roundsPerSeason;
-
-  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-    const round = frozenResultsCache.rounds[String(roundNum)];
-    if (!round?.frozen || !round.ranking) continue;
-
-    for (const entry of round.ranking) {
-      const id = String(entry.id);
-      if (!pointsMap[id]) continue;
-
-      if (entry.mainPoints > 0) {
-        pointsMap[id].mainPoints += entry.mainPoints;
-      }
-    }
-  }
-
-  // Calculer les elimPoints via calculateEliminatedChallenge
-  const seasonDates = getSeasonDates(seasonNumber);
-  const sData = simulateSeasonEliminations(allActivities, seasonNumber, new Date());
-
-  if (sData.eliminated.length > 0) {
-    const endDate = sData.seasonComplete ? seasonDates.end : new Date();
-    const elimRanking = calculateEliminatedChallenge(allActivities, sData.eliminated, seasonDates, endDate);
-
-    // Appliquer les bonus éphémères sur le classement des éliminés
-    const roundsPerSeasonForBonus = getRoundsPerSeason();
-    const bonusSeasonStart = (seasonNumber - 1) * roundsPerSeasonForBonus + 1;
-    const bonusSeasonEnd = seasonNumber * roundsPerSeasonForBonus;
-
-    elimRanking.forEach(e => {
-      let gained = 0, lost = 0;
-      for (let rn = bonusSeasonStart; rn <= bonusSeasonEnd; rn++) {
-        const fx = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, rn);
-        gained += fx.gained;
-        lost += fx.lost;
-      }
-      // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-      const seasonalFx = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id);
-      gained += seasonalFx.gained;
-      lost += seasonalFx.lost;
-
-      const netBonus = gained - lost;
-      if (netBonus !== 0) {
-        e.totalElevation = Math.max(0, e.totalElevation + netBonus);
-      }
-    });
-
-    // Re-trier et re-attribuer les points après bonus
-    elimRanking.sort((a, b) => b.totalElevation - a.totalElevation);
-    elimRanking.forEach((e, i) => {
-      e.position = i + 1;
-      e.points = getEliminatedChallengePoints(e.position);
-    });
-
-    for (const e of elimRanking) {
-      const id = String(e.participant.id);
-      if (pointsMap[id]) {
-        pointsMap[id].elimPoints = e.points || 0;
-      }
-    }
-  }
-
-  // Calculer les points rescapé
-  const rescapeData = calculateRescapePointsForSeason(seasonNumber);
-  for (const id in pointsMap) {
-    pointsMap[id].rescapePoints = rescapeData[id]?.totalPoints || 0;
-  }
-
-  // Calculer le total
-  for (const id in pointsMap) {
-    pointsMap[id].total = pointsMap[id].mainPoints + pointsMap[id].elimPoints + pointsMap[id].rescapePoints;
-  }
-
-  return pointsMap;
-}
-
 // ============================================
 // RENDU: SECTION ARSENAL (JOKERS & BONUS)
 // ============================================
@@ -2177,7 +1055,7 @@ async function renderArsenalSection(container, roundNumber) {
       });
 
       // Récupérer les bonus utilisés au round précédent
-      previousRoundEffects.bonuses = getBonusesUsedInRound(previousRoundNumber).map(b => {
+      previousRoundEffects.bonuses = getBonusesUsedInRound(previousRoundNumber, bonusesCache, seasonBonusesCache).map(b => {
         const bonusType = BONUS_TYPES?.[b.bonus_id];
         return {
           ...b,
@@ -2326,7 +1204,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
   switch (bonusId) {
     case 'embuscade': {
       if (!targetId) return null;
-      const targetActivities = getEligibleActivitiesForBonus(targetId, effectRound);
+      const targetActivities = getEligibleActivitiesForBonus(targetId, effectRound, allActivities);
       if (targetActivities.length === 0) return "Aucune activité éligible";
       const elevations = targetActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
@@ -2336,7 +1214,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
 
     case 'ravitaillement': {
       // Calculer le D+ potentiel des activités de l'éliminé
-      const athleteActivities = getEligibleActivitiesForBonus(athleteId, effectRound);
+      const athleteActivities = getEligibleActivitiesForBonus(athleteId, effectRound, allActivities);
       if (athleteActivities.length === 0) return "Aucune activité éligible";
       const elevations = athleteActivities.map(a => a.total_elevation_gain || 0);
       const minElev = Math.min(...elevations);
@@ -2347,11 +1225,11 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
 
     case 'duel': {
       // Calculer l'avance/retard sur le co-éliminé
-      const coEliminatedId = findCoEliminated(athleteId, bonus.elimination_round);
+      const coEliminatedId = findCoEliminated(athleteId, bonus.elimination_round, frozenResultsCache);
       if (!coEliminatedId) return null;
       const coEliminated = getParticipantById(coEliminatedId);
-      const athleteElev = getEliminatedElevationSince(athleteId, bonus.elimination_round);
-      const coElimElev = getEliminatedElevationSince(coEliminatedId, bonus.elimination_round);
+      const athleteElev = getEliminatedElevationSince(athleteId, bonus.elimination_round, allActivities);
+      const coElimElev = getEliminatedElevationSince(coEliminatedId, bonus.elimination_round, allActivities);
       const diff = athleteElev - coElimElev;
       if (diff > 0) {
         return `${formatElevation(diff, false)} m d'avance sur ${coEliminated?.name || 'son adversaire'}`;
@@ -2389,7 +1267,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
       }
       if (!elimRound) return "Aucune donnée d'élimination";
       // Trouver l'activité la plus faible
-      const activities = getEliminatedActivities(athleteId, elimRound);
+      const activities = getEliminatedActivities(athleteId, elimRound, allActivities);
       if (activities.length === 0) return "Aucune activité depuis l'élimination";
       const minActivity = activities.reduce((min, a) =>
         (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
@@ -2405,8 +1283,8 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
       const roundDates = getRoundDates(effectRound);
 
       // D+ du round de l'éliminé (celui qui utilise le bonus)
-      const athleteRoundElev = getRoundElevation(athleteId, roundDates);
-      const targetRoundElev = getRoundElevation(targetId, roundDates);
+      const athleteRoundElev = getRoundElevation(athleteId, roundDates, allActivities);
+      const targetRoundElev = getRoundElevation(targetId, roundDates, allActivities);
 
       const athleteLoss = Math.round(athleteRoundElev * 0.25);
       const targetLoss = Math.round(targetRoundElev * 0.25);
@@ -2420,7 +1298,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
       if (!targetId) return "Cible non définie";
       const roundDates = getRoundDates(effectRound);
 
-      const targetRoundElev = getRoundElevation(targetId, roundDates);
+      const targetRoundElev = getRoundElevation(targetId, roundDates, allActivities);
       const stolenThisRound = Math.round(targetRoundElev * 0.10);
       const targetName = target?.name || 'la cible';
 
@@ -2436,87 +1314,6 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
     default:
       return null;
   }
-}
-
-/**
- * Calcule le D+ d'un joueur pour un round donné
- */
-function getRoundElevation(athleteId, roundDates) {
-  if (!allActivities) return 0;
-  const startMs = roundDates.start.getTime();
-  const endMs = roundDates.end.getTime();
-  const activities = allActivities.filter(a => {
-    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
-    const endTime = getActivityEndTime(a);
-    return endTime >= startMs && endTime <= endMs;
-  });
-  return activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
-}
-
-/**
- * Récupère les activités éligibles pour un bonus (>20min)
- */
-function getEligibleActivitiesForBonus(athleteId, roundNumber) {
-  if (!allActivities) return [];
-
-  // Si un numéro de round est fourni, filtrer par les dates de ce round
-  let activities = allActivities;
-  if (roundNumber) {
-    const roundDates = getRoundDates(roundNumber);
-    activities = filterByPeriod(allActivities, roundDates.start, roundDates.end);
-  }
-
-  return activities.filter(a => {
-    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
-    const duration = a.moving_time || a.elapsed_time || 0;
-    return duration >= 20 * 60; // 20 minutes en secondes
-  });
-}
-
-/**
- * Trouve le co-éliminé d'un joueur
- */
-function findCoEliminated(athleteId, eliminationRound) {
-  if (!frozenResultsCache?.rounds) return null;
-  const roundData = frozenResultsCache.rounds[String(eliminationRound)];
-  if (!roundData?.eliminations) return null;
-
-  const coElim = roundData.eliminations.find(e => String(e.id) !== String(athleteId));
-  return coElim?.id || null;
-}
-
-/**
- * Calcule le D+ d'un éliminé depuis son élimination
- */
-function getEliminatedElevationSince(athleteId, eliminationRound) {
-  const roundDates = getRoundDates(eliminationRound);
-  const startDate = new Date(roundDates.end);
-  startDate.setDate(startDate.getDate() + 1);
-  const startMs = startDate.getTime();
-
-  const activities = allActivities.filter(a => {
-    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
-    // Utiliser l'heure de fin : une activité commencée avant minuit mais finie après
-    // doit être rattachée au round où elle se termine
-    return getActivityEndTime(a) >= startMs;
-  });
-
-  return activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
-}
-
-/**
- * Récupère les activités d'un éliminé depuis son élimination
- */
-function getEliminatedActivities(athleteId, eliminationRound) {
-  const roundDates = getRoundDates(eliminationRound);
-  const startDate = new Date(roundDates.end);
-  startDate.setDate(startDate.getDate() + 1);
-  const startMs = startDate.getTime();
-
-  return allActivities.filter(a => {
-    if (String(a.athlete?.id || a.athlete_id) !== String(athleteId)) return false;
-    return getActivityEndTime(a) >= startMs;
-  });
 }
 
 // ============================================
@@ -2582,7 +1379,7 @@ function renderCurrentSeasonHistory(container) {
     if (roundEliminated.length === 0) continue;
 
     // Essayer d'utiliser les données figées (source de vérité)
-    const frozenRound = getFrozenRound(globalRound);
+    const frozenRound = getFrozenRound(globalRound, frozenResultsCache);
 
     if (frozenRound && frozenRound.frozen) {
       // Utiliser les données figées
@@ -2669,7 +1466,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
       pointsBadges += `<span class="history-pts-badge" title="Points challenge principal">${mainPts} pts</span>`;
     }
     if (isRescape) {
-      const rescapeInfo = getRescapeInfoForRound(globalRound);
+      const rescapeInfo = getRescapeInfoForRound(globalRound, frozenResultsCache);
       if (rescapeInfo) {
         const streak = rescapeInfo.consecutive;
         const rescPts = rescapeInfo.points;
@@ -2740,7 +1537,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
   }
 
   // Afficher les bonus éphémères utilisés ce round
-  const bonusesUsed = getBonusesUsedInRound(globalRound);
+  const bonusesUsed = getBonusesUsedInRound(globalRound, bonusesCache, seasonBonusesCache);
   if (bonusesUsed.length > 0) {
     const bonusDescriptions = bonusesUsed.map(bonus => getBonusHistoryDescription(bonus));
 
@@ -2876,7 +1673,7 @@ function renderCompletedSeasonHistory(container, summary) {
     const globalRound = r.globalRound;
 
     // Essayer de récupérer les données figées
-    const frozenRound = getFrozenRound(globalRound);
+    const frozenRound = getFrozenRound(globalRound, frozenResultsCache);
 
     if (frozenRound && frozenRound.frozen) {
       // Utiliser les données figées (source de vérité)
@@ -3021,14 +1818,14 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   const zeroElimCount = eliminatedDetails.filter(e => e.isZeroElim).length;
 
   // Récupérer les bonus utilisés ce round pour calculer les effets
-  const roundBonuses = getBonusesUsedInRound(globalRound);
+  const roundBonuses = getBonusesUsedInRound(globalRound, bonusesCache, seasonBonusesCache);
 
   // Identifier le rescapé = dernier survivant (dernier non-éliminé du classement)
   const survivorEntries = ranking.filter(e => !eliminatedIds.has(e.id));
   const rescapeEntry = survivorEntries.length > 0 ? survivorEntries[survivorEntries.length - 1] : null;
   const rescapeId = rescapeEntry ? String(rescapeEntry.id) : null;
   const isFinaleRound = frozenRound.roundInSeason === getRoundsPerSeason();
-  const rescapeInfo = getRescapeInfoForRound(globalRound);
+  const rescapeInfo = getRescapeInfoForRound(globalRound, frozenResultsCache);
 
   // Générer le HTML du classement pour le dropdown avec pilules bonus
   const rankingHtml = ranking.map((entry, idx) => {
@@ -3149,7 +1946,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   }
 
   // Afficher les bonus éphémères utilisés ce round
-  const bonusesUsed = getBonusesUsedInRound(globalRound);
+  const bonusesUsed = getBonusesUsedInRound(globalRound, bonusesCache, seasonBonusesCache);
   if (bonusesUsed.length > 0) {
     const bonusDescriptions = bonusesUsed.map(bonus => getBonusHistoryDescription(bonus));
 
