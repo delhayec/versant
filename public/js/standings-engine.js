@@ -1220,7 +1220,7 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
  * Calcule les points depuis les résultats figés.
  * PORTÉ DEPUIS : app.js::calculatePointsFromFrozenResults()
  */
-export function calculatePointsFromFrozenResults(frozenResultsCache) {
+export function calculatePointsFromFrozenResults(frozenResultsCache, currentDate = null) {
   const pointsMap = {};
 
   PARTICIPANTS.forEach(p => {
@@ -1240,8 +1240,16 @@ export function calculatePointsFromFrozenResults(frozenResultsCache) {
     .map(([key, value]) => ({ roundNum: parseInt(key), ...value }))
     .sort((a, b) => a.roundNum - b.roundNum);
 
+  // Si currentDate est fourni, on ignore les rounds dont la fin est STRICTEMENT après.
+  // Un round exactement à currentDate est inclus (son résultat est déjà figé à ce moment).
+  const cutoffTime = currentDate ? new Date(currentDate).getTime() : null;
+
   for (const round of frozenRounds) {
     if (!round.frozen || !round.ranking) continue;
+    if (cutoffTime !== null) {
+      const roundEndTime = round.dates?.end ? new Date(round.dates.end).getTime() : null;
+      if (roundEndTime !== null && roundEndTime > cutoffTime) continue;
+    }
 
     // Ajouter les mainPoints de chaque participant dans ce round
     for (const entry of round.ranking) {
@@ -1386,7 +1394,9 @@ export function computeFinalStandings({ activities, currentDate, frozenResults, 
   );
 
   // 2. Enrichissement depuis les données figées (source de vérité pour mainPoints)
-  const frozenPoints = calculatePointsFromFrozenResults(frozenResultsCache);
+  //    Borner par currentDate pour que les snapshots historiques (ex: fin S1) ne prennent
+  //    pas en compte les rounds postérieurs.
+  const frozenPoints = calculatePointsFromFrozenResults(frozenResultsCache, currentDate);
 
   // 3. Breakdown par saison pour affichage (comme renderFinalStandings)
   const currentSeasonNumber = getSeasonNumber(currentDate);
