@@ -1895,24 +1895,20 @@ async function renderPointsChart() {
     pointsChart.setOption({
       backgroundColor: 'transparent',
       tooltip: {
-        trigger: 'axis',
+        trigger: 'item',
         backgroundColor: 'rgba(10,10,15,0.95)',
         borderColor: 'rgba(255,255,255,0.08)',
         textStyle: { color: '#fff', fontFamily: "'Inter',sans-serif" },
-        formatter: params => {
-          params.sort((a, b) => b.value - a.value);
-          const seasonLabel = params[0].axisValue;
-          let html = `<strong>${seasonLabel}</strong><br/>`;
-          for (const p of params.slice(0, 10)) {
-            // Récupérer le breakdown
-            const athleteInfo = Object.values(byAthlete).find(a => a.name === p.seriesName);
-            const seasonIdx = params[0].dataIndex;
-            const bd = athleteInfo?.cumulative[seasonIdx]?.breakdown;
-            const bdStr = bd ? ` <span style="opacity:0.6;font-size:10px">(P:${bd.main} É:${bd.elim} R:${bd.rescape} B:${bd.bonus})</span>` : '';
-            html += `${p.marker}${p.seriesName} : <strong>${p.value}</strong> pts${bdStr}<br/>`;
-          }
-          if (params.length > 10) html += `<em>… et ${params.length - 10} autres</em>`;
-          return html;
+        formatter: p => {
+          // p est un objet (pas un tableau) quand trigger = 'item'
+          const athleteInfo = Object.values(byAthlete).find(a => a.name === p.seriesName);
+          const bd = athleteInfo?.cumulative[p.dataIndex]?.breakdown;
+          const season = seasons[p.dataIndex];
+          const bdStr = bd
+            ? `<div style="opacity:0.7;font-size:11px;margin-top:4px">Principal : ${bd.main} • Éliminés : ${bd.elim} • Rescapé : ${bd.rescape} • Bonus : ${bd.bonus}</div>`
+            : '';
+          return `<strong>${p.seriesName}</strong> — Saison ${season}<br/>` +
+                 `${p.marker}<strong>${p.value}</strong> pts cumulés${bdStr}`;
         }
       },
       legend: {
@@ -1973,19 +1969,15 @@ async function renderPointsChart() {
     pointsChart.setOption({
       backgroundColor: 'transparent',
       tooltip: {
-        trigger: 'axis',
+        trigger: 'item',
         backgroundColor: 'rgba(10,10,15,0.95)',
         borderColor: 'rgba(255,255,255,0.08)',
         textStyle: { color: '#fff', fontFamily: "'Inter',sans-serif" },
-        formatter: params => {
-          params.sort((a, b) => a.value - b.value);
-          const seasonLabel = params[0].axisValue;
-          let html = `<strong>${seasonLabel}</strong><br/>`;
-          for (const p of params.slice(0, 10)) {
-            const suffix = p.value === 1 ? 'er' : 'e';
-            html += `${p.marker}${p.seriesName} : ${p.value}<sup>${suffix}</sup><br/>`;
-          }
-          return html;
+        formatter: p => {
+          const suffix = p.value === 1 ? 'er' : 'e';
+          const season = seasons[p.dataIndex];
+          return `<strong>${p.seriesName}</strong> — Saison ${season}<br/>` +
+                 `${p.marker}${p.value}<sup>${suffix}</sup> au classement`;
         }
       },
       legend: { show: false },
