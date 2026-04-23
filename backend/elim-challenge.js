@@ -236,8 +236,11 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber, bo
  * Calcule les effets des bonus SAISONNIERS (one-shot) pour un éliminé.
  * Appelé UNE seule fois par athlète par saison.
  * Gère : second_souffle, trap, duel, brouillard.
+ *
+ * @param {Date} [endDate] - Borne sup pour la recherche des activités post-élim
+ *   (utilisé par second_souffle pour ne pas considérer des activités au-delà de la saison)
  */
-function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, seasonBonusesCache, allActivities) {
+function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, seasonBonusesCache, allActivities, endDate = null) {
   const effects = { gained: 0, lost: 0, details: [] };
   const normalizedId = String(athleteId);
   const allAthleteBonus = getAllBonusesForAthlete(normalizedId, bonusesCache, seasonBonusesCache);
@@ -249,7 +252,7 @@ function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, se
       if (!alreadyAdded) {
         const elimRound = bonus.elimination_round;
         if (elimRound) {
-          const elimActivities = getEliminatedActivities(normalizedId, elimRound, allActivities);
+          const elimActivities = getEliminatedActivities(normalizedId, elimRound, allActivities, endDate);
           if (elimActivities.length > 0) {
             const minActivity = elimActivities.reduce((min, a) =>
               (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
@@ -398,9 +401,10 @@ function computeEliminatedChallengeRankingForSeason({
   for (const entry of ranking) {
     entry.bonusEffects = { gained: 0, lost: 0, details: [] };
 
-    // Saisonnier (1x)
+    // Saisonnier (1x) — borné à la fin de saison pour que second_souffle ne
+    // prenne en compte QUE les activités de la saison courante
     const seasonal = getSeasonalBonusEffectsForEliminatedAthlete(
-      entry.id, bonusesCache, seasonBonusesCache, activities
+      entry.id, bonusesCache, seasonBonusesCache, activities, seasonDates.end
     );
     entry.bonusEffects.gained += seasonal.gained;
     entry.bonusEffects.lost += seasonal.lost;

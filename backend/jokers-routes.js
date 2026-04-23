@@ -26,6 +26,20 @@ function createInitialJokersStock() {
 function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PASSWORD, requireAuth }) {
 
   /**
+   * Compte les "admin refunds" (remboursements qui ajoutent +1 au stock).
+   * Ce sont des entrées dans jokers_usage.json avec status === 'admin_refund'.
+   * Chacun compense un usage figé dans frozen_results.json que l'admin n'a pas
+   * le droit de supprimer.
+   */
+  function countAdminRefunds(usageList, athleteId, jokerId) {
+    return usageList.filter(u =>
+      String(u.athlete_id) === String(athleteId) &&
+      u.joker_id === jokerId &&
+      u.status === 'admin_refund'
+    ).length;
+  }
+
+  /**
    * Lit jokers_usage.json ET fusionne avec les jokersUsed des frozen_results.json
    * Source unique de vérité pour le calcul du stock
    */
@@ -95,17 +109,19 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
 
       const INITIAL_STOCK = 2;
 
-      // Calculer le stock depuis les utilisations (comme le frontend)
+      // Calculer le stock : INITIAL - usages réels + admin_refunds
       const athletesWithJokers = leagueAthletes.map(athlete => {
         const athleteId = String(athlete.id);
 
-        // Compter les utilisations par type de joker
         const jokerStock = {};
         Object.keys(JOKER_CONFIG).forEach(jokerId => {
-          const usedCount = jokerUsage.filter(
-            u => String(u.athlete_id) === athleteId && u.joker_id === jokerId
+          const realUsages = jokerUsage.filter(
+            u => String(u.athlete_id) === athleteId &&
+                 u.joker_id === jokerId &&
+                 u.status !== 'admin_refund'
           ).length;
-          jokerStock[jokerId] = Math.max(0, INITIAL_STOCK - usedCount);
+          const refunds = countAdminRefunds(jokerUsage, athleteId, jokerId);
+          jokerStock[jokerId] = Math.max(0, Math.min(5, INITIAL_STOCK - realUsages + refunds));
         });
 
         return {
@@ -148,7 +164,6 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
         return res.status(400).json({ error: 'jokerStock invalide' });
       }
 
-      // Valider les valeurs
       for (const [key, value] of Object.entries(jokerStock)) {
         if (!JOKER_CONFIG[key]) return res.status(400).json({ error: `Joker inconnu: ${key}` });
         if (typeof value !== 'number' || value < 0 || value > 5) {
@@ -156,84 +171,122 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
         }
       }
 
-      // Charger les données
       const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
       const athlete = athletes.find(a => String(a.id) === String(athleteId));
       if (!athlete) return res.status(404).json({ error: 'Athlète non trouvé' });
 
-      // Lire le fichier jokers_usage.json (seul fichier modifiable)
+      // Charger le fichier jokers_usage.json (seul fichier modifiable par l'admin)
       let jokerUsageRaw = [];
-      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch {}
       let jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
         (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
 
-      // Lire aussi les frozen results pour connaître le stock RÉEL
+      // Charger aussi les frozen pour connaître le stock réel
       const mergedUsage = await readMergedJokerUsage();
-
       const INITIAL_STOCK = 2;
       const changes = [];
 
-      // Pour chaque type de joker, ajuster les utilisations
       for (const [jokerId, desiredStock] of Object.entries(jokerStock)) {
-        // Compter les utilisations TOTALES (fichier + frozen) pour connaître le stock réel
-        const totalUsages = mergedUsage.filter(
-          u => String(u.athlete_id) === String(athleteId) && u.joker_id === jokerId
+        // Stock actuel = INITIAL - usages réels (frozen + fichier) + refunds admin
+        const realUsages = mergedUsage.filter(
+          u => String(u.athlete_id) === String(athleteId) &&
+               u.joker_id === jokerId &&
+               u.status !== 'admin_refund'
         );
-        const currentStock = Math.max(0, INITIAL_STOCK - totalUsages.length);
-
-        // Compter seulement les utilisations dans le fichier (modifiables)
-        const fileUsages = jokerUsage.filter(
-          u => String(u.athlete_id) === String(athleteId) && u.joker_id === jokerId
+        const refunds = jokerUsage.filter(
+          u => String(u.athlete_id) === String(athleteId) &&
+               u.joker_id === jokerId &&
+               u.status === 'admin_refund'
         );
+        const currentStock = Math.max(0, INITIAL_STOCK - realUsages.length + refunds.length);
 
-        if (desiredStock === currentStock) continue; // Pas de changement
+        if (desiredStock === currentStock) continue;
 
         if (desiredStock > currentStock) {
-          // Augmenter le stock = supprimer des utilisations du fichier (les plus récentes d'abord)
-          // On ne peut supprimer que les entrées du fichier, pas celles des frozen results
-          const toRemove = desiredStock - currentStock;
-          const usagesToRemove = fileUsages
+          // Augmenter : priorité aux suppressions d'ajustements précédents (admin_adjustment),
+          // sinon ajouter des "admin_refund" (compensent des usages figés).
+          let toAdd = desiredStock - currentStock;
+
+          const fileAdjustments = jokerUsage.filter(
+            u => String(u.athlete_id) === String(athleteId) &&
+                 u.joker_id === jokerId &&
+                 u.status === 'admin_adjustment'
+          );
+          // Supprimer d'abord les admin_adjustment les plus récents
+          fileAdjustments
             .sort((a, b) => new Date(b.used_at) - new Date(a.used_at))
-            .slice(0, toRemove);
+            .slice(0, toAdd)
+            .forEach(u => {
+              const idx = jokerUsage.findIndex(j => j.id === u.id);
+              if (idx >= 0) {
+                jokerUsage.splice(idx, 1);
+                toAdd--;
+                changes.push(`${jokerId}: suppression d'ajustement ${u.id}`);
+              }
+            });
 
-          usagesToRemove.forEach(u => {
-            const idx = jokerUsage.findIndex(j => j.id === u.id);
-            if (idx >= 0) {
-              jokerUsage.splice(idx, 1);
-              changes.push(`${jokerId}: supprimé usage ${u.id}`);
-            }
-          });
-
-          // Si on n'a pas pu supprimer assez (car certains usages sont dans frozen),
-          // on ne peut pas aller plus haut que le stock réel le permet
-          // (pas de message d'erreur, on fait au mieux)
-        } else {
-          // Diminuer le stock = ajouter des utilisations fictives
-          const toAdd = currentStock - desiredStock;
+          // S'il reste des points de stock à remonter, créer des admin_refund
           for (let i = 0; i < toAdd; i++) {
-            const fakeUsage = {
-              id: `admin-${athleteId}-${jokerId}-${Date.now()}-${i}`,
+            jokerUsage.push({
+              id: `admin-refund-${athleteId}-${jokerId}-${Date.now()}-${i}`,
               athlete_id: String(athleteId),
               athlete_name: athlete.name,
               joker_id: jokerId,
               joker_name: JOKER_CONFIG[jokerId].name,
               target_athlete_id: null,
               target_athlete_name: null,
-              round_number: 0, // Round 0 = ajustement admin
+              round_number: 0,
+              used_at: new Date().toISOString(),
+              status: 'admin_refund',
+              resolved: true,
+              result: 'Remboursement admin (+1 stock)'
+            });
+            changes.push(`${jokerId}: ajout d'un admin_refund`);
+          }
+        } else {
+          // Diminuer : priorité à la suppression d'admin_refund existants,
+          // sinon ajouter des "admin_adjustment" (= usages fictifs).
+          let toRemove = currentStock - desiredStock;
+
+          const existingRefunds = jokerUsage.filter(
+            u => String(u.athlete_id) === String(athleteId) &&
+                 u.joker_id === jokerId &&
+                 u.status === 'admin_refund'
+          );
+          existingRefunds
+            .sort((a, b) => new Date(b.used_at) - new Date(a.used_at))
+            .slice(0, toRemove)
+            .forEach(u => {
+              const idx = jokerUsage.findIndex(j => j.id === u.id);
+              if (idx >= 0) {
+                jokerUsage.splice(idx, 1);
+                toRemove--;
+                changes.push(`${jokerId}: suppression d'un admin_refund`);
+              }
+            });
+
+          for (let i = 0; i < toRemove; i++) {
+            jokerUsage.push({
+              id: `admin-adj-${athleteId}-${jokerId}-${Date.now()}-${i}`,
+              athlete_id: String(athleteId),
+              athlete_name: athlete.name,
+              joker_id: jokerId,
+              joker_name: JOKER_CONFIG[jokerId].name,
+              target_athlete_id: null,
+              target_athlete_name: null,
+              round_number: 0,
               used_at: new Date().toISOString(),
               status: 'admin_adjustment',
               resolved: true,
-              result: 'Ajustement admin'
-            };
-            jokerUsage.push(fakeUsage);
-            changes.push(`${jokerId}: ajouté usage fictif`);
+              result: 'Ajustement admin (-1 stock)'
+            });
+            changes.push(`${jokerId}: ajout d'un admin_adjustment`);
           }
         }
       }
 
-      // Sauvegarder
       await fs.writeFile(JOKERS_FILE, JSON.stringify(jokerUsage, null, 2));
-      console.log(`🃏 Admin: Stock jokers modifié pour ${athlete.name}: ${changes.join(', ')}`);
+      console.log(`🃏 Admin: stock jokers modifié pour ${athlete.name}: ${changes.join(', ') || 'aucun changement'}`);
 
       res.json({ success: true, athlete_id: athleteId, jokers_stock: jokerStock, changes });
     } catch (error) {

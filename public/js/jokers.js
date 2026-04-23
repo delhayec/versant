@@ -95,22 +95,40 @@ function saveJokersState() {
 // ============================================
 
 /**
- * Compte combien de fois un joker a été utilisé par un participant
+ * Compte combien de fois un joker a été VRAIMENT utilisé par un participant.
+ * Exclut les `admin_refund` (ce sont des remboursements qui augmentent le stock,
+ * pas des utilisations).
  */
 function getUsedJokerCount(participantId, jokerId) {
   const pid = String(participantId);
   return jokerUsageCache.filter(
-    u => String(u.athlete_id) === pid && u.joker_id === jokerId
+    u => String(u.athlete_id) === pid &&
+         u.joker_id === jokerId &&
+         u.status !== 'admin_refund'
   ).length;
 }
 
 /**
- * Calcule le stock restant d'un joker pour un participant
- * Stock = INITIAL (2) - Utilisations
+ * Compte les remboursements admin pour ce (participant, joker).
+ * Chaque `admin_refund` ajoute +1 au stock.
+ */
+function getAdminRefundCount(participantId, jokerId) {
+  const pid = String(participantId);
+  return jokerUsageCache.filter(
+    u => String(u.athlete_id) === pid &&
+         u.joker_id === jokerId &&
+         u.status === 'admin_refund'
+  ).length;
+}
+
+/**
+ * Calcule le stock restant d'un joker pour un participant.
+ * Stock = INITIAL (2) - usages réels + remboursements admin
  */
 function getRemainingStock(participantId, jokerId) {
   const used = getUsedJokerCount(participantId, jokerId);
-  return Math.max(0, INITIAL_STOCK - used);
+  const refunds = getAdminRefundCount(participantId, jokerId);
+  return Math.max(0, Math.min(5, INITIAL_STOCK - used + refunds));
 }
 
 /**
@@ -498,12 +516,14 @@ function validateJokersCache() {
     issues.push(`${unknownAthletes.length} utilisations avec athlete_id inconnu`);
   }
 
-  // Vérifier qu'aucun participant n'a utilisé plus de 2 fois le même joker
+  // Vérifier qu'aucun participant n'a utilisé plus que son stock (INITIAL + refunds admin)
   PARTICIPANTS.forEach(p => {
     Object.keys(JOKER_TYPES).forEach(jokerId => {
-      const count = getUsedJokerCount(p.id, jokerId);
-      if (count > INITIAL_STOCK) {
-        issues.push(`${p.name} a utilisé ${count}x ${jokerId} (max: ${INITIAL_STOCK})`);
+      const used = getUsedJokerCount(p.id, jokerId);
+      const refunds = getAdminRefundCount(p.id, jokerId);
+      const maxAllowed = INITIAL_STOCK + refunds;
+      if (used > maxAllowed) {
+        issues.push(`${p.name} a utilisé ${used}x ${jokerId} (max: ${maxAllowed})`);
       }
     });
   });
