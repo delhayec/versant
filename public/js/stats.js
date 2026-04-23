@@ -1738,16 +1738,20 @@ async function computePointsEvolution() {
   const roundNumbers = Object.keys(rounds).map(n => parseInt(n, 10)).sort((a, b) => a - b);
   if (roundNumbers.length === 0) return null;
 
-  // Déterminer les saisons à afficher
+  // Déterminer les saisons à afficher : uniquement les saisons TERMINÉES
+  // (un round finale figé avec `isWinner: true` dans le ranking).
+  // La saison en cours n'est pas affichée car ses points évoluent en continu
+  // et peuvent être trompeurs.
   const today = new Date();
-  const currentSeason = getSeasonNumber(today);
-
-  // Filtrer les saisons qui ont au moins un round figé
   const seasons = [];
-  for (let s = 1; s <= currentSeason; s++) {
-    const startRound = getSeasonStartRound(s);
-    const hasFrozen = rounds[String(startRound)]?.frozen;
-    if (hasFrozen) seasons.push(s);
+  const maxSeason = getSeasonNumber(today);
+  for (let s = 1; s <= maxSeason; s++) {
+    // Trouver la finale de cette saison
+    const roundsOfSeason = Object.values(rounds).filter(r => r && Number(r.seasonNumber) === s);
+    const hasCompletedFinale = roundsOfSeason.some(r =>
+      r.frozen && Array.isArray(r.ranking) && r.ranking.some(e => e.isWinner)
+    );
+    if (hasCompletedFinale) seasons.push(s);
   }
 
   if (seasons.length === 0) return null;
@@ -1771,10 +1775,23 @@ async function computePointsEvolution() {
   };
 
   for (const s of seasons) {
-    const isCurrentSeason = s === currentSeason;
-    const standings = isCurrentSeason
-      ? computeFinalStandings({ ...baseParams, currentDate: today })
-      : computeStandingsAtEndOfSeason(baseParams, s);
+    const standings = computeStandingsAtEndOfSeason(baseParams, s);
+
+    // DEBUG — affichage console pour diagnostiquer les valeurs du graphe.
+    // Retire ce bloc quand les chiffres sont validés.
+    console.group(`📊 Évolution — Fin Saison ${s}`);
+    const sorted = [...standings].sort((a, b) => b.totalPoints - a.totalPoints);
+    console.table(sorted.map(e => ({
+      rank: e.rank,
+      name: e.participant.name,
+      total: e.totalPoints,
+      main: e.totalMainPoints,
+      elim: e.totalEliminatedPoints,
+      rescape: e.totalRescapePoints,
+      bonus: e.bonusPoints,
+      wins: e.wins
+    })));
+    console.groupEnd();
 
     for (const entry of standings) {
       const id = String(entry.participant.id);
