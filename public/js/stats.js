@@ -1775,11 +1775,30 @@ async function computePointsEvolution() {
   };
 
   for (const s of seasons) {
-    const standings = computeStandingsAtEndOfSeason(baseParams, s);
+    // Utiliser la VRAIE date de fin de saison (fin du round finale figé)
+    // plutôt que getSeasonDates() qui dépend de PARTICIPANTS.length et peut diverger
+    // si le nombre d'athlètes en prod ≠ nombre utilisé pour le calcul.
+    const seasonRounds = Object.values(rounds)
+      .filter(r => r && Number(r.seasonNumber) === s && r.frozen)
+      .sort((a, b) => (a.roundInSeason || 0) - (b.roundInSeason || 0));
+    const finale = seasonRounds[seasonRounds.length - 1];
+    const snapshotDate = finale?.dates?.end
+      ? new Date(finale.dates.end)
+      : null;
+
+    if (!snapshotDate) {
+      console.warn(`⚠️ Pas de date de fin pour la saison ${s}, snapshot ignoré`);
+      continue;
+    }
+
+    const standings = computeFinalStandings({
+      ...baseParams,
+      currentDate: snapshotDate
+    });
 
     // DEBUG — affichage console pour diagnostiquer les valeurs du graphe.
     // Retire ce bloc quand les chiffres sont validés.
-    console.group(`📊 Évolution — Fin Saison ${s}`);
+    console.group(`📊 Évolution — Fin Saison ${s} (snapshot = ${snapshotDate.toISOString()})`);
     const sorted = [...standings].sort((a, b) => b.totalPoints - a.totalPoints);
     console.table(sorted.map(e => ({
       rank: e.rank,
