@@ -186,11 +186,20 @@ async function loadBonusChoices() {
       cache: 'no-store'
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`⚠️ loadBonusChoices: HTTP ${res.status}`);
+      return null;
+    }
 
     const data = await res.json();
-    if (data.hasChoice) {
+    console.log('📥 /api/bonuses/choices →', data);
+
+    if (data.hasChoice && Array.isArray(data.choices) && data.choices.length > 0) {
       bonusChoices = data.choices;
+      console.log(`🎁 ${bonusChoices.length} choix de bonus en attente :`, bonusChoices);
+    } else {
+      // S'assurer qu'on reset bien à null s'il n'y a plus de choix
+      bonusChoices = null;
     }
     return bonusChoices;
   } catch (error) {
@@ -743,7 +752,17 @@ function renderBonus() {
   const section = document.getElementById('bonusSection');
   const content = document.getElementById('bonusContent');
 
-  if (!section || !content) return;
+  console.log('🎨 renderBonus()', {
+    bonusData,
+    bonusChoices,
+    sectionExists: !!section,
+    contentExists: !!content
+  });
+
+  if (!section || !content) {
+    console.warn('⚠️ renderBonus: éléments DOM bonusSection/bonusContent introuvables');
+    return;
+  }
 
   // Si pas de bonus et pas de choix en attente, cacher la section
   if (!bonusData && !bonusChoices) {
@@ -755,6 +774,7 @@ function renderBonus() {
 
   // Si choix en attente, afficher le modal de choix
   if (bonusChoices && bonusChoices.length > 0) {
+    console.log('🎁 Affichage du modal de choix avec :', bonusChoices);
     showBonusChoiceModal();
     content.innerHTML = `
       <div class="bonus-card" style="cursor: pointer;" onclick="window.showBonusChoiceModal()">
@@ -862,16 +882,42 @@ function getBonusTimingInfo(bonusId) {
  * Affiche le modal de choix de bonus (roguelite)
  */
 function showBonusChoiceModal() {
-  if (!bonusChoices || bonusChoices.length === 0) return;
+  console.log('🎭 showBonusChoiceModal() appelé avec bonusChoices =', bonusChoices);
+
+  if (!bonusChoices || bonusChoices.length === 0) {
+    console.warn('⚠️ showBonusChoiceModal: pas de choix à afficher');
+    return;
+  }
 
   const modal = document.getElementById('bonusChoiceModal');
   const grid = document.getElementById('bonusChoiceGrid');
 
-  if (!modal || !grid) return;
+  if (!modal || !grid) {
+    console.error('❌ showBonusChoiceModal: éléments DOM manquants', {
+      modalFound: !!modal,
+      gridFound: !!grid
+    });
+    return;
+  }
+
+  // Vérifier que tous les bonus existent dans la config
+  const missingBonuses = bonusChoices.filter(id => !BONUS_TYPES[id]);
+  if (missingBonuses.length) {
+    console.error('❌ Bonus inconnus dans BONUS_TYPES :', missingBonuses);
+  }
 
   grid.innerHTML = bonusChoices.map(bonusId => {
     const bonus = BONUS_TYPES[bonusId];
-    if (!bonus) return '';
+    if (!bonus) {
+      console.warn(`⚠️ Bonus "${bonusId}" introuvable dans BONUS_TYPES`);
+      return `
+        <div class="bonus-choice-option" style="opacity: 0.5;">
+          <div class="bonus-icon">❓</div>
+          <div class="bonus-name">${bonusId}</div>
+          <div class="bonus-desc">Bonus inconnu - contacte l'admin</div>
+        </div>
+      `;
+    }
 
     // Catégorie avec icône
     const categoryMap = {
@@ -897,6 +943,7 @@ function showBonusChoiceModal() {
   }).join('');
 
   modal.style.display = 'flex';
+  console.log('✅ Modal de choix affiché');
 }
 
 /**
@@ -1353,25 +1400,52 @@ function showNotification(message, type = 'info') {
 // ============================================
 // INITIALISATION
 // ============================================
-async function init() {
-
+/**
+ * Helper : exécute une étape de manière isolée.
+ * Si une étape plante, on log l'erreur mais on continue le reste de init().
+ * Ceci garantit notamment que loadBonusChoices() + renderBonus() s'exécutent
+ * toujours, même si loadCurrentUser / loadActivities / etc. échouent.
+ */
+async function safeStep(label, fn) {
   try {
-    await loadCurrentUser();
-    await loadActivities();
-    await loadJokersFromServer();
-    await loadBonusFromServer();
-    await loadBonusChoices();
-
-    renderHeader();
-    await renderStats(); // async maintenant
-    renderCurrentRound(); // renommé depuis renderNextRound
-    renderJokers();
-    renderBonus();
-    renderActivities();
-
+    const result = await fn();
+    console.log(`✅ ${label}`);
+    return result;
   } catch (error) {
-    console.error('❌ Erreur initialisation dashboard:', error);
+    if (error.message === 'Session expirée' || error.message === 'Non authentifié') {
+      throw error; // propagation, authFetch gère la redirection
+    }
+    console.error(`❌ Échec étape "${label}":`, error);
+    return null;
   }
+}
+
+async function init() {
+  console.log('🚀 Dashboard init - démarrage');
+
+  // --- Phase 1 : chargement des données (chaque étape isolée) ---
+  await safeStep('loadCurrentUser', loadCurrentUser);
+  await safeStep('loadActivities', loadActivities);
+  await safeStep('loadJokersFromServer', loadJokersFromServer);
+  await safeStep('loadBonusFromServer', loadBonusFromServer);
+  await safeStep('loadBonusChoices', loadBonusChoices);
+
+  // Log diagnostique des bonus
+  console.log('🎁 État bonus après chargement :', {
+    bonusData,
+    bonusChoices,
+    hasPendingChoice: !!(bonusChoices && bonusChoices.length)
+  });
+
+  // --- Phase 2 : rendus (chaque étape isolée également) ---
+  await safeStep('renderHeader', renderHeader);
+  await safeStep('renderStats', renderStats);
+  await safeStep('renderCurrentRound', renderCurrentRound);
+  await safeStep('renderJokers', renderJokers);
+  await safeStep('renderBonus', renderBonus);
+  await safeStep('renderActivities', renderActivities);
+
+  console.log('✅ Dashboard init terminé');
 }
 
 // ============================================
