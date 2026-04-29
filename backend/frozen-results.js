@@ -996,6 +996,20 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
 
   console.log(`❄️ Round ${roundNumber} figé (calculé): ${results.eliminations.length} éliminé(s)`);
 
+  // Générer automatiquement les choix de bonus pour le meilleur éliminé
+  // (même logique que dans freezeRoundWithData, pour que le auto-freeze
+  //  et le freeze admin classique génèrent aussi les pending bonus)
+  if (results.eliminations && results.eliminations.length >= 2) {
+    try {
+      const generated = await generateBonusChoiceForBestEliminated(results.eliminations, roundNumber);
+      if (generated) {
+        results.bonusChoiceGenerated = generated;
+      }
+    } catch (e) {
+      console.warn(`⚠️ Erreur génération choix bonus round ${roundNumber}:`, e.message);
+    }
+  }
+
   return results;
 }
 

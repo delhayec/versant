@@ -446,6 +446,126 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
     }
   });
 
+  // ==========================================
+  // POST /api/admin/bonuses/backfill - Rattraper les pending choices manquants
+  // ==========================================
+  // Parcourt frozen_results.json et, pour chaque round figé avec >= 2 éliminés
+  // dont le meilleur n'a pas encore de pending choice ni de bonus déjà choisi,
+  // génère le pending choice qui aurait dû être créé au moment du freeze.
+  // Sans option, c'est un dry-run (aucune écriture). Avec ?apply=1, applique réellement.
+  app.post('/api/admin/bonuses/backfill', async (req, res) => {
+    if (!checkAdmin(req, res)) return;
+
+    try {
+      const apply = req.query.apply === '1' || req.body?.apply === true;
+      const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
+      const PENDING_FILE = path.join(DATA_DIR, 'pending_bonus_choices.json');
+
+      const frozen = await safeReadJSON(FROZEN_FILE, { rounds: {} });
+      const pendingChoices = await safeReadJSON(PENDING_FILE, {});
+      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+
+      const report = [];
+      const rounds = frozen.rounds || {};
+      const roundNumbers = Object.keys(rounds)
+        .map(n => parseInt(n, 10))
+        .filter(n => !isNaN(n))
+        .sort((a, b) => a - b);
+
+      for (const roundNumber of roundNumbers) {
+        const round = rounds[String(roundNumber)];
+        const eliminations = round?.eliminations || [];
+        if (eliminations.length < 2) {
+          report.push({ round: roundNumber, action: 'skipped', reason: 'less_than_2_eliminations' });
+          continue;
+        }
+
+        // Meilleur des éliminés (D+ décroissant)
+        const sorted = [...eliminations].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
+        const best = sorted[0];
+
+        if (!best || !best.id) {
+          report.push({ round: roundNumber, action: 'skipped', reason: 'no_best_found' });
+          continue;
+        }
+
+        if (!best.elevation || best.elevation === 0) {
+          report.push({ round: roundNumber, action: 'skipped', reason: 'best_has_0_elevation', athlete: best.name });
+          continue;
+        }
+
+        const bestId = normalizeId(best.id);
+
+        // Déjà un pending ?
+        if (pendingChoices[bestId]) {
+          report.push({
+            round: roundNumber,
+            action: 'skipped',
+            reason: 'pending_already_exists',
+            athlete: best.name,
+            existingChoices: pendingChoices[bestId].choices,
+            existingForRound: pendingChoices[bestId].elimination_round
+          });
+          continue;
+        }
+
+        // Déjà un bonus choisi ?
+        const existingBonus = bonuses.find(b => normalizeId(b.athlete_id) === bestId);
+        if (existingBonus) {
+          report.push({
+            round: roundNumber,
+            action: 'skipped',
+            reason: 'bonus_already_chosen',
+            athlete: best.name,
+            chosenBonus: existingBonus.bonus_id
+          });
+          continue;
+        }
+
+        // OK, on génère
+        const choices = drawRandomBonuses(BONUS_CHOICE_COUNT);
+        const entry = {
+          choices,
+          elimination_round: roundNumber,
+          athlete_name: best.name,
+          elevation: best.elevation,
+          created_at: new Date().toISOString(),
+          expires_at: `${new Date().getFullYear()}-12-31T23:59:59.999Z`,
+          backfilled: true
+        };
+
+        if (apply) {
+          pendingChoices[bestId] = entry;
+        }
+
+        report.push({
+          round: roundNumber,
+          action: apply ? 'created' : 'would_create',
+          athlete: best.name,
+          athleteId: bestId,
+          choices
+        });
+      }
+
+      if (apply) {
+        await safeWriteJSON(PENDING_FILE, pendingChoices);
+        console.log(`🎁 Backfill bonus appliqué : ${report.filter(r => r.action === 'created').length} pending créés`);
+      }
+
+      res.json({
+        success: true,
+        applied: apply,
+        totalRoundsScanned: roundNumbers.length,
+        created: report.filter(r => r.action === 'created' || r.action === 'would_create').length,
+        skipped: report.filter(r => r.action === 'skipped').length,
+        report
+      });
+    } catch (error) {
+      console.error('Erreur backfill bonuses:', error);
+      res.status(500).json({ error: 'Erreur serveur', message: error.message });
+    }
+  });
+
   console.log('🎁 Routes bonus éphémères initialisées');
 }
 
