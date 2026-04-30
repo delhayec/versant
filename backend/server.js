@@ -690,15 +690,49 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const athlete = athletes.find(a => normalizeId(a.id) === normalizeId(req.athleteId));
 
-    // Vérifier si l'athlète est éliminé (pas le droit d'utiliser de joker)
+    // Vérifier si l'athlète est éliminé DANS LA SAISON COURANTE
+    // (pas le droit d'utiliser un joker s'il est éliminé pour le round qu'il vise).
+    // BUG fix: avant, on parcourait TOUS les rounds figés de toutes les saisons,
+    // ce qui bloquait à tort un joueur éliminé en saison N qui revenait en saison N+1.
     try {
       const frozenData = await frozenResults.getAllFrozenResults();
       if (frozenData?.rounds) {
         const athleteId = normalizeId(req.athleteId);
-        for (const roundKey of Object.keys(frozenData.rounds)) {
-          const round = frozenData.rounds[roundKey];
-          if (round?.eliminations?.some(e => normalizeId(e.id) === athleteId)) {
-            return res.status(403).json({ error: 'Les joueurs éliminés ne peuvent pas utiliser de jokers' });
+
+        // Déterminer la saison du round visé.
+        // On la lit en priorité sur le round figé correspondant ;
+        // sinon on retombe sur un calcul (au cas où le round n'est pas encore figé).
+        let targetSeason = null;
+        const targetRoundEntry = frozenData.rounds[String(round_number)];
+        if (targetRoundEntry?.seasonNumber != null) {
+          targetSeason = Number(targetRoundEntry.seasonNumber);
+        } else {
+          try {
+            const athletes2 = await safeReadJSON(ATHLETES_FILE, []);
+            const totalParticipants = athletes2.filter(a =>
+              a.league_id === (req.body.leagueId || 'versant-2026') && a.active
+            ).length;
+            if (totalParticipants >= 2) {
+              const { getSeasonNumber } = require('./shared-config');
+              targetSeason = getSeasonNumber(round_number, totalParticipants);
+            }
+          } catch {}
+        }
+
+        // Ne tester l'élimination QUE sur les rounds de la saison cible.
+        // Si on ne sait pas dans quelle saison on est (cas dégénéré), on ne bloque pas.
+        if (targetSeason != null) {
+          for (const roundKey of Object.keys(frozenData.rounds)) {
+            const round = frozenData.rounds[roundKey];
+            if (!round) continue;
+            if (Number(round.seasonNumber) !== targetSeason) continue;
+            // On ne bloque que si l'élimination s'est produite AVANT (ou pendant)
+            // le round visé : être éliminé au round 18 ne doit pas bloquer
+            // une action sur le round 17 par exemple.
+            if (Number(roundKey) > Number(round_number)) continue;
+            if (round?.eliminations?.some(e => normalizeId(e.id) === athleteId)) {
+              return res.status(403).json({ error: 'Les joueurs éliminés ne peuvent pas utiliser de jokers' });
+            }
           }
         }
       }
