@@ -1094,27 +1094,35 @@ async function renderArsenalSection(container, roundNumber) {
 
   // Enrichir avec les noms des joueurs et les montants d'effets
   const enrichedJokers = activeJokers.map(joker => {
-    const athlete = getParticipantById(joker.athleteId);
-    const target = joker.targetId ? getParticipantById(joker.targetId) : null;
+    // BUG fix: getActiveJokersForRound renvoie un objet avec les champs
+    // `athlete_id` (snake_case, vient de jokers_usage.json via ...u) ET
+    // `participantId` (rajouté), mais PAS `athleteId` (camelCase). Sans ce
+    // fallback, athlete?.name devenait undefined et tous les jokers affichaient
+    // "Joueur" comme nom (visible surtout sur le bouclier dans l'arsenal).
+    const athleteId = joker.athleteId || joker.athlete_id || joker.participantId;
+    const targetId  = joker.targetId  || joker.target_athlete_id;
+    const athlete = getParticipantById(athleteId);
+    const target = targetId ? getParticipantById(targetId) : null;
 
     // Récupérer les montants d'effets depuis le ranking calculé
     let effectAmount = 0;
-    if (joker.jokerId === 'voleur' && joker.targetId) {
-      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === joker.targetId);
+    if (joker.jokerId === 'voleur' && targetId) {
+      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === String(targetId));
       effectAmount = targetEntry?.jokerEffects?.bonuses?.stolen?.amount || 0;
-    } else if (joker.jokerId === 'sabotage' && joker.targetId) {
-      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === joker.targetId);
+    } else if (joker.jokerId === 'sabotage' && targetId) {
+      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === String(targetId));
       effectAmount = targetEntry?.jokerEffects?.bonuses?.sabotaged?.amount || 0;
     } else if (joker.jokerId === 'multiplicateur') {
-      const participantEntry = rankingWithEffects.find(e => String(e.participant.id) === joker.participantId);
+      const participantEntry = rankingWithEffects.find(e => String(e.participant.id) === String(athleteId));
       effectAmount = participantEntry?.jokerEffects?.bonuses?.multiplier?.amount || 0;
     }
 
     return {
       ...joker,
       joker_id: joker.jokerId,
-      athlete_name: athlete?.name || 'Joueur',
-      target_athlete_name: target?.name || null,
+      // Préférer le nom déjà calculé en amont (athlete_name ou participantName) à un fallback générique
+      athlete_name: athlete?.name || joker.athlete_name || joker.participantName || 'Joueur',
+      target_athlete_name: target?.name || joker.target_athlete_name || null,
       effectAmount
     };
   });
@@ -1184,13 +1192,16 @@ async function renderArsenalSection(container, roundNumber) {
   // Récupérer les jokers programmés pour le prochain round
   const pendingJokers = getPendingJokersForNextRound(roundNumber);
   const enrichedPendingJokers = pendingJokers.map(joker => {
-    const athlete = getParticipantById(joker.athleteId);
-    const target = joker.targetId ? getParticipantById(joker.targetId) : null;
+    // Même bug fix que pour activeJokers ci-dessus.
+    const athleteId = joker.athleteId || joker.athlete_id || joker.participantId;
+    const targetId  = joker.targetId  || joker.target_athlete_id;
+    const athlete = getParticipantById(athleteId);
+    const target = targetId ? getParticipantById(targetId) : null;
     return {
       ...joker,
       joker_id: joker.jokerId,
-      athlete_name: athlete?.name || 'Joueur',
-      target_athlete_name: target?.name || null
+      athlete_name: athlete?.name || joker.athlete_name || joker.participantName || 'Joueur',
+      target_athlete_name: target?.name || joker.target_athlete_name || null
     };
   });
 
