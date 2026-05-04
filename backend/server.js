@@ -1945,7 +1945,44 @@ cron.schedule('30 */2 * * *', () => {
 // ============================================
 // START
 // ============================================
-initializeServer().then(() => {
+
+/**
+ * Au démarrage : vérifier s'il y a des rounds en retard de freeze.
+ * Couvre le cas où le serveur était down au moment du cron 00h05.
+ */
+async function catchUpAutoFreezeOnStartup() {
+  try {
+    const leagueId = 'versant-2026';
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activities = await safeReadJSON(activitiesFile, []);
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const jokerUsage = await readJokerUsage();
+
+    if (leagueAthletes.length === 0) {
+      console.log('🚀 Catch-up auto-freeze: aucun athlète actif, skip');
+      return;
+    }
+
+    const frozen = await frozenResults.autoFreezeCompletedRounds(
+      activities, leagueAthletes, jokerUsage, CHALLENGE_CONFIG
+    );
+
+    if (frozen.length > 0) {
+      console.log(`🚀 Catch-up auto-freeze au démarrage : ${frozen.length} round(s) figé(s) en retard`);
+      frozen.forEach(r => {
+        console.log(`   ❄️ Round ${r.roundNumber} (saison ${r.seasonNumber})`);
+      });
+    } else {
+      console.log('🚀 Catch-up auto-freeze: tout est à jour');
+    }
+  } catch (error) {
+    console.error('⚠️ Erreur catch-up auto-freeze au démarrage:', error.message);
+    // Ne pas bloquer le démarrage du serveur si le catch-up échoue
+  }
+}
+
+initializeServer().then(async () => {
   app.listen(PORT, () => {
     console.log('');
     console.log('╔════════════════════════════════════════╗');
@@ -1953,9 +1990,15 @@ initializeServer().then(() => {
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Port: ${PORT}                             ║`);
     console.log('║  Syncs: 6h, 10h, 14h, 18h, 22h         ║');
-    console.log('║  Auto-freeze: 00h05                    ║');
+    console.log('║  Auto-freeze: 00h05 + au démarrage     ║');
     console.log('║  Refresh tokens: toutes les 2h        ║');
     console.log('╚════════════════════════════════════════╝');
     console.log('');
   });
+
+  // Catch-up auto-freeze au démarrage (différé de quelques secondes pour
+  // laisser le serveur se stabiliser avant de toucher aux fichiers).
+  setTimeout(() => {
+    catchUpAutoFreezeOnStartup();
+  }, 5000);
 });

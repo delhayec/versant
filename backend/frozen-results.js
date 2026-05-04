@@ -1357,6 +1357,82 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
     archivedBonuses.push({ ...updatedBonusesLive[i] });
   }
 
+  // ============================================================
+  // PURGE DES BONUS NON UTILISÉS À LA FIN DE LA SAISON
+  // ============================================================
+  // Règle : "Si le bonus n'est pas choisi ou n'est pas utilisé à la fin
+  // de la saison, il doit disparaître."
+  //
+  // Cas 1 : un bonus a été choisi (status 'available' = en attente d'usage)
+  //         mais n'a jamais été utilisé pendant la saison → on l'expire.
+  // Cas 2 : un athlète a un pending_bonus_choices (jamais validé) →
+  //         on supprime l'entrée pending.
+  // Note : les bonus saisonniers (second_souffle, trap, etc.) ont déjà
+  //        été traités au-dessus (status passé à 'used' avec leur effet
+  //        figé). Ici on traite juste les éphémères ciblés non utilisés.
+  const purgeLog = { expiredBonuses: [], purgedPendingChoices: [] };
+
+  // Cas 1 : expirer les bonus 'available' (choisis mais non utilisés)
+  for (let i = 0; i < updatedBonusesLive.length; i++) {
+    const b = updatedBonusesLive[i];
+    if (!elimRoundsBySeason.has(Number(b.elimination_round))) continue;
+    if (SEASONAL_BONUS_IDS.has(b.bonus_id)) continue; // déjà traités au-dessus
+    if (b.status === 'available') {
+      updatedBonusesLive[i] = {
+        ...b,
+        status: 'expired',
+        season_number: Number(seasonNumber),
+        effect_applied: false,
+        expired_at: new Date().toISOString(),
+        expired_reason: 'season_closed_unused'
+      };
+      purgeLog.expiredBonuses.push({
+        bonus_id: b.bonus_id,
+        athlete_id: b.athlete_id,
+        athlete_name: b.athlete_name,
+        elimination_round: b.elimination_round
+      });
+      // Important : ajouter aussi à l'archive de la saison
+      archivedBonuses.push({ ...updatedBonusesLive[i] });
+    }
+  }
+
+  // Cas 2 : purger les pending_bonus_choices non validés pour cette saison
+  try {
+    const PENDING_FILE = path.join(DATA_DIR, 'pending_bonus_choices.json');
+    const pendingRaw = await fs.readFile(PENDING_FILE, 'utf8').catch(() => '{}');
+    const pending = JSON.parse(pendingRaw || '{}');
+    let pendingChanged = false;
+
+    for (const [athleteId, p] of Object.entries(pending)) {
+      const elimRound = Number(p?.elimination_round);
+      if (elimRoundsBySeason.has(elimRound)) {
+        purgeLog.purgedPendingChoices.push({
+          athlete_id: athleteId,
+          athlete_name: p.athlete_name,
+          elimination_round: elimRound,
+          choices: p.choices
+        });
+        delete pending[athleteId];
+        pendingChanged = true;
+      }
+    }
+
+    if (pendingChanged) {
+      await fs.writeFile(PENDING_FILE, JSON.stringify(pending, null, 2), 'utf8');
+    }
+  } catch (e) {
+    console.warn(`⚠️ Impossible de purger pending_bonus_choices pendant freeze saison ${seasonNumber}:`, e.message);
+  }
+
+  if (purgeLog.expiredBonuses.length || purgeLog.purgedPendingChoices.length) {
+    console.log(
+      `🧹 Purge saison ${seasonNumber}: ` +
+      `${purgeLog.expiredBonuses.length} bonus expiré(s), ` +
+      `${purgeLog.purgedPendingChoices.length} pending choice(s) supprimé(s)`
+    );
+  }
+
   // Sauvegarder bonuses.json (live) avec les nouveaux statuts
   try {
     await fs.writeFile(BONUSES_FILE, JSON.stringify(updatedBonusesLive, null, 2), 'utf8');
@@ -1365,11 +1441,13 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
   }
 
   // Stocker le ranking + archiver les bonus dans seasonBonuses[N]
+  // Stocker le ranking + archiver les bonus dans seasonBonuses[N]
   data.eliminatedChallengeRankings[String(seasonNumber)] = {
     frozenAt: new Date().toISOString(),
     seasonNumber,
     ranking,
-    bonusesCount: archivedBonuses.length
+    bonusesCount: archivedBonuses.length,
+    purgeLog
   };
 
   if (!data.seasonBonuses) data.seasonBonuses = {};
@@ -1385,6 +1463,7 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
     seasonNumber,
     ranking,
     archivedBonuses: archivedBonuses.length,
+    purgeLog,
     frozenAt: data.eliminatedChallengeRankings[String(seasonNumber)].frozenAt
   };
 }
