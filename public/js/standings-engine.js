@@ -365,7 +365,8 @@ export function getFrozenRound(globalRoundNumber, frozenResultsCache) {
 
 /**
  * Récupère l'ID du rescapé du round précédent.
- * Le rescapé est l'avant-avant-dernier du classement (juste au-dessus des 2 éliminés).
+ * Le rescapé est le dernier survivant du classement (juste au-dessus des éliminés),
+ * EN EXCLUANT les joueurs ayant utilisé un bouclier (déjà protégés, cumul interdit).
  * PORTÉ DEPUIS : app.js::getRescapeFromPreviousRound()
  */
 export function getRescapeFromPreviousRound(currentRoundNumber, frozenResultsCache) {
@@ -377,16 +378,17 @@ export function getRescapeFromPreviousRound(currentRoundNumber, frozenResultsCac
     return null;
   }
 
-  // L'avant-avant-dernier = position ranking.length - 2 (0-indexed: length - 3)
-  // Exemple: 10 joueurs -> positions 0-9, éliminés = 8,9, rescapé = 7
-  const rescapeIndex = frozenRound.ranking.length - 3;
-  const rescapeEntry = frozenRound.ranking[rescapeIndex];
+  // Exclure les éliminés ET les joueurs ayant utilisé un bouclier
+  const eliminatedIds = new Set((frozenRound.eliminations || []).map(e => String(e.id)));
+  const survivors = frozenRound.ranking.filter(e =>
+    !eliminatedIds.has(String(e.id)) && !e.hasShield
+  );
 
-  if (rescapeEntry) {
-    return String(rescapeEntry.id);
-  }
-
-  return null;
+  if (survivors.length === 0) return null;
+  // Trier par position (1 = meilleur) pour récupérer le dernier (rescapé)
+  const sorted = [...survivors].sort((a, b) => (a.position || 0) - (b.position || 0));
+  const rescape = sorted[sorted.length - 1];
+  return rescape ? String(rescape.id) : null;
 }
 
 /**
@@ -433,8 +435,11 @@ export function calculateRescapePointsForSeason(seasonNumber, frozenResultsCache
       continue;
     }
 
-    // Le rescapé = dernier survivant du classement (dernier non-éliminé)
-    const survivors = round.ranking.filter(e => !eliminatedIds.has(String(e.id)));
+    // Le rescapé = dernier survivant du classement (dernier non-éliminé),
+    // EN EXCLUANT les joueurs ayant utilisé un bouclier (cumul bouclier + rescapé interdit).
+    const survivors = round.ranking.filter(e =>
+      !eliminatedIds.has(String(e.id)) && !e.hasShield
+    );
     const rescapeEntry = survivors.length > 0 ? survivors[survivors.length - 1] : null;
     const rescapeId = rescapeEntry ? String(rescapeEntry.id) : null;
 

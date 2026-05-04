@@ -206,8 +206,13 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
   if (isFinale) return null;
 
   // Dernier survivant = dernier du ranking parmi les non-éliminés
+  // Règle : un joueur ayant utilisé un bouclier ce round est exclu de l'attribution
+  // du rescapé (il a déjà bénéficié d'une protection forte ; cumuler bouclier +
+  // bonus rescapé serait trop avantageux).
   const eliminatedIds = new Set(roundData.eliminations.map(e => String(e.id)));
-  const survivors = roundData.ranking.filter(r => !eliminatedIds.has(String(r.id)));
+  const survivors = roundData.ranking.filter(r =>
+    !eliminatedIds.has(String(r.id)) && !r.hasShield
+  );
   if (survivors.length === 0) return null;
 
   // Les rankings sont déjà triés par position (1 = meilleur). Le dernier survivant = dernier du tableau.
