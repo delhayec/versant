@@ -1059,13 +1059,17 @@ async function renderArsenalSection(container, roundNumber) {
       // Récupérer les jokers du round précédent
       const prevJokers = getActiveJokersForRound(previousRoundNumber);
       previousRoundEffects.jokers = prevJokers.map(joker => {
-        const athlete = getParticipantById(joker.athleteId);
-        const target = joker.targetId ? getParticipantById(joker.targetId) : null;
+        // Même bug fix que pour les jokers du round courant : `joker.athleteId`
+        // n'existe pas en camelCase, l'objet a `athlete_id` ou `participantId`.
+        const athleteId = joker.athleteId || joker.athlete_id || joker.participantId;
+        const targetId  = joker.targetId  || joker.target_athlete_id;
+        const athlete = getParticipantById(athleteId);
+        const target = targetId ? getParticipantById(targetId) : null;
         return {
           ...joker,
           joker_id: joker.jokerId,
-          athlete_name: athlete?.name || 'Joueur',
-          target_athlete_name: target?.name || null
+          athlete_name: athlete?.name || joker.athlete_name || joker.participantName || 'Joueur',
+          target_athlete_name: target?.name || joker.target_athlete_name || null
         };
       });
 
