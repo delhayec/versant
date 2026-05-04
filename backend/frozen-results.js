@@ -1010,6 +1010,32 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
     }
   }
 
+  // Si on vient de figer la finale d'une saison, figer le challenge éliminés.
+  // (même logique que dans freezeRoundWithData)
+  try {
+    const totalParticipants =
+      (results.activeParticipants?.length || 0) + (results.eliminations?.length || 0);
+    if (totalParticipants >= 2) {
+      const roundsPerSeason = Math.ceil((totalParticipants - 1) / 2);
+      const isFinale = results.roundInSeason === roundsPerSeason;
+      if (isFinale) {
+        const elimChallengeFrozen = await freezeEliminatedChallengeForSeason(
+          results.seasonNumber,
+          {}
+        );
+        if (elimChallengeFrozen?.success) {
+          console.log(
+            `🏔️ Auto-freeze challenge éliminés saison ${results.seasonNumber} ` +
+            `(${elimChallengeFrozen.ranking.length} athlètes, ${elimChallengeFrozen.archivedBonuses || 0} bonus archivés)`
+          );
+          results.eliminatedChallengeFrozen = elimChallengeFrozen;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(`⚠️ Erreur auto-freeze challenge éliminés saison ${results.seasonNumber}:`, e.message);
+  }
+
   return results;
 }
 
@@ -1247,7 +1273,7 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
   // Date courante (par défaut : maintenant)
   const currentDate = options.currentDate || new Date();
 
-  // Calculer
+  // Calculer le ranking
   const ranking = elimChallenge.computeEliminatedChallengeRankingForSeason({
     seasonNumber,
     activities,
@@ -1259,20 +1285,106 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
     frozenRoundsMap: data.rounds || {}
   });
 
-  // Stocker
+  // ============================================================
+  // ARCHIVAGE DES BONUS DE LA SAISON
+  // ============================================================
+  // Identifier les bonus de cette saison qui doivent être figés/archivés.
+  // Critère : un bonus appartient à la saison N si son elimination_round
+  // tombe dans un round dont seasonNumber === N.
+  const elimRoundsBySeason = new Set();
+  for (const [k, r] of Object.entries(data.rounds || {})) {
+    if (r && Number(r.seasonNumber) === Number(seasonNumber)) {
+      elimRoundsBySeason.add(Number(k));
+    }
+  }
+
+  const updatedBonusesLive = [...bonusesCache];
+  const archivedBonuses = []; // pour seasonBonuses[N]
+  const SEASONAL_BONUS_IDS = new Set(['second_souffle', 'trap', 'duel', 'brouillard']);
+
+  for (let i = 0; i < updatedBonusesLive.length; i++) {
+    const bonus = updatedBonusesLive[i];
+    const elimRound = Number(bonus.elimination_round);
+    if (!elimRoundsBySeason.has(elimRound)) continue; // pas de cette saison
+
+    // Pour les bonus saisonniers (second_souffle / trap / duel / brouillard) qui sont
+    // encore "active" ou "chosen" (pas encore résolus), on calcule leur effet final.
+    let nextEffectResult = bonus.effect_result;
+    let nextStatus = bonus.status;
+
+    if (SEASONAL_BONUS_IDS.has(bonus.bonus_id) &&
+        (bonus.status === 'active' || bonus.status === 'chosen')) {
+      // Retrouver l'entrée de ranking pour cet athlète pour récupérer le détail calculé
+      const entry = ranking.find(e => String(e.id) === String(bonus.athlete_id));
+      const detail = entry?.bonusEffects?.details?.find(d => {
+        if (bonus.bonus_id === 'second_souffle') return d.type === 'second_souffle';
+        if (bonus.bonus_id === 'trap') return d.type === 'trap_gain';
+        if (bonus.bonus_id === 'duel') return d.type === 'duel';
+        if (bonus.bonus_id === 'brouillard') return d.type === 'brouillard';
+        return false;
+      });
+      if (detail) {
+        nextEffectResult = {
+          amount: detail.amount || 0,
+          activityName: detail.activityName || null,
+          appliedAt: new Date().toISOString(),
+          frozenAtSeasonClose: true
+        };
+      } else {
+        // Pas d'effet calculé (ex: l'athlète n'a pas eu d'activité dans la fenêtre)
+        nextEffectResult = {
+          amount: 0,
+          activityName: null,
+          appliedAt: new Date().toISOString(),
+          frozenAtSeasonClose: true,
+          noEffect: true
+        };
+      }
+      nextStatus = 'used';
+    }
+
+    // Marquer le bonus à jour avec season_number et effet
+    updatedBonusesLive[i] = {
+      ...bonus,
+      status: nextStatus,
+      season_number: Number(seasonNumber),
+      effect_result: nextEffectResult,
+      effect_applied: true,
+      effect_applied_at: bonus.effect_applied_at || new Date().toISOString()
+    };
+
+    // Copie pour archive
+    archivedBonuses.push({ ...updatedBonusesLive[i] });
+  }
+
+  // Sauvegarder bonuses.json (live) avec les nouveaux statuts
+  try {
+    await fs.writeFile(BONUSES_FILE, JSON.stringify(updatedBonusesLive, null, 2), 'utf8');
+  } catch (e) {
+    console.warn(`⚠️ Impossible d'écrire ${BONUSES_FILE} pendant freeze saison ${seasonNumber}:`, e.message);
+  }
+
+  // Stocker le ranking + archiver les bonus dans seasonBonuses[N]
   data.eliminatedChallengeRankings[String(seasonNumber)] = {
     frozenAt: new Date().toISOString(),
     seasonNumber,
-    ranking
+    ranking,
+    bonusesCount: archivedBonuses.length
   };
+
+  if (!data.seasonBonuses) data.seasonBonuses = {};
+  data.seasonBonuses[String(seasonNumber)] = archivedBonuses;
+  data.lastUpdated = new Date().toISOString();
+
   await saveFrozenResults(data);
 
-  console.log(`🏔️ Challenge éliminés saison ${seasonNumber} figé : ${ranking.length} athlète(s)`);
+  console.log(`🏔️ Challenge éliminés saison ${seasonNumber} figé : ${ranking.length} athlète(s), ${archivedBonuses.length} bonus archivé(s)`);
 
   return {
     success: true,
     seasonNumber,
     ranking,
+    archivedBonuses: archivedBonuses.length,
     frozenAt: data.eliminatedChallengeRankings[String(seasonNumber)].frozenAt
   };
 }
