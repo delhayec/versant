@@ -383,25 +383,25 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
 
   // Phase 2 : si on vient de figer la FINALE d'une saison, figer automatiquement
   // le classement final du challenge des éliminés pour cette saison.
-  // Détection : roundInSeason === roundsPerSeason calculé depuis les participants.
+  // Détection : il ne reste qu'1 athlète actif après les éliminations de ce round.
+  // (le nombre de rounds par saison varie selon les éliminations cumulées —
+  //  règles spéciales handicap, multi-éliminations pour inactivité, etc.)
   let eliminatedChallengeFrozen = null;
   try {
-    const totalParticipants =
-      (frozenRound.activeParticipants?.length || 0) + (frozenRound.eliminations?.length || 0);
-    if (totalParticipants >= 2) {
-      const roundsPerSeason = Math.ceil((totalParticipants - 1) / 2);
-      const isFinale = frozenRound.roundInSeason === roundsPerSeason;
-      if (isFinale) {
-        eliminatedChallengeFrozen = await freezeEliminatedChallengeForSeason(
-          frozenRound.seasonNumber,
-          { force: options.force === true }
+    const activeAtStart = frozenRound.activeParticipants?.length || 0;
+    const eliminatedThisRound = frozenRound.eliminations?.length || 0;
+    const survivors = activeAtStart - eliminatedThisRound;
+
+    if (activeAtStart > 0 && survivors <= 1) {
+      eliminatedChallengeFrozen = await freezeEliminatedChallengeForSeason(
+        frozenRound.seasonNumber,
+        { force: options.force === true }
+      );
+      if (eliminatedChallengeFrozen?.success) {
+        console.log(
+          `🏔️ Auto-freeze challenge éliminés saison ${frozenRound.seasonNumber} ` +
+          `(${eliminatedChallengeFrozen.ranking.length} athlètes)`
         );
-        if (eliminatedChallengeFrozen?.success) {
-          console.log(
-            `🏔️ Auto-freeze challenge éliminés saison ${frozenRound.seasonNumber} ` +
-            `(${eliminatedChallengeFrozen.ranking.length} athlètes)`
-          );
-        }
       }
     }
   } catch (e) {
@@ -1011,25 +1011,25 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
   }
 
   // Si on vient de figer la finale d'une saison, figer le challenge éliminés.
-  // (même logique que dans freezeRoundWithData)
+  // Détection : il ne reste qu'1 athlète actif après les éliminations de ce round.
+  // (le nombre de rounds par saison varie selon les éliminations cumulées —
+  //  règles spéciales handicap, multi-éliminations pour inactivité, etc.)
   try {
-    const totalParticipants =
-      (results.activeParticipants?.length || 0) + (results.eliminations?.length || 0);
-    if (totalParticipants >= 2) {
-      const roundsPerSeason = Math.ceil((totalParticipants - 1) / 2);
-      const isFinale = results.roundInSeason === roundsPerSeason;
-      if (isFinale) {
-        const elimChallengeFrozen = await freezeEliminatedChallengeForSeason(
-          results.seasonNumber,
-          {}
+    const activeAtStart = results.activeParticipants?.length || 0;
+    const eliminatedThisRound = results.eliminations?.length || 0;
+    const survivors = activeAtStart - eliminatedThisRound;
+
+    if (activeAtStart > 0 && survivors <= 1) {
+      const elimChallengeFrozen = await freezeEliminatedChallengeForSeason(
+        results.seasonNumber,
+        {}
+      );
+      if (elimChallengeFrozen?.success) {
+        console.log(
+          `🏔️ Auto-freeze challenge éliminés saison ${results.seasonNumber} ` +
+          `(${elimChallengeFrozen.ranking.length} athlètes, ${elimChallengeFrozen.archivedBonuses || 0} bonus archivés)`
         );
-        if (elimChallengeFrozen?.success) {
-          console.log(
-            `🏔️ Auto-freeze challenge éliminés saison ${results.seasonNumber} ` +
-            `(${elimChallengeFrozen.ranking.length} athlètes, ${elimChallengeFrozen.archivedBonuses || 0} bonus archivés)`
-          );
-          results.eliminatedChallengeFrozen = elimChallengeFrozen;
-        }
+        results.eliminatedChallengeFrozen = elimChallengeFrozen;
       }
     }
   } catch (e) {
