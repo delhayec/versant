@@ -469,7 +469,7 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
         details.push(...roundEffects.details);
       }
       // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-      const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, allActivities, frozenResultsCache?.rounds);
+      const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, allActivities, frozenResultsCache?.rounds, seasonNumber);
       gained += seasonalEffects.gained;
       lost += seasonalEffects.lost;
       details.push(...seasonalEffects.details);
@@ -800,7 +800,7 @@ function renderEliminatedChallenge(container) {
       effects.details.push(...roundEffects.details);
     }
     // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(eliminated.id, bonusesCache, seasonBonusesCache, allActivities, frozenResultsCache?.rounds);
+    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(eliminated.id, bonusesCache, seasonBonusesCache, allActivities, frozenResultsCache?.rounds, currentSeasonNumber);
     effects.gained += seasonalEffects.gained;
     effects.lost += seasonalEffects.lost;
     effects.details.push(...seasonalEffects.details);

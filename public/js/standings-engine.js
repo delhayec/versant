@@ -228,11 +228,23 @@ export function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNum
  * Gère: second_souffle, trap, duel, brouillard
  * PORTÉ DEPUIS : app.js::getSeasonalBonusEffectsForEliminatedAthlete()
  */
-export function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, seasonBonusesCache, allActivities, frozenRoundsMap = null) {
+export function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, seasonBonusesCache, allActivities, frozenRoundsMap = null, seasonContext = null) {
   const effects = { gained: 0, lost: 0, details: [] };
   const normalizedId = String(athleteId);
 
   const allAthleteBonus = getAllBonusesForAthlete(normalizedId, bonusesCache, seasonBonusesCache);
+
+  // Helper: déterminer à quelle saison appartient un bonus (depuis son elimination_round)
+  function getSeasonForBonus(bonus) {
+    // Priorité 1: champ explicite (présent sur les bonus archivés via frozenAtSeasonClose)
+    if (bonus.season_number) return Number(bonus.season_number);
+    // Priorité 2: lookup dans frozenRoundsMap
+    if (frozenRoundsMap && bonus.elimination_round) {
+      const round = frozenRoundsMap[String(bonus.elimination_round)];
+      if (round?.seasonNumber) return Number(round.seasonNumber);
+    }
+    return null; // inconnu → on ne filtre pas
+  }
 
   // Helper: déterminer la fin de la saison à laquelle appartient un round d'élimination
   // (à partir des rounds figés s'ils sont disponibles, sinon retourne null = pas de borne).
@@ -258,6 +270,14 @@ export function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCa
   }
 
   for (const bonus of allAthleteBonus) {
+    // Filtrage par saison : si seasonContext est fourni, on ne traite que les bonus
+    // de cette saison. Cela évite qu'un bonus saisonnier (ex: second_souffle de Baptiste
+    // saison 2) soit appliqué dans le ranking d'une autre saison (saison 3 en cours).
+    if (seasonContext != null) {
+      const bonusSeason = getSeasonForBonus(bonus);
+      if (bonusSeason != null && bonusSeason !== Number(seasonContext)) continue;
+    }
+
     // Second Souffle — double la plus petite activité
     if (bonus.bonus_id === 'second_souffle' && (bonus.status === 'active' || bonus.status === 'chosen' || bonus.status === 'used')) {
       const alreadyAdded = effects.details.some(d => d.type === 'second_souffle');
