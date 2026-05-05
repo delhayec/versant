@@ -1706,6 +1706,52 @@ app.get('/api/frozen-results', async (req, res) => {
   }
 });
 
+/**
+ * Reçoit un snapshot du classement annuel calculé par le frontend (source de
+ * vérité pour les points). Stocké dans frozen_results.json pour que :
+ *  - Le calcul backend des équipes (saison team) utilise les bons points.
+ *  - Le script de test puisse afficher les vrais points sans dupliquer la logique.
+ *
+ * Body attendu :
+ *  { standings: [{ id, name, totalMainPoints, totalEliminatedPoints,
+ *                  totalRescapePoints, totalPoints, ... }] }
+ *
+ * Le snapshot est silencieusement ignoré si vide ou malformé.
+ */
+app.post('/api/standings/snapshot', async (req, res) => {
+  try {
+    const { standings } = req.body;
+    if (!Array.isArray(standings) || standings.length === 0) {
+      return res.status(400).json({ error: 'standings array required' });
+    }
+
+    // Normaliser : ne stocker que les champs utiles (anti-bloat)
+    const compact = standings.map(s => ({
+      id: String(s.participant?.id ?? s.id),
+      name: s.participant?.name ?? s.name,
+      totalMainPoints: s.totalMainPoints || 0,
+      totalEliminatedPoints: s.totalEliminatedPoints || 0,
+      totalRescapePoints: s.totalRescapePoints || 0,
+      totalPoints: s.totalPoints || 0,
+      wins: s.wins || 0,
+      seasonsPlayed: s.seasonsPlayed || 0
+    })).filter(s => s.id && s.id !== 'undefined');
+
+    const data = await frozenResults.getAllFrozenResults();
+    const fullData = (await frozenResults.loadFrozenResultsRaw?.()) || data;
+    fullData.yearlyStandingsSnapshot = {
+      updatedAt: new Date().toISOString(),
+      standings: compact
+    };
+    await frozenResults.saveFrozenResultsRaw?.(fullData);
+
+    res.json({ success: true, count: compact.length });
+  } catch (error) {
+    console.error('Erreur standings snapshot:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // Récupérer les résultats d'un round spécifique
 app.get('/api/frozen-results/round/:roundNumber', async (req, res) => {
   try {

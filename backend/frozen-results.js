@@ -382,9 +382,14 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
     }
   }
 
-  // Générer automatiquement les choix de bonus pour le meilleur éliminé
+  // Générer automatiquement les choix de bonus pour le meilleur éliminé.
+  // EXCEPTION saison team : pas de bonus éphémère pour les éliminés de la
+  // finale principale R4 (règle métier : "Les 6 finalistes (R4) entrent au
+  // R5 sans avoir reçu de bonus éphémère du R4"). On skip aussi pour le R5
+  // qui n'a aucune élimination de toute façon.
   let bonusChoiceGenerated = null;
-  if (frozenRound.eliminations && frozenRound.eliminations.length >= 2) {
+  const skipBonusGen = frozenRound.isFinalePrincipale === true || frozenRound.teamFinalRound === true;
+  if (!skipBonusGen && frozenRound.eliminations && frozenRound.eliminations.length >= 2) {
     try {
       bonusChoiceGenerated = await generateBonusChoiceForBestEliminated(frozenRound.eliminations, roundNumber);
     } catch (e) {
@@ -393,11 +398,10 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
   }
 
   // Phase 2 : si on vient de figer la FINALE d'une saison, figer automatiquement
-  // Phase 2 : si on vient de figer la FINALE d'une saison, figer automatiquement
   // le classement final du challenge des éliminés pour cette saison.
   // Détection :
   //   - Saison standard : il ne reste qu'1 athlète actif après les éliminations.
-  //   - Saison team : on figé seulement quand teamFinalRound=true (= R5 / round
+  //   - Saison team : on fige seulement quand teamFinalRound=true (= R5 / round
   //     final éliminés). Le R4 (finale principale) ne déclenche PAS le freeze.
   let eliminatedChallengeFrozen = null;
   try {
@@ -735,47 +739,117 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     return { id, name: a?.name || `Athlète ${id}` };
   });
 
-  // pointsMap pour équilibrage : on prend le total figé du classement annuel.
-  // Pour simplicité, on initialise tout à 0 (le classement n'est pas trivial à
-  // recalculer ici sans faire calculateYearlyStandings → simplification : on
-  // utilise un seed reproductible mais l'équilibrage par points ne marchera
-  // pleinement que si le frontend a déjà calculé yearlyStandings et stocké
-  // les points dans previousRounds[X].yearlyStandingsSnapshot. Pour l'instant
-  // on accepte un équilibrage purement aléatoire si pas dispo).
-  // [TODO commit B : intégrer le yearlyStandings réel ici]
+  // pointsMap pour équilibrage : on lit le snapshot envoyé par le frontend
+  // (calcul source de vérité, mis à jour à chaque rendu de la page index).
+  // Si le snapshot n'existe pas (cas test ou ancien serveur), tous les
+  // joueurs sont à 0 → équilibrage purement aléatoire mais reproductible
+  // via le seed = roundNumber.
   const pointsMap = {};
   activeAthletes.forEach(a => { pointsMap[a.id] = 0; });
+
+  try {
+    const dataForSnapshot = await loadFrozenResults();
+    const snap = dataForSnapshot.yearlyStandingsSnapshot?.standings;
+    if (Array.isArray(snap)) {
+      snap.forEach(s => {
+        if (s.id != null) pointsMap[String(s.id)] = s.totalPoints || 0;
+      });
+    }
+  } catch (e) {
+    console.warn('⚠️ Snapshot yearlyStandings indisponible:', e.message);
+  }
 
   // Tirage des équipes
   const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
   // Attribution des animaux (uniques sur la saison)
   const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, history.usedAnimalIds, roundNumber);
 
-  // Calcul des D+ par membre puis par équipe
-  const teamsWithElevation = teamsWithAnimal.map(team => {
-    const membersWithElev = team.members.map(m => {
+  // Calcul des D+ par membre puis par équipe.
+  // ÉTAPE 1 : construire un ranking individuel temporaire pour pouvoir
+  // appliquer les jokers (voleur, sabotage, multiplicateur) et les bonus
+  // éphémères avant la sommation par équipe (puisque ces effets ciblent
+  // un joueur spécifique).
+  const tmpRanking = [];
+  for (const team of teamsWithAnimal) {
+    for (const m of team.members) {
       const acts = roundActivities.filter(a => String(a.athlete?.id || a.athlete_id) === String(m.id));
       const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
-      return {
+      tmpRanking.push({
         id: String(m.id),
         name: m.name,
         elevation: Math.round(elev),
         activitiesCount: acts.length,
         originalElevation: Math.round(elev),
+        bonusPoints: 0,
+        teamIndex: team.index
+      });
+    }
+  }
+
+  // Appliquer les effets des jokers actifs ce round
+  const activeJokers = (jokerUsage || []).filter(j =>
+    j.round_number === roundNumber && j.status === 'active'
+  );
+  if (activeJokers.length > 0) {
+    applyJokerEffects(tmpRanking, activeJokers, roundActivities, athletes);
+  }
+
+  // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
+  await applyEphemeralBonusEffects(tmpRanking, roundNumber, roundActivities);
+
+  // ÉTAPE 2 : reconstruire les équipes avec les D+ corrigés post-jokers/bonus
+  const elevById = {};
+  const activitiesById = {};
+  tmpRanking.forEach(r => {
+    elevById[r.id] = r.elevation;
+    activitiesById[r.id] = r.activitiesCount;
+  });
+
+  // Calcul des D+ par membre puis par équipe
+  const teamsWithElevation = teamsWithAnimal.map(team => {
+    const teamActs = []; // pour tie-break temporel
+    const membersWithElev = team.members.map(m => {
+      const acts = roundActivities.filter(a => String(a.athlete?.id || a.athlete_id) === String(m.id));
+      teamActs.push(...acts);
+      return {
+        id: String(m.id),
+        name: m.name,
+        elevation: elevById[String(m.id)] ?? 0,
+        activitiesCount: activitiesById[String(m.id)] ?? acts.length,
+        originalElevation: Math.round(acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0)),
         bonusPoints: 0
       };
     }).sort((a, b) => b.elevation - a.elevation);
+
+    // Timestamp de la dernière activité de l'équipe (pour tie-break temporel).
+    let lastActivityTime = 0;
+    for (const a of teamActs) {
+      const start = new Date(a.start_date_local || a.start_date).getTime();
+      const elapsed = (a.elapsed_time || 0) * 1000;
+      const t = start + elapsed;
+      if (t > lastActivityTime) lastActivityTime = t;
+    }
+
     return {
       ...team,
       members: membersWithElev,
-      totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0)
+      totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0),
+      lastActivityTime
     };
   });
 
   // Trier les équipes par D+ total décroissant
-  // Tie-break : équipe avec activité la plus récente perd (TODO commit B,
-  //             pour l'instant ordre stable du tirage).
-  teamsWithElevation.sort((a, b) => b.totalElevation - a.totalElevation);
+  // Tie-break : en cas d'égalité, l'équipe avec l'activité la plus récente
+  // est classée DERNIÈRE (= éliminée en priorité). Logique : on récompense
+  // l'équipe qui a "fini" plus tôt sa contribution.
+  teamsWithElevation.sort((a, b) => {
+    if (b.totalElevation !== a.totalElevation) {
+      return b.totalElevation - a.totalElevation;
+    }
+    // Égalité de D+ : celle qui a posté son activité la plus récente perd
+    // (rang plus bas = activité plus récente = perdant).
+    return a.lastActivityTime - b.lastActivityTime;
+  });
 
   // ============================================
   // Ranking individuel (positions selon D+ équipe puis D+ individuel)
@@ -886,8 +960,8 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     eliminations,
     teams: teamsWithElevation,
     eliminatedTeam,
-    jokersUsed: [],   // jokers gérés au commit B
-    bonusesUsed: [],  // bonus gérés au commit B
+    jokersUsed: activeJokers,
+    bonusesUsed: [],  // les bonus utilisés sont logés dans bonuses.json (pas dupliqués ici)
     rescapeInfo: null, // pas de rescapé en saison team
     stats: {
       totalActivities: roundActivities.length,
@@ -1395,10 +1469,12 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
 
   console.log(`❄️ Round ${roundNumber} figé (calculé): ${results.eliminations.length} éliminé(s)`);
 
-  // Générer automatiquement les choix de bonus pour le meilleur éliminé
-  // (même logique que dans freezeRoundWithData, pour que le auto-freeze
-  //  et le freeze admin classique génèrent aussi les pending bonus)
-  if (results.eliminations && results.eliminations.length >= 2) {
+  // Générer automatiquement les choix de bonus pour le meilleur éliminé.
+  // EXCEPTION saison team : pas de bonus éphémère pour les éliminés de la
+  // finale principale R4 (règle métier : "Les 6 finalistes (R4) entrent au
+  // R5 sans avoir reçu de bonus éphémère du R4"). On skip aussi pour le R5.
+  const skipBonusGen = results.isFinalePrincipale === true || results.teamFinalRound === true;
+  if (!skipBonusGen && results.eliminations && results.eliminations.length >= 2) {
     try {
       const generated = await generateBonusChoiceForBestEliminated(results.eliminations, roundNumber);
       if (generated) {
@@ -2101,5 +2177,8 @@ module.exports = {
   unfreezeEliminatedChallengeForSeason,
   getRoundDates,
   getSeasonNumber,
-  getRoundInSeason
+  getRoundInSeason,
+  // Accès brut pour persister des champs additionnels (yearlyStandingsSnapshot, etc.)
+  loadFrozenResultsRaw: loadFrozenResults,
+  saveFrozenResultsRaw: saveFrozenResults
 };

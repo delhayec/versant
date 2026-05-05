@@ -172,22 +172,31 @@ const DATA_DIR = path.join(ROOT, 'data');
   // ============================================
   console.log('\n=== Simulation saison 4 (15 joueurs réels) ===\n');
 
-  // Calculer les yearlyStandings actuels (= points principaux par athlète)
-  const yearlyStandings = await frozenResults.calculateYearlyStandings(leagueAthletes);
+  // Lire les points depuis le snapshot envoyé par le frontend (source de vérité).
+  // Si pas dispo : fallback sur calculateYearlyStandings backend (= moins précis).
   const realPointsMap = {};
-  yearlyStandings.forEach(e => {
-    realPointsMap[String(e.id)] = e.totalMainPoints || 0;
-  });
+  let pointsSource = '';
 
-  // Ajouter les points du challenge éliminés (toutes saisons figées confondues)
-  const ec = frozen.eliminatedChallengeRankings || {};
-  for (const [seasonKey, seasonData] of Object.entries(ec)) {
-    if (!Array.isArray(seasonData?.ranking)) continue;
-    seasonData.ranking.forEach(entry => {
-      const id = String(entry.id);
-      if (!(id in realPointsMap)) realPointsMap[id] = 0;
-      realPointsMap[id] += entry.points || 0;
+  if (frozen.yearlyStandingsSnapshot?.standings?.length) {
+    const snap = frozen.yearlyStandingsSnapshot.standings;
+    snap.forEach(s => { realPointsMap[String(s.id)] = s.totalPoints || 0; });
+    pointsSource = `snapshot frontend (mis à jour ${frozen.yearlyStandingsSnapshot.updatedAt})`;
+  } else {
+    // Fallback : calcul backend (peut différer du frontend pour les rescapés)
+    const yearlyStandings = await frozenResults.calculateYearlyStandings(leagueAthletes);
+    yearlyStandings.forEach(e => {
+      realPointsMap[String(e.id)] = e.totalMainPoints || 0;
     });
+    const ec = frozen.eliminatedChallengeRankings || {};
+    for (const seasonData of Object.values(ec)) {
+      if (!Array.isArray(seasonData?.ranking)) continue;
+      seasonData.ranking.forEach(entry => {
+        const id = String(entry.id);
+        if (!(id in realPointsMap)) realPointsMap[id] = 0;
+        realPointsMap[id] += entry.points || 0;
+      });
+    }
+    pointsSource = 'fallback backend (snapshot frontend indisponible)';
   }
 
   leagueAthletes.forEach(a => {
@@ -201,7 +210,7 @@ const DATA_DIR = path.join(ROOT, 'data');
     points: realPointsMap[String(a.id)] || 0
   })).sort((a, b) => b.points - a.points);
 
-  console.log(`📊 Classement annuel actuel (${realAthletes.length} joueurs) :`);
+  console.log(`📊 Classement annuel actuel (${realAthletes.length} joueurs) — source: ${pointsSource}`);
   realAthletes.forEach((a, i) => {
     console.log(`   ${(i + 1).toString().padStart(2)}. ${a.name.padEnd(14)} ${a.points.toString().padStart(3)} pts`);
   });

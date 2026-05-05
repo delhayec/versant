@@ -17,21 +17,21 @@ const TEAM_ANIMALS = [
   { id: 'loup',       emoji: '🐺', name: 'Loup' },
   { id: 'aigle',      emoji: '🦅', name: 'Aigle' },
   { id: 'marmotte',   emoji: '🦫', name: 'Marmotte' },
-  { id: 'chevreuil',  emoji: '🦌', name: 'Chevreuil' },
+  { id: 'raton',      emoji: '🦝', name: 'Raton' },
   { id: 'ecureuil',   emoji: '🐿️',  name: 'Écureuil' },
-  { id: 'lapin',      emoji: '🐰', name: 'Lapin' },
+  { id: 'lapin',      emoji: '🐇', name: 'Lapin' },
   { id: 'mouflon',    emoji: '🐏', name: 'Mouflon' },
-  { id: 'dahu',       emoji: '🦬', name: 'Dahu' },
+  { id: 'chenille',   emoji: '🐛', name: 'Chenille' },
   { id: 'bouquetin',  emoji: '🐐', name: 'Bouquetin' },
   { id: 'renard',     emoji: '🦊', name: 'Renard' },
   { id: 'lynx',       emoji: '😺', name: 'Lynx' },
   { id: 'ours',       emoji: '🐻', name: 'Ours' },
-  { id: 'chamois',    emoji: '🐑', name: 'Chamois' },
+  { id: 'mammouth',   emoji: '🦣', name: 'Mammuth' },
   { id: 'sanglier',   emoji: '🐗', name: 'Sanglier' },
-  { id: 'hermine',    emoji: '🪿', name: 'Hermine' },
-  { id: 'cerf',       emoji: '🦌', name: 'Cerf' },
+  { id: 'canard',     emoji: '🪿', name: 'Canard' },
+  { id: 'panda',      emoji: '🐼', name: 'Panda' },
   { id: 'chouette',   emoji: '🦉', name: 'Chouette' },
-  { id: 'castor',     emoji: '🦫', name: 'Castor' }
+  { id: 'loutre',     emoji: '🦦', name: 'Loutre' }
 ];
 
 // ============================================
@@ -96,96 +96,121 @@ function formBalancedTeams(athletes, pointsMap, seed = 0, teamSize = 3) {
     }];
   }
 
-  // Déterminer la structure des équipes selon n
-  // Règle : on vise des équipes de teamSize. Si n%teamSize !== 0 :
-  //   - Si reste = teamSize-1 : on a (k-1) équipes de teamSize + 2 équipes de (teamSize-1)
-  //     (ex: n=14, teamSize=3 → 4 équipes de 3 + 2 de 2... non on veut différent)
-  //
-  // POUR L'INSTANT : équipes uniformes de teamSize, avec gestion 14/16:
-  //   n=14 (teamSize=3) → 4 équipes de 3 + 1 équipe de 2 → après ajustement : 4 équipes,
-  //                       on ajoute le 5e joueur à l'équipe la moins homogène
-  //                       Mais c'est le commit B (algo + tie-break + animaux).
-  //
-  // Pour le commit A, on garde le comportement actuel: equipes de 3 + reste en équipes de 2.
-  // (15 joueurs → 5x3 = OK pour cette saison)
-
-  let teamsOfFull = Math.floor(n / teamSize);
-  let teamsOfShort = 0;
+  // STRATÉGIE :
+  //   - Si n % teamSize === 0 : k équipes parfaites de teamSize.
+  //   - Sinon : on identifie les `n % teamSize` joueurs avec LE MOINS de points
+  //     (= les plus faibles au classement annuel) comme "extras". On les met
+  //     de côté, on équilibre les autres en équipes de teamSize, puis on
+  //     distribue les extras dans l'équipe ayant le plus grand écart-type
+  //     interne (= équipe la moins homogène). Cela respecte la règle métier :
+  //     "celle qui regroupe les plus mauvais au classement général".
+  const teamsOfFull = Math.floor(n / teamSize);
   const remainder = n % teamSize;
-
-  if (remainder === 1) {
-    teamsOfFull -= 1;
-    teamsOfShort = 2; // 2 équipes de teamSize-1 (= 2)
-  } else if (remainder === 2) {
-    teamsOfShort = 1; // 1 équipe de teamSize-1 (= 2)
-  }
 
   const players = athletes.map(a => ({ ...a, points: pointsMap[a.id] || 0 }));
   const random = seededRandom(seed);
 
+  // Identifier les `remainder` joueurs avec le moins de points (extras forcés).
+  // On trie une copie pour ne pas modifier l'ordre des athlètes.
+  let forcedExtras = [];
+  let baseTeamPlayers = [...players];
+  if (remainder > 0) {
+    const sortedByPoints = [...players].sort((a, b) => (a.points || 0) - (b.points || 0));
+    forcedExtras = sortedByPoints.slice(0, remainder);
+    const extraIds = new Set(forcedExtras.map(p => p.id));
+    baseTeamPlayers = players.filter(p => !extraIds.has(p.id));
+  }
+
+  function teamStdDev(team) {
+    if (team.length <= 1) return 0;
+    const sum = team.reduce((s, p) => s + (p.points || 0), 0);
+    const mean = sum / team.length;
+    const variance = team.reduce((s, p) => s + ((p.points || 0) - mean) ** 2, 0) / team.length;
+    return Math.sqrt(variance);
+  }
+
   function buildTeams(arr) {
     const teams = [];
     let idx = 0;
-    for (let t = 0; t < teamsOfFull; t++) { teams.push(arr.slice(idx, idx + teamSize)); idx += teamSize; }
-    for (let t = 0; t < teamsOfShort; t++) { teams.push(arr.slice(idx, idx + (teamSize - 1))); idx += (teamSize - 1); }
+    for (let t = 0; t < teamsOfFull; t++) {
+      teams.push(arr.slice(idx, idx + teamSize));
+      idx += teamSize;
+    }
     return teams;
+  }
+
+  // Distribue les forcedExtras sur les équipes en visant celles avec le
+  // plus grand écart-type interne. Modifie `teams` en place.
+  // Règle : un extra par équipe maximum (donc remainder doit être <= teams.length).
+  function distributeExtras(teams) {
+    if (forcedExtras.length === 0) return;
+    const remaining = [...forcedExtras];
+    const usedTeams = new Set();
+    while (remaining.length > 0) {
+      const candidatesIdx = teams
+        .map((t, i) => ({ idx: i, sd: teamStdDev(t) }))
+        .filter(c => !usedTeams.has(c.idx));
+      if (candidatesIdx.length === 0) {
+        // Plus de cibles uniques (ne devrait pas arriver si remainder <= teams.length)
+        // Fallback : distribuer dans la moins peuplée
+        candidatesIdx.push(...teams.map((t, i) => ({ idx: i, sd: 1 / t.length })));
+      }
+      candidatesIdx.sort((a, b) => b.sd - a.sd);
+      const targetIdx = candidatesIdx[0].idx;
+      teams[targetIdx].push(remaining.shift());
+      usedTeams.add(targetIdx);
+    }
   }
 
   let candidates = [];
 
-  if (n <= 12) {
-    // BRUTE FORCE : énumérer toutes les partitions
-    function* generatePartitions(remaining, teams, fullLeft, shortLeft) {
+  if (baseTeamPlayers.length <= 12) {
+    // BRUTE FORCE sur les baseTeamPlayers
+    function* allCombosOfK(arr, k) {
+      if (k === 0) { yield []; return; }
+      if (k > arr.length) return;
+      for (let i = 0; i <= arr.length - k; i++) {
+        for (const sub of allCombosOfK(arr.slice(i + 1), k - 1)) {
+          yield [i, ...sub.map(j => j + i + 1)];
+        }
+      }
+    }
+
+    function* generatePartitions(remaining, teams, fullLeft) {
       if (remaining.length === 0) {
-        yield teams.map(t => [...t]);
+        if (fullLeft === 0) yield teams.map(t => [...t]);
         return;
       }
       const first = remaining[0];
       const rest = remaining.slice(1);
 
-      if (fullLeft > 0) {
-        // Former une équipe de teamSize
-        const indices = [];
-        function* combos(start, depth, picked) {
-          if (depth === teamSize - 1) {
-            yield picked;
-            return;
-          }
-          for (let i = start; i < rest.length; i++) {
-            yield* combos(i + 1, depth + 1, [...picked, i]);
-          }
-        }
-        for (const picks of combos(0, 0, [])) {
+      if (fullLeft > 0 && rest.length >= teamSize - 1) {
+        const indices = Array.from({ length: rest.length }, (_, i) => i);
+        for (const picks of allCombosOfK(indices, teamSize - 1)) {
           const team = [first, ...picks.map(i => rest[i])];
           const newRemaining = rest.filter((_, k) => !picks.includes(k));
-          yield* generatePartitions(newRemaining, [...teams, team], fullLeft - 1, shortLeft);
-        }
-      }
-
-      if (shortLeft > 0) {
-        // Former une équipe de teamSize-1
-        for (let i = 0; i < rest.length; i++) {
-          const team = [first, rest[i]];
-          const newRemaining = rest.filter((_, k) => k !== i);
-          yield* generatePartitions(newRemaining, [...teams, team], fullLeft, shortLeft - 1);
+          yield* generatePartitions(newRemaining, [...teams, team], fullLeft - 1);
         }
       }
     }
 
-    for (const partition of generatePartitions(players, [], teamsOfFull, teamsOfShort)) {
-      const stdDev = evaluateStdDev(partition);
-      candidates.push({ teams: partition, stdDev });
+    for (const partition of generatePartitions(baseTeamPlayers, [], teamsOfFull)) {
+      const teams = partition.map(t => [...t]);
+      distributeExtras(teams);
+      const stdDev = evaluateStdDev(teams);
+      candidates.push({ teams, stdDev });
     }
   } else {
-    // ÉCHANTILLONNAGE pour 13+ joueurs
+    // ÉCHANTILLONNAGE pour 13+ joueurs base (donc 13/14/16+ joueurs total)
     const NUM_SAMPLES = 50000;
     for (let sample = 0; sample < NUM_SAMPLES; sample++) {
-      const shuffled = [...players];
+      const shuffled = [...baseTeamPlayers];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       const teams = buildTeams(shuffled);
+      distributeExtras(teams);
       const stdDev = evaluateStdDev(teams);
       candidates.push({ teams, stdDev });
     }

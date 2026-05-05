@@ -90,6 +90,34 @@ let bonusesCache = []; // Cache des bonus éphémères
 let seasonBonusesCache = {}; // Cache des bonus archivés par saison (depuis frozen_results)
 
 // ============================================
+// SYNC SNAPSHOT YEARLY STANDINGS → BACKEND
+// ============================================
+let _snapshotTimer = null;
+let _snapshotLastSent = 0;
+const SNAPSHOT_DEBOUNCE_MS = 2000;
+const SNAPSHOT_MIN_INTERVAL_MS = 30000; // au plus 1 envoi/30s
+
+function sendYearlyStandingsSnapshot(standings) {
+  if (!Array.isArray(standings) || standings.length === 0) return;
+  // Débouncer + rate limiter pour ne pas spammer le backend
+  if (_snapshotTimer) clearTimeout(_snapshotTimer);
+  _snapshotTimer = setTimeout(async () => {
+    const now = Date.now();
+    if (now - _snapshotLastSent < SNAPSHOT_MIN_INTERVAL_MS) return;
+    _snapshotLastSent = now;
+    try {
+      await fetch('/api/standings/snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ standings })
+      });
+    } catch (e) {
+      // Échec non bloquant
+    }
+  }, SNAPSHOT_DEBOUNCE_MS);
+}
+
+// ============================================
 // CHARGEMENT DES RÉSULTATS FIGÉS
 // ============================================
 async function loadFrozenResults() {
@@ -522,6 +550,11 @@ function renderAll() {
     seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today, frozenResultsCache, yearlyStandingsCache);
 
     yearlyStandingsCache = calculateYearlyStandings(allActivities, today, frozenResultsCache, bonusesCache, seasonBonusesCache);
+
+    // Snapshot vers backend (non bloquant, débouncé en cas de re-render rapide).
+    // Permet au backend (saison team) et au script de tests de connaître les
+    // points exacts du classement général sans dupliquer la logique de calcul.
+    sendYearlyStandingsSnapshot(yearlyStandingsCache);
 
     // Detect special rule for current round
     const bannerSpecialRule = getSpecialRuleForRound(currentRoundNumber);
