@@ -2391,6 +2391,34 @@ body {
   filter: grayscale(1);
 }
 
+/* Saison Équipes : bouclier désactivé */
+.joker-card.disabled-team {
+  opacity: 0.6;
+  background: rgba(168, 85, 247, 0.04);
+  border-color: rgba(168, 85, 247, 0.2);
+  cursor: not-allowed;
+}
+
+.joker-card.disabled-team .joker-icon {
+  filter: grayscale(0.7);
+}
+
+.joker-card.disabled-team .joker-count {
+  color: rgba(168, 85, 247, 0.9);
+  font-size: 0.85rem;
+}
+
+/* Badge vainqueur (équipe finale) */
+.team-winner-badge {
+  background: linear-gradient(135deg, #facc15, #eab308);
+  color: #422006;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
 .joker-icon {
   font-size: 2.5rem;
 }

@@ -28,7 +28,7 @@ const TEAM_ANIMALS = [
   { id: 'ours',       emoji: '🐻', name: 'Ours' },
   { id: 'mammouth',   emoji: '🦣', name: 'Mammuth' },
   { id: 'sanglier',   emoji: '🐗', name: 'Sanglier' },
-  { id: 'canard',     emoji: '🪿', name: 'Canard' },
+  { id: 'canard',     emoji: '🦆', name: 'Canard' },
   { id: 'panda',      emoji: '🐼', name: 'Panda' },
   { id: 'chouette',   emoji: '🦉', name: 'Chouette' },
   { id: 'loutre',     emoji: '🦦', name: 'Loutre' }

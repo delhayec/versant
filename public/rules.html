@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260330">
+  <link rel="stylesheet" href="css/style.css?v=20260505c">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
 
   <style>
@@ -406,6 +406,101 @@
         display: none;
       }
     }
+
+    /* ============================================
+       SAISON ÉQUIPES — encadré spécial
+       ============================================ */
+    .team-season-banner {
+      margin-bottom: 60px;
+    }
+
+    .team-season-card {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(34, 211, 238, 0.08));
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 24px rgba(168, 85, 247, 0.1);
+    }
+
+    .team-season-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .team-season-icon {
+      font-size: 40px;
+    }
+
+    .team-season-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0;
+      background: linear-gradient(135deg, #a855f7, #22d3ee);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .team-season-intro {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.85);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .team-rules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .team-rule-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .team-rule-card h4 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      color: #f3f4f6;
+    }
+
+    .team-rule-card p {
+      font-size: 13px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.75);
+      margin: 0;
+    }
+
+    .team-points-list {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.6;
+    }
+
+    .team-points-list li {
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .team-season-card {
+        padding: 20px;
+      }
+      .team-season-title {
+        font-size: 22px;
+      }
+      .team-rules-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -436,6 +531,111 @@
         Tout ce que tu dois savoir pour participer au Challenge Versant 2026
       </p>
     </div>
+
+    <!-- Encadré spécial saison Équipes (affiché par JS si saison team active ou imminente) -->
+    <section id="teamSeasonRulesBanner" class="rules-section team-season-banner" style="display: none;">
+      <div class="team-season-card">
+        <div class="team-season-header">
+          <span class="team-season-icon">🤝</span>
+          <h2 class="team-season-title">Saison Équipes — Règles spéciales</h2>
+        </div>
+        <p class="team-season-intro" id="teamSeasonContext">
+          La Saison 4 se joue par équipes. Voici tout ce qui change pendant cette saison.
+        </p>
+
+        <div class="team-rules-grid">
+          <div class="team-rule-card">
+            <h4>🎲 Composition des équipes</h4>
+            <p>
+              5 équipes de 3 joueurs (avec 15 participants) sont tirées au sort
+              <strong>à chaque round</strong>. L'algorithme d'équilibrage minimise
+              l'écart de points entre les équipes en utilisant le classement annuel.
+              Si on a 14 ou 16 joueurs, l'équipe qui regroupe les plus mauvais au
+              classement général reçoit un joueur de plus (équipe à 4).
+            </p>
+          </div>
+
+          <div class="team-rule-card">
+            <h4>🐺 Identité des équipes</h4>
+            <p>
+              Chaque équipe reçoit un nom d'animal de montagne (Loup, Aigle,
+              Marmotte, Chamois...) et une couleur. Les noms sont uniques sur
+              toute la saison : à chaque nouveau tirage, on en attribue de
+              nouveaux jamais utilisés auparavant.
+            </p>
+          </div>
+
+          <div class="team-rule-card">
+            <h4>⛔ Élimination</h4>
+            <p>
+              On somme le D+ de tous les membres pour chaque équipe. À la fin
+              du round, <strong>l'équipe avec le moins de D+ cumulé est éliminée
+              en bloc</strong> (les 3 joueurs basculent dans le challenge des
+              éliminés). Les inactifs pénalisent leur équipe : ils ne sont pas
+              éliminés individuellement avant le tirage. En cas d'égalité de D+
+              entre 2 équipes, celle avec l'activité la plus récente perd.
+            </p>
+          </div>
+
+          <div class="team-rule-card">
+            <h4>🛡️ Jokers autorisés</h4>
+            <p>
+              Le <strong>bouclier est désactivé</strong> en saison Équipes
+              (toute l'équipe est éliminée ou survit ensemble). Voleur,
+              sabotage et multiplicateur restent autorisés : ils ciblent un
+              joueur spécifique et impactent l'équipe via la somme des D+.
+              Pas de bonus rescapé non plus pendant cette saison.
+            </p>
+          </div>
+
+          <div class="team-rule-card">
+            <h4>🏆 Round R4 — Finale principale</h4>
+            <p>
+              Quand il ne reste plus que 2 équipes, le round R4 est la finale
+              principale : les 2 équipes (6 joueurs) sont toutes éliminées.
+              <strong>Équipe gagnante : positions 1-2-3 (24/21/18 pts).
+              Équipe vaincue : positions 4-5-6 (15/12/10 pts)</strong>, selon
+              la contribution individuelle au sein de l'équipe.
+            </p>
+          </div>
+
+          <div class="team-rule-card">
+            <h4>👻 Round R5 — Finale challenge éliminés</h4>
+            <p>
+              Round bonus de durée standard. Toutes les équipes éliminées au
+              cours de la saison participent <strong>dans leur composition
+              d'origine</strong> (jamais re-tirées). Les 6 finalistes du R4
+              entrent au R5 sans avoir reçu de bonus éphémère du R4 ; les
+              bonus reçus aux R1/R2/R3 restent valides.
+            </p>
+          </div>
+
+          <div class="team-rule-card">
+            <h4>📊 Points du challenge des éliminés</h4>
+            <p>
+              À la fin de la saison, on classe les équipes éliminées par D+
+              cumulé depuis leur élimination jusqu'à la fin du R5 :
+            </p>
+            <ul class="team-points-list">
+              <li><strong>1ère équipe</strong> : 12 / 11 / 10 pts (selon contribution individuelle)</li>
+              <li><strong>2ème équipe</strong> : 8 / 7 / 6 pts</li>
+              <li><strong>3ème équipe</strong> : 4 / 3 / 2 pts</li>
+              <li><strong>4ème et 5ème équipe</strong> : 0 pt</li>
+            </ul>
+          </div>
+
+          <div class="team-rule-card">
+            <h4>🎁 Bonus éphémères</h4>
+            <p>
+              Comme dans les saisons standard, à chaque round (R1 à R3), le
+              meilleur des éliminés (= meilleur D+ individuel dans l'équipe
+              éliminée) reçoit un choix entre 2 bonus éphémères. Ces bonus
+              restent valides jusqu'à la fin de la saison, R5 inclus.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Principe du Challenge -->
     <section class="rules-section">
@@ -803,6 +1003,47 @@
       <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
     </div>
   </footer>
+
+  <script type="module">
+    // Détection saison Équipes : si on est en saison team OU si la saison
+    // suivante est team ET qu'on est dans le dernier round de la saison
+    // courante (= finale → saison suivante imminente).
+    import { getSeasonNumber, isTeamSeason, getRoundInSeason, getRoundsForSeason } from './js/config.js';
+    import { getCurrentDate } from './js/demo.js';
+
+    try {
+      const today = getCurrentDate();
+      const currentSeason = getSeasonNumber(today);
+      const nextSeason = currentSeason + 1;
+
+      let showBanner = false;
+      let context = '';
+
+      if (isTeamSeason(currentSeason)) {
+        showBanner = true;
+        context = `La <strong>Saison ${currentSeason}</strong> se joue par équipes. Voici tout ce qui change pendant cette saison.`;
+      } else if (isTeamSeason(nextSeason)) {
+        // Vérifier qu'on est dans la finale de la saison courante
+        try {
+          const roundInSeason = getRoundInSeason(today);
+          const roundsForSeason = getRoundsForSeason(currentSeason);
+          if (roundInSeason >= roundsForSeason) {
+            showBanner = true;
+            context = `⏳ La <strong>Saison ${nextSeason}</strong> arrive et se jouera par équipes ! Découvre les règles spéciales avant le grand départ.`;
+          }
+        } catch {}
+      }
+
+      if (showBanner) {
+        const banner = document.getElementById('teamSeasonRulesBanner');
+        const ctx = document.getElementById('teamSeasonContext');
+        if (banner) banner.style.display = '';
+        if (ctx) ctx.innerHTML = context;
+      }
+    } catch (e) {
+      console.warn('Erreur détection saison team:', e);
+    }
+  </script>
 
   <script>
     // Gestion de l'affichage du lien Dashboard

@@ -101,6 +101,14 @@ export function getSeasonType(seasonNumber) {
   return SEASON_TYPES[typeId];
 }
 
+/**
+ * Helper : la saison est-elle de type team ?
+ * Mirror de la fonction backend pour usage uniforme.
+ */
+export function isTeamSeason(seasonNumber) {
+  return getSeasonType(seasonNumber)?.isTeamBased === true;
+}
+
 // ============================================
 // SYSTÈME DE POINTS
 // ============================================

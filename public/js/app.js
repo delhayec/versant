@@ -532,7 +532,7 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
 // RENDU PRINCIPAL
 // ============================================
 
-function renderAll() {
+async function renderAll() {
   try {
     const today = getCurrentDate();
 
@@ -578,18 +578,51 @@ function renderAll() {
     if (rankingContainer) {
       const seasonType = getSeasonType(currentSeasonNumber);
 
-      if (seasonType?.isTeamBased && seasonData?.roundResults) {
-        // MODE ÉQUIPE : rendu par blocs d'équipe
-        const currentRoundResult = seasonData.roundResults.find(r => r.status === 'active');
-        if (currentRoundResult?.teams) {
-          renderTeamRanking(rankingContainer, {
-            teams: currentRoundResult.teams,
-            seasonData,
-            currentSeasonNumber,
-            currentRoundNumber
-          });
-        } else {
-          rankingContainer.innerHTML = '<div class="empty-state"><p>En attente des données d\'équipe...</p></div>';
+      if (seasonType?.isTeamBased) {
+        // MODE ÉQUIPE : récupérer les équipes depuis le backend (single source of truth)
+        // Le backend gère le tirage équilibré + les noms d'animaux + le cache 30s.
+        rankingContainer.innerHTML = '<div class="empty-state"><p>Chargement des équipes...</p></div>';
+        try {
+          const resp = await fetch(`/api/teams/round/${currentRoundNumber}`);
+          if (resp.ok) {
+            const teamData = await resp.json();
+            if (Array.isArray(teamData.teams) && teamData.teams.length > 0) {
+              // Enrichir chaque équipe avec le D+ courant des membres si pas déjà figé
+              if (!teamData.frozen) {
+                const roundDates = getRoundDates(currentRoundNumber);
+                const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
+                const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
+                teamData.teams = teamData.teams.map(team => {
+                  const membersWithElev = team.members.map(m => {
+                    const acts = roundActivities.filter(a =>
+                      String(a.athlete?.id || a.athlete_id) === String(m.id) && !a.excluded
+                    );
+                    const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+                    return { ...m, elevation: Math.round(elev), activitiesCount: acts.length };
+                  });
+                  return {
+                    ...team,
+                    members: membersWithElev,
+                    totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0)
+                  };
+                });
+              }
+              renderTeamRanking(rankingContainer, {
+                teams: teamData.teams,
+                seasonData,
+                currentSeasonNumber,
+                currentRoundNumber,
+                isFrozen: !!teamData.frozen
+              });
+            } else {
+              rankingContainer.innerHTML = '<div class="empty-state"><p>En attente des données d\'équipe...</p></div>';
+            }
+          } else {
+            rankingContainer.innerHTML = '<div class="empty-state"><p>Erreur chargement équipes</p></div>';
+          }
+        } catch (e) {
+          console.error('Erreur fetch teams:', e);
+          rankingContainer.innerHTML = '<div class="empty-state"><p>Erreur réseau</p></div>';
         }
       } else {
         // MODE STANDARD : rendu classique
@@ -731,7 +764,7 @@ function renderAll() {
 // ============================================
 
 function renderTeamRanking(container, data) {
-  const { teams, seasonData, currentSeasonNumber, currentRoundNumber } = data;
+  const { teams, seasonData, currentSeasonNumber, currentRoundNumber, isFrozen } = data;
 
   if (!teams || teams.length === 0) {
     container.innerHTML = '<div class="empty-state"><p>Aucune équipe formée</p></div>';
@@ -742,34 +775,57 @@ function renderTeamRanking(container, data) {
   const sortedTeams = [...teams].sort((a, b) => b.totalElevation - a.totalElevation);
   const lastTeamIdx = sortedTeams.length - 1;
 
+  // Détecter le type de round (finale principale = 2 équipes restantes)
+  const isFinalePrincipale = sortedTeams.length === 2;
+  const headerLabel = isFinalePrincipale
+    ? `🏆 Finale Saison Équipes`
+    : `🤝 Saison Équipes — Round ${getRoundInSeason(getCurrentDate())}`;
+
   let html = `
     <div class="team-ranking">
       <div class="team-ranking-header">
-        <span>🤝 Saison Équipes — Round ${getRoundInSeason(getCurrentDate())}/${getRoundsForSeason(currentSeasonNumber)}</span>
+        <span>${headerLabel}</span>
       </div>
   `;
 
   sortedTeams.forEach((team, teamPosition) => {
     const isLastTeam = teamPosition === lastTeamIdx;
     const teamColor = team.color || TEAM_COLORS[team.index % TEAM_COLORS.length];
+    const animal = team.animal || null;
     const position = teamPosition + 1;
 
     // Médaille pour le top 3
     const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '';
 
+    // Nom équipe = animal en priorité, sinon couleur (fallback)
+    const teamLabel = animal
+      ? `${animal.emoji} ${animal.name}`
+      : `Équipe ${teamColor.name}`;
+
+    // Badge danger : "ÉLIMINÉE" si round figé, "ZONE D'ÉLIMINATION" sinon
+    const dangerBadge = isLastTeam
+      ? (isFrozen
+          ? (isFinalePrincipale
+              ? '<span class="team-danger-badge">FINALISTE VAINCU</span>'
+              : '<span class="team-danger-badge">⛔ ÉLIMINÉE</span>')
+          : '<span class="team-danger-badge">⚠️ Zone d\'élimination</span>')
+      : (isFinalePrincipale && teamPosition === 0 && isFrozen
+          ? '<span class="team-winner-badge">🏆 VAINQUEUR</span>'
+          : '');
+
     html += `
       <div class="team-block ${isLastTeam ? 'team-danger' : ''}" style="border-left: 4px solid ${teamColor.border}; background: ${teamColor.bg};">
         <div class="team-block-header">
           <span class="team-position">${medal || '#' + position}</span>
-          <span class="team-name">Équipe ${teamColor.name}</span>
+          <span class="team-name">${teamLabel}</span>
           <span class="team-total-elevation">${formatElevation(team.totalElevation)}</span>
-          ${isLastTeam ? '<span class="team-danger-badge">⚠️ Zone d\'élimination</span>' : ''}
+          ${dangerBadge}
         </div>
         <div class="team-members">
     `;
 
     // Membres triés par D+ décroissant
-    const membersSorted = [...team.members].sort((a, b) => b.elevation - a.elevation);
+    const membersSorted = [...team.members].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
     membersSorted.forEach((member, memberIdx) => {
       const participant = getParticipantById(member.id);
       const name = participant?.name || member.name || '?';
@@ -782,7 +838,7 @@ function renderTeamRanking(container, data) {
               <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${color},${color}88)">${initials}</div>
               <span class="team-member-name">${name}</span>
             </div>
-            <span class="team-member-elevation">${formatElevation(member.elevation)}</span>
+            <span class="team-member-elevation">${formatElevation(member.elevation || 0)}</span>
           </div>
       `;
     });
@@ -1784,7 +1840,9 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
 
   // Trouver l'équipe éliminée
   const eliminatedTeam = teams.find(t => t.members.some(m => eliminatedIds.has(m.id)));
-  const eliminatedTeamName = eliminatedTeam?.color?.name || 'Dernière';
+  const eliminatedTeamLabel = eliminatedTeam?.animal
+    ? `${eliminatedTeam.animal.emoji} ${eliminatedTeam.animal.name}`
+    : (eliminatedTeam?.color?.name || 'Dernière');
 
   // Construire le HTML du classement par équipe
   const sortedTeams = [...teams].sort((a, b) => b.totalElevation - a.totalElevation);
@@ -1792,7 +1850,11 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
   const rankingHtml = sortedTeams.map((team, idx) => {
     const isElimTeam = team === eliminatedTeam || (eliminatedTeam && team.index === eliminatedTeam.index);
     const teamColor = team.color || TEAM_COLORS[idx % TEAM_COLORS.length];
+    const animal = team.animal || null;
     const position = idx + 1;
+    const teamLabel = animal
+      ? `${animal.emoji} ${animal.name}`
+      : `Équipe ${teamColor.name}`;
 
     const membersHtml = team.members
       .sort((a, b) => (b.elevation || 0) - (a.elevation || 0))
@@ -1810,7 +1872,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
     return `<div class="history-team-block ${isElimTeam ? 'eliminated' : ''}" style="border-left: 3px solid ${teamColor.border};">
       <div class="history-team-header">
         <span class="history-rank">#${position}</span>
-        <span style="color: ${teamColor.border}; font-weight: 600;">Équipe ${teamColor.name}</span>
+        <span style="color: ${teamColor.border}; font-weight: 600;">${teamLabel}</span>
         <span class="history-elevation">${formatElevation(team.totalElevation || 0, false)}</span>
         ${isElimTeam ? '<span class="history-elim-badge">Éliminée</span>' : ''}
       </div>
@@ -1825,7 +1887,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
     </div>
     <div class="history-eliminated">
       <span class="history-label">Équipe éliminée :</span>
-      <span class="eliminated-name">${eliminatedTeamName}</span>
+      <span class="eliminated-name">${eliminatedTeamLabel}</span>
       <span class="eliminated-gap">(${eliminations.map(e => e.name).join(', ')})</span>
     </div>
     <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">

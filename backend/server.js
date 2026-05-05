@@ -18,7 +18,7 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 
 // Import configuration partagée (source unique de vérité)
-const { CHALLENGE_CONFIG, VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK } = require('./shared-config');
+const { CHALLENGE_CONFIG, VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK, isTeamSeason } = require('./shared-config');
 
 // Import du module jokers
 const { createJokersRoutes } = require('./jokers-routes');
@@ -205,13 +205,13 @@ async function safeModifyJSON(filePath, modifyFn, defaultValue = []) {
     } catch {
       data = defaultValue;
     }
-    
+
     const modified = await modifyFn(data);
-    
+
     const tempPath = filePath + '.tmp';
     await fs.writeFile(tempPath, JSON.stringify(modified, null, 2));
     await fs.rename(tempPath, filePath);
-    
+
     return modified;
   } finally {
     releaseLock(filePath);
@@ -1748,6 +1748,157 @@ app.post('/api/standings/snapshot', async (req, res) => {
     res.json({ success: true, count: compact.length });
   } catch (error) {
     console.error('Erreur standings snapshot:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * Calcule (et met en cache) les équipes d'un round saison team.
+ * Source unique de vérité : frontend et backend produisent des équipes
+ * identiques en consommant cet endpoint.
+ *
+ * Stratégie :
+ *  - Si le round est déjà figé (frozen_results.rounds[X].teams existent) →
+ *    on retourne directement les équipes figées.
+ *  - Sinon (round en cours) → on appelle calculateTeamRoundResults en mode
+ *    "preview" (sans persister) et on retourne les équipes formées.
+ *
+ * Cache mémoire 30s pour limiter le coût.
+ */
+const _teamsCache = new Map(); // key = roundNumber, value = { ts, payload }
+const TEAMS_CACHE_TTL_MS = 30000;
+
+app.get('/api/teams/round/:roundNumber', async (req, res) => {
+  try {
+    const roundNumber = parseInt(req.params.roundNumber);
+    if (!Number.isInteger(roundNumber) || roundNumber < 1) {
+      return res.status(400).json({ error: 'roundNumber invalide' });
+    }
+
+    // Cache hit ?
+    const cached = _teamsCache.get(roundNumber);
+    if (cached && Date.now() - cached.ts < TEAMS_CACHE_TTL_MS) {
+      return res.json(cached.payload);
+    }
+
+    // 1. Si le round est déjà figé, renvoyer les équipes figées
+    const allFrozen = await frozenResults.getAllFrozenResults();
+    const frozenRound = allFrozen?.rounds?.[String(roundNumber)];
+    if (frozenRound?.frozen && Array.isArray(frozenRound.teams)) {
+      const payload = {
+        roundNumber,
+        seasonNumber: frozenRound.seasonNumber,
+        roundInSeason: frozenRound.roundInSeason,
+        seasonType: frozenRound.seasonType || (isTeamSeason(frozenRound.seasonNumber) ? 'team' : 'standard'),
+        frozen: true,
+        teams: frozenRound.teams,
+        eliminatedTeam: frozenRound.eliminatedTeam || null
+      };
+      _teamsCache.set(roundNumber, { ts: Date.now(), payload });
+      return res.json(payload);
+    }
+
+    // 2. Vérifier si c'est bien une saison team
+    const { isTeamSeason: isTeam } = require('./shared-config');
+    // On utilise calculateRoundResults dans un mode "dry-run" : on charge les
+    // données mais on n'appelle pas la persistance.
+    const config = CHALLENGE_CONFIG;
+    const leagueId = config.leagueId;
+    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activities = await safeReadJSON(activitiesFile, []);
+    const athletesAll = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletesAll.filter(a => a.league_id === leagueId && a.active);
+    const jokerUsage = await readJokerUsage();
+
+    // Détecter la saison de ce round à partir des rounds figés précédents.
+    let detectedSeason = null;
+    for (let r = roundNumber - 1; r >= 1; r--) {
+      const prev = allFrozen.rounds?.[String(r)];
+      if (prev?.seasonNumber != null) {
+        const survivors = (prev.activeParticipants?.length || 0) - (prev.eliminations?.length || 0);
+        const wasTeamFinal = prev.teamFinalRound === true;
+        detectedSeason = (survivors <= 1 || wasTeamFinal)
+          ? Number(prev.seasonNumber) + 1
+          : Number(prev.seasonNumber);
+        break;
+      }
+    }
+    if (detectedSeason == null) detectedSeason = 1;
+
+    if (!isTeam(detectedSeason)) {
+      return res.status(400).json({
+        error: 'Pas une saison team',
+        seasonNumber: detectedSeason
+      });
+    }
+
+    // Calcul "live" via le module frozen-results (sans persister).
+    // calculateRoundResults n'est pas exporté, donc on appelle freezeRoundResults
+    // serait destructif. Solution : passer par un appel direct à la fonction
+    // interne via require, mais comme elle n'est pas exportée non plus,
+    // on duplique a minima la formation des équipes ici.
+    //
+    // Plus simple : on appelle l'endpoint cache directement via le team-utils.
+    const teamUtils = require('./team-utils');
+    const seasonType = require('./shared-config').getSeasonType(detectedSeason);
+    const teamSize = seasonType?.teamSize || 3;
+
+    // Déterminer les actifs de cette saison (non éliminés dans rounds précédents)
+    let activeIds = leagueAthletes.map(a => String(a.id));
+    for (let r = roundNumber - 1; r >= 1; r--) {
+      const prev = allFrozen.rounds?.[String(r)];
+      if (!prev?.frozen) continue;
+      if (Number(prev.seasonNumber) !== Number(detectedSeason)) break;
+      if (Array.isArray(prev.eliminations)) {
+        const elimIds = prev.eliminations.map(e => String(e.id));
+        activeIds = activeIds.filter(id => !elimIds.includes(id));
+      }
+    }
+
+    // pointsMap depuis le snapshot
+    const pointsMap = {};
+    activeIds.forEach(id => { pointsMap[id] = 0; });
+    const snap = allFrozen.yearlyStandingsSnapshot?.standings;
+    if (Array.isArray(snap)) {
+      snap.forEach(s => {
+        if (s.id != null && pointsMap[String(s.id)] !== undefined) {
+          pointsMap[String(s.id)] = s.totalPoints || 0;
+        }
+      });
+    }
+
+    // Récupérer animaux déjà utilisés cette saison
+    const usedAnimalIds = new Set();
+    for (const [k, r] of Object.entries(allFrozen.rounds || {})) {
+      if (!r?.frozen) continue;
+      if (Number(r.seasonNumber) !== Number(detectedSeason)) continue;
+      if (Array.isArray(r.teams)) {
+        for (const t of r.teams) {
+          if (t.animal?.id) usedAnimalIds.add(t.animal.id);
+        }
+      }
+    }
+
+    const activeAthletes = activeIds.map(id => {
+      const a = leagueAthletes.find(x => String(x.id) === id);
+      return { id, name: a?.name || `Athlète ${id}` };
+    });
+
+    const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
+    const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, usedAnimalIds, roundNumber);
+
+    const payload = {
+      roundNumber,
+      seasonNumber: detectedSeason,
+      seasonType: 'team',
+      frozen: false,
+      teams: teamsWithAnimal,
+      eliminatedTeam: null
+    };
+    _teamsCache.set(roundNumber, { ts: Date.now(), payload });
+    res.json(payload);
+  } catch (error) {
+    console.error('Erreur teams round:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
