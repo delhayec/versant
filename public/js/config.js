@@ -83,7 +83,8 @@ export const SEASON_TYPES = {
     eliminateWholeTeam: true,
     reshuffleEachRound: true,
     balancingMethod: "points", // Équilibrage sur les points du classement général
-    candidateCount: 16 // Nombre de partitions candidates parmi lesquelles tirer au sort
+    candidateCount: 16, // Nombre de partitions candidates parmi lesquelles tirer au sort
+    extraEliminatedFinalRound: true // Round supplémentaire pour le challenge éliminés
   }
 };
 
@@ -113,6 +114,21 @@ export const ELIMINATED_CHALLENGE_POINTS = {
 
 export const getMainChallengePoints = (pos) => MAIN_CHALLENGE_POINTS[pos] ?? MAIN_CHALLENGE_POINTS.default ?? 0;
 export const getEliminatedChallengePoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? ELIMINATED_CHALLENGE_POINTS.default ?? 0;
+
+// ============================================
+// BARÈME — CHALLENGE ÉLIMINÉS SAISON TEAM
+// ============================================
+// teamRank: 1 = meilleure équipe d'éliminés (D+ cumulé le plus élevé)
+// posInTeam: 1 = meilleur contributeur de l'équipe (D+ individuel le plus élevé)
+// Au-delà de 3 équipes / 3 joueurs : 0 pts.
+export const TEAM_ELIMINATED_POINTS = {
+  1: { 1: 12, 2: 11, 3: 10 },
+  2: { 1:  8, 2:  7, 3:  6 },
+  3: { 1:  4, 2:  3, 3:  2 }
+};
+
+export const getTeamEliminatedPoints = (teamRank, posInTeam) =>
+  TEAM_ELIMINATED_POINTS[teamRank]?.[posInTeam] ?? 0;
 
 // ============================================
 // JOKERS (BONUS) - Définition complète

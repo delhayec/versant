@@ -690,6 +690,42 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const athlete = athletes.find(a => normalizeId(a.id) === normalizeId(req.athleteId));
 
+    // RÈGLE SAISON ÉQUIPES : le joker bouclier est interdit (la pire équipe est
+    // éliminée en bloc, et permettre à un joueur de "sauver" sa place dans
+    // l'équipe éliminée serait un avantage disproportionné).
+    // Voleur, sabotage et multiplicateur restent autorisés (ciblent un joueur
+    // spécifique, l'effet impacte l'équipe via la somme).
+    try {
+      const frozenData = await frozenResults.getAllFrozenResults();
+      const targetRoundEntry = frozenData?.rounds?.[String(round_number)];
+      let roundSeason = targetRoundEntry?.seasonNumber;
+
+      // Si pas figé, déduire depuis le round figé précédent
+      if (roundSeason == null) {
+        for (let r = round_number - 1; r >= 1; r--) {
+          const prev = frozenData?.rounds?.[String(r)];
+          if (prev?.seasonNumber != null) {
+            // Si saison terminée (1 actif restant), on est dans la saison suivante
+            const survivors = (prev.activeParticipants?.length || 0) - (prev.eliminations?.length || 0);
+            const wasTeamFinal = prev.teamFinalRound === true;
+            roundSeason = (survivors <= 1 || wasTeamFinal)
+              ? Number(prev.seasonNumber) + 1
+              : Number(prev.seasonNumber);
+            break;
+          }
+        }
+      }
+
+      const { isTeamSeason } = require('./shared-config');
+      if (roundSeason != null && isTeamSeason(roundSeason) && joker_id === 'bouclier') {
+        return res.status(403).json({
+          error: 'Le bouclier est désactivé en saison Équipes (toute l\'équipe est éliminée ou survit ensemble).'
+        });
+      }
+    } catch (e) {
+      console.warn('⚠️ Impossible de vérifier la saison team:', e.message);
+    }
+
     // Vérifier si l'athlète est éliminé DANS LA SAISON COURANTE
     // (pas le droit d'utiliser un joker s'il est éliminé pour le round qu'il vise).
     // BUG fix: avant, on parcourait TOUS les rounds figés de toutes les saisons,

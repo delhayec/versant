@@ -23,7 +23,8 @@ const {
   MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
   getMainPoints, getEliminatedPoints,
   BONUS_IDS,
-  getRoundDates, getSeasonNumber, getRoundInSeason
+  getRoundDates, getSeasonNumber, getRoundInSeason,
+  isTeamSeason, getSeasonType, getTeamEliminatedPoints
 } = require('./shared-config');
 
 // Import de la fonction d'application des bonus
@@ -195,6 +196,11 @@ async function enrichJokersUsed(jokersUsed, roundNumber) {
  */
 function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants, eliminationsPerRound) {
   if (!roundData || !Array.isArray(roundData.ranking) || !Array.isArray(roundData.eliminations)) {
+    return null;
+  }
+
+  // Pas de rescapé en saison team (règle métier validée)
+  if (roundData.seasonType === 'team' || isTeamSeason(roundData.seasonNumber)) {
     return null;
   }
 
@@ -387,17 +393,30 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
   }
 
   // Phase 2 : si on vient de figer la FINALE d'une saison, figer automatiquement
+  // Phase 2 : si on vient de figer la FINALE d'une saison, figer automatiquement
   // le classement final du challenge des éliminés pour cette saison.
-  // Détection : il ne reste qu'1 athlète actif après les éliminations de ce round.
-  // (le nombre de rounds par saison varie selon les éliminations cumulées —
-  //  règles spéciales handicap, multi-éliminations pour inactivité, etc.)
+  // Détection :
+  //   - Saison standard : il ne reste qu'1 athlète actif après les éliminations.
+  //   - Saison team : on figé seulement quand teamFinalRound=true (= R5 / round
+  //     final éliminés). Le R4 (finale principale) ne déclenche PAS le freeze.
   let eliminatedChallengeFrozen = null;
   try {
-    const activeAtStart = frozenRound.activeParticipants?.length || 0;
-    const eliminatedThisRound = frozenRound.eliminations?.length || 0;
-    const survivors = activeAtStart - eliminatedThisRound;
+    const isTeamRound = frozenRound.seasonType === 'team' || isTeamSeason(frozenRound.seasonNumber);
+    let shouldFreezeSeason = false;
 
-    if (activeAtStart > 0 && survivors <= 1) {
+    if (isTeamRound) {
+      // En saison team, le challenge éliminés se fige UNIQUEMENT à la fin du
+      // round final éliminés (R5). Tous les autres rounds team (incluant R4
+      // finale principale) ne déclenchent pas le freeze.
+      shouldFreezeSeason = frozenRound.teamFinalRound === true;
+    } else {
+      const activeAtStart = frozenRound.activeParticipants?.length || 0;
+      const eliminatedThisRound = frozenRound.eliminations?.length || 0;
+      const survivors = activeAtStart - eliminatedThisRound;
+      shouldFreezeSeason = activeAtStart > 0 && survivors <= 1;
+    }
+
+    if (shouldFreezeSeason) {
       eliminatedChallengeFrozen = await freezeEliminatedChallengeForSeason(
         frozenRound.seasonNumber,
         { force: options.force === true }
@@ -527,6 +546,360 @@ async function importFrozenResults(importData, options = { merge: true }) {
 }
 
 // ============================================
+// HELPERS DÉTECTION SAISON (ROBUSTE)
+// ============================================
+
+/**
+ * Détecte la saison/round-in-season pour un round donné en s'appuyant
+ * sur les rounds précédents déjà figés. Plus robuste que le calcul naïf
+ * `Math.ceil((totalParticipants - 1) / 2)` qui se trompe quand des règles
+ * spéciales ont multiplié les éliminations.
+ *
+ * @returns {{ seasonNumber, roundInSeason }}
+ */
+function detectSeasonContext(roundNumber, previousRounds) {
+  // Trouver le dernier round figé < roundNumber
+  let lastFrozen = null;
+  for (let r = roundNumber - 1; r >= 1; r--) {
+    const prev = previousRounds[String(r)];
+    if (prev && prev.frozen) {
+      lastFrozen = { round: r, ...prev };
+      break;
+    }
+  }
+
+  if (!lastFrozen) {
+    // Tout premier round → saison 1, round 1
+    return { seasonNumber: 1, roundInSeason: 1 };
+  }
+
+  // Détecter si la saison du dernier round figé est terminée
+  // Cas 1 : le round précédent a marqué la saison comme terminée (séason team R5
+  //         a aucun éliminé mais a un teamFinalRound: true ; saison standard
+  //         finale a 1 actif restant à la fin).
+  // Cas 2 : on regarde si des actifs restent.
+  const prevSeasonNumber = lastFrozen.seasonNumber;
+  const activeAtStart = (lastFrozen.activeParticipants?.length || 0);
+  const eliminatedCount = (lastFrozen.eliminations?.length || 0);
+  const survivorsAfter = activeAtStart - eliminatedCount;
+  const wasTeamFinalRound = lastFrozen.teamFinalRound === true;
+
+  if (survivorsAfter <= 1 || wasTeamFinalRound) {
+    // Saison terminée → on commence une nouvelle saison
+    return { seasonNumber: prevSeasonNumber + 1, roundInSeason: 1 };
+  }
+  return {
+    seasonNumber: prevSeasonNumber,
+    roundInSeason: (lastFrozen.roundInSeason || 0) + 1
+  };
+}
+
+// ============================================
+// CALCUL SAISON TEAM
+// ============================================
+
+/**
+ * Récupère les équipes existantes (figées) d'une saison team.
+ * Utilisé pour préserver la composition d'équipes éliminées entre rounds.
+ *
+ * @param {number} seasonNumber
+ * @param {Object} previousRounds
+ * @returns {Object} { eliminatedTeams: [...], usedAnimalIds: Set }
+ *   eliminatedTeams = équipes éliminées dans la saison (composition figée)
+ */
+function gatherTeamSeasonHistory(seasonNumber, previousRounds) {
+  const eliminatedTeams = []; // [{ animal, color, members: [{id, name}], eliminatedRound }]
+  const usedAnimalIds = new Set();
+
+  for (const [k, r] of Object.entries(previousRounds || {})) {
+    if (!r?.frozen) continue;
+    if (Number(r.seasonNumber) !== Number(seasonNumber)) continue;
+    if (!Array.isArray(r.teams)) continue;
+
+    for (const t of r.teams) {
+      if (t.animal?.id) usedAnimalIds.add(t.animal.id);
+    }
+    if (r.eliminatedTeam) {
+      eliminatedTeams.push({
+        ...r.eliminatedTeam,
+        eliminatedRound: Number(k),
+        roundInSeason: r.roundInSeason
+      });
+    }
+  }
+
+  return { eliminatedTeams, usedAnimalIds };
+}
+
+/**
+ * Calcule un round de saison team (saison 4 par défaut).
+ * Modes :
+ *   - Round normal (R1 à R(N-2)) : forme les équipes, calcule D+, élimine la pire.
+ *   - Round finale principale (R(N-1)) : 2 équipes restantes, toutes éliminées,
+ *     positions 1-6 réparties selon le D+ équipe puis individuel.
+ *   - Round finale éliminés (R(N) = dernier round) : aucun joueur actif, calcule
+ *     simplement les D+ R5 par équipe d'éliminés. Le ranking final du challenge
+ *     éliminés est calculé séparément par freezeTeamEliminatedChallengeForSeason.
+ */
+async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeason, activities, athletes, jokerUsage, config, previousRounds) {
+  const teamUtils = require('./team-utils');
+  const { getSeasonType } = require('./shared-config');
+
+  const seasonType = getSeasonType(seasonNumber);
+  const teamSize = seasonType?.teamSize || 3;
+
+  const roundDates = getRoundDates(roundNumber, config);
+  const roundStart = roundDates.start.getTime();
+  const roundEnd = roundDates.end.getTime();
+
+  // Activités du round
+  const roundActivities = activities.filter(a => {
+    const start = new Date(a.start_date).getTime();
+    const elapsedMs = (a.elapsed_time || 0) * 1000;
+    const actEnd = start + elapsedMs;
+    if (actEnd < roundStart || actEnd > roundEnd) return false;
+    if (a.excluded) return false;
+    const sport = a.sport_type || a.type;
+    if (!isValidSport(sport)) return false;
+    return true;
+  });
+
+  // Déterminer les actifs (non éliminés dans les rounds précédents de cette saison)
+  let activeIds = athletes.map(a => String(a.id));
+  for (let r = roundNumber - 1; r >= 1; r--) {
+    const prev = previousRounds[String(r)];
+    if (!prev?.frozen) continue;
+    if (Number(prev.seasonNumber) !== Number(seasonNumber)) break;
+    if (Array.isArray(prev.eliminations)) {
+      const elimIds = prev.eliminations.map(e => String(e.id));
+      activeIds = activeIds.filter(id => !elimIds.includes(id));
+    }
+  }
+
+  // Récupérer l'historique de la saison team (équipes éliminées + animaux utilisés)
+  const history = gatherTeamSeasonHistory(seasonNumber, previousRounds);
+
+  // ============================================
+  // CAS A : FINALE ÉLIMINÉS (dernier round, 0 actifs OU R après finale principale)
+  // ============================================
+  // On détecte ce cas par : aucun actif restant ET au moins 1 équipe éliminée.
+  // Dans ce round, AUCUN joueur n'est actif donc pas d'élimination, on calcule
+  // juste les D+ R par équipe d'éliminés (composition figée à leur élimination).
+  if (activeIds.length === 0 && history.eliminatedTeams.length > 0) {
+    const teamsForRound = history.eliminatedTeams.map(t => {
+      const membersWithElev = t.members.map(m => {
+        const acts = roundActivities.filter(a => String(a.athlete?.id || a.athlete_id) === String(m.id));
+        const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+        return { id: String(m.id), name: m.name, elevation: Math.round(elev), activitiesCount: acts.length };
+      }).sort((a, b) => b.elevation - a.elevation);
+      return {
+        ...t,
+        members: membersWithElev,
+        totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0)
+      };
+    }).sort((a, b) => b.totalElevation - a.totalElevation);
+
+    return {
+      roundNumber,
+      seasonNumber,
+      roundInSeason,
+      seasonType: 'team',
+      teamFinalRound: true,             // marqueur pour detectSeasonContext
+      isFinaleEliminated: true,
+      dates: { start: roundDates.start, end: roundDates.end },
+      frozen: true,
+      frozenAt: new Date().toISOString(),
+      frozenMethod: 'calculated',
+      specialRule: null,
+      activeParticipants: [],
+      ranking: [],
+      eliminations: [],
+      teams: teamsForRound,
+      jokersUsed: [],
+      bonusesUsed: [],
+      rescapeInfo: null,
+      stats: {
+        totalActivities: roundActivities.length,
+        totalElevation: teamsForRound.reduce((s, t) => s + t.totalElevation, 0),
+        eliminationsCount: 0
+      }
+    };
+  }
+
+  // ============================================
+  // CAS B : ROUND NORMAL OU FINALE PRINCIPALE
+  // ============================================
+  // Former équipes équilibrées sur le round courant
+  const activeAthletes = activeIds.map(id => {
+    const a = athletes.find(x => String(x.id) === id);
+    return { id, name: a?.name || `Athlète ${id}` };
+  });
+
+  // pointsMap pour équilibrage : on prend le total figé du classement annuel.
+  // Pour simplicité, on initialise tout à 0 (le classement n'est pas trivial à
+  // recalculer ici sans faire calculateYearlyStandings → simplification : on
+  // utilise un seed reproductible mais l'équilibrage par points ne marchera
+  // pleinement que si le frontend a déjà calculé yearlyStandings et stocké
+  // les points dans previousRounds[X].yearlyStandingsSnapshot. Pour l'instant
+  // on accepte un équilibrage purement aléatoire si pas dispo).
+  // [TODO commit B : intégrer le yearlyStandings réel ici]
+  const pointsMap = {};
+  activeAthletes.forEach(a => { pointsMap[a.id] = 0; });
+
+  // Tirage des équipes
+  const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
+  // Attribution des animaux (uniques sur la saison)
+  const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, history.usedAnimalIds, roundNumber);
+
+  // Calcul des D+ par membre puis par équipe
+  const teamsWithElevation = teamsWithAnimal.map(team => {
+    const membersWithElev = team.members.map(m => {
+      const acts = roundActivities.filter(a => String(a.athlete?.id || a.athlete_id) === String(m.id));
+      const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+      return {
+        id: String(m.id),
+        name: m.name,
+        elevation: Math.round(elev),
+        activitiesCount: acts.length,
+        originalElevation: Math.round(elev),
+        bonusPoints: 0
+      };
+    }).sort((a, b) => b.elevation - a.elevation);
+    return {
+      ...team,
+      members: membersWithElev,
+      totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0)
+    };
+  });
+
+  // Trier les équipes par D+ total décroissant
+  // Tie-break : équipe avec activité la plus récente perd (TODO commit B,
+  //             pour l'instant ordre stable du tirage).
+  teamsWithElevation.sort((a, b) => b.totalElevation - a.totalElevation);
+
+  // ============================================
+  // Ranking individuel (positions selon D+ équipe puis D+ individuel)
+  // ============================================
+  // Position 1 = meilleur contributeur de la meilleure équipe
+  // Position N = dernier contributeur de la pire équipe
+  const ranking = [];
+  let pos = 1;
+  for (const team of teamsWithElevation) {
+    for (const member of team.members) {
+      ranking.push({
+        ...member,
+        position: pos++,
+        teamIndex: team.index,
+        teamAnimal: team.animal,
+        teamColor: team.color,
+        mainPoints: 0  // sera défini ci-dessous
+      });
+    }
+  }
+
+  // ============================================
+  // Détecter type de round : finale principale ou round normal
+  // ============================================
+  // Finale principale = il ne reste que 2 équipes au début du round
+  const isFinalePrincipale = teamsWithElevation.length === 2;
+
+  let eliminations = [];
+  let eliminatedTeam = null;
+
+  if (isFinalePrincipale) {
+    // FINALE PRINCIPALE : toutes les équipes (les 2) sont éliminées
+    // Positions 1-3 → équipe 1 (24/21/18), 4-6 → équipe 2 (15/12/10)
+    // Les mainPoints sont définis sur leur position absolue
+    for (const entry of ranking) {
+      entry.mainPoints = MAIN_CHALLENGE_POINTS[entry.position] || 0;
+    }
+    // Tous les joueurs sont éliminés
+    for (const team of teamsWithElevation) {
+      for (const m of team.members) {
+        const r = ranking.find(x => x.id === m.id);
+        eliminations.push({
+          id: m.id,
+          name: m.name,
+          elevation: m.elevation,
+          reason: 'team_finale',
+          position: r?.position,
+          teamIndex: team.index,
+          teamAnimal: team.animal,
+          teamColor: team.color
+        });
+      }
+    }
+    // L'équipe vaincue (dernière) sert d'eliminatedTeam pour archive
+    eliminatedTeam = {
+      ...teamsWithElevation[teamsWithElevation.length - 1],
+      eliminationReason: 'team_finale_loser'
+    };
+  } else {
+    // ROUND NORMAL : la pire équipe est éliminée
+    const pireTeam = teamsWithElevation[teamsWithElevation.length - 1];
+
+    // Positions des éliminés selon le D+ croissant dans l'équipe (le pire en dernier)
+    const elimMembersSorted = [...pireTeam.members].sort((a, b) => a.elevation - b.elevation);
+    const totalActiveAtStart = activeIds.length;
+
+    elimMembersSorted.forEach((m, idx) => {
+      // position absolue = total_actifs - idx (le pire = position max)
+      const elimPosition = totalActiveAtStart - idx;
+      const r = ranking.find(x => x.id === m.id);
+      if (r) {
+        r.position = elimPosition;
+        r.mainPoints = MAIN_CHALLENGE_POINTS[elimPosition] || 0;
+      }
+      eliminations.push({
+        id: m.id,
+        name: m.name,
+        elevation: m.elevation,
+        reason: 'team_elimination',
+        position: elimPosition,
+        teamIndex: pireTeam.index,
+        teamAnimal: pireTeam.animal,
+        teamColor: pireTeam.color
+      });
+    });
+
+    eliminatedTeam = {
+      ...pireTeam,
+      eliminationReason: 'team_elimination'
+    };
+  }
+
+  // Résultat
+  const frozen = {
+    roundNumber,
+    seasonNumber,
+    roundInSeason,
+    seasonType: 'team',
+    isTeamSeasonRound: true,
+    isFinalePrincipale,
+    dates: { start: roundDates.start, end: roundDates.end },
+    frozen: true,
+    frozenAt: new Date().toISOString(),
+    frozenMethod: 'calculated',
+    specialRule: null,
+    activeParticipants: activeIds,
+    ranking,
+    eliminations,
+    teams: teamsWithElevation,
+    eliminatedTeam,
+    jokersUsed: [],   // jokers gérés au commit B
+    bonusesUsed: [],  // bonus gérés au commit B
+    rescapeInfo: null, // pas de rescapé en saison team
+    stats: {
+      totalActivities: roundActivities.length,
+      totalElevation: teamsWithElevation.reduce((s, t) => s + t.totalElevation, 0),
+      eliminationsCount: eliminations.length
+    }
+  };
+
+  return frozen;
+}
+
+// ============================================
 // ANCIENNE MÉTHODE: CALCUL DES RÉSULTATS
 // ============================================
 
@@ -535,21 +908,42 @@ async function importFrozenResults(importData, options = { merge: true }) {
  * ATTENTION: Cette méthode recalcule tout - préférer freezeRoundWithData()
  */
 async function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, config, previousRounds) {
+  // Détection robuste de la saison & du round-in-season à partir des rounds figés.
+  // Fallback sur le calcul naïf si aucun round précédent n'est figé (cas des tests).
+  const ctx = detectSeasonContext(roundNumber, previousRounds || {});
+  const seasonNumber = ctx.seasonNumber;
+  const roundInSeason = ctx.roundInSeason;
+
+  // BRANCHING SAISON TEAM
+  // ====================
+  // Si la saison de ce round est de type "team", on délègue à un calculateur spécifique.
+  if (isTeamSeason(seasonNumber)) {
+    return calculateTeamRoundResults(
+      roundNumber, seasonNumber, roundInSeason,
+      activities, athletes, jokerUsage, config, previousRounds
+    );
+  }
+
+  // ============================================
+  // CALCUL STANDARD (saisons individuelles)
+  // ============================================
   const roundDates = getRoundDates(roundNumber, config);
   const totalParticipants = athletes.length;
-  const seasonNumber = getSeasonNumber(roundNumber, totalParticipants, config.eliminationsPerRound);
-  const roundInSeason = getRoundInSeason(roundNumber, totalParticipants, config.eliminationsPerRound);
   const roundsPerSeason = Math.ceil((totalParticipants - 1) / config.eliminationsPerRound);
   const isFinale = roundInSeason === roundsPerSeason;
 
   // Déterminer les participants actifs (non éliminés dans les rounds précédents de cette saison)
   let activeParticipants = athletes.map(a => String(a.id));
 
-  // Trouver les éliminés des rounds précédents de CETTE saison
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  for (let r = seasonStartRound; r < roundNumber; r++) {
+  // Trouver les éliminés des rounds précédents de CETTE saison.
+  // On s'appuie sur seasonNumber détecté pour identifier les bornes de la saison
+  // dans les rounds figés (plus robuste que le calcul (s-1)*roundsPerSeason+1
+  // qui se trompe quand des règles spéciales ont multiplié les éliminations).
+  for (let r = roundNumber - 1; r >= 1; r--) {
     const prevRound = previousRounds[String(r)];
-    if (prevRound?.eliminations) {
+    if (!prevRound?.frozen) continue;
+    if (Number(prevRound.seasonNumber) !== Number(seasonNumber)) break;
+    if (prevRound.eliminations) {
       const eliminatedIds = prevRound.eliminations.map(e => String(e.id));
       activeParticipants = activeParticipants.filter(id => !eliminatedIds.includes(id));
     }
@@ -1020,11 +1414,19 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
   // (le nombre de rounds par saison varie selon les éliminations cumulées —
   //  règles spéciales handicap, multi-éliminations pour inactivité, etc.)
   try {
-    const activeAtStart = results.activeParticipants?.length || 0;
-    const eliminatedThisRound = results.eliminations?.length || 0;
-    const survivors = activeAtStart - eliminatedThisRound;
+    const isTeamRound = results.seasonType === 'team' || isTeamSeason(results.seasonNumber);
+    let shouldFreezeSeason = false;
 
-    if (activeAtStart > 0 && survivors <= 1) {
+    if (isTeamRound) {
+      shouldFreezeSeason = results.teamFinalRound === true;
+    } else {
+      const activeAtStart = results.activeParticipants?.length || 0;
+      const eliminatedThisRound = results.eliminations?.length || 0;
+      const survivors = activeAtStart - eliminatedThisRound;
+      shouldFreezeSeason = activeAtStart > 0 && survivors <= 1;
+    }
+
+    if (shouldFreezeSeason) {
       const elimChallengeFrozen = await freezeEliminatedChallengeForSeason(
         results.seasonNumber,
         {}
@@ -1243,6 +1645,198 @@ function getSeasonDatesFromFrozen(frozenRoundsMap, seasonNumber) {
  * @param {boolean} [options.force] - Écraser une valeur existante
  * @returns {Object} { success, ranking?, error? }
  */
+async function freezeTeamEliminatedChallengeForSeason(seasonNumber, options = {}) {
+  const data = await loadFrozenResults();
+  const { CHALLENGE_CONFIG } = require('./shared-config');
+
+  // Récupérer tous les rounds de la saison
+  const seasonRounds = [];
+  for (const [k, r] of Object.entries(data.rounds || {})) {
+    if (r && Number(r.seasonNumber) === Number(seasonNumber)) {
+      seasonRounds.push({ roundNumber: Number(k), ...r });
+    }
+  }
+  seasonRounds.sort((a, b) => a.roundNumber - b.roundNumber);
+
+  if (seasonRounds.length === 0) {
+    return { success: false, error: 'no_rounds_found', seasonNumber };
+  }
+
+  // Le ranking final s'appuie sur les D+ cumulés de chaque équipe d'éliminés
+  // depuis leur élimination jusqu'à la fin de saison (= R5 inclus = round
+  // marqué teamFinalRound: true ou le dernier round figé).
+  const seasonStart = seasonRounds[0].dates?.start || seasonRounds[0].startDate;
+  const seasonEnd = seasonRounds[seasonRounds.length - 1].dates?.end ||
+                    seasonRounds[seasonRounds.length - 1].endDate;
+
+  const leagueId = options.leagueId || CHALLENGE_CONFIG.leagueId;
+  const allActivities = await loadLeagueActivities(leagueId);
+
+  // Pour chaque équipe éliminée, calculer son D+ cumulé depuis l'élimination
+  // jusqu'à la fin de saison.
+  const eliminatedTeamsData = []; // [{ animal, color, eliminatedRound, members: [{id,name,elev,acts}] }]
+  for (const round of seasonRounds) {
+    if (!round.eliminatedTeam || round.isFinaleEliminated) continue;
+    const team = round.eliminatedTeam;
+    const elimEnd = round.dates?.end || round.endDate;
+    const elimEndDate = new Date(elimEnd);
+    const startMs = elimEndDate.getTime() + 1; // début de la fenêtre = juste après le round d'élimination
+
+    const seasonEndDate = new Date(seasonEnd);
+    const endMs = seasonEndDate.getTime();
+
+    const members = team.members.map(m => {
+      const acts = allActivities.filter(a => {
+        if (String(a.athlete?.id || a.athlete_id) !== String(m.id)) return false;
+        if (a.excluded) return false;
+        const sport = a.sport_type || a.type;
+        if (!isValidSport(sport)) return false;
+        const start = new Date(a.start_date).getTime();
+        const elapsedMs = (a.elapsed_time || 0) * 1000;
+        const t = start + elapsedMs;
+        return t >= startMs && t <= endMs;
+      });
+      const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+      return {
+        id: String(m.id),
+        name: m.name,
+        elevation: Math.round(elev),
+        activitiesCount: acts.length,
+        rawElevation: Math.round(elev)
+      };
+    }).sort((a, b) => b.elevation - a.elevation);
+
+    eliminatedTeamsData.push({
+      animal: team.animal,
+      color: team.color,
+      eliminatedRound: round.roundNumber,
+      eliminatedRoundInSeason: round.roundInSeason,
+      members,
+      totalElevation: members.reduce((s, m) => s + m.elevation, 0)
+    });
+  }
+
+  // Les équipes finalistes (toutes éliminées au R(N-1)) :
+  // Comme TOUTES les équipes ont été éliminées en finale principale, le R5
+  // est la fenêtre commune où elles concourent. On ajoute aussi les équipes
+  // finalistes à eliminatedTeamsData. Mais leur composition n'est pas dans
+  // round.eliminatedTeam (un seul team y est stocké). On la récupère depuis
+  // round.teams[*] du round finale principale.
+  const finalRound = seasonRounds.find(r => r.isFinalePrincipale);
+  if (finalRound && Array.isArray(finalRound.teams)) {
+    for (const t of finalRound.teams) {
+      // Ne pas re-traiter eliminatedTeam déjà ajouté ci-dessus
+      if (eliminatedTeamsData.find(et =>
+        et.animal?.id === t.animal?.id &&
+        et.eliminatedRound === finalRound.roundNumber)) continue;
+
+      const elimEnd = finalRound.dates?.end || finalRound.endDate;
+      const startMs = new Date(elimEnd).getTime() + 1;
+      const endMs = new Date(seasonEnd).getTime();
+
+      const members = t.members.map(m => {
+        const acts = allActivities.filter(a => {
+          if (String(a.athlete?.id || a.athlete_id) !== String(m.id)) return false;
+          if (a.excluded) return false;
+          const sport = a.sport_type || a.type;
+          if (!isValidSport(sport)) return false;
+          const start = new Date(a.start_date).getTime();
+          const elapsedMs = (a.elapsed_time || 0) * 1000;
+          const at = start + elapsedMs;
+          return at >= startMs && at <= endMs;
+        });
+        const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+        return {
+          id: String(m.id),
+          name: m.name,
+          elevation: Math.round(elev),
+          activitiesCount: acts.length,
+          rawElevation: Math.round(elev)
+        };
+      }).sort((a, b) => b.elevation - a.elevation);
+
+      eliminatedTeamsData.push({
+        animal: t.animal,
+        color: t.color,
+        eliminatedRound: finalRound.roundNumber,
+        eliminatedRoundInSeason: finalRound.roundInSeason,
+        members,
+        totalElevation: members.reduce((s, m) => s + m.elevation, 0)
+      });
+    }
+  }
+
+  // Trier les équipes par D+ total cumulé décroissant (la 1ère = meilleure équipe d'éliminés)
+  eliminatedTeamsData.sort((a, b) => b.totalElevation - a.totalElevation);
+
+  // Construire le ranking individuel selon le barème team éliminés
+  const ranking = [];
+  let position = 1;
+  eliminatedTeamsData.forEach((team, teamIdx) => {
+    const teamRank = teamIdx + 1; // 1 = meilleure
+    team.members.forEach((m, posInTeam) => {
+      const positionInTeam = posInTeam + 1; // 1 = meilleur contributeur de l'équipe
+      const points = getTeamEliminatedPoints(teamRank, positionInTeam);
+      ranking.push({
+        participant: { id: m.id, name: m.name },
+        id: m.id,
+        name: m.name,
+        teamRank,
+        teamAnimal: team.animal,
+        teamColor: team.color,
+        positionInTeam,
+        position: position++,
+        totalElevation: m.elevation,
+        rawElevation: m.rawElevation,
+        activityCount: m.activitiesCount,
+        eliminatedRound: team.eliminatedRound,
+        eliminatedRoundInSeason: team.eliminatedRoundInSeason,
+        points,
+        bonusEffects: { gained: 0, lost: 0, details: [] }
+      });
+    });
+  });
+
+  // Pas d'archive de bonus saisonniers pour l'instant (commit B/C)
+  // [TODO commit B : intégrer bonus saisonniers en team season]
+  data.eliminatedChallengeRankings[String(seasonNumber)] = {
+    frozenAt: new Date().toISOString(),
+    seasonNumber,
+    seasonType: 'team',
+    ranking,
+    teams: eliminatedTeamsData,
+    bonusesCount: 0
+  };
+
+  data.lastUpdated = new Date().toISOString();
+  await saveFrozenResults(data);
+
+  console.log(`🏔️ Challenge éliminés saison ${seasonNumber} (TEAM) figé : ${ranking.length} athlète(s) répartis en ${eliminatedTeamsData.length} équipes`);
+
+  return {
+    success: true,
+    seasonNumber,
+    seasonType: 'team',
+    ranking,
+    teams: eliminatedTeamsData,
+    archivedBonuses: 0,
+    purgeLog: { expiredBonuses: [], purgedPendingChoices: [] },
+    frozenAt: data.eliminatedChallengeRankings[String(seasonNumber)].frozenAt
+  };
+}
+
+/**
+ * Calcule et fige le classement final du challenge des éliminés pour une saison.
+ * Cette fonction est appelée à la fin d'une saison (finale figée).
+ * Les saisons team sont déléguées à freezeTeamEliminatedChallengeForSeason.
+ *
+ * @param {number} seasonNumber - Numéro de la saison à figer
+ * @param {Object} [options]
+ * @param {string} [options.leagueId] - ID de ligue pour charger les activités (défaut : CHALLENGE_CONFIG.leagueId)
+ * @param {Date} [options.currentDate] - Borne sup du calcul (défaut : now)
+ * @param {boolean} [options.force] - Écraser une valeur existante
+ * @returns {Object} { success, ranking?, error? }
+ */
 async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
   const data = await loadFrozenResults();
 
@@ -1254,6 +1848,11 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
       error: 'already_frozen',
       existing: data.eliminatedChallengeRankings[String(seasonNumber)]
     };
+  }
+
+  // BRANCHING SAISON TEAM
+  if (isTeamSeason(seasonNumber)) {
+    return freezeTeamEliminatedChallengeForSeason(seasonNumber, options);
   }
 
   // Récupérer la liste des éliminés

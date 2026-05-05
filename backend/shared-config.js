@@ -86,8 +86,77 @@ const SEASON_PLANNING = {
   10: "standard", 11: "standard", 12: "standard"
 };
 
+// Définition des types de saisons (mirror du frontend public/js/config.js).
+// IMPORTANT : pour les saisons "team", roundsPerSeason est variable selon le
+// nombre de joueurs. Voir getRoundsForTeamSeason ci-dessous.
+const SEASON_TYPES = {
+  standard: {
+    id: "standard",
+    name: "Standard",
+    isTeamBased: false
+  },
+  team: {
+    id: "team",
+    name: "Équipes",
+    isTeamBased: true,
+    teamSize: 3,
+    eliminateWholeTeam: true,
+    reshuffleEachRound: true,
+    // Round supplémentaire pour le challenge éliminés en finale de saison
+    extraEliminatedFinalRound: true
+  }
+};
+
+function getSeasonType(seasonNumber) {
+  const typeId = SEASON_PLANNING[seasonNumber] || 'standard';
+  return SEASON_TYPES[typeId];
+}
+
 function isTeamSeason(seasonNumber) {
   return SEASON_PLANNING[seasonNumber] === 'team';
+}
+
+/**
+ * Pour une saison team, calcule le nombre de rounds total.
+ * @param {number} totalParticipants - Nombre de joueurs au début de la saison
+ * @returns {number} Nombre total de rounds dont 1 round final pour le challenge éliminés
+ *
+ * Exemple avec 15 joueurs et teamSize=3 :
+ *   R1: 5 équipes → 1 éliminée → 4 actifs
+ *   R2: 4 équipes → 1 éliminée → 3 actifs
+ *   R3: 3 équipes → 1 éliminée → 2 actifs
+ *   R4: 2 équipes → FINALE PRINCIPALE (toute la finale est éliminée)
+ *   R5: 0 actifs → FINALE ÉLIMINÉS (toutes les équipes du challenge éliminés)
+ *   Total: 5 rounds
+ */
+function getRoundsForTeamSeason(totalParticipants, teamSize = 3) {
+  if (totalParticipants < teamSize * 2) {
+    // Pas assez pour avoir au moins 2 équipes → 1 seul round + final éliminés
+    return 2;
+  }
+  let teamCount = Math.ceil(totalParticipants / teamSize);
+  // Rounds d'élimination jusqu'à la finale (où il reste 2 équipes)
+  // Au round R, on commence avec teamCount - (R-1) équipes
+  // On veut atteindre 2 équipes au début du round finale
+  // Donc nombre de rounds avec éliminations = teamCount - 1
+  // + 1 round final pour le challenge éliminés
+  return (teamCount - 1) + 1;
+}
+
+// ============================================
+// BARÈME DES POINTS — CHALLENGE ÉLIMINÉS SAISON TEAM
+// ============================================
+// teamRank: 1 = meilleure équipe d'éliminés (D+ cumulé le plus élevé du challenge)
+// posInTeam: 1 = meilleur contributeur de l'équipe (D+ individuel le plus élevé)
+// Au-delà de 3 équipes ou 3 joueurs par équipe : 0 pts
+const TEAM_ELIMINATED_POINTS = {
+  1: { 1: 12, 2: 11, 3: 10 },
+  2: { 1:  8, 2:  7, 3:  6 },
+  3: { 1:  4, 2:  3, 3:  2 }
+};
+
+function getTeamEliminatedPoints(teamRank, posInTeam) {
+  return TEAM_ELIMINATED_POINTS[teamRank]?.[posInTeam] ?? 0;
 }
 
 // ============================================
@@ -101,7 +170,12 @@ const BONUS_IDS = [
 module.exports = {
   CHALLENGE_CONFIG,
   SEASON_PLANNING,
+  SEASON_TYPES,
+  getSeasonType,
   isTeamSeason,
+  getRoundsForTeamSeason,
+  TEAM_ELIMINATED_POINTS,
+  getTeamEliminatedPoints,
   VALID_SPORTS,
   isValidSport,
   MAIN_CHALLENGE_POINTS,
