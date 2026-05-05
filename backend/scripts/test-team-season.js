@@ -167,8 +167,89 @@ const DATA_DIR = path.join(ROOT, 'data');
     results.failed++;
   }
 
+  // ============================================
+  // SIMULATION D'UNE SAISON 4 AVEC LES VRAIS JOUEURS
+  // ============================================
+  console.log('\n=== Simulation saison 4 (15 joueurs réels) ===\n');
+
+  // Calculer les yearlyStandings actuels (= points par athlète)
+  const yearlyStandings = await frozenResults.calculateYearlyStandings(leagueAthletes);
+  const realPointsMap = {};
+  yearlyStandings.forEach(e => {
+    realPointsMap[String(e.participant.id)] = e.totalPoints || 0;
+  });
+  leagueAthletes.forEach(a => {
+    if (!(String(a.id) in realPointsMap)) realPointsMap[String(a.id)] = 0;
+  });
+
+  // Trier les athlètes par points décroissants pour visualisation
+  const realAthletes = leagueAthletes.map(a => ({
+    id: String(a.id),
+    name: a.name,
+    points: realPointsMap[String(a.id)] || 0
+  })).sort((a, b) => b.points - a.points);
+
+  console.log(`📊 Classement annuel actuel (${realAthletes.length} joueurs) :`);
+  realAthletes.forEach((a, i) => {
+    console.log(`   ${(i + 1).toString().padStart(2)}. ${a.name.padEnd(14)} ${a.points.toString().padStart(3)} pts`);
+  });
+  console.log();
+
+  // Simuler R1, R2, R3, R4 avec des seeds = numéro de round (= ce qui se passera vraiment)
+  // En supposant que la saison 4 commencera au round 19 (saison 3 finit au round 18)
+  const SEED_BASE = 19; // round number du R1 saison 4
+  let activeForSimulation = [...realAthletes];
+  const usedAnimals = new Set();
+  const eliminatedTeams = [];
+
+  for (let r = 1; r <= 4; r++) {
+    const globalRound = SEED_BASE + r - 1;
+    const teams = teamUtils.formBalancedTeams(activeForSimulation, realPointsMap, globalRound, 3);
+    const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, usedAnimals, globalRound);
+
+    // Calculer écart-type pour info
+    const sums = teamsWithAnimal.map(t => t.totalPoints);
+    const meanSum = sums.reduce((s, v) => s + v, 0) / sums.length;
+    const variance = sums.reduce((s, v) => s + (v - meanSum) ** 2, 0) / sums.length;
+    const stdDev = Math.sqrt(variance);
+
+    console.log(`━━━ R${r} (round global ${globalRound}) — ${activeForSimulation.length} joueurs actifs, ${teamsWithAnimal.length} équipes (écart-type: ${stdDev.toFixed(1)}) ━━━`);
+    teamsWithAnimal.forEach((t, idx) => {
+      const isLast = idx === teamsWithAnimal.length - 1;
+      const tag = r === 4 ? '🏆 FINALE' : (isLast ? '⚠️  ÉLIMINÉE' : '');
+      console.log(`   ${t.animal.emoji}  Équipe ${t.animal.name.padEnd(10)} (${t.color.name.padEnd(6)}) — ${t.totalPoints} pts ${tag}`);
+      t.members.forEach(m => {
+        console.log(`        └ ${m.name.padEnd(14)} (${m.points} pts annuels)`);
+      });
+      // Marquer animal comme utilisé
+      usedAnimals.add(t.animal.id);
+    });
+    console.log();
+
+    // Simuler élimination : retirer les membres de la pire équipe (et de la finale principale R4)
+    if (r < 4) {
+      const lastTeam = teamsWithAnimal[teamsWithAnimal.length - 1];
+      eliminatedTeams.push(lastTeam);
+      const elimIds = new Set(lastTeam.members.map(m => m.id));
+      activeForSimulation = activeForSimulation.filter(a => !elimIds.has(a.id));
+    } else {
+      // R4 : toutes les équipes finalistes sont éliminées
+      teamsWithAnimal.forEach(t => eliminatedTeams.push(t));
+      activeForSimulation = [];
+    }
+  }
+
+  console.log(`━━━ R5 (round global ${SEED_BASE + 4}) — Finale challenge éliminés ━━━`);
+  console.log(`   ${eliminatedTeams.length} équipes participent (composition figée à leur élimination) :`);
+  eliminatedTeams.forEach((t, idx) => {
+    console.log(`   ${idx + 1}. ${t.animal.emoji}  ${t.animal.name.padEnd(10)} (${t.color.name.padEnd(6)}) — ${t.members.map(m => m.name).join(', ')}`);
+  });
+  console.log();
+  console.log(`📋 Animaux utilisés sur la saison : ${usedAnimals.size}/15 (sur 18 disponibles)`);
+  console.log();
+
   // Récap
-  console.log('\n=== RÉSULTATS ===');
+  console.log('=== RÉSULTATS ===');
   console.log(`Passed: ${results.passed}`);
   console.log(`Failed: ${results.failed}`);
   console.log(`Skipped: ${results.skipped}`);
