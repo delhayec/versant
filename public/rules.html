@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260505c">
+  <link rel="stylesheet" href="css/style.css?v=20260330">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
 
   <style>
@@ -1001,16 +1001,21 @@
   </footer>
 
   <script type="module">
-    // Détection saison Équipes : si on est en saison team OU si la saison
-    // suivante est team ET qu'on est dans le dernier round de la saison
-    // courante (= finale → saison suivante imminente).
-    import { getSeasonNumber, isTeamSeason, getRoundInSeason, getRoundsForSeason } from './js/config.js';
+    // Détection saison Équipes : on n'affiche les règles spéciales QUE si la
+    // saison courante est de type team. La détection "1 round avant" via
+    // le numéro de round-in-season est trop fragile (les saisons standard
+    // peuvent avoir un nombre variable de rounds à cause des règles
+    // spéciales handicap, multi-éliminations pour inactivité, etc.).
+    //
+    // Pour annoncer la saison team un round à l'avance, on lit un drapeau
+    // optionnel localStorage 'versant_team_announce' (mis à 'true' par
+    // l'admin quand bon lui semble).
+    import { getSeasonNumber, isTeamSeason } from './js/config.js';
     import { getCurrentDate } from './js/demo.js';
 
     try {
       const today = getCurrentDate();
       const currentSeason = getSeasonNumber(today);
-      const nextSeason = currentSeason + 1;
 
       let showBanner = false;
       let context = '';
@@ -1018,16 +1023,13 @@
       if (isTeamSeason(currentSeason)) {
         showBanner = true;
         context = `La <strong>Saison ${currentSeason}</strong> se joue par équipes. Voici tout ce qui change pendant cette saison.`;
-      } else if (isTeamSeason(nextSeason)) {
-        // Vérifier qu'on est dans la finale de la saison courante
-        try {
-          const roundInSeason = getRoundInSeason(today);
-          const roundsForSeason = getRoundsForSeason(currentSeason);
-          if (roundInSeason >= roundsForSeason) {
-            showBanner = true;
-            context = `⏳ La <strong>Saison ${nextSeason}</strong> arrive et se jouera par équipes ! Découvre les règles spéciales avant le grand départ.`;
-          }
-        } catch {}
+      } else if (localStorage.getItem('versant_team_announce') === 'true') {
+        // Mode "annonce" : l'admin a forcé l'affichage avant la saison team
+        const nextSeason = currentSeason + 1;
+        if (isTeamSeason(nextSeason)) {
+          showBanner = true;
+          context = `⏳ La <strong>Saison ${nextSeason}</strong> arrive et se jouera par équipes ! Découvre les règles spéciales avant le grand départ.`;
+        }
       }
 
       if (showBanner) {
