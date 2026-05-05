@@ -172,12 +172,24 @@ const DATA_DIR = path.join(ROOT, 'data');
   // ============================================
   console.log('\n=== Simulation saison 4 (15 joueurs réels) ===\n');
 
-  // Calculer les yearlyStandings actuels (= points par athlète)
+  // Calculer les yearlyStandings actuels (= points principaux par athlète)
   const yearlyStandings = await frozenResults.calculateYearlyStandings(leagueAthletes);
   const realPointsMap = {};
   yearlyStandings.forEach(e => {
-    realPointsMap[String(e.participant.id)] = e.totalPoints || 0;
+    realPointsMap[String(e.id)] = e.totalMainPoints || 0;
   });
+
+  // Ajouter les points du challenge éliminés (toutes saisons figées confondues)
+  const ec = frozen.eliminatedChallengeRankings || {};
+  for (const [seasonKey, seasonData] of Object.entries(ec)) {
+    if (!Array.isArray(seasonData?.ranking)) continue;
+    seasonData.ranking.forEach(entry => {
+      const id = String(entry.id);
+      if (!(id in realPointsMap)) realPointsMap[id] = 0;
+      realPointsMap[id] += entry.points || 0;
+    });
+  }
+
   leagueAthletes.forEach(a => {
     if (!(String(a.id) in realPointsMap)) realPointsMap[String(a.id)] = 0;
   });
