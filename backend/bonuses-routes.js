@@ -107,13 +107,34 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   app.get('/api/bonuses/my', requireAuth, async (req, res) => {
     try {
       const bonuses = await safeReadJSON(BONUSES_FILE, []);
-      const myBonus = bonuses.find(b => normalizeId(b.athlete_id) === normalizeId(req.athleteId));
+      const myBonuses = bonuses.filter(b =>
+        normalizeId(b.athlete_id) === normalizeId(req.athleteId)
+      );
+
+      // Sélection du bonus à afficher (priorité décroissante) :
+      //   1. Bonus 'available' = en attente d'utilisation (priorité absolue,
+      //      le joueur doit pouvoir l'activer).
+      //   2. Bonus 'active' = effet saisonnier en cours.
+      //   3. Bonus le plus récent par elimination_round (= dernière saison où
+      //      le joueur a été éliminé). Permet de garder une trace utilisable
+      //      pour l'historique sans masquer les bonus plus anciens.
+      let myBonus = null;
+      if (myBonuses.length > 0) {
+        const available = myBonuses.find(b => b.status === 'available');
+        const active = myBonuses.find(b => b.status === 'active');
+        const sorted = [...myBonuses].sort((a, b) =>
+          (Number(b.elimination_round) || 0) - (Number(a.elimination_round) || 0)
+        );
+        myBonus = available || active || sorted[0];
+      }
 
       res.json({
         bonus: myBonus || null,
         hasBonus: !!myBonus,
         isAvailable: myBonus?.status === 'available',
-        isUsed: myBonus?.status === 'used'
+        isUsed: myBonus?.status === 'used',
+        // Liste complète pour les usages avancés (historique etc.)
+        allBonuses: myBonuses
       });
     } catch (error) {
       console.error('Erreur lecture bonus:', error);
@@ -127,25 +148,36 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   app.get('/api/bonuses/choices', requireAuth, async (req, res) => {
     try {
       const bonuses = await safeReadJSON(BONUSES_FILE, []);
-      const existingBonus = bonuses.find(b => normalizeId(b.athlete_id) === normalizeId(req.athleteId));
 
-      // Si déjà un bonus, pas de choix
-      if (existingBonus) {
-        return res.json({
-          hasChoice: false,
-          reason: 'already_has_bonus',
-          existing: existingBonus
-        });
-      }
-
-      // Vérifier s'il y a des choix en attente (stockés dans pending_choices)
+      // Vérifier s'il y a un choix en attente (= une élimination récente non encore validée)
       const pendingChoices = await safeReadJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), {});
       const myPending = pendingChoices[normalizeId(req.athleteId)];
 
+      // Si l'athlète a un pending pour un elimination_round précis, vérifier
+      // qu'il n'a pas DÉJÀ choisi pour CE même round (= bonus dans bonuses.json
+      // avec elimination_round identique). Avoir des bonus de saisons précédentes
+      // ne doit PAS bloquer un nouveau choix.
       if (myPending && myPending.choices) {
+        const currentElimRound = Number(myPending.elimination_round);
+        const alreadyChosenForThisElim = bonuses.find(b =>
+          normalizeId(b.athlete_id) === normalizeId(req.athleteId) &&
+          Number(b.elimination_round) === currentElimRound
+        );
+
+        if (alreadyChosenForThisElim) {
+          // Déjà choisi pour ce round — on retourne pas de choix mais on
+          // expose le bonus existant pour info.
+          return res.json({
+            hasChoice: false,
+            reason: 'already_chose_for_this_elimination',
+            existing: alreadyChosenForThisElim
+          });
+        }
+
         return res.json({
           hasChoice: true,
           choices: myPending.choices,
+          eliminationRound: myPending.elimination_round,
           expiresAt: myPending.expires_at
         });
       }
@@ -225,10 +257,19 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
         return res.status(400).json({ error: 'Ce bonus ne fait pas partie de tes choix' });
       }
 
-      // Vérifier qu'il n'a pas déjà un bonus
+      // Vérifier qu'il n'a pas déjà choisi pour CE round d'élimination spécifique.
+      // Avoir des bonus de saisons précédentes ne doit PAS bloquer un nouveau
+      // choix après une nouvelle élimination.
       const bonuses = await safeReadJSON(BONUSES_FILE, []);
-      if (bonuses.find(b => normalizeId(b.athlete_id) === athleteId)) {
-        return res.status(400).json({ error: 'Tu as déjà un bonus' });
+      const currentElimRound = Number(myPending.elimination_round);
+      const alreadyChosenForThisElim = bonuses.find(b =>
+        normalizeId(b.athlete_id) === athleteId &&
+        Number(b.elimination_round) === currentElimRound
+      );
+      if (alreadyChosenForThisElim) {
+        return res.status(400).json({
+          error: 'Tu as déjà choisi un bonus pour cette élimination'
+        });
       }
 
       // Récupérer le nom de l'athlète
@@ -275,14 +316,30 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       const { target_athlete_id, round_number } = req.body;
       const athleteId = normalizeId(req.athleteId);
 
-      // Récupérer le bonus du joueur
+      // Récupérer les bonus du joueur. Préférer un bonus 'available'
+      // (= en attente d'utilisation) plutôt qu'un bonus déjà 'used' / 'active'
+      // (qui peut venir d'une saison précédente).
       const bonuses = await safeReadJSON(BONUSES_FILE, []);
-      const bonusIndex = bonuses.findIndex(b => normalizeId(b.athlete_id) === athleteId);
+      const myBonuses = bonuses
+        .map((b, i) => ({ b, i }))
+        .filter(({ b }) => normalizeId(b.athlete_id) === athleteId);
 
-      if (bonusIndex < 0) {
+      if (myBonuses.length === 0) {
         return res.status(400).json({ error: 'Tu n\'as pas de bonus' });
       }
 
+      // Choisir le bonus 'available' le plus récent
+      const availableBonuses = myBonuses
+        .filter(({ b }) => b.status === 'available')
+        .sort((a, b) =>
+          (Number(b.b.elimination_round) || 0) - (Number(a.b.elimination_round) || 0)
+        );
+
+      if (availableBonuses.length === 0) {
+        return res.status(400).json({ error: 'Aucun bonus disponible à utiliser' });
+      }
+
+      const bonusIndex = availableBonuses[0].i;
       const bonus = bonuses[bonusIndex];
 
       if (bonus.status !== 'available') {
@@ -443,126 +500,6 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       });
     } catch (error) {
       res.status(500).json({ error: 'Erreur serveur' });
-    }
-  });
-
-  // ==========================================
-  // POST /api/admin/bonuses/backfill - Rattraper les pending choices manquants
-  // ==========================================
-  // Parcourt frozen_results.json et, pour chaque round figé avec >= 2 éliminés
-  // dont le meilleur n'a pas encore de pending choice ni de bonus déjà choisi,
-  // génère le pending choice qui aurait dû être créé au moment du freeze.
-  // Sans option, c'est un dry-run (aucune écriture). Avec ?apply=1, applique réellement.
-  app.post('/api/admin/bonuses/backfill', async (req, res) => {
-    if (!checkAdmin(req, res)) return;
-
-    try {
-      const apply = req.query.apply === '1' || req.body?.apply === true;
-      const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
-      const PENDING_FILE = path.join(DATA_DIR, 'pending_bonus_choices.json');
-
-      const frozen = await safeReadJSON(FROZEN_FILE, { rounds: {} });
-      const pendingChoices = await safeReadJSON(PENDING_FILE, {});
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
-
-      const report = [];
-      const rounds = frozen.rounds || {};
-      const roundNumbers = Object.keys(rounds)
-        .map(n => parseInt(n, 10))
-        .filter(n => !isNaN(n))
-        .sort((a, b) => a - b);
-
-      for (const roundNumber of roundNumbers) {
-        const round = rounds[String(roundNumber)];
-        const eliminations = round?.eliminations || [];
-        if (eliminations.length < 2) {
-          report.push({ round: roundNumber, action: 'skipped', reason: 'less_than_2_eliminations' });
-          continue;
-        }
-
-        // Meilleur des éliminés (D+ décroissant)
-        const sorted = [...eliminations].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
-        const best = sorted[0];
-
-        if (!best || !best.id) {
-          report.push({ round: roundNumber, action: 'skipped', reason: 'no_best_found' });
-          continue;
-        }
-
-        if (!best.elevation || best.elevation === 0) {
-          report.push({ round: roundNumber, action: 'skipped', reason: 'best_has_0_elevation', athlete: best.name });
-          continue;
-        }
-
-        const bestId = normalizeId(best.id);
-
-        // Déjà un pending ?
-        if (pendingChoices[bestId]) {
-          report.push({
-            round: roundNumber,
-            action: 'skipped',
-            reason: 'pending_already_exists',
-            athlete: best.name,
-            existingChoices: pendingChoices[bestId].choices,
-            existingForRound: pendingChoices[bestId].elimination_round
-          });
-          continue;
-        }
-
-        // Déjà un bonus choisi ?
-        const existingBonus = bonuses.find(b => normalizeId(b.athlete_id) === bestId);
-        if (existingBonus) {
-          report.push({
-            round: roundNumber,
-            action: 'skipped',
-            reason: 'bonus_already_chosen',
-            athlete: best.name,
-            chosenBonus: existingBonus.bonus_id
-          });
-          continue;
-        }
-
-        // OK, on génère
-        const choices = drawRandomBonuses(BONUS_CHOICE_COUNT);
-        const entry = {
-          choices,
-          elimination_round: roundNumber,
-          athlete_name: best.name,
-          elevation: best.elevation,
-          created_at: new Date().toISOString(),
-          expires_at: `${new Date().getFullYear()}-12-31T23:59:59.999Z`,
-          backfilled: true
-        };
-
-        if (apply) {
-          pendingChoices[bestId] = entry;
-        }
-
-        report.push({
-          round: roundNumber,
-          action: apply ? 'created' : 'would_create',
-          athlete: best.name,
-          athleteId: bestId,
-          choices
-        });
-      }
-
-      if (apply) {
-        await safeWriteJSON(PENDING_FILE, pendingChoices);
-        console.log(`🎁 Backfill bonus appliqué : ${report.filter(r => r.action === 'created').length} pending créés`);
-      }
-
-      res.json({
-        success: true,
-        applied: apply,
-        totalRoundsScanned: roundNumbers.length,
-        created: report.filter(r => r.action === 'created' || r.action === 'would_create').length,
-        skipped: report.filter(r => r.action === 'skipped').length,
-        report
-      });
-    } catch (error) {
-      console.error('Erreur backfill bonuses:', error);
-      res.status(500).json({ error: 'Erreur serveur', message: error.message });
     }
   });
 

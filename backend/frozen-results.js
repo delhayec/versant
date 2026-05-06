@@ -479,8 +479,26 @@ async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
     return null;
   }
 
-  // Tirer 2 bonus au hasard (utilise BONUS_IDS importé de shared-config)
-  const shuffled = [...BONUS_IDS].sort(() => Math.random() - 0.5);
+  // Tirer 2 bonus au hasard parmi les bonus que l'athlète n'a pas déjà.
+  // Évite de proposer un second_souffle à quelqu'un qui en a déjà reçu un
+  // dans une saison précédente (puisque les saisonniers restent dans
+  // bonuses.json même après usage et clôture).
+  let alreadyOwnedBonusIds = new Set();
+  try {
+    const allBonuses = await loadAllBonuses();
+    alreadyOwnedBonusIds = new Set(
+      allBonuses
+        .filter(b => String(b.athlete_id) === String(bestEliminated.id))
+        .map(b => b.bonus_id)
+    );
+  } catch (e) {
+    // Si on n'arrive pas à lire bonuses.json, on continue sans filtrage
+  }
+
+  const eligibleBonuses = BONUS_IDS.filter(id => !alreadyOwnedBonusIds.has(id));
+  // Si moins de 2 bonus éligibles (cas extrême), on retombe sur tous
+  const pool = eligibleBonuses.length >= 2 ? eligibleBonuses : BONUS_IDS;
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
   const choices = shuffled.slice(0, 2);
 
   // Ajouter le choix
