@@ -236,7 +236,7 @@ body {
 }
 @media (max-width: 768px) {
   .season-banner-wrapper {
-    padding: 8px var(--container-padding);
+    padding: 4px var(--container-padding);
   }
 }
 
@@ -363,61 +363,62 @@ body {
   .banner-unified {
     flex-wrap: wrap;
     gap: 0;
-    padding: 4px 0;
+    padding: 0;
   }
 
-  /* Ligne 1 : on garde uniquement season + round + jour (auto-flexbox) */
-  /* Le wrapping se fait naturellement, mais le countdown va sur sa propre ligne */
+  /* Ligne 1 : season + round + jour sur la même ligne, layout horizontal compact */
   .banner-block {
-    flex-direction: column;
-    padding: 8px 8px;
+    /* Horizontal : "SAISON 3", "ROUND 7 J1/5" sur une seule ligne par bloc */
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
     min-width: auto;
     flex: 1 1 auto;
   }
 
-  /* Séparateurs verticaux pour la ligne 1, masqués si la ligne wrap */
+  /* Séparateurs verticaux entre blocs de la ligne 1 */
   .banner-separator {
     width: 1px;
-    height: 32px;
+    height: 22px;
     align-self: center;
+    margin: 0;
   }
 
-  /* Bandeau mobile : tailles compactées */
+  /* Tailles très compactes */
   .banner-label {
     font-size: 0.55rem;
-    letter-spacing: 0.1em;
-    margin-bottom: 2px;
+    letter-spacing: 0.08em;
+    margin-bottom: 0;
+    line-height: 1;
   }
   .banner-value {
-    font-size: 1.15rem;
+    font-size: 1rem;
+    line-height: 1;
   }
   .banner-day {
-    font-size: 0.6rem;
-    padding: 2px 6px;
-    margin-top: 3px;
+    font-size: 0.55rem;
+    padding: 1px 5px;
+    margin-top: 0;
+    margin-left: 2px;
   }
 
   /* Ligne 2 : countdown = pleine largeur, sépare de la ligne 1 */
   .banner-countdown-block {
     flex-basis: 100%;
+    width: 100%;
     border-left: none;
     border-top: 1px solid rgba(239, 68, 68, 0.2);
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    padding: 8px 12px;
+    gap: 8px;
+    padding: 6px 12px;
   }
 
   /* On cache les stats sur mobile (priorité lisibilité du countdown) */
   .banner-stats-block {
     display: none !important;
-  }
-
-  /* Le séparateur juste avant le countdown devient horizontal et invisible */
-  .banner-countdown-block + .banner-separator,
-  .banner-stats-block + .banner-separator {
-    display: none;
   }
 }
 
@@ -641,9 +642,12 @@ body {
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.55;
+  filter: blur(70px);
+  opacity: 0.6;
+  /* Force la couche GPU pour que l'animation tourne réellement sur mobile */
   will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 .hero-bg::before {
   /* Blob orange (couleur primaire Versant) */
@@ -665,16 +669,18 @@ body {
   animation-delay: -12s;
 }
 @keyframes auroraFloat1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(40%, 25%) scale(1.1); }
-  66%      { transform: translate(15%, -8%) scale(0.95); }
+  0%   { transform: translate3d(0%, 0%, 0) scale(1); }
+  33%  { transform: translate3d(35%, 20%, 0) scale(1.15); }
+  66%  { transform: translate3d(15%, -10%, 0) scale(0.95); }
+  100% { transform: translate3d(0%, 0%, 0) scale(1); }
 }
 @keyframes auroraFloat2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(-25%, -20%) scale(1.05); }
-  66%      { transform: translate(-10%, 25%) scale(0.92); }
+  0%   { transform: translate3d(0%, 0%, 0) scale(1); }
+  33%  { transform: translate3d(-25%, -15%, 0) scale(1.1); }
+  66%  { transform: translate3d(-8%, 22%, 0) scale(0.9); }
+  100% { transform: translate3d(0%, 0%, 0) scale(1); }
 }
-/* Réduit l'animation pour les utilisateurs qui préfèrent moins de mouvement */
+/* Respect explicite des préférences de réduction de mouvement */
 @media (prefers-reduced-motion: reduce) {
   .hero-bg::before,
   .hero-bg::after {
@@ -2702,14 +2708,26 @@ body {
 
 @media (max-width: 768px) {
   .nav-container {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
+    /* Garder une seule ligne : brand à gauche, links à droite */
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Sur mobile, on garde l'icône mais on cache le texte "Versant" pour gagner de la place */
+  .brand-text {
+    display: none;
   }
 
   .nav-links {
-    justify-content: center;
+    justify-content: flex-end;
     flex-wrap: wrap;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .nav-link {
+    font-size: 0.85rem;
   }
 
   .ranking-header,
