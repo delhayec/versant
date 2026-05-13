@@ -69,42 +69,46 @@
     <div class="season-banner" id="seasonBanner"></div>
   </section>
 
-  <!-- Classement du Round -->
+  <!-- Classement combiné : Principal / Éliminés (toggle) + Bonus actifs -->
   <section class="ranking-section" id="ranking">
     <div class="section-header">
       <span class="section-number">01</span>
       <h2 class="section-title">Classement du Round</h2>
       <p class="section-desc">Survolez un athlète pour voir ses activités • Les derniers seront éliminés</p>
     </div>
-    <div class="ranking-container" id="rankingContainer"></div>
-  </section>
 
-  <!-- Jokers & Bonus (déplacé après le classement du round) -->
-  <section class="arsenal-section" id="arsenal">
-    <div class="section-header">
-      <span class="section-number">02</span>
-      <h2 class="section-title">Jokers & Bonus</h2>
-      <p class="section-desc">Stratégies en cours et bonus des éliminés</p>
+    <!-- Toggle Principal / Éliminés -->
+    <div class="ranking-toggle" role="tablist">
+      <button type="button"
+              class="ranking-toggle-btn active"
+              role="tab"
+              aria-selected="true"
+              data-target="rankingContainer">
+        Versant principal
+      </button>
+      <button type="button"
+              class="ranking-toggle-btn"
+              role="tab"
+              aria-selected="false"
+              data-target="eliminatedChallengeContainer">
+        Versant éliminé
+      </button>
     </div>
+
+    <!-- Les deux containers : principal visible par défaut, éliminé caché -->
+    <div class="ranking-container" id="rankingContainer"></div>
+    <div class="ranking-container ranking-container-hidden" id="eliminatedChallengeContainer"></div>
+
+    <!-- Arsenal (jokers actifs + bonus éliminés) déplacé sous le tableau combiné -->
     <div class="arsenal-container" id="arsenalContainer">
       <!-- Rempli par JavaScript -->
     </div>
   </section>
 
-  <!-- Challenge des Éliminés -->
-  <section class="ranking-section" id="eliminated">
-    <div class="section-header">
-      <span class="section-number">03</span>
-      <h2 class="section-title">Challenge des Éliminés</h2>
-      <p class="section-desc">D+ cumulé depuis l'élimination - Points attribués en fin de saison</p>
-    </div>
-    <div class="ranking-container" id="eliminatedChallengeContainer"></div>
-  </section>
-
   <!-- Classement Général (Points) -->
-  <section class="ranking-section" id="standings">
+  <section class="ranking-section standings-section" id="standings">
     <div class="section-header">
-      <span class="section-number">04</span>
+      <span class="section-number">02</span>
       <h2 class="section-title">Classement Général</h2>
       <p class="section-desc">Points totaux = Challenge Principal + Challenge Éliminés</p>
     </div>
@@ -114,7 +118,7 @@
   <!-- Historique -->
   <section class="history-section" id="history">
     <div class="section-header">
-      <span class="section-number">05</span>
+      <span class="section-number">03</span>
       <h2 class="section-title">Historique des Saisons</h2>
       <p class="section-desc">Détails et résumés des saisons passées</p>
     </div>

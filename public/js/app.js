@@ -177,16 +177,7 @@ function getBonusHistoryDescription(bonus) {
       return `${icon} ${athleteName} a activé le brouillard (D+ masqué)`;
     case 'marquage':
       const markPenalty = effectResult?.penaltyAmount || 0;
-      // Affichage marquage :
-      //   - Si la cible a été éliminée → bonus réussi (+1 pt)
-      //   - Sinon → indication "en cours" (round non figé) ou "raté" (round figé)
-      if (bonus.effect_result?.targetEliminated === true) {
-        return `${icon} ${athleteName} avait marqué ${targetName} → Éliminé (+1 pt)`;
-      } else if (bonus.effect_applied) {
-        return `${icon} ${athleteName} avait marqué ${targetName} → ${targetName} a survécu (raté)`;
-      } else {
-        return `${icon} ${athleteName} a marqué ${targetName} (+1 pt si éliminé ce round)`;
-      }
+      return `${icon} ${athleteName} a marqué ${targetName} (${markPenalty > 0 ? '-' + fmtElev(markPenalty) : '-20% D+'})`;
     case 'trap':
       const trapAmount = effectResult?.stolenElevation || effectResult?.amount || 0;
       return `${icon} ${athleteName} a piégé ${targetName} (${trapAmount > 0 ? '-' + fmtElev(trapAmount) : 'piège déclenché'})`;
@@ -552,8 +543,7 @@ async function renderAll() {
       return;
     }
 
-    // Passer frozenResultsCache pour bénéficier de la détection robuste
-    currentSeasonNumber = getSeasonNumber(today, frozenResultsCache);;
+    currentSeasonNumber = getSeasonNumber(today);
 
     currentRoundNumber = getGlobalRoundNumber(today);
 
@@ -2508,7 +2498,41 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('loginBtn')?.addEventListener('click', () => {
     window.location.href = 'login.html';
   });
+
+  // ============================================
+  // TOGGLE Classement Principal / Éliminé
+  // ============================================
+  // Au refresh, on revient au tableau Principal par défaut (pas de persistance).
+  setupRankingToggle();
 });
+
+function setupRankingToggle() {
+  const buttons = document.querySelectorAll('.ranking-toggle-btn');
+  if (buttons.length === 0) return;
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target;
+      if (!targetId) return;
+
+      // Mettre à jour l'état actif des boutons
+      buttons.forEach(b => {
+        const isActive = b === btn;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      // Afficher/masquer les containers
+      const principalContainer = document.getElementById('rankingContainer');
+      const eliminatedContainer = document.getElementById('eliminatedChallengeContainer');
+      if (principalContainer && eliminatedContainer) {
+        const showPrincipal = targetId === 'rankingContainer';
+        principalContainer.classList.toggle('ranking-container-hidden', !showPrincipal);
+        eliminatedContainer.classList.toggle('ranking-container-hidden', showPrincipal);
+      }
+    });
+  });
+}
 
 // ============================================
 // API PUBLIQUE
