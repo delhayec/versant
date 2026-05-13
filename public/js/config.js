@@ -667,12 +667,38 @@ export function getTotalSeasons() {
   return s - 1; // La dernière saison dépasse → on ne la compte pas
 }
 
-export function getSeasonNumber(date) {
+/**
+ * Retourne le numéro de saison pour une date donnée.
+ * Priorité : on s'appuie sur `eliminatedChallengeRankings` du backend
+ * (= saisons figées) pour déduire la saison courante. Si la saison N
+ * est figée, on est dans la saison N+1.
+ *
+ * Fallback : calcul théorique basé sur les durées de saison
+ * (peut se tromper si une saison a été raccourcie/allongée par des
+ * règles spéciales handicap ou multi-éliminations).
+ *
+ * @param {Date} date
+ * @param {Object} [frozenData] - Cache de /api/frozen-results pour la détection robuste
+ */
+export function getSeasonNumber(date, frozenData = null) {
+  // 1. DÉTECTION ROBUSTE : on prend la dernière saison figée + 1.
+  // Si frozenData est fourni (cas du rendu principal), on l'utilise en priorité.
+  if (frozenData?.eliminatedChallengeRankings) {
+    const frozenSeasonNumbers = Object.keys(frozenData.eliminatedChallengeRankings)
+      .map(k => Number(k))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => b - a);
+    if (frozenSeasonNumbers.length > 0) {
+      return frozenSeasonNumbers[0] + 1;
+    }
+  }
+
+  // 2. FALLBACK : calcul théorique
   const start = new Date(CHALLENGE_CONFIG.yearStartDate);
   const days = Math.floor((date - start) / (1000 * 60 * 60 * 24));
   let accumulated = 0;
   let s = 1;
-  while (s <= 20) { // max 20 saisons
+  while (s <= 20) {
     const seasonDays = getRoundsForSeason(s) * CHALLENGE_CONFIG.roundDurationDays;
     if (accumulated + seasonDays > days) return s;
     accumulated += seasonDays;

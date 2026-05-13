@@ -1369,7 +1369,34 @@ async function applyEphemeralBonusEffects(ranking, roundNumber, roundActivities)
         }
         break;
       }
+        case 'marquage': {
+            // Le marquage donne +1 pt classement général SI la cible est éliminée
+            // ce round. On ne touche pas au D+ ; on stocke l'effet pour que les
+            // points soient ajoutés via le snapshot frontend ou un calcul ultérieur.
+            // Note : le calcul des points "marquage_success" doit être ajouté à
+            // calculateYearlyStandings côté frontend (fait dans un commit séparé).
+            const targetId = normalizeId(bonus.target_athlete_id);
+            // Vérifier si la cible a été éliminée ce round (depuis le ranking)
+            const targetRanking = ranking.find(e => e.id === targetId);
+            const targetEliminated = targetRanking?.eliminatedPosition != null;
 
+            bonuses[i].effect_applied = true;
+            bonuses[i].effect_result = {
+              targetId,
+              targetName: bonus.target_athlete_name,
+              targetEliminated,
+              pointsAwarded: targetEliminated ? 1 : 0,
+              calculatedInRound: roundNumber
+            };
+            bonuses[i].effect_applied_at = new Date().toISOString();
+
+            if (targetEliminated) {
+              console.log(`🎯 Marquage réussi: ${bonus.athlete_name} a marqué ${bonus.target_athlete_name} → +1 pt`);
+            } else {
+              console.log(`🎯 Marquage raté: ${bonus.target_athlete_name} pas éliminé ce round`);
+            }
+            break;
+          }
       default:
         // Les autres bonus (marquage, malediction, kamikaze, etc.) n'affectent pas
         // les joueurs actifs dans le challenge principal

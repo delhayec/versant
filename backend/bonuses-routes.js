@@ -272,23 +272,54 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
         });
       }
 
-      // Récupérer le nom de l'athlète
+// Récupérer le nom de l'athlète
       const athletes = await safeReadJSON(ATHLETES_FILE, []);
       const athlete = athletes.find(a => normalizeId(a.id) === athleteId);
 
+      // === AUTO-ACTIVATION DES BONUS SANS CIBLE EXPLICITE ===
+      // trap, brouillard, duel et second_souffle se déclenchent automatiquement
+      // dès le choix : pas besoin que le joueur clique "activer". Leur effet
+      // est calculé au figement du round suivant (ou à la fin de saison).
+      const AUTO_ACTIVATE_BONUSES = new Set(['trap', 'brouillard', 'duel', 'second_souffle']);
+      const isAutoActivate = AUTO_ACTIVATE_BONUSES.has(bonus_id);
+
+      // Pour duel : calculer automatiquement la cible (co-éliminé du même round)
+      let autoTargetId = null;
+      let autoTargetName = null;
+      if (bonus_id === 'duel') {
+        try {
+          const frozenResultsModule = require('./frozen-results');
+          const allFrozen = await frozenResultsModule.getAllFrozenResults();
+          const elimRound = allFrozen?.rounds?.[String(myPending.elimination_round)];
+          if (elimRound?.eliminations) {
+            const coEliminated = elimRound.eliminations.find(e =>
+              normalizeId(e.id) !== athleteId
+            );
+            if (coEliminated) {
+              autoTargetId = normalizeId(coEliminated.id);
+              autoTargetName = coEliminated.name;
+            }
+          }
+        } catch (e) {
+          console.warn(`⚠️ Impossible de déterminer le co-éliminé pour duel:`, e.message);
+        }
+      }
+
       // Créer le bonus
+      const nowIso = new Date().toISOString();
       const newBonus = {
         id: `bonus-${athleteId}-${Date.now()}`,
         athlete_id: athleteId,
         athlete_name: athlete?.name || 'Inconnu',
         bonus_id: bonus_id,
-        status: 'available', // available, used, expired
+        // Auto-activate → 'active' (effet en cours), sinon 'available' (à utiliser)
+        status: isAutoActivate ? 'active' : 'available',
         elimination_round: myPending.elimination_round,
-        assigned_at: new Date().toISOString(),
-        used_at: null,
+        assigned_at: nowIso,
+        used_at: isAutoActivate ? nowIso : null,
         used_in_round: null,
-        target_athlete_id: null,
-        target_athlete_name: null,
+        target_athlete_id: autoTargetId,
+        target_athlete_name: autoTargetName,
         effect_applied: false,
         effect_result: null
       };
