@@ -1,2576 +1,5243 @@
+/* ============================================
+   VERSANT — CHALLENGE À ÉLIMINATION
+   Style basé sur Récap du Million (Éditorial Data-Viz)
+   ============================================ */
+
+/* === VARIABLES & RESET === */
+:root {
+  /* Palette principale - Thème Montagne */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-card: #1a1a24;
+  --bg-card-hover: #222230;
+
+  /* Accents - Palette Versant */
+  --accent-primary: #f97316; /* Orange vif #f97316 */
+  --accent-secondary: #22d3ee; /* Cyan */
+  --accent-tertiary: #10b981; /* Émeraude */
+  --accent-warning: #fbbf24; /* Jaune */
+  --accent-danger: #ef4444; /* Rouge */
+  --accent-gradient: linear-gradient(135deg, #f97316 0%, #22d3ee 100%);
+
+  /* Texte */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.4);
+
+  /* Bordures */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(249, 115, 22, 0.3);
+
+  /* Typographie */
+  --font-display: "Syne", sans-serif;
+  --font-mono: "Space Mono", monospace;
+  --font-body: "Inter", sans-serif;
+
+  /* Espacements (divisé par 2 pour densifier la page) */
+  --section-padding: clamp(30px, 5vw, 60px);
+  --container-padding: clamp(20px, 5vw, 80px);
+
+  /* Animations */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Status colors */
+  --status-active: #10b981;
+  --status-eliminated: #ef4444;
+  --status-warning: #fbbf24;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === DATE SLIDER (COMPACT) === */
+.date-slider-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.12) 0%,
+    rgba(34, 211, 238, 0.12) 100%
+  );
+  border-top: 1px solid var(--border-accent);
+  padding: 8px var(--container-padding);
+  backdrop-filter: blur(10px);
+}
+
+.slider-compact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.slider-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.slider-right {
+  flex: 1;
+  min-width: 200px;
+}
+
+.slider-nav-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-accent);
+  background: var(--bg-card);
+  color: var(--accent-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.slider-nav-btn:hover {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.slider-date {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  min-width: 130px;
+}
+
+.slider-info-inline {
+  display: flex;
+  gap: 6px;
+}
+
+.info-badge {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.info-badge strong {
+  color: var(--accent-secondary);
+  margin-left: 2px;
+}
+
+.slider-reset-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+
+.slider-reset-btn:hover {
+  background: var(--accent-secondary);
+  color: var(--bg-primary);
+  border-color: var(--accent-secondary);
+}
+
+.slider-right .date-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-card);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.slider-right .date-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+}
+
+.slider-right .date-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+}
+
+/* Ajouter du padding en bas pour le slider fixe */
+body {
+  padding-bottom: 60px;
+}
+
+/* === SEASON BANNER === */
+.season-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.08) 0%,
+    rgba(34, 211, 238, 0.08) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Wrapper compact autour du bandeau saison */
+.season-banner-wrapper {
+  padding: 12px var(--container-padding);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+@media (max-width: 768px) {
+  .season-banner-wrapper {
+    padding: 4px var(--container-padding);
+  }
+}
+
+/* === BANNER UNIFIÉ === */
+.banner-unified {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.banner-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px;
+  min-width: 100px;
+}
+
+.banner-separator {
+  width: 1px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.banner-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.banner-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.banner-season-block .banner-value {
+  color: var(--accent-secondary);
+}
+
+.banner-round-block .banner-value {
+  color: var(--accent-primary);
+}
+
+.banner-day {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-warning);
+  background: rgba(251, 191, 36, 0.15);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
+/* Stats block */
+.banner-stats-block {
+  flex-direction: row;
+  gap: 20px;
+}
+
+.banner-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.banner-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.banner-stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Countdown block */
+.banner-countdown-block {
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.banner-countdown-timer {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.countdown-unit {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.countdown-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-danger);
+}
+
+.countdown-ended .countdown-num {
+  color: var(--accent-tertiary);
+}
+
+/* Responsive bandeau : 2 lignes condensées sur mobile */
+@media (max-width: 768px) {
+  .banner-unified {
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 0;
+  }
+
+  /* Ligne 1 : season + round + jour sur la même ligne, layout horizontal compact */
+  .banner-block {
+    /* Horizontal : "SAISON 3", "ROUND 7 J1/5" sur une seule ligne par bloc */
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    min-width: auto;
+    flex: 1 1 auto;
+  }
+
+  /* Séparateurs verticaux entre blocs de la ligne 1 */
+  .banner-separator {
+    width: 1px;
+    height: 22px;
+    align-self: center;
+    margin: 0;
+  }
+
+  /* Tailles très compactes */
+  .banner-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+    margin-bottom: 0;
+    line-height: 1;
+  }
+  .banner-value {
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .banner-day {
+    font-size: 0.55rem;
+    padding: 1px 5px;
+    margin-top: 0;
+    margin-left: 2px;
+  }
+
+  /* Ligne 2 : countdown = pleine largeur, sépare de la ligne 1 */
+  .banner-countdown-block {
+    flex-basis: 100%;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid rgba(239, 68, 68, 0.2);
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 12px;
+  }
+
+  /* On cache les stats sur mobile (priorité lisibilité du countdown) */
+  .banner-stats-block {
+    display: none !important;
+  }
+}
+
+/* === ANCIEN STYLES (compatibilité) === */
+
+/* === COUNTDOWN === */
+
+.countdown-unit {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.countdown-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* === TOOLTIP ACTIVITÉS === */
+
+/* Responsive tooltip */
+@media (max-width: 1200px) {
+}
+
+/* === ROUND BANNER UPDATES === */
+
+.ranking-elevation.season {
+  color: var(--accent-secondary);
+  opacity: 0.8;
+}
+
+.ranking-round {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.active-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--status-active);
+  margin-left: 8px;
+}
+
+.wins-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--accent-warning);
+  margin-left: 6px;
+}
+
+.history-item.winner {
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.1),
+    rgba(249, 115, 22, 0.1)
+  );
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.history-item.winner::before {
+  background: var(--accent-warning);
+}
+
+/* === HISTORY CONTROLS === */
+.history-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.history-controls label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.season-select {
+  flex: 1;
+  max-width: 300px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.season-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.history-season-summary {
+  padding: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.1),
+    rgba(249, 115, 22, 0.1)
+  );
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.history-season-summary h3 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--accent-warning);
+  margin-bottom: 8px;
+}
+
+.history-item.special-round {
+  border-left-color: var(--accent-secondary);
+}
+
+/* === LOADING SCREEN === */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition:
+    opacity 0.5s ease-out,
+    visibility 0.5s ease-out;
+  /* Fallback pour mobile */
+  -webkit-transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+}
+
+.loading-screen.hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  display: none !important;
+}
+
+.loading-content {
+  text-align: center;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.loading-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: var(--text-primary);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 1rem;
+  border: 3px solid rgba(249, 115, 22, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* === HERO SECTION === */
+.hero {
+  position: relative;
+  /* Compression : hero passe de 100vh à 38vh desktop, 28vh mobile */
+  min-height: 38vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--container-padding);
+  overflow: hidden;
+}
+
+/* === DÉGRADÉ AURORA (2 blobs colorés qui flottent) === */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary, #0a0a0f);
+  overflow: hidden;
+  /* Fade-out doux en bas pour éviter la coupure nette avec la section suivante */
+  -webkit-mask-image: linear-gradient(to bottom,
+    black 0%,
+    black 70%,
+    transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    black 0%,
+    black 70%,
+    transparent 100%);
+}
+.hero-bg::before,
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  /* Force la couche GPU pour que l'animation tourne réellement sur mobile */
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+.hero-bg::before {
+  /* Blob orange (couleur primaire Versant) */
+  width: 60%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.9) 0%, transparent 70%);
+  top: -20%;
+  left: -15%;
+  opacity: 0.6;
+  animation: auroraFloat1 9s ease-in-out infinite;
+}
+.hero-bg::after {
+  /* Blob cyan (couleur secondaire Versant) */
+  width: 65%;
+  height: 110%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.75) 0%, transparent 70%);
+  bottom: -30%;
+  right: -15%;
+  opacity: 0.5;
+  animation: auroraFloat2 12s ease-in-out infinite;
+  animation-delay: -5s;
+}
+@keyframes auroraFloat1 {
+  0%   { transform: translate3d(0%, 0%, 0) scale(1);     opacity: 0.5; }
+  25%  { transform: translate3d(45%, 25%, 0) scale(1.35); opacity: 0.75; }
+  50%  { transform: translate3d(60%, 40%, 0) scale(1.15); opacity: 0.55; }
+  75%  { transform: translate3d(25%, -20%, 0) scale(0.85); opacity: 0.65; }
+  100% { transform: translate3d(0%, 0%, 0) scale(1);     opacity: 0.5; }
+}
+@keyframes auroraFloat2 {
+  0%   { transform: translate3d(0%, 0%, 0) scale(1);     opacity: 0.45; }
+  25%  { transform: translate3d(-35%, -20%, 0) scale(1.3);  opacity: 0.7; }
+  50%  { transform: translate3d(-50%, -30%, 0) scale(1.4);  opacity: 0.55; }
+  75%  { transform: translate3d(-15%, 35%, 0) scale(0.9);   opacity: 0.6; }
+  100% { transform: translate3d(0%, 0%, 0) scale(1);     opacity: 0.45; }
+}
+/* Respect explicite des préférences de réduction de mouvement */
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg::before,
+  .hero-bg::after {
+    animation: none;
+  }
+}
+
+.hero-content {
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--accent-primary);
+  margin-bottom: 0.75rem;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 0.2s backwards;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  /* Réduit (avant: clamp(3.5rem, 15vw, 12rem) → 12rem max trop gros) */
+  font-size: clamp(2.5rem, 9vw, 6rem);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.title-line {
+  display: block;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 0.4s backwards;
+}
+
+.title-line.accent {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation-delay: 0.6s;
+}
+
+.hero-subtitle {
+  font-family: var(--font-mono);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 0.8s backwards;
+}
+
+.hero-description {
+  max-width: 600px;
+  margin: 2rem auto;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  animation: fadeInUp 0.8s var(--ease-out-expo) 1s backwards;
+}
+
+.scroll-indicator {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: fadeInUp 0.8s var(--ease-out-expo) 1.2s backwards;
+}
+
+.scroll-indicator span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+}
+
+.scroll-line {
+  width: 1px;
+  height: 60px;
+  background: linear-gradient(to bottom, var(--accent-primary), transparent);
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+
+/* === NAVIGATION === */
+.nav-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 16px 0;
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--container-padding);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.brand-icon {
+  font-size: 1.5rem;
+}
+
+.brand-text {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.nav-link {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--accent-primary);
+}
+
+.nav-link.active {
+  color: var(--accent-primary);
+}
+
+/* Nav link with notification badge */
+.nav-link-with-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  border-radius: 10px;
+  animation: badgePulse 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 3px 12px rgba(168, 85, 247, 0.6);
+  }
+}
+
+.btn-login {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #e85d04 100%);
+  border: none;
+  border-radius: 8px;
+  color: var(--bg-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+}
+
+/* === ROUND INFO BANNER === */
+.round-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.1) 0%,
+    rgba(34, 211, 238, 0.1) 100%
+  );
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  padding: 24px 32px;
+  margin: 24px auto;
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 32px;
+}
+
+.rule-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+
+.rule-description {
+  font-size: 1 rem;
+  color: var(--text-secondary);
+  max-width: 500px;
+}
+
+.countdown-timer {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-danger);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 6px 12px;
+  border-radius: 8px;
+  letter-spacing: 0.05em;
+}
+
+.countdown-timer.countdown-ended {
+  color: var(--accent-tertiary);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.countdown-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* === SECTION HEADERS === */
+.section-header {
+  /* Réduit (avant 32px) pour densifier */
+  margin-bottom: 16px;
+}
+
+.section-number {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  /* Réduit (avant 2-3rem) */
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.section-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+/* === CLASSEMENT SECTION === */
+.ranking-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* === TOGGLE Principal / Éliminé === */
+.ranking-toggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+
+.ranking-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.ranking-toggle-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ranking-toggle-btn.active {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.ranking-toggle-btn.active:hover {
+  background: var(--accent-primary);
+}
+
+/* État caché du container Éliminé par défaut */
+.ranking-container.ranking-container-hidden {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .ranking-toggle {
+    width: 100%;
+  }
+  .ranking-toggle-btn {
+    flex: 1;
+    padding: 8px 8px;
+    font-size: 0.75rem;
+  }
+}
+
+/* === IDENTITÉ VISUELLE CLASSEMENT GÉNÉRAL === */
+/* Bordure dorée + fond légèrement distinct pour différencier du classement du round */
+.standings-section .standings-container {
+  border: 2px solid rgba(251, 191, 36, 0.35);
+  background: linear-gradient(
+    180deg,
+    rgba(251, 191, 36, 0.04) 0%,
+    rgba(251, 191, 36, 0.02) 100%
+  );
+  box-shadow: 0 4px 24px rgba(251, 191, 36, 0.06);
+}
+
+/* === CLASSEMENT TABLE === */
+.ranking-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.ranking-header {
+  display: grid;
+  grid-template-columns: 60px minmax(160px, 1fr) 130px 130px 200px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 60px minmax(160px, 1fr) 130px 130px 200px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  transition: background 0.2s ease;
+}
+
+.ranking-row:hover {
+  background: var(--bg-card-hover);
+}
+
+.ranking-row:last-child {
+  border-bottom: none;
+}
+
+.ranking-row.eliminated {
+  opacity: 0.5;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.ranking-row.danger-zone {
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid var(--accent-danger);
+}
+
+.ranking-position {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.ranking-position.gold {
+  color: #fbbf24;
+}
+
+.ranking-position.silver {
+  color: #94a3b8;
+}
+
+.ranking-position.bronze {
+  color: #cd7f32;
+}
+
+.ranking-athlete {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.athlete-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.athlete-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.athlete-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.athlete-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.athlete-status {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.athlete-status.active {
+  color: var(--status-active);
+}
+
+.athlete-status.eliminated {
+  color: var(--status-eliminated);
+}
+
+/* Badge pour bonus éphémère (meilleur des 2 éliminés) */
+.bonus-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.85rem;
+  cursor: help;
+  animation: pulse-bonus 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bonus {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.ranking-elevation {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.ranking-elevation span {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.ranking-points {
+  text-align: center;
+}
+
+.points-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent-tertiary), #49276b);
+  color: white;
+}
+
+.joker-badge {
+  font-size: 1rem;
+  opacity: 0.4;
+  transition: all 0.2s ease;
+  cursor: help;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.joker-badge:hover {
+  transform: scale(1.2);
+  opacity: 1;
+}
+
+.joker-badge.joker-available {
+  opacity: 0.4;
+}
+
+.joker-badge.joker-pending {
+  opacity: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.2);
+  border: 2px solid var(--accent-warning);
+  animation: pulse-orange 2s infinite;
+}
+
+.joker-badge.joker-active {
+  opacity: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid var(--status-active);
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-orange {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+  }
+}
+
+@keyframes pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+}
+
+/* === STANDINGS TABLE (CLASSEMENT GÉNÉRAL) === */
+.standings-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.standings-header {
+  display: grid;
+  grid-template-columns: 60px 1fr 90px 90px 70px 90px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.standings-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 90px 90px 70px 90px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  transition: background 0.2s ease;
+}
+
+.standings-row:hover {
+  background: var(--bg-card-hover);
+}
+
+.standings-row:last-child {
+  border-bottom: none;
+}
+
+.standings-row.eliminated {
+  opacity: 0.6;
+}
+
+.standings-rank {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.standings-athlete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.athlete-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.standings-points {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.standings-points.main {
+  color: var(--accent-primary);
+}
+
+.standings-points.elim {
+  color: var(--accent-tertiary);
+}
+
+.standings-points.bonus {
+  color: var(--accent-warning);
+}
+
+.standings-total {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.standings-total-detail {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.standings-total-detail .pts-main,
+.standings-total-detail .pts-elim,
+.standings-total-detail .pts-rescape,
+.standings-total-detail .pts-bonus {
+  font-size: 0.6rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  -webkit-text-fill-color: white;
+}
+
+/* Pilules avec fond (utilisées dans l'historique) */
+.pts-main {
+  background: rgba(16, 185, 129, 0.85);
+  color: white;
+}
+
+.pts-rescape {
+  background: rgba(245, 158, 11, 0.85);
+  color: white;
+}
+
+.pts-elim {
+  background: rgba(168, 85, 247, 0.85);
+  color: white;
+}
+
+.pts-bonus {
+  background: rgba(59, 130, 246, 0.85);
+  color: white;
+}
+
+/* Texte coloré sans fond (utilisé dans le classement général) */
+.pts-text-main {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.pts-text-rescape {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.pts-text-elim {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+/* En-têtes colorés du classement général */
+.header-main {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.header-elim {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+.season-pts-detail {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: baseline;
+}
+
+.season-pts-detail .pts-text-main,
+.season-pts-detail .pts-text-elim,
+.season-pts-detail .pts-text-rescape {
+  font-size: 0.85rem;
+}
+
+/* Badge pour les éliminés de la saison en cours */
+.elim-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+  font-family: var(--font-mono);
+  margin-left: 6px;
+}
+
+/* Classe utilitaire pour masquer sur mobile */
+.hide-mobile {
+  display: block;
+}
+
+/* === EMPTY STATE === */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+
+.empty-state p {
+  margin-bottom: 8px;
+}
+
+.empty-state .text-muted {
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+/* === CHART CONTAINER === */
+
+.joker-badge {
+  font-size: 1.25rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.joker-badge.used {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+/* === PARTICIPANTS GRID === */
+.participants-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   SECTION ARSENAL (JOKERS & BONUS)
+   ============================================ */
+
+.arsenal-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.arsenal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Quand l'arsenal est intégré sous le tableau combiné (= section ranking),
+   on ajoute une marge top pour l'espacer du tableau */
+.ranking-section .arsenal-container {
+  margin-top: 32px;
+}
+@media (max-width: 768px) {
+  .ranking-section .arsenal-container {
+    margin-top: 20px;
+  }
+}
+
+.arsenal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px 24px;
+  transition: all 0.3s ease;
+}
+
+.arsenal-card:hover {
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.arsenal-card-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arsenal-card-title .icon {
+  font-size: 16px;
+}
+
+/* Jokers actifs */
+.active-jokers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.active-joker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.active-joker-item:hover {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.active-joker-item .joker-icon {
+  font-size: 20px;
+}
+
+.active-joker-item .joker-source {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.active-joker-item .joker-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.active-joker-item .joker-target {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.active-joker-item .joker-type {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.arsenal-empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Bonus éphémères */
+.bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bonus-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.bonus-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bonus-item-details {
+  padding-top: 8px;
+  border-top: 1px solid rgba(168, 85, 247, 0.15);
+  font-size: 12px;
+}
+
+.bonus-detail-target {
+  color: #fbbf24;
+  margin-bottom: 4px;
+}
+
+.bonus-detail-effect {
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.bonus-item:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.bonus-item.pending {
+  border-style: dashed;
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.bonus-item.used {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.bonus-item .bonus-icon {
+  font-size: 20px;
+}
+
+.bonus-item .bonus-owner {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bonus-item .bonus-name {
+  color: #a855f7;
+  font-weight: 500;
+}
+
+.bonus-item .bonus-status {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.bonus-item .bonus-status.available {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.bonus-item .bonus-status.active {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.bonus-item .bonus-status.pending {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.bonus-item .bonus-status.used {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.bonus-item .bonus-target {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.bonus-hover-hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.bonus-item[title] {
+  cursor: help;
+}
+
+.bonus-item[title]:hover {
+  background: rgba(168, 85, 247, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .arsenal-card {
+    padding: 16px;
+  }
+
+  .active-jokers-list,
+  .bonus-list {
+    flex-direction: column;
+  }
+
+  .active-joker-item,
+  .bonus-item {
+    width: 100%;
+  }
+}
+
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.participant-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.participant-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-primary);
+  box-shadow: 0 8px 32px rgba(249, 115, 22, 0.15);
+}
+
+.participant-card.eliminated {
+  opacity: 0.6;
+}
+
+.participant-card.eliminated::after {
+  content: "ÉLIMINÉ";
+  position: absolute;
+  top: 16px;
+  right: -32px;
+  background: var(--accent-danger);
+  color: white;
+  padding: 4px 40px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  transform: rotate(45deg);
+}
+
+.participant-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.participant-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.participant-name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.participant-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.participant-jokers {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+/* === CHART SECTION === */
+
+#elevationChart {
+  height: 400px;
+}
+
+/* === ELIMINATION HISTORY === */
+.history-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.history-timeline {
+  position: relative;
+  padding-left: 40px;
+}
+
+.history-timeline::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+}
+
+.history-item {
+  position: relative;
+  padding: 24px;
+  margin-bottom: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+}
+
+.history-item::before {
+  content: "";
+  position: absolute;
+  left: -33px;
+  top: 32px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  border: 3px solid var(--bg-primary);
+}
+
+.history-round {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.history-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.history-eliminated {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.history-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.eliminated-name {
+  font-weight: 600;
+  color: var(--accent-danger);
+}
+
+.eliminated-name.eliminated-zero {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.eliminated-gap {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.history-zero-warning {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--accent-warning);
+}
+
+.history-jokers {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.history-jokers .history-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-warning);
+}
+
+.history-bonuses {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.history-bonuses .history-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #a855f7;
+}
+
+/* Récap du round précédent dans Arsenal */
+.arsenal-recap {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.05));
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.arsenal-recap .arsenal-card-title {
+  color: #a855f7;
+}
+
+.recap-content {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.recap-section {
+  margin-bottom: 12px;
+}
+
+.recap-section:last-child {
+  margin-bottom: 0;
+}
+
+.recap-section strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.recap-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recap-list li {
+  padding: 4px 0 4px 8px;
+  border-left: 2px solid rgba(168, 85, 247, 0.3);
+  margin-bottom: 4px;
+}
+
+.recap-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Header cliquable pour les rounds */
+.history-round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 8px;
+  transition: opacity 0.2s ease;
+}
+
+.history-round-header:hover {
+  opacity: 0.8;
+}
+
+.history-round-header .history-round {
+  margin-bottom: 0;
+}
+
+.history-toggle-icon {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  transition: transform 0.3s ease;
+}
+
+/* Dropdown du classement */
+.history-ranking-dropdown {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.history-ranking-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Blocs d'équipe dans l'historique */
+.history-team-block {
+  border-radius: 8px;
+  padding: 8px 0;
+  margin-bottom: 4px;
+  background: rgba(255,255,255,0.02);
+}
+
+.history-team-block.eliminated {
+  background: rgba(168, 85, 247, 0.05);
+}
+
+.history-team-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+.history-ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.history-ranking-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.history-ranking-row.eliminated {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.history-rank {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+.history-ranking-row:first-child .history-rank {
+  color: var(--accent-warning);
+}
+
+.history-ranking-row:nth-child(2) .history-rank {
+  color: var(--text-secondary);
+}
+
+.history-ranking-row:nth-child(3) .history-rank {
+  color: #cd7f32;
+}
+
+.history-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.history-elevation {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.history-elim-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.history-pts-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-radius: 4px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.history-rescape-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.history-rescape-badge.has-points {
+  background: linear-gradient(135deg, #f59e0b, #b45309);
+  font-weight: 700;
+}
+
+.history-ranking-row.rescape {
+  border-left: 3px solid #f59e0b;
+}
+
+/* ============================================
+   CLASSEMENT ÉQUIPES
+   ============================================ */
+
+.team-ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.team-ranking-header {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+
+.team-block {
+  border-radius: 12px;
+  padding: 12px 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.team-block:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.team-block.team-danger {
+  animation: pulse-danger 2s ease-in-out infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.3); }
+}
+
+.team-block-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.team-position {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  min-width: 32px;
+  text-align: center;
+}
+
+.team-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.team-total-elevation {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.1rem;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.team-danger-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.15));
+  color: #ef4444;
+  border-radius: 4px;
+  font-weight: 600;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.team-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.team-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  transition: background 0.2s;
+}
+
+.team-member-row:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.team-member-row.in-danger {
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.team-member-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-member-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.team-member-elevation {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .team-block {
+    padding: 10px 12px;
+  }
+  .team-block-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .team-danger-badge {
+    order: 5;
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ============================================
+   CHALLENGE DES ÉLIMINÉS - HISTORIQUE
+   ============================================ */
+
+.history-eliminated-challenge {
+  background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), rgba(168, 85, 247, 0.02));
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  margin-top: 24px;
+}
+
+.history-eliminated-challenge .history-round {
+  color: #a855f7;
+}
+
+.eliminated-challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eliminated-challenge-list .history-ranking-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+}
+
+.eliminated-challenge-list .history-ranking-row:hover {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.eliminated-challenge-list .history-ranking-row.top-three {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.history-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-name-block .history-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.history-name-block .history-elim-round {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.history-points {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  min-width: 50px;
+  text-align: right;
+}
+
+.history-points.has-points {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+/* Responsive mobile pour l'historique */
+@media (max-width: 768px) {
+  .history-item {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .history-eliminated {
+    font-size: 0.85rem;
+    line-height: 1.8;
+  }
+
+  .eliminated-gap {
+    display: block;
+    margin-left: 0;
+    font-size: 0.75rem;
+  }
+
+  .history-jokers {
+    font-size: 0.8rem;
+    line-height: 2;
+  }
+
+  .history-ranking-row {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .history-name {
+    font-size: 0.8rem;
+  }
+
+  .history-elevation {
+    font-size: 0.75rem;
+  }
+
+  .history-elim-badge {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+  }
+}
+
+/* === LOGIN PAGE === */
+
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.login-error.visible {
+  display: block;
+}
+
+/* === DASHBOARD PAGE === */
+.dashboard-header {
+  padding: 32px var(--container-padding);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* === DASHBOARD STATS GRID === */
+
+/* === JOKERS SECTION === */
+.jokers-section {
+  padding: var(--section-padding) var(--container-padding);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.jokers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.joker-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.joker-card:hover {
+  border-color: var(--accent-primary);
+}
+
+.joker-card.available {
+  cursor: pointer;
+}
+
+.joker-card.used {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.joker-card.used .joker-icon {
+  filter: grayscale(1);
+}
+
+/* Saison Équipes : bouclier désactivé */
+.joker-card.disabled-team {
+  opacity: 0.6;
+  background: rgba(168, 85, 247, 0.04);
+  border-color: rgba(168, 85, 247, 0.2);
+  cursor: not-allowed;
+}
+
+.joker-card.disabled-team .joker-icon {
+  filter: grayscale(0.7);
+}
+
+.joker-card.disabled-team .joker-count {
+  color: rgba(168, 85, 247, 0.9);
+  font-size: 0.85rem;
+}
+
+/* Badge vainqueur (équipe finale) */
+.team-winner-badge {
+  background: linear-gradient(135deg, #facc15, #eab308);
+  color: #422006;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.joker-icon {
+  font-size: 2.5rem;
+}
+
+.joker-name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.joker-status.available {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--status-active);
+}
+
+.joker-status.used {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--status-eliminated);
+}
+
+.joker-effect {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* === ROUND HISTORY === */
+
+/* === MODAL === */
+
+.modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.visible .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modal-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+
+.modal-body {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+/* === FOOTER === */
+.footer {
+  padding: 48px var(--container-padding);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.footer-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.footer-brand {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.footer-text {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* === ANIMATIONS === */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes scrollPulse {
+  0%,
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(0.5);
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* === SELECTION === */
+::selection {
+  background: rgba(249, 115, 22, 0.3);
+  color: var(--text-primary);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 1200px) {
+  .round-banner {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    text-align: center;
+  }
+
+}
+
+@media (max-width: 768px) {
+  .nav-container {
+    /* Garder une seule ligne : brand à gauche, links à droite */
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Sur mobile, on garde l'icône mais on cache le texte "Versant" pour gagner de la place */
+  .brand-text {
+    display: none;
+  }
+
+  .nav-links {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .nav-link {
+    font-size: 0.85rem;
+  }
+
+  .ranking-header,
+  .ranking-row {
+    grid-template-columns: 50px 1fr 100px;
+  }
+
+  .ranking-header:not(.ranking-header-handicap) > *:nth-child(4),
+  .ranking-header:not(.ranking-header-handicap) > *:nth-child(5),
+  .ranking-header:not(.ranking-header-handicap) ~ .ranking-row > *:nth-child(4),
+  .ranking-header:not(.ranking-header-handicap) ~ .ranking-row > *:nth-child(5) {
+    display: none;
+  }
+
+  /* Fix: ne pas appliquer la grille 3-colonnes aux lignes handicap (elles ont leur propre grille) */
+  .ranking-header-handicap,
+  .ranking-header-handicap ~ .ranking-row {
+    grid-template-columns: 32px 1fr 62px 72px !important;
+  }
+
+  .rounds-table-header,
+
+  .rounds-table-header > *:nth-child(4),
+  .rounds-table-header > *:nth-child(5),
+  .rounds-table-row > *:nth-child(4),
+}
+
+@media (max-width: 480px) {
+  .hero {
+    min-height: 28vh;
+  }
+  .hero-title {
+    font-size: clamp(2rem, 11vw, 3.5rem);
+  }
+  .hero-eyebrow {
+    margin-bottom: 0.5rem;
+  }
+
+  .participants-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jokers-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* ============================================
+   NOUVEAUX STYLES 2026a
+   ============================================ */
+
+/* Demo Banner */
+.demo-banner {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  padding: 12px 24px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.demo-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.demo-text {
+  color: white;
+  font-weight: 500;
+}
+
+.demo-link {
+  background: white;
+  color: #f97316;
+  padding: 6px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.demo-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Hero CTA Buttons */
+
+.btn-primary,
+
+/* Navigation - Join Button */
+.btn-join {
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.btn-join:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3);
+}
+
+/* Footer CTA */
+.footer-cta {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #f97316, #f43f5e);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.footer-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3);
+}
+
+/* ============================================
+   BONUS / JOKERS DISPLAY
+   ============================================ */
+
+/* Détails des bonus dans l'élévation */
+.elevation-bonuses {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.bonus-detail {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 4px;
+  margin-bottom: 2px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+}
+
+.bonus-detail.multiplier {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.bonus-detail.duel-won {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.bonus-detail.duel-lost {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.bonus-detail.sabotage {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.bonus-detail.round-rule {
+  background: rgba(34, 211, 238, 0.2);
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+/* Icône de duel dans le tableau */
+
+@keyframes duelPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Connecteur visuel entre deux athlètes en duel */
+.ranking-row.in-duel {
+  position: relative;
+}
+
+.ranking-row.in-duel::before {
+  content: "⚔️";
+  position: absolute;
+  left: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  animation: duelPulse 2s ease-in-out infinite;
+}
+
+/* Badge x2 pour multiplicateur */
+
+/* Joker stock display */
+
+.joker-stock-item .joker-icon {
+  font-size: 1rem;
+}
+
+.joker-stock-item .joker-count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.joker-stock-item.empty {
+  opacity: 0.4;
+}
+
+.joker-stock-item.empty .joker-count {
+  color: var(--text-muted);
+}
+
+/* Effets visuels sur ligne avec bonus actif */
+.ranking-row.has-multiplier {
+  background: rgba(168, 85, 247, 0.05);
+  border-left: 3px solid #a855f7;
+}
+
+.ranking-row.has-duel {
+  background: rgba(249, 115, 22, 0.05);
+}
+
+.ranking-row.sabotaged {
+  background: rgba(239, 68, 68, 0.05);
+  border-left: 3px solid var(--accent-danger);
+}
+
+/* ============================================
+   CARTE ACTIVITÉ AVEC ZONES COMPTÉES
+   ============================================ */
+
+/* ============================================
+   ADMIN - ÉDITION JOKERS
+   ============================================ */
+
+.joker-editor-item .joker-info .icon {
+  font-size: 1.5rem;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+/* Responsive */
+@media (max-width: 768px) {
+
+  .btn-primary,
+
+  .demo-banner {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .elevation-bonuses {
+    font-size: 0.65rem;
+  }
+
+  .bonus-detail {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+}
+
 /**
- * ============================================
- * VERSANT - APPLICATION PRINCIPALE
- * ============================================
- * Logique métier uniquement :
- * - Chargement des données
- * - Calculs (classements, stats, éliminations)
- * - Orchestration des modules
+ * VERSANT - STYLES COMPLÉMENTAIRES
+ * ================================
+ * Ces styles complètent style.css avec les éléments
+ * qui n'y sont pas présents (menus contextuels, modales, etc.)
  *
- * PAS DE HTML NI CSS ICI
+ * Ajouter APRÈS style.css dans le HTML
  */
 
-import {
-  CHALLENGE_CONFIG, PARTICIPANTS, ROUND_RULES, JOKER_TYPES, BONUS_TYPES,
-  SEASON_TYPES, SEASON_PLANNING, TEAM_COLORS,
-  getParticipantById, getRoundDates, getSeasonNumber, getSeasonDates,
-  getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
-  getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
-  getMainChallengePoints, getEliminatedChallengePoints,
-  getAthleteColor, getAthleteInitials, loadParticipants,
-  getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
-  formBalancedTeams, loadSpecialRulesOverrides, getSpecialRuleForRound
-} from './config.js';
-
-import {
-  initializeJokersState, useJoker as jokerUse,
-  addJoker, removeJoker, applyJokerEffects,
-  getJokerStock, getActiveJokersForRound, getPendingJokersForNextRound, getJokerStatusForRound
-} from './jokers.js';
-
-import {
-  formatElevation, formatPosition,
-  renderCombinedBanner, renderRanking,
-  renderJokersGuide, renderArsenal, showNotification,
-  showContextMenu, hideContextMenu, showTargetSelectionModal
-} from './ui.js';
-
-import { getCurrentDate, setSimulatedDate, initDemoMode } from './demo.js';
-
-import {
-  // Bonus helpers
-  getBonusesUsedInRound,
-  getArchivedBonusesForAthlete,
-  getAllBonusesForAthlete,
-  getEphemeralBonusEffectsForActiveAthlete,
-  getEphemeralBonusEffectsForEliminatedAthlete,
-  getSeasonalBonusEffectsForEliminatedAthlete,
-  // Frozen helpers
-  getFrozenRound,
-  getRescapeFromPreviousRound,
-  calculateRescapePointsForSeason,
-  getRescapeInfoForRound,
-  // Activity helpers
-  getActivityEndTime,
-  filterByPeriod,
-  filterByParticipant,
-  calculateStats,
-  calculateRanking,
-  applyHandicapRule,
-  // Simulations
-  simulateTeamSeasonEliminations,
-  simulateSeasonEliminations,
-  // Elim challenge
-  calculateEliminatedChallenge,
-  getCachedEliminatedChallengeRanking,
-  countEliminationsBeforeRound,
-  // Standings orchestrators
-  calculateYearlyStandings,
-  calculatePointsFromFrozenResults,
-  calculatePointsForSeason,
-  // Eliminated athlete helpers
-  getRoundElevation,
-  getEligibleActivitiesForBonus,
-  findCoEliminated,
-  getEliminatedElevationSince,
-  getEliminatedActivities
-} from './standings-engine.js';
-
-// ============================================
-// ÉTAT GLOBAL
-// ============================================
-let allActivities = [];
-let currentRoundNumber = 1;
-let currentSeasonNumber = 1;
-let seasonData = null;
-let yearlyStandingsCache = null;
-let isAdminMode = false;
-let frozenResultsCache = null; // Cache des résultats figés
-let bonusesCache = []; // Cache des bonus éphémères
-let seasonBonusesCache = {}; // Cache des bonus archivés par saison (depuis frozen_results)
-
-// ============================================
-// SYNC SNAPSHOT YEARLY STANDINGS → BACKEND
-// ============================================
-let _snapshotTimer = null;
-let _snapshotLastSent = 0;
-const SNAPSHOT_DEBOUNCE_MS = 2000;
-const SNAPSHOT_MIN_INTERVAL_MS = 30000; // au plus 1 envoi/30s
-
-function sendYearlyStandingsSnapshot(standings) {
-  if (!Array.isArray(standings) || standings.length === 0) return;
-  // Débouncer + rate limiter pour ne pas spammer le backend
-  if (_snapshotTimer) clearTimeout(_snapshotTimer);
-  _snapshotTimer = setTimeout(async () => {
-    const now = Date.now();
-    if (now - _snapshotLastSent < SNAPSHOT_MIN_INTERVAL_MS) return;
-    _snapshotLastSent = now;
-    try {
-      await fetch('/api/standings/snapshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ standings })
-      });
-    } catch (e) {
-      // Échec non bloquant
-    }
-  }, SNAPSHOT_DEBOUNCE_MS);
-}
-
-// ============================================
-// CHARGEMENT DES RÉSULTATS FIGÉS
-// ============================================
-async function loadFrozenResults() {
-  try {
-    const response = await fetch('/api/frozen-results');
-    if (response.ok) {
-      frozenResultsCache = await response.json();
-      // Charger les bonus archivés dans frozen_results
-      seasonBonusesCache = frozenResultsCache.seasonBonuses || {};
-    }
-  } catch (error) {
-    console.warn('⚠️ Impossible de charger les résultats figés:', error);
-    frozenResultsCache = { rounds: {} };
-  }
-}
-
-/**
- * Charge tous les bonus éphémères depuis l'API
- */
-async function loadBonuses() {
-  try {
-    const response = await fetch('/api/bonuses/all');
-    if (response.ok) {
-      bonusesCache = await response.json();
-    }
-  } catch (error) {
-    console.warn('⚠️ Impossible de charger les bonus:', error);
-    bonusesCache = [];
-  }
-}
-
-/**
- * Génère la description d'un bonus pour l'historique
- */
-function getBonusHistoryDescription(bonus) {
-  const bonusType = BONUS_TYPES?.[bonus.bonus_id];
-  const icon = bonusType?.icon || '🎁';
-  const athleteName = bonus.athlete_name || 'Joueur';
-  const targetName = bonus.target_athlete_name;
-  const effectResult = bonus.effect_result;
-
-  // Helper pour formater avec "m D+"
-  const fmtElev = (val) => `${Math.round(val).toLocaleString('fr-FR')} m D+`;
-
-  switch (bonus.bonus_id) {
-    case 'embuscade':
-      const stolenAmount = effectResult?.stolenElevation || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a tendu une embuscade à ${targetName} (${stolenAmount > 0 ? '-' + fmtElev(stolenAmount) : 'aucune activité volée'})`;
-    case 'ravitaillement':
-      const bonusAmount = effectResult?.bonusElevation || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a ravitaillé ${targetName || 'un joueur'} (+${fmtElev(bonusAmount)})`;
-    case 'duel':
-      const duelResult = effectResult?.won ? 'gagné' : 'perdu';
-      const duelAmount = effectResult?.amount || 0;
-      return `${icon} ${athleteName} a défié ${targetName} en duel (${duelResult}${duelAmount > 0 ? ', ' + fmtElev(duelAmount) + ' volés' : ''})`;
-    case 'brouillard':
-      return `${icon} ${athleteName} a activé le brouillard (D+ masqué)`;
-    case 'marquage':
-      const markPenalty = effectResult?.penaltyAmount || 0;
-      return `${icon} ${athleteName} a marqué ${targetName} (${markPenalty > 0 ? '-' + fmtElev(markPenalty) : '-20% D+'})`;
-    case 'trap':
-      const trapAmount = effectResult?.stolenElevation || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a piégé ${targetName} (${trapAmount > 0 ? '-' + fmtElev(trapAmount) : 'piège déclenché'})`;
-    case 'second_souffle':
-      const savedFrom = effectResult?.savedFromElimination ? 'sauvé de l\'élimination' : 'protection active';
-      return `${icon} ${athleteName} a utilisé son second souffle (${savedFrom})`;
-    case 'kamikaze':
-      const kamikazeAmount = effectResult?.targetPenalty || effectResult?.amount || 0;
-      return `${icon} ${athleteName} a lancé une attaque kamikaze sur ${targetName} (-${fmtElev(kamikazeAmount)} chacun)`;
-    case 'malediction':
-      const curseAmount = effectResult?.stolenThisRound || 0;
-      return `${icon} ${athleteName} a maudit ${targetName} (${curseAmount > 0 ? '-' + fmtElev(curseAmount) + ' ce round' : 'malédiction active'})`;
-    default:
-      return `${icon} ${athleteName} a utilisé ${bonusType?.name || bonus.bonus_id}${targetName ? ' sur ' + targetName : ''}`;
-  }
-}
-
-// ============================================
-// ÉCRAN D'ATTENTE AVANT LE CHALLENGE
-// ============================================
-
-function renderWaitingScreen(startDate) {
-  const now = getCurrentDate();
-  const daysUntilStart = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
-  const formattedDate = startDate.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
-
-  // Masquer le loader
-  const loadingScreen = document.getElementById('loadingScreen');
-  if (loadingScreen) {
-    loadingScreen.style.display = 'none';
-  }
-
-  // Générer la liste des participants
-  const participantsListHtml = PARTICIPANTS.map(p => `
-    <div class="waiting-participant">
-      <div class="participant-avatar-small" style="background:linear-gradient(135deg,${getAthleteColor(p.id)},${getAthleteColor(p.id)}88)">
-        ${getAthleteInitials(p.id)}
-      </div>
-      <span class="participant-name-small">${p.name}</span>
-    </div>
-  `).join('');
-
-  // Afficher l'écran d'attente dans les conteneurs principaux
-  const banner = document.getElementById('seasonBanner');
-  const ranking = document.getElementById('rankingContainer');
-  const eliminated = document.getElementById('eliminatedChallengeContainer');
-  const standings = document.getElementById('finalStandingsContainer');
-  const participantsContainer = document.getElementById('participantsContainer');
-
-  const waitingHtml = `
-    <div class="waiting-screen">
-      <div class="waiting-icon">◭️</div>
-      <h2 class="waiting-title">Challenge Versant ${CHALLENGE_CONFIG.dataYear}</h2>
-      <div class="waiting-countdown">
-        <span class="countdown-number">${daysUntilStart}</span>
-        <span class="countdown-label">jour${daysUntilStart > 1 ? 's' : ''} avant le départ</span>
-      </div>
-      <p class="waiting-date">Début le <strong>${formattedDate}</strong></p>
-      <p class="waiting-info">Préparez-vous ! Le 1ᵉʳ round débutera à cette date.</p>
-      <div class="waiting-participants">
-        <span class="participants-count">${PARTICIPANTS.length}</span> participants inscrits
-      </div>
-    </div>
-  `;
-
-  const participantsGridHtml = `
-    <div class="waiting-participants-section">
-      <h3 class="waiting-section-title"> Participants inscrits</h3>
-      <div class="waiting-participants-grid">
-        ${participantsListHtml}
-      </div>
-      <p class="waiting-inscription-cta">
-        <a href="inscription.html" class="btn-inscription">Pas encore inscrit ? Rejoignez le challenge !</a>
-      </p>
-    </div>
-  `;
-
-  if (banner) {
-    banner.innerHTML = `
-      <div class="banner-waiting">
-        <span class="banner-icon"></span>
-        <span class="banner-text">Challenge ${CHALLENGE_CONFIG.dataYear} • Début le ${startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
-        <span class="banner-countdown">${daysUntilStart}j</span>
-      </div>
-    `;
-  }
-
-  if (ranking) {
-    ranking.innerHTML = waitingHtml;
-  }
-
-  if (eliminated) {
-    eliminated.innerHTML = participantsGridHtml;
-  }
-
-  if (standings) {
-    standings.innerHTML = '<div class="empty-state"><p>Le classement sera disponible après le début du challenge</p></div>';
-  }
-
-  // Si la section participants existe, y afficher aussi la grille
-  if (participantsContainer) {
-    participantsContainer.innerHTML = participantsGridHtml;
-  }
-
-}
-
-// ============================================
-// CHARGEMENT DES DONNÉES
-// ============================================
-
-async function loadActivities() {
-  // Déterminer le mode (démo vs production)
-  const isDemo = CHALLENGE_CONFIG.isDemo || window.location.pathname.includes('demo');
-  const dataFile = '/data/all_activities_2025.json';
-  const leagueId = CHALLENGE_CONFIG.leagueId;
-
-
-  // En mode DEMO, charger directement le fichier local 2025
-  if (isDemo) {
-    try {
-      const localResponse = await fetch(dataFile);
-      if (localResponse.ok) {
-        const localData = await localResponse.json();
-        allActivities = parseActivitiesData(localData);
-
-        if (allActivities.length > 0) {
-          const dates = allActivities.map(a => a.start_date?.substring(0, 10)).filter(Boolean);
-          const uniqueDates = [...new Set(dates)].sort().reverse();
-        }
-        return allActivities;
-      } else {
-        console.error(`❌ Fichier démo introuvable: ${dataFile}`);
-      }
-    } catch (e) {
-      console.error('❌ Erreur chargement fichier démo:', e);
-    }
-    return allActivities;
-  }
-
-  // Mode PRODUCTION: charger depuis l'API
-  try {
-    const response = await fetch(`/api/activities/${leagueId}`);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-    const data = await response.json();
-    allActivities = parseActivitiesData(data);
-
-    // Debug: afficher les dates des activités
-    if (allActivities.length > 0) {
-      const dates = allActivities.map(a => a.start_date?.substring(0, 10)).filter(Boolean);
-      const uniqueDates = [...new Set(dates)].sort().reverse();
-
-      // Vérifier les activités du round actuel
-      const today = new Date();
-      const roundStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-
-      const recentActivities = allActivities.filter(a => {
-        const d = new Date(a.start_date);
-        return d >= roundStart;
-      });
-    } else {
-      console.warn('⚠️ Aucune activité dans la réponse API');
-    }
-
-    return allActivities;
-  } catch (error) {
-    console.warn('⚠️ Erreur chargement API:', error.message);
-    console.warn('⚠️ Tentative fichier local: /data/classement.json');
-    try {
-      const localResponse = await fetch('/data/classement.json');
-      if (localResponse.ok) {
-        const localData = await localResponse.json();
-        allActivities = parseActivitiesData(localData);
-        console.warn('⚠️ ATTENTION: Données locales utilisées, pas l\'API!');
-      }
-    } catch (e) {
-      console.error('❌ Impossible de charger les données:', e);
-    }
-    return allActivities;
-  }
-}
-
-/**
- * Parse différents formats de données d'activités
- * Supporte: tableau direct, {activities: []}, {ranking: [{activities: []}]}
- */
-function parseActivitiesData(data) {
-  // Si c'est déjà un tableau
-  if (Array.isArray(data)) {
-    return data.filter(a => !a.sport_type || isValidSport(a.sport_type));
-  }
-
-  // Si c'est {activities: [...]}
-  if (data.activities && Array.isArray(data.activities)) {
-    return data.activities.filter(a => !a.sport_type || isValidSport(a.sport_type));
-  }
-
-  // Si c'est {ranking: [{id, activities: [...]}]} (format classement.json)
-  if (data.ranking && Array.isArray(data.ranking)) {
-    const activities = [];
-    for (const participant of data.ranking) {
-      if (participant.activities && Array.isArray(participant.activities)) {
-        for (const activity of participant.activities) {
-          activities.push({
-            ...activity,
-            // Normaliser les champs pour compatibilité
-            start_date: activity.date || activity.start_date,
-            total_elevation_gain: activity.elevation || activity.total_elevation_gain,
-            distance: activity.distance,
-            // Si pas de sport_type, assumer que c'est valide (données pré-filtrées)
-            sport_type: activity.sport_type || 'Run',
-            // Ajouter les infos athlète pour le filtrage
-            athlete: {
-              id: participant.id,
-              firstname: participant.name?.split(' ')[0] || '',
-              lastname: participant.name?.split(' ').slice(1).join(' ') || ''
-            }
-          });
-        }
-      }
-    }
-    // Pour les données classement.json, pas besoin de re-filtrer par sport
-    return activities;
-  }
-
-  console.warn('⚠️ Format de données non reconnu');
-  return [];
-}
-
-// ============================================
-// FILTRAGE DES ACTIVITÉS
-// ============================================
-
-// ============================================
-// CALCULS STATISTIQUES
-// ============================================
-
-// ============================================
-// SIMULATION DES ÉLIMINATIONS
-// ============================================
-
-// ============================================
-// CHALLENGE DES ÉLIMINÉS
-// ============================================
-// ============================================
-// CLASSEMENT ANNUEL
-// ============================================
-
-// ============================================
-// RÉSUMÉ DE SAISON (pour l'historique)
-// ============================================
-
-function getSeasonSummary(activities, seasonNumber, currentDate) {
-  const seasonDates = getSeasonDates(seasonNumber);
-  const sData = simulateSeasonEliminations(activities, seasonNumber, currentDate, frozenResultsCache, yearlyStandingsCache);
-  const rounds = [];
-  const roundsPerSeason = getRoundsPerSeason();
-
-  for (let r = 1; r <= roundsPerSeason; r++) {
-    const globalRound = (seasonNumber - 1) * roundsPerSeason + r;
-    const roundDates = getRoundDates(globalRound);
-    if (currentDate < roundDates.start) break;
-
-    const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
-    // Filtrer les participants actifs à ce round (ceux qui n'ont pas été éliminés AVANT ce round)
-    const activeAtRound = PARTICIPANTS.filter(p =>
-      !sData.eliminated.some(e => e.eliminatedRound < r && e.id === p.id)
-    );
-    const ranking = calculateRanking(roundActivities, activeAtRound);
-
-    rounds.push({
-      roundInSeason: r,
-      globalRound,
-      dates: roundDates,
-      winner: ranking[0]?.participant,
-      winnerElevation: ranking[0]?.totalElevation || 0,
-      // Filtrer par eliminatedRound (round dans la saison)
-      eliminated: sData.eliminated.filter(e => e.eliminatedRound === r).map(e => e.name)
-    });
-  }
-
-  // Calculer le classement du challenge des éliminés
-  // Pour les saisons terminées ET figées, on lit directement le cache
-  // (Phase 2/3 : eliminatedChallengeRankings). Sinon recalcul dynamique.
-  const cachedElim = getCachedEliminatedChallengeRanking(seasonNumber, frozenResultsCache);
-  let eliminatedRanking;
-
-  if (cachedElim) {
-    // Adapter le format cache vers le format attendu par l'historique (participant: {id, name, ...})
-    eliminatedRanking = cachedElim.map(e => ({
-      ...e,
-      participant: e.participant || { id: e.id, name: e.name }
-    }));
-  } else {
-    // Calcul dynamique : saison en cours OU saison finie mais pas encore figée
-    eliminatedRanking = calculateEliminatedChallenge(
-      activities, sData.eliminated, seasonDates,
-      sData.seasonComplete ? seasonDates.end : currentDate
-    );
-
-    // Appliquer les bonus éphémères (embuscade, marquage, malédiction, kamikaze)
-    // sur le classement des éliminés — identique à ce que fait renderEliminatedChallenge()
-    const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-    const seasonEndRound = seasonNumber * roundsPerSeason;
-
-    eliminatedRanking.forEach(e => {
-      let gained = 0, lost = 0;
-      const details = [];
-      for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-        const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(e.participant.id, roundNum, bonusesCache, seasonBonusesCache);
-        gained += roundEffects.gained;
-        lost += roundEffects.lost;
-        details.push(...roundEffects.details);
-      }
-      // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-      const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(e.participant.id, bonusesCache, seasonBonusesCache, allActivities, frozenResultsCache?.rounds, seasonNumber);
-      gained += seasonalEffects.gained;
-      lost += seasonalEffects.lost;
-      details.push(...seasonalEffects.details);
-
-      const netBonus = gained - lost;
-      if (netBonus !== 0) {
-        e.rawElevation = e.totalElevation;
-        e.totalElevation = Math.max(0, e.totalElevation + netBonus);
-      }
-      e.bonusEffects = { gained, lost, details };
-    });
-
-    // Re-trier et re-assigner les positions/points après application des bonus
-    eliminatedRanking.sort((a, b) => b.totalElevation - a.totalElevation);
-    eliminatedRanking.forEach((e, i) => {
-      e.position = i + 1;
-      e.points = getEliminatedChallengePoints(e.position);
-    });
-  }
-
-  return {
-    seasonNumber,
-    dates: seasonDates,
-    isComplete: sData.seasonComplete,
-    winner: sData.winner,
-    rounds,
-    eliminatedRanking
-  };
-}
-
-// ============================================
-// RENDU PRINCIPAL
-// ============================================
-
-async function renderAll() {
-  try {
-    const today = getCurrentDate();
-
-    // Vérifier si le challenge a commencé
-    const challengeStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-    if (today < challengeStart) {
-      renderWaitingScreen(challengeStart);
-      return;
-    }
-
-    currentSeasonNumber = getSeasonNumber(today);
-
-    currentRoundNumber = getGlobalRoundNumber(today);
-
-    seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today, frozenResultsCache, yearlyStandingsCache);
-
-    yearlyStandingsCache = calculateYearlyStandings(allActivities, today, frozenResultsCache, bonusesCache, seasonBonusesCache);
-
-    // Snapshot vers backend (non bloquant, débouncé en cas de re-render rapide).
-    // Permet au backend (saison team) et au script de tests de connaître les
-    // points exacts du classement général sans dupliquer la logique de calcul.
-    sendYearlyStandingsSnapshot(yearlyStandingsCache);
-
-    // Detect special rule for current round
-    const bannerSpecialRule = getSpecialRuleForRound(currentRoundNumber);
-    const bannerRuleDetails = bannerSpecialRule ? (ROUND_RULES[bannerSpecialRule] || null) : null;
-
-    // Banner
-    const seasonBanner = document.getElementById('seasonBanner');
-    if (seasonBanner) {
-      renderCombinedBanner(seasonBanner, {
-        currentSeasonNumber,
-        currentRoundNumber,
-        seasonData,
-        currentDate: today,
-        specialRule: bannerSpecialRule,
-        specialRuleDetails: bannerRuleDetails
-      });
-    }
-
-    // Classement
-    const rankingContainer = document.getElementById('rankingContainer');
-    if (rankingContainer) {
-      const seasonType = getSeasonType(currentSeasonNumber);
-
-      if (seasonType?.isTeamBased) {
-        // MODE ÉQUIPE : récupérer les équipes depuis le backend (single source of truth)
-        // Le backend gère le tirage équilibré + les noms d'animaux + le cache 30s.
-        rankingContainer.innerHTML = '<div class="empty-state"><p>Chargement des équipes...</p></div>';
-        try {
-          const resp = await fetch(`/api/teams/round/${currentRoundNumber}`);
-          if (resp.ok) {
-            const teamData = await resp.json();
-            if (Array.isArray(teamData.teams) && teamData.teams.length > 0) {
-              // Enrichir chaque équipe avec le D+ courant des membres si pas déjà figé
-              if (!teamData.frozen) {
-                const roundDates = getRoundDates(currentRoundNumber);
-                const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
-                const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
-                teamData.teams = teamData.teams.map(team => {
-                  const membersWithElev = team.members.map(m => {
-                    const acts = roundActivities.filter(a =>
-                      String(a.athlete?.id || a.athlete_id) === String(m.id) && !a.excluded
-                    );
-                    const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
-                    return { ...m, elevation: Math.round(elev), activitiesCount: acts.length };
-                  });
-                  return {
-                    ...team,
-                    members: membersWithElev,
-                    totalElevation: membersWithElev.reduce((s, m) => s + m.elevation, 0)
-                  };
-                });
-              }
-              renderTeamRanking(rankingContainer, {
-                teams: teamData.teams,
-                seasonData,
-                currentSeasonNumber,
-                currentRoundNumber,
-                isFrozen: !!teamData.frozen
-              });
-            } else {
-              rankingContainer.innerHTML = '<div class="empty-state"><p>En attente des données d\'équipe...</p></div>';
-            }
-          } else {
-            rankingContainer.innerHTML = '<div class="empty-state"><p>Erreur chargement équipes</p></div>';
-          }
-        } catch (e) {
-          console.error('Erreur fetch teams:', e);
-          rankingContainer.innerHTML = '<div class="empty-state"><p>Erreur réseau</p></div>';
-        }
-      } else {
-        // MODE STANDARD : rendu classique
-        const roundDates = getRoundDates(currentRoundNumber);
-        const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
-
-      // DEBUG: Afficher les dates exactes
-
-      const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
-
-      // DEBUG: Si pas d'activités, montrer pourquoi
-      if (roundActivities.length === 0 && allActivities.length > 0) {
-        const sampleDates = allActivities.slice(0, 5).map(a => a.start_date?.substring(0,10));
-        console.warn('⚠️ Aucune activité dans la période! Exemples de dates disponibles:', sampleDates);
-      }
-
-      let ranking = calculateRanking(roundActivities, seasonData?.active || []);
-
-      ranking = applyJokerEffects(ranking, currentRoundNumber);
-
-      // Détecter la règle spéciale du round courant
-      const currentRule = getSpecialRuleForRound(currentRoundNumber);
-      const currentRuleDetails = currentRule ? (ROUND_RULES[currentRule] || null) : null;
-
-      // Appliquer le handicap si actif
-      if (currentRule === 'handicap' && yearlyStandingsCache) {
-        ranking = applyHandicapRule(ranking, yearlyStandingsCache);
-      }
-
-      // Stats saison pour chaque participant
-      const seasonDates = getSeasonDates(currentSeasonNumber);
-      const seasonStats = {};
-      PARTICIPANTS.forEach(p => {
-        const pActivities = filterByParticipant(
-          filterByPeriod(allActivities, seasonDates.start, endDate),
-          p.id
-        );
-        seasonStats[p.id] = calculateStats(pActivities);
-      });
-
-      // Marquer la zone de danger (prend en compte l'override d'éliminations du handicap)
-      const elimCount = currentRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound;
-      ranking.forEach((e, i) => {
-        e.isInDangerZone = i >= ranking.length - elimCount;
-        if (e.jokerEffects?.hasShield && e.isInDangerZone) {
-          e.isProtected = true;
-          e.isInDangerZone = false;
-        }
-      });
-
-      // Calculer le rescapé du round précédent (depuis frozen results)
-      const rescapeId = getRescapeFromPreviousRound(currentRoundNumber, frozenResultsCache);
-
-      // Calculer les effets des bonus éphémères pour chaque participant ACTIF
-      const ephemeralEffects = {};
-      ranking.forEach(e => {
-        ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForActiveAthlete(e.participant.id, currentRoundNumber, bonusesCache, seasonBonusesCache);
-      });
-
-      renderRanking(rankingContainer, {
-        ranking,
-        seasonData,
-        currentSeasonNumber,
-        seasonStats,
-        eliminationsCount: elimCount,
-        currentRoundNumber,
-        rescapeId,
-        ephemeralEffects,
-        specialRule: currentRule,
-        specialRuleDetails: currentRuleDetails
-      });
-      } // fin else mode standard
-    }
-
-    // Arsenal (Jokers & Bonus)
-    const arsenalContainer = document.getElementById('arsenalContainer');
-    if (arsenalContainer) {
-      renderArsenalSection(arsenalContainer, currentRoundNumber);
-    }
-
-    // Challenge des Éliminés
-    const eliminatedContainer = document.getElementById('eliminatedChallengeContainer');
-    if (eliminatedContainer) {
-      renderEliminatedChallenge(eliminatedContainer);
-    }
-
-    // Classement Général
-    const finalStandingsContainer = document.getElementById('finalStandingsContainer');
-    if (finalStandingsContainer) {
-      renderFinalStandings(finalStandingsContainer);
-    }
-
-    // Historique
-    const historyTimeline = document.getElementById('historyTimeline');
-    if (historyTimeline) {
-      renderHistorySection(historyTimeline);
-    }
-
-    // Guide des jokers
-    const jokersGuide = document.getElementById('jokersGuide');
-    if (jokersGuide) {
-      renderJokersGuide(jokersGuide);
-    }
-
-    // Ticker des activités récentes
-    renderActivityTicker();
-
-
-    // Masquer le loader avec transition - méthode robuste pour mobile
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-      // Utiliser la classe CSS pour la transition
-      loadingScreen.classList.add('hidden');
-      // Fallback: forcer le masquage après la transition
-      setTimeout(() => {
-        loadingScreen.style.display = 'none';
-        loadingScreen.style.visibility = 'hidden';
-        loadingScreen.style.pointerEvents = 'none';
-      }, 600);
-    } else {
-      console.warn('⚠️ loadingScreen non trouvé');
-    }
-
-  } catch (error) {
-    console.error('❌ Erreur renderAll:', error);
-
-    // Afficher l'erreur dans le loader
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-      loadingScreen.innerHTML = '<div class="loading-content"><div class="loading-icon" style="font-size:64px">⚠️</div><div class="loading-title">Erreur</div><div class="loading-text">'+error.message+'</div></div>';
-    }
-  }
-}
-
-// ============================================
-// RENDU: CHALLENGE DES ÉLIMINÉS
-// ============================================
-// RENDU: CLASSEMENT ÉQUIPES
-// ============================================
-
-function renderTeamRanking(container, data) {
-  const { teams, seasonData, currentSeasonNumber, currentRoundNumber, isFrozen } = data;
-
-  if (!teams || teams.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p>Aucune équipe formée</p></div>';
-    return;
-  }
-
-  // Trier les équipes par D+ total décroissant
-  const sortedTeams = [...teams].sort((a, b) => b.totalElevation - a.totalElevation);
-  const lastTeamIdx = sortedTeams.length - 1;
-
-  // Détecter le type de round (finale principale = 2 équipes restantes)
-  const isFinalePrincipale = sortedTeams.length === 2;
-  const headerLabel = isFinalePrincipale
-    ? `🏆 Finale Saison Équipes`
-    : `🤝 Saison Équipes — Round ${getRoundInSeason(getCurrentDate())}`;
-
-  let html = `
-    <div class="team-ranking">
-      <div class="team-ranking-header">
-        <span>${headerLabel}</span>
-      </div>
-  `;
-
-  sortedTeams.forEach((team, teamPosition) => {
-    const isLastTeam = teamPosition === lastTeamIdx;
-    const teamColor = team.color || TEAM_COLORS[team.index % TEAM_COLORS.length];
-    const animal = team.animal || null;
-    const position = teamPosition + 1;
-
-    // Médaille pour le top 3
-    const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '';
-
-    // Nom équipe = animal en priorité, sinon couleur (fallback)
-    const teamLabel = animal
-      ? `${animal.emoji} ${animal.name}`
-      : `Équipe ${teamColor.name}`;
-
-    // Badge danger : "ÉLIMINÉE" si round figé, "ZONE D'ÉLIMINATION" sinon
-    const dangerBadge = isLastTeam
-      ? (isFrozen
-          ? (isFinalePrincipale
-              ? '<span class="team-danger-badge">FINALISTE VAINCU</span>'
-              : '<span class="team-danger-badge">⛔ ÉLIMINÉE</span>')
-          : '<span class="team-danger-badge">⚠️ Zone d\'élimination</span>')
-      : (isFinalePrincipale && teamPosition === 0 && isFrozen
-          ? '<span class="team-winner-badge">🏆 VAINQUEUR</span>'
-          : '');
-
-    html += `
-      <div class="team-block ${isLastTeam ? 'team-danger' : ''}" style="border-left: 4px solid ${teamColor.border}; background: ${teamColor.bg};">
-        <div class="team-block-header">
-          <span class="team-position">${medal || '#' + position}</span>
-          <span class="team-name">${teamLabel}</span>
-          <span class="team-total-elevation">${formatElevation(team.totalElevation)}</span>
-          ${dangerBadge}
-        </div>
-        <div class="team-members">
-    `;
-
-    // Membres triés par D+ décroissant
-    const membersSorted = [...team.members].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
-    membersSorted.forEach((member, memberIdx) => {
-      const participant = getParticipantById(member.id);
-      const name = participant?.name || member.name || '?';
-      const color = getAthleteColor(member.id);
-      const initials = getAthleteInitials(member.id);
-
-      html += `
-          <div class="team-member-row ${isLastTeam ? 'in-danger' : ''}">
-            <div class="team-member-info">
-              <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${color},${color}88)">${initials}</div>
-              <span class="team-member-name">${name}</span>
-            </div>
-            <span class="team-member-elevation">${formatElevation(member.elevation || 0)}</span>
-          </div>
-      `;
-    });
-
-    html += `
-        </div>
-      </div>
-    `;
-  });
-
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-// ============================================
-// RENDU: CHALLENGE DES ÉLIMINÉS
-// ============================================
-
-function renderEliminatedChallenge(container) {
-  if (!seasonData?.eliminated?.length) {
-    container.innerHTML = '<div class="empty-state"><p>Aucun éliminé cette saison</p></div>';
-    return;
-  }
-
-  const seasonDates = getSeasonDates(currentSeasonNumber);
-  const ranking = calculateEliminatedChallenge(allActivities, seasonData.eliminated, seasonDates, getCurrentDate());
-
-  if (ranking.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p>Les éliminés n\'ont pas encore d\'activités depuis leur élimination</p></div>';
-    return;
-  }
-
-  // Déterminer qui a reçu un bonus éphémère (meilleur des 2 éliminés de chaque round)
-  const bonusRecipients = getBonusRecipientsForSeason(currentSeasonNumber);
-
-  // Calculer les effets de bonus pour chaque éliminé (cumulés sur toute la saison)
-  const bonusEffectsByAthlete = {};
-  for (const eliminated of seasonData.eliminated) {
-    const effects = { gained: 0, lost: 0, details: [] };
-    // Parcourir tous les rounds de la saison pour cumuler les effets par-round
-    const roundsPerSeason = getRoundsPerSeason();
-    const seasonStartRound = (currentSeasonNumber - 1) * roundsPerSeason + 1;
-    const seasonEndRound = currentSeasonNumber * roundsPerSeason;
-    for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-      const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(eliminated.id, roundNum, bonusesCache, seasonBonusesCache);
-      effects.gained += roundEffects.gained;
-      effects.lost += roundEffects.lost;
-      effects.details.push(...roundEffects.details);
-    }
-    // Ajouter les bonus saisonniers (second souffle, trap, etc.) UNE SEULE FOIS
-    const seasonalEffects = getSeasonalBonusEffectsForEliminatedAthlete(eliminated.id, bonusesCache, seasonBonusesCache, allActivities, frozenResultsCache?.rounds, currentSeasonNumber);
-    effects.gained += seasonalEffects.gained;
-    effects.lost += seasonalEffects.lost;
-    effects.details.push(...seasonalEffects.details);
-
-    bonusEffectsByAthlete[eliminated.id] = effects;
-  }
-
-  // Appliquer les bonus éphémères au D+ total des éliminés
-  ranking.forEach(e => {
-    const bonusEffects = bonusEffectsByAthlete[e.participant.id] || { gained: 0, lost: 0 };
-    const netBonus = bonusEffects.gained - bonusEffects.lost;
-    if (netBonus !== 0) {
-      e.totalElevation = Math.max(0, e.totalElevation + netBonus);
-    }
-  });
-
-  // Re-trier et re-assigner les positions après application des bonus
-  ranking.sort((a, b) => b.totalElevation - a.totalElevation);
-  ranking.forEach((e, i) => {
-    e.position = i + 1;
-    e.points = getEliminatedChallengePoints(e.position);
-  });
-
-  let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
-  ranking.forEach(e => {
-    const hasBonus = bonusRecipients.has(String(e.participant.id));
-    const bonusBadge = hasBonus ? '<span class="bonus-badge" title="Meilleur des 2 éliminés - A reçu un bonus éphémère">🎁</span>' : '';
-
-    // Calculer les pilules de bonus éphémères
-    const bonusEffects = bonusEffectsByAthlete[e.participant.id] || { gained: 0, lost: 0, details: [] };
-    let bonusPills = '';
-
-    // Générer une pilule descriptive par type de bonus
-    for (const detail of (bonusEffects.details || [])) {
-      switch (detail.type) {
-        case 'embuscade_gain':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Embuscade sur ${detail.from}">🏹 dont ${formatElevation(detail.amount, false)} m volés</span>`;
-          break;
-        case 'trap_gain':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Piège déclenché sur ${detail.from}">🪤 dont ${formatElevation(detail.amount, false)} m piégés</span>`;
-          break;
-        case 'second_souffle':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Second Souffle : x2 sur ${detail.activityName}">🔥 dont ${formatElevation(detail.amount, false)} m (second souffle)</span>`;
-          break;
-        case 'malediction_gain':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Malédiction sur ${detail.from}">🪬 dont ${formatElevation(detail.amount, false)} m maudits</span>`;
-          break;
-        case 'marquage':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Marqué par ${detail.by}">🎯 -${formatElevation(detail.amount, false)} m</span>`;
-          break;
-        case 'malediction_victim':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Maudit par ${detail.by}">🪬 -${formatElevation(detail.amount, false)} m</span>`;
-          break;
-        case 'kamikaze_victim':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Kamikaze par ${detail.by}">💣 -${formatElevation(detail.amount, false)} m</span>`;
-          break;
-        case 'kamikaze_self':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Kamikaze (auto)">💣 -${formatElevation(detail.amount, false)} m</span>`;
-          break;
-        case 'duel':
-          bonusPills += `<span class="bonus-tag ephemeral-info" title="Duel en cours">⚔️ Duel</span>`;
-          break;
-        case 'brouillard':
-          bonusPills += `<span class="bonus-tag ephemeral-info" title="D+ masqué">🌫️ Brouillard</span>`;
-          break;
-      }
-    }
-
-    html += `<div class="ranking-row">
-      <div class="ranking-position">${e.position}</div>
-      <div class="ranking-athlete">
-        <div class="athlete-avatar" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)">${getAthleteInitials(e.participant.id)}</div>
-        <div class="athlete-info">
-          <span class="athlete-name">${e.participant.name} ${bonusBadge}</span>
-          <span class="athlete-status eliminated">${e.daysSinceElimination}j depuis élim.</span>
-        </div>
-      </div>
-      <div class="ranking-elevation">
-        ${formatElevation(e.totalElevation, false)} <span class="elevation-unit">m</span>
-        ${bonusPills ? `<div class="elevation-bonuses">${bonusPills}</div>` : ''}
-      </div>
-      <div class="ranking-round">R${e.eliminatedRound}</div>
-      <div class="ranking-points"><span class="points-badge">${e.points} pts</span></div>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-
-/**
- * Détermine qui a reçu un bonus éphémère pour une saison donnée
- * Le meilleur des 2 éliminés (celui avec le plus de D+ pendant le round) reçoit un bonus
- * Sauf si les 2 ont le même D+ (y compris 0)
- * @returns {Set} IDs des joueurs ayant reçu un bonus
- */
-function getBonusRecipientsForSeason(seasonNumber) {
-  const recipients = new Set();
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  const seasonEndRound = seasonNumber * roundsPerSeason;
-
-  if (!frozenResultsCache?.rounds) return recipients;
-
-  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-    const roundData = frozenResultsCache.rounds[String(roundNum)];
-    if (!roundData?.frozen || !roundData.eliminations || roundData.eliminations.length < 2) continue;
-
-    // Trier les éliminés par D+ décroissant
-    const sortedElims = [...roundData.eliminations].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
-    const best = sortedElims[0];
-    const second = sortedElims[1];
-
-    // Le meilleur reçoit un bonus seulement s'il a plus de D+ que le second et que son D+ > 0
-    if ((best.elevation || 0) > 0 && (best.elevation || 0) > (second.elevation || 0)) {
-      recipients.add(String(best.id));
-    }
-  }
-
-  return recipients;
-}
-
-// ============================================
-// RENDU: CLASSEMENT GÉNÉRAL
-// ============================================
-
-function renderFinalStandings(container) {
-  const activeIds = new Set((seasonData?.active || []).map(p => p.id));
-
-  // Calculer les points depuis les résultats figés pour plus de précision
-  const frozenPoints = calculatePointsFromFrozenResults(frozenResultsCache);
-
-  // Calculer les points de la saison précédente
-  const previousSeasonPoints = calculatePointsForSeason(currentSeasonNumber - 1, allActivities, getCurrentDate(), frozenResultsCache, bonusesCache, seasonBonusesCache);
-
-  // Calculer les points de la saison actuelle (jusqu'au dernier round figé)
-  const currentSeasonPoints = calculatePointsForSeason(currentSeasonNumber, allActivities, getCurrentDate(), frozenResultsCache, bonusesCache, seasonBonusesCache);
-
-  // Utiliser yearlyStandingsCache mais l'enrichir avec les données figées
-  const standings = yearlyStandingsCache || [];
-
-  // Enrichir les standings avec les points figés et recalculer
-  const enrichedStandings = standings.map(e => {
-    const id = String(e.participant.id);
-    const frozen = frozenPoints[id] || { mainPoints: 0, elimPoints: 0, bonusPoints: 0, wins: 0 };
-    const prevSeason = previousSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
-    const currSeason = currentSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
-
-    // Utiliser les points figés s'ils sont supérieurs (plus fiables)
-    const mainPts = Math.max(e.totalMainPoints || 0, frozen.mainPoints);
-    const elimPts = e.totalEliminatedPoints || 0;
-    const rescapePts = e.totalRescapePoints || 0;
-    const bonusPts = frozen.bonusPoints || 0;
-    const wins = Math.max(e.wins || 0, frozen.wins);
-
-    return {
-      ...e,
-      totalMainPoints: mainPts,
-      totalEliminatedPoints: elimPts,
-      totalRescapePoints: rescapePts,
-      bonusPoints: bonusPts,
-      totalPoints: mainPts + elimPts + rescapePts + bonusPts,
-      wins: wins,
-      previousSeasonTotal: prevSeason.total,
-      currentSeasonMain: currSeason.mainPoints,
-      currentSeasonElim: currSeason.elimPoints,
-      currentSeasonRescape: currSeason.rescapePoints,
-      currentSeasonTotal: currSeason.total
-    };
-  });
-
-  // Re-trier par points totaux
-  enrichedStandings.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins || b.totalMainPoints - a.totalMainPoints);
-  enrichedStandings.forEach((e, i) => e.rank = i + 1);
-
-  // HTML avec colonnes améliorées
-  let html = `
-    <div class="standings-header">
-      <div>Rang</div>
-      <div>Athlète</div>
-      <div class="hide-mobile" title="Points des saisons précédentes">Saisons préc.</div>
-      <div class="hide-mobile" title="Points de la saison actuelle"><span class="header-main">Principal</span> · <span class="header-elim">Éliminé</span></div>
-      <div>Total</div>
-    </div>`;
-
-  enrichedStandings.forEach(e => {
-    const isActive = activeIds.has(e.participant.id);
-    const wins = e.wins > 0 ? `<span class="wins-badge">🏆×${e.wins}</span>` : '';
-    const isCurrentSeasonEliminated = seasonData?.eliminated?.some(el => el.id === e.participant.id);
-
-    let statusBadge = '';
-    if (isActive) {
-      statusBadge = '<span class="active-badge">En course</span>';
-    } else if (isCurrentSeasonEliminated) {
-      const elimData = seasonData.eliminated.find(el => el.id === e.participant.id);
-      statusBadge = `<span class="elim-badge">Élim. R${elimData?.eliminatedRound || '?'}</span>`;
-    }
-
-    // Colonne saison actuelle : valeurs colorées texte (pas de fond)
-    const currentSeasonParts = [];
-    if (e.currentSeasonMain > 0) {
-      currentSeasonParts.push(`<span class="pts-text-main">${e.currentSeasonMain}</span>`);
-    }
-    if (e.currentSeasonRescape > 0) {
-      currentSeasonParts.push(`<span class="pts-text-rescape">+${e.currentSeasonRescape}</span>`);
-    }
-    if (e.currentSeasonElim > 0) {
-      currentSeasonParts.push(`<span class="pts-text-elim">+${e.currentSeasonElim}</span>`);
-    }
-    const currentSeasonHtml = currentSeasonParts.length > 0
-      ? `<span class="season-pts-detail">${currentSeasonParts.join(' ')}</span>`
-      : `<span class="pts-zero">-</span>`;
-
-    // Détail du total en hover uniquement
-    const hoverParts = [];
-    if (e.totalMainPoints > 0) hoverParts.push(`Principal: ${e.totalMainPoints}`);
-    if (e.totalRescapePoints > 0) hoverParts.push(`Rescapé: +${e.totalRescapePoints}`);
-    if (e.totalEliminatedPoints > 0) hoverParts.push(`Éliminé: +${e.totalEliminatedPoints}`);
-    if (e.bonusPoints > 0) hoverParts.push(`Bonus: +${e.bonusPoints}`);
-    const hoverTitle = hoverParts.length > 1 ? hoverParts.join(' \u00B7 ') : '';
-
-    html += `<div class="standings-row ${isActive ? '' : 'eliminated'}">
-      <div class="standings-rank">${e.rank}</div>
-      <div class="standings-athlete">
-        <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)">${getAthleteInitials(e.participant.id)}</div>
-        <span>${e.participant.name}</span>${wins}${statusBadge}
-      </div>
-      <div class="standings-points prev hide-mobile">${e.previousSeasonTotal || '-'}</div>
-      <div class="standings-points current hide-mobile">${currentSeasonHtml}</div>
-      <div class="standings-total"${hoverTitle ? ` title="${hoverTitle}"` : ''}>${e.totalPoints}</div>
-    </div>`;
-  });
-
-  container.innerHTML = html;
-}
-
-// ============================================
-// RENDU: SECTION ARSENAL (JOKERS & BONUS)
-// ============================================
-
-async function renderArsenalSection(container, roundNumber) {
-  const today = getCurrentDate();
-  const currentRoundDates = getRoundDates(roundNumber);
-  const previousRoundNumber = roundNumber - 1;
-
-  // Calculer si on est dans la période "récap" (1 jour après fin du round précédent)
-  let showPreviousRoundEffects = false;
-  let previousRoundEffects = { jokers: [], bonuses: [] };
-
-  if (previousRoundNumber >= 1) {
-    const previousRoundDates = getRoundDates(previousRoundNumber);
-    const daysSinceEnd = Math.floor((today - previousRoundDates.end) / (1000 * 60 * 60 * 24));
-
-    // Afficher les effets du round précédent pendant 1 jour après sa fin
-    if (daysSinceEnd >= 0 && daysSinceEnd <= 1) {
-      showPreviousRoundEffects = true;
-
-      // Récupérer les jokers du round précédent
-      const prevJokers = getActiveJokersForRound(previousRoundNumber);
-      previousRoundEffects.jokers = prevJokers.map(joker => {
-        // Même bug fix que pour les jokers du round courant : `joker.athleteId`
-        // n'existe pas en camelCase, l'objet a `athlete_id` ou `participantId`.
-        const athleteId = joker.athleteId || joker.athlete_id || joker.participantId;
-        const targetId  = joker.targetId  || joker.target_athlete_id;
-        const athlete = getParticipantById(athleteId);
-        const target = targetId ? getParticipantById(targetId) : null;
-        return {
-          ...joker,
-          joker_id: joker.jokerId,
-          athlete_name: athlete?.name || joker.athlete_name || joker.participantName || 'Joueur',
-          target_athlete_name: target?.name || joker.target_athlete_name || null
-        };
-      });
-
-      // Récupérer les bonus utilisés au round précédent
-      previousRoundEffects.bonuses = getBonusesUsedInRound(previousRoundNumber, bonusesCache, seasonBonusesCache).map(b => {
-        const bonusType = BONUS_TYPES?.[b.bonus_id];
-        return {
-          ...b,
-          bonus_name: bonusType?.name || b.bonus_id,
-          icon: bonusType?.icon || '🎁',
-          description: getBonusHistoryDescription(b)
-        };
-      });
-    }
-  }
-
-  // Récupérer les jokers actifs ce round
-  const activeJokers = getActiveJokersForRound(roundNumber);
-
-  // Calculer le ranking avec effets pour avoir les montants (voleur, sabotage, etc.)
-  const roundDates = getRoundDates(roundNumber);
-  const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
-  const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
-  const ranking = calculateRanking(roundActivities, seasonData?.active || []);
-  const rankingWithEffects = applyJokerEffects(ranking, roundNumber, roundActivities);
-
-  // Enrichir avec les noms des joueurs et les montants d'effets
-  const enrichedJokers = activeJokers.map(joker => {
-    // BUG fix: getActiveJokersForRound renvoie un objet avec les champs
-    // `athlete_id` (snake_case, vient de jokers_usage.json via ...u) ET
-    // `participantId` (rajouté), mais PAS `athleteId` (camelCase). Sans ce
-    // fallback, athlete?.name devenait undefined et tous les jokers affichaient
-    // "Joueur" comme nom (visible surtout sur le bouclier dans l'arsenal).
-    const athleteId = joker.athleteId || joker.athlete_id || joker.participantId;
-    const targetId  = joker.targetId  || joker.target_athlete_id;
-    const athlete = getParticipantById(athleteId);
-    const target = targetId ? getParticipantById(targetId) : null;
-
-    // Récupérer les montants d'effets depuis le ranking calculé
-    let effectAmount = 0;
-    if (joker.jokerId === 'voleur' && targetId) {
-      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === String(targetId));
-      effectAmount = targetEntry?.jokerEffects?.bonuses?.stolen?.amount || 0;
-    } else if (joker.jokerId === 'sabotage' && targetId) {
-      const targetEntry = rankingWithEffects.find(e => String(e.participant.id) === String(targetId));
-      effectAmount = targetEntry?.jokerEffects?.bonuses?.sabotaged?.amount || 0;
-    } else if (joker.jokerId === 'multiplicateur') {
-      const participantEntry = rankingWithEffects.find(e => String(e.participant.id) === String(athleteId));
-      effectAmount = participantEntry?.jokerEffects?.bonuses?.multiplier?.amount || 0;
-    }
-
-    return {
-      ...joker,
-      joker_id: joker.jokerId,
-      // Préférer le nom déjà calculé en amont (athlete_name ou participantName) à un fallback générique
-      athlete_name: athlete?.name || joker.athlete_name || joker.participantName || 'Joueur',
-      target_athlete_name: target?.name || joker.target_athlete_name || null,
-      effectAmount
-    };
-  });
-
-  // Récupérer les bonus éphémères ACTIFS (non utilisés ou utilisés ce round)
-  // Exclure les bonus de saisons précédentes (leur elimination_round est dans une saison terminée)
-  let bonuses = [];
-  try {
-    const res = await fetch('/api/bonuses/all');
-    if (res.ok) {
-      const allBonuses = await res.json();
-      const currentSeasonStartRound = getSeasonStartRound(currentSeasonNumber);
-      // Filtrer: garder uniquement les bonus de la saison courante, non utilisés OU utilisés ce round
-      bonuses = allBonuses
-        .filter(b => {
-          // Exclure les bonus dont le round d'élimination est avant la saison courante
-          if (b.elimination_round && b.elimination_round < currentSeasonStartRound) return false;
-          return !b.used_in_round || b.used_in_round === roundNumber;
-        })
-        .map(b => {
-          const athlete = getParticipantById(b.athlete_id);
-          const target = b.target_athlete_id ? getParticipantById(b.target_athlete_id) : null;
-          const bonusType = BONUS_TYPES?.[b.bonus_id];
-
-          // Calculer les infos supplémentaires pour le hover
-          const hoverInfo = calculateBonusHoverInfo(b, athlete, target, currentRoundNumber);
-
-          return {
-            ...b,
-            athlete_name: athlete?.name || 'Joueur',
-            target_athlete_name: target?.name || null,
-            bonus_name: bonusType?.name || b.bonus_id,
-            icon: bonusType?.icon || '🎁',
-            status: b.used_at ? 'used' : b.activated_at ? 'active' : 'available',
-            hoverInfo
-          };
-        });
-    }
-  } catch (e) {
-    console.warn('Impossible de charger les bonus:', e);
-  }
-
-  // Récupérer les choix en attente
-  try {
-    const res = await fetch('/api/bonuses/active');
-    if (res.ok) {
-      const pendingData = await res.json();
-      // Ajouter les joueurs qui doivent encore choisir
-      if (pendingData.pendingChoices) {
-        Object.entries(pendingData.pendingChoices).forEach(([playerId, choices]) => {
-          const athlete = getParticipantById(playerId);
-          if (!bonuses.some(b => String(b.athlete_id) === String(playerId))) {
-            bonuses.push({
-              athlete_id: playerId,
-              athlete_name: athlete?.name || 'Joueur',
-              icon: '🎁',
-              status: 'pending'
-            });
-          }
-        });
-      }
-    }
-  } catch (e) {
-    // Ignorer
-  }
-
-  // Récupérer les jokers programmés pour le prochain round
-  const pendingJokers = getPendingJokersForNextRound(roundNumber);
-  const enrichedPendingJokers = pendingJokers.map(joker => {
-    // Même bug fix que pour activeJokers ci-dessus.
-    const athleteId = joker.athleteId || joker.athlete_id || joker.participantId;
-    const targetId  = joker.targetId  || joker.target_athlete_id;
-    const athlete = getParticipantById(athleteId);
-    const target = targetId ? getParticipantById(targetId) : null;
-    return {
-      ...joker,
-      joker_id: joker.jokerId,
-      athlete_name: athlete?.name || joker.athlete_name || joker.participantName || 'Joueur',
-      target_athlete_name: target?.name || joker.target_athlete_name || null
-    };
-  });
-
-  renderArsenal(container, {
-    activeJokers: enrichedJokers,
-    pendingJokers: enrichedPendingJokers,
-    bonuses,
-    currentRoundNumber: roundNumber,
-    showPreviousRoundEffects,
-    previousRoundEffects,
-    previousRoundNumber
-  });
-}
-
-/**
- * Calcule les informations supplémentaires pour le hover d'un bonus
- */
-function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
-  const bonusId = bonus.bonus_id;
-  if (!bonusId || bonus.status === 'pending') return null;
-
-  const athleteId = bonus.athlete_id;
-  const targetId = bonus.target_athlete_id;
-  const effectRound = bonus.used_in_round || roundNumber;
-
-  switch (bonusId) {
-    case 'embuscade': {
-      if (!targetId) return null;
-      const targetActivities = getEligibleActivitiesForBonus(targetId, effectRound, allActivities);
-      if (targetActivities.length === 0) return "Aucune activité éligible";
-      const elevations = targetActivities.map(a => a.total_elevation_gain || 0);
-      const minElev = Math.min(...elevations);
-      const maxElev = Math.max(...elevations);
-      return `Entre ${formatElevation(minElev, false)} et ${formatElevation(maxElev, false)} m D+ potentiellement volés`;
-    }
-
-    case 'ravitaillement': {
-      // Calculer le D+ potentiel des activités de l'éliminé
-      const athleteActivities = getEligibleActivitiesForBonus(athleteId, effectRound, allActivities);
-      if (athleteActivities.length === 0) return "Aucune activité éligible";
-      const elevations = athleteActivities.map(a => a.total_elevation_gain || 0);
-      const minElev = Math.min(...elevations);
-      const maxElev = Math.max(...elevations);
-      const targetName = target?.name || 'la cible';
-      return `Entre ${formatElevation(minElev, false)} et ${formatElevation(maxElev, false)} m D+ donnés à ${targetName}`;
-    }
-
-    case 'duel': {
-      // Calculer l'avance/retard sur le co-éliminé
-      const coEliminatedId = findCoEliminated(athleteId, bonus.elimination_round, frozenResultsCache);
-      if (!coEliminatedId) return null;
-      const coEliminated = getParticipantById(coEliminatedId);
-      const athleteElev = getEliminatedElevationSince(athleteId, bonus.elimination_round, allActivities);
-      const coElimElev = getEliminatedElevationSince(coEliminatedId, bonus.elimination_round, allActivities);
-      const diff = athleteElev - coElimElev;
-      if (diff > 0) {
-        return `${formatElevation(diff, false)} m d'avance sur ${coEliminated?.name || 'son adversaire'}`;
-      } else if (diff < 0) {
-        return `${formatElevation(Math.abs(diff), false)} m de retard sur ${coEliminated?.name || 'son adversaire'}`;
-      } else {
-        return `Égalité avec ${coEliminated?.name || 'son adversaire'}`;
-      }
-    }
-
-    case 'marquage': {
-      // Pas d'info sur la cible pour ne pas influencer
-      const athleteName = athlete?.name || 'Le joueur';
-      return `${athleteName} a marqué un joueur actif. S'il est éliminé → +1 point`;
-    }
-
-    case 'trap': {
-      // Si déjà déclenché, montrer le D+ gagné
-      if (bonus.effect_result?.elevation_gained) {
-        const victimName = bonus.effect_result.victim_name || 'un joueur';
-        return `+${formatElevation(bonus.effect_result.elevation_gained, false)} m gagnés grâce à ${victimName}`;
-      }
-      return "Piège actif, en attente d'un éliminé...";
-    }
-
-    case 'second_souffle': {
-      // Trouver le round d'élimination (depuis le bonus ou les données de saison)
-      let elimRound = bonus.elimination_round;
-      if (!elimRound && seasonData?.eliminated) {
-        const elimEntry = seasonData.eliminated.find(e => String(e.id) === String(athleteId));
-        if (elimEntry) {
-          const roundsPerSeason2 = getRoundsPerSeason();
-          elimRound = (elimEntry.eliminatedSeason - 1) * roundsPerSeason2 + elimEntry.eliminatedRound;
-        }
-      }
-      if (!elimRound) return "Aucune donnée d'élimination";
-      // Trouver l'activité la plus faible
-      const activities = getEliminatedActivities(athleteId, elimRound, allActivities);
-      if (activities.length === 0) return "Aucune activité depuis l'élimination";
-      const minActivity = activities.reduce((min, a) =>
-        (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
-      );
-      const minElev = minActivity.total_elevation_gain || 0;
-      const activityName = minActivity.name || 'Activité';
-      return `x2 sur "${activityName}" = +${formatElevation(minElev, false)} m bonus`;
-    }
-
-    case 'kamikaze': {
-      // Calculer le D+ du round actuel pour les deux joueurs
-      if (!targetId) return "Cible non définie";
-      const roundDates = getRoundDates(effectRound);
-
-      // D+ du round de l'éliminé (celui qui utilise le bonus)
-      const athleteRoundElev = getRoundElevation(athleteId, roundDates, allActivities);
-      const targetRoundElev = getRoundElevation(targetId, roundDates, allActivities);
-
-      const athleteLoss = Math.round(athleteRoundElev * 0.25);
-      const targetLoss = Math.round(targetRoundElev * 0.25);
-      const targetName = target?.name || 'la cible';
-
-      return `💣 -${formatElevation(athleteLoss, false)} m pour toi, -${formatElevation(targetLoss, false)} m pour ${targetName}`;
-    }
-
-    case 'malediction': {
-      // Calculer le D+ volé ce round et le cumul
-      if (!targetId) return "Cible non définie";
-      const roundDates = getRoundDates(effectRound);
-
-      const targetRoundElev = getRoundElevation(targetId, roundDates, allActivities);
-      const stolenThisRound = Math.round(targetRoundElev * 0.10);
-      const targetName = target?.name || 'la cible';
-
-      // Cumul total volé (si disponible dans effect_result)
-      const totalStolen = bonus.effect_result?.total_stolen || 0;
-
-      if (totalStolen > 0) {
-        return `🪬 ${formatElevation(stolenThisRound, false)} m volés ce round à ${targetName} (total: ${formatElevation(totalStolen, false)} m)`;
-      }
-      return `🪬 ${formatElevation(stolenThisRound, false)} m seront volés à ${targetName} ce round`;
-    }
-
-    default:
-      return null;
-  }
-}
-
-// ============================================
-// RENDU: HISTORIQUE
-// ============================================
-
-function renderHistorySection(container) {
-  const completedSeasons = [];
-  for (let s = 1; s < currentSeasonNumber; s++) {
-    const summary = getSeasonSummary(allActivities, s, getCurrentDate());
-    if (summary.isComplete) completedSeasons.push(summary);
-  }
-
-  container.innerHTML = `<div class="history-controls">
-    <label>Saison : </label>
-    <select id="seasonSelect" class="season-select">
-      <option value="current">Saison ${currentSeasonNumber} (en cours)</option>
-      ${completedSeasons.map(s => `<option value="${s.seasonNumber}">Saison ${s.seasonNumber} - ${s.winner?.name || 'N/A'} 🏆</option>`).join('')}
-    </select>
-  </div>
-  <div id="historyContent"></div>`;
-
-  const select = document.getElementById('seasonSelect');
-  const content = document.getElementById('historyContent');
-
-  const renderSeasonHistory = (seasonNum) => {
-    if (seasonNum === 'current') {
-      renderCurrentSeasonHistory(content);
-    } else {
-      const summary = getSeasonSummary(allActivities, parseInt(seasonNum), getCurrentDate());
-      renderCompletedSeasonHistory(content, summary);
-    }
-  };
-
-  select.addEventListener('change', (e) => renderSeasonHistory(e.target.value));
-  renderSeasonHistory('current');
-}
-
-/**
- * Affiche l'historique de la saison en cours avec détails
- * Utilise les résultats figés (frozen_results) comme source de vérité
- */
-function renderCurrentSeasonHistory(container) {
-  if (!seasonData?.eliminated?.length && !seasonData?.roundResults?.length) {
-    container.innerHTML = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
-    return;
-  }
-
-  const roundsPerSeason = getRoundsPerSeason();
-  let html = '';
-
-  // Parcourir les rounds terminés
-  for (let r = 1; r <= roundsPerSeason; r++) {
-    const globalRound = (currentSeasonNumber - 1) * roundsPerSeason + r;
-    const roundDates = getRoundDates(globalRound);
-    const today = getCurrentDate();
-
-    // Round pas encore terminé ?
-    if (today <= roundDates.end) continue;
-
-    // Récupérer les éliminés de ce round (pour savoir s'il y en a)
-    const roundEliminated = seasonData.eliminated.filter(e => e.eliminatedRound === r);
-    if (roundEliminated.length === 0) continue;
-
-    // Essayer d'utiliser les données figées (source de vérité)
-    const frozenRound = getFrozenRound(globalRound, frozenResultsCache);
-
-    if (frozenRound && frozenRound.frozen) {
-      // Utiliser les données figées
-      html += renderFrozenRoundHistory(r, frozenRound);
-    } else {
-      // Fallback: recalculer (uniquement si pas de frozen results)
-      html += renderCalculatedRoundHistory(r, globalRound, roundDates, roundEliminated);
-    }
-  }
-
-  if (!html) {
-    html = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
-  }
-
-  container.innerHTML = html;
-}
-
-/**
- * Fallback: génère le HTML en recalculant (utilisé uniquement si frozen results non disponible)
- */
-function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, roundEliminated) {
-  // Calculer le classement de ce round pour avoir les D+
-  const roundActivities = filterByPeriod(allActivities, roundDates.start, roundDates.end);
-  const activeAtRound = PARTICIPANTS.filter(p =>
-    !seasonData.eliminated.some(e => e.eliminatedRound < roundInSeason && e.id === p.id)
+/* ============================================
+   SECTION JOKERS ACTIFS (détails supplémentaires)
+   ============================================ */
+
+.active-jokers-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.1),
+    rgba(139, 92, 246, 0.1)
   );
-  const ranking = calculateRanking(roundActivities, activeAtRound);
-  const rankingWithEffects = applyJokerEffects(ranking, globalRound, roundActivities);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 12px;
+}
 
-  // Trouver le DERNIER non-éliminé (celui qui s'est maintenu de justesse)
-  const nonEliminatedEntries = rankingWithEffects.filter(e =>
-    !roundEliminated.some(elim => elim.id === e.participant.id)
+.active-jokers-section .section-title {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  color: #f97316;
+}
+
+.joker-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.joker-card-icon {
+  font-size: 1.5rem;
+}
+
+.joker-card-name {
+  font-weight: 600;
+}
+
+.joker-card-user {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: auto;
+}
+
+/* Duel status */
+
+/* Pending jokers */
+.pending-jokers {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pending-jokers h4 {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+.pending-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pending-item {
+  background: rgba(249, 115, 22, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+/* ============================================
+   ELEVATION AVEC BONUS
+   ============================================ */
+
+.elevation-primary {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #22d3ee;
+}
+
+.elevation-secondary {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+}
+
+.bonus-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-right: 4px;
+  margin-bottom: 2px;
+}
+
+.bonus-tag.multiplier {
+  background: rgba(34, 211, 238, 0.2);
+  color: #22d3ee;
+}
+
+.bonus-tag.duel-won,
+.bonus-tag.thief {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.bonus-tag.duel-lost,
+.bonus-tag.sabotage,
+.bonus-tag.stolen {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.bonus-tag.sabotage-done {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.bonus-tag.kamikaze,
+.bonus-tag.kamikaze-victim {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.bonus-tag.cursed {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+}
+
+/* Bonus éphémères */
+.bonus-tag.ephemeral-stolen {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+}
+
+.bonus-tag.ephemeral-gained {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px dashed rgba(16, 185, 129, 0.4);
+}
+
+.bonus-tag.ephemeral-bonus {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border: 1px dashed rgba(251, 191, 36, 0.4);
+}
+
+.bonus-tag.ephemeral-mark {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+  border: 1px dashed rgba(168, 85, 247, 0.4);
+}
+
+.bonus-tag.ephemeral-curse {
+  background: rgba(139, 92, 246, 0.2);
+  color: #8b5cf6;
+  border: 1px dashed rgba(139, 92, 246, 0.4);
+}
+
+/* Indicateurs bonus sur avatar */
+.avatar-bonus-icon.ephemeral-victim {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.avatar-bonus-icon.ephemeral-gain {
+  background: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+/* Points dans le classement général */
+.season-pts-detail {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pts-zero {
+  color: var(--text-muted);
+}
+
+/* ============================================
+   STATUTS ATHLÈTES
+   ============================================ */
+
+.ranking-row.protected {
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+}
+
+.athlete-status.protected {
+  color: #3b82f6;
+}
+
+.athlete-status.danger {
+  color: #ef4444;
+}
+
+.athlete-status.rescape {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  animation: rescapePulse 2s ease-in-out infinite;
+}
+
+@keyframes rescapePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(251, 191, 36, 0.3);
+  }
+}
+
+/* ============================================
+   MENU CONTEXTUEL JOKERS
+   ============================================ */
+
+.joker-context-menu {
+  position: fixed;
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 12px;
+  padding: 8px 0;
+  min-width: 260px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  opacity: 0;
+  transform: scale(0.95);
+  pointer-events: none;
+  transition: all 0.15s ease;
+}
+
+.joker-context-menu.visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.context-menu-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #f97316;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.context-menu-info {
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.context-menu-section {
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.context-menu-item:hover:not(.disabled) {
+  background: rgba(249, 115, 22, 0.15);
+}
+
+.context-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.context-menu-item .joker-icon {
+  font-size: 20px;
+}
+
+.context-menu-item .joker-name {
+  flex: 1;
+}
+
+.context-menu-item .joker-count {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.context-menu-item .joker-disabled-reason {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+/* Admin controls */
+.joker-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.joker-minus,
+.joker-plus {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s;
+}
+
+.joker-minus:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.joker-plus:hover {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+/* ============================================
+   MODALE JOKER (SÉLECTION CIBLE)
+   ============================================ */
+
+.joker-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.joker-modal-content {
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.joker-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(249, 115, 22, 0.1);
+  font-weight: 600;
+  color: #f97316;
+}
+
+.joker-modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.joker-modal-close:hover {
+  color: #fff;
+}
+
+.joker-modal-body {
+  padding: 20px;
+}
+
+.joker-modal-body p {
+  margin-bottom: 16px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.target-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.target-option:hover {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.target-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+}
+
+/* ============================================
+   INDICATEURS DE BONUS SUR AVATAR
+   ============================================ */
+
+.athlete-avatar-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.avatar-bonus-indicators {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  display: flex;
+  gap: 1px;
+}
+
+.avatar-bonus-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  border: 2px solid var(--bg-card);
+  cursor: help;
+  transition: transform 0.15s ease;
+}
+
+.avatar-bonus-icon:hover {
+  transform: scale(1.3);
+  z-index: 10;
+}
+
+/* Multiplicateur - Violet */
+.avatar-bonus-icon.multiplier {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+}
+
+/* Bouclier - Cyan */
+.avatar-bonus-icon.shield {
+  background: linear-gradient(135deg, #06b6d4, #22d3ee);
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+}
+
+/* Duel gagné - Vert */
+.avatar-bonus-icon.duel-won {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+/* Duel perdu - Rouge */
+.avatar-bonus-icon.duel-lost {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+/* Saboté (victime) - Rouge */
+.avatar-bonus-icon.sabotaged {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+  animation: sabotaged-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sabotaged-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.8); }
+}
+
+/* Saboteur (celui qui sabote) - Orange */
+.avatar-bonus-icon.saboteur {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.5);
+}
+
+/* Voleur actif - Violet foncé */
+.avatar-bonus-icon.thief {
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  box-shadow: 0 0 6px rgba(124, 58, 237, 0.5);
+}
+
+/* Victime du vol - Gris */
+.avatar-bonus-icon.stolen {
+  background: linear-gradient(135deg, #6b7280, #9ca3af);
+  box-shadow: 0 0 6px rgba(107, 114, 128, 0.5);
+}
+
+/* ============================================
+   MODALE JOKER AMÉLIORÉE
+   ============================================ */
+
+.joker-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.joker-modal-content {
+  background: linear-gradient(145deg, rgba(26, 26, 36, 0.98), rgba(18, 18, 26, 0.98));
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow: hidden;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5),
+              0 0 40px rgba(249, 115, 22, 0.1);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from { transform: translateY(-20px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.joker-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(34, 211, 238, 0.1));
+  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent-primary);
+}
+
+.joker-modal-close {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.joker-modal-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.joker-modal-body {
+  padding: 24px;
+}
+
+.joker-modal-body p {
+  margin-bottom: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+}
+
+.target-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.target-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.target-option:hover {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.target-option:active {
+  transform: translateY(0);
+}
+
+.target-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.target-option:hover .target-avatar {
+  transform: scale(1.1);
+}
+
+.target-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* ============================================
+   TIMING SELECTOR (Activation du joker)
+   ============================================ */
+
+.timing-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timing-option {
+  flex: 1;
+  min-width: 100px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.timing-option:hover {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+.timing-option.selected {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--accent-secondary);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+}
+
+/* ============================================
+   BOUTON DE CONFIRMATION JOKER
+   ============================================ */
+
+.joker-confirm-btn .btn-icon {
+  font-size: 1.2rem;
+}
+
+/* ============================================
+   NOTIFICATIONS
+   ============================================ */
+
+.notification {
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-weight: 500;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 10001;
+}
+
+.notification.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================
+   GUIDE DES JOKERS
+   ============================================ */
+
+.jokers-guide-section {
+  margin: 40px auto;
+  padding: 32px;
+  max-width: 1200px;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.9),
+    rgba(30, 41, 59, 0.9)
   );
-  const lastSurvivor = nonEliminatedEntries[nonEliminatedEntries.length - 1];
-  const lastSurvivorElevation = lastSurvivor?.totalElevation || 0;
-
-  // Construire la liste des éliminés avec leur écart par rapport au maintien
-  const eliminatedDetails = roundEliminated.map(elim => {
-    const elimEntry = rankingWithEffects.find(e => e.participant.id === elim.id);
-    const elimElevation = elimEntry?.totalElevation || 0;
-    const gap = lastSurvivorElevation - elimElevation;
-    const isZeroElim = elimElevation === 0;
-    return {
-      name: elim.name,
-      elevation: elimElevation,
-      gap: gap,
-      isZeroElim: isZeroElim
-    };
-  }).sort((a, b) => b.elevation - a.elevation);
-
-  // Compter les éliminations à 0 D+
-  const zeroElimCount = eliminatedDetails.filter(e => e.isZeroElim).length;
-
-  // Récupérer les jokers actifs ce round
-  const activeJokers = getActiveJokersForRound(globalRound);
-
-  // Identifier le rescapé
-  const rescapeIdx = rankingWithEffects.length - roundEliminated.length - 1;
-  const isFinale = roundInSeason === getRoundsPerSeason();
-
-  // Calculer les mainPoints pour les éliminés de ce round
-  const elimsBeforeThisRound = seasonData.eliminated.filter(e => e.eliminatedRound < roundInSeason).length;
-  const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-
-  // Générer le HTML du classement pour le dropdown
-  const rankingHtml = rankingWithEffects.map((entry, idx) => {
-    const isEliminated = roundEliminated.some(e => e.id === entry.participant.id);
-    const position = idx + 1;
-    const isRescape = (idx === rescapeIdx) && !isFinale && roundEliminated.length > 0;
-
-    // Calculer les points pour les éliminés
-    let mainPts = 0;
-    if (isEliminated) {
-      const sameRoundElims = roundEliminated;
-      const elimIdx = sameRoundElims.findIndex(e => e.id === entry.participant.id);
-      const elimPosition = activeAtRoundStart - elimIdx;
-      mainPts = getMainChallengePoints(Math.max(1, Math.min(elimPosition, PARTICIPANTS.length)));
-    } else if (isFinale && position <= 3) {
-      mainPts = getMainChallengePoints(position);
-    }
-
-    let pointsBadges = '';
-    if (mainPts > 0) {
-      pointsBadges += `<span class="history-pts-badge" title="Points challenge principal">${mainPts} pts</span>`;
-    }
-    if (isRescape) {
-      const rescapeInfo = getRescapeInfoForRound(globalRound, frozenResultsCache);
-      if (rescapeInfo) {
-        const streak = rescapeInfo.consecutive;
-        const rescPts = rescapeInfo.points;
-        if (streak === 1) {
-          pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">🎫 rescapé</span>`;
-        } else {
-          pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">🎫 rescapé ×${streak} (+${rescPts})</span>`;
-        }
-      } else {
-        pointsBadges += `<span class="history-rescape-badge">🎫 rescapé</span>`;
-      }
-    }
-
-    return `
-      <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''} ${isRescape ? 'rescape' : ''}">
-        <span class="history-rank">${position}</span>
-        <span class="history-name">${entry.participant.name}</span>
-        <span class="history-elevation">${formatElevation(entry.totalElevation, false)}</span>
-        ${isEliminated ? '<span class="history-elim-badge">Éliminé</span>' : ''}
-        ${pointsBadges}
-      </div>
-    `;
-  }).join('');
-
-  // Construire le HTML
-  let html = `<div class="history-item" data-round="${globalRound}">
-    <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
-      <div class="history-round">Round ${roundInSeason}</div>
-      <span class="history-toggle-icon">▼</span>
-    </div>
-    <div class="history-eliminated">
-      <span class="history-label">Éliminé(s) :</span>
-      ${eliminatedDetails.map(e => {
-        if (e.isZeroElim) {
-          return `<span class="eliminated-name eliminated-zero">${e.name}</span> <span class="eliminated-gap">(0 D+ - inactif)</span>`;
-        } else {
-          return `<span class="eliminated-name">${e.name}</span> <span class="eliminated-gap">(à ${formatElevation(e.gap, false)} du maintien)</span>`;
-        }
-      }).join(', ')}
-    </div>
-    ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité (0 D+)</div>` : ''}`;
-
-  // Afficher les jokers utilisés
-  if (activeJokers.length > 0) {
-    const jokerDescriptions = activeJokers.map(joker => {
-      const targetEntry = joker.targetId ? rankingWithEffects.find(e => e.participant.id === joker.targetId) : null;
-
-      switch(joker.jokerId) {
-        case 'sabotage':
-          const sabotageAmount = targetEntry?.jokerEffects?.bonuses?.sabotaged?.amount || 0;
-          return `${joker.jokerIcon} ${joker.participantName} a saboté ${joker.targetName} (-${formatElevation(sabotageAmount, false)})`;
-        case 'voleur':
-          const stolenAmount = targetEntry?.jokerEffects?.bonuses?.stolen?.amount || 0;
-          return `${joker.jokerIcon} ${joker.participantName} a volé ${joker.targetName} (-${formatElevation(stolenAmount, false)})`;
-        case 'multiplicateur':
-          const bonusAmount = rankingWithEffects.find(e => e.participant.id === joker.participantId)?.jokerEffects?.bonuses?.multiplier?.amount || 0;
-          return `${joker.jokerIcon} ${joker.participantName} a utilisé le multiplicateur (+${formatElevation(bonusAmount, false)})`;
-        case 'bouclier':
-          return `${joker.jokerIcon} ${joker.participantName} a utilisé le bouclier (protection)`;
-        default:
-          return `${joker.jokerIcon} ${joker.participantName} a utilisé ${joker.jokerName}`;
-      }
-    });
-
-    html += `<div class="history-jokers">
-      <span class="history-label">Jokers :</span> ${jokerDescriptions.join(' • ')}
-    </div>`;
-  }
-
-  // Afficher les bonus éphémères utilisés ce round
-  const bonusesUsed = getBonusesUsedInRound(globalRound, bonusesCache, seasonBonusesCache);
-  if (bonusesUsed.length > 0) {
-    const bonusDescriptions = bonusesUsed.map(bonus => getBonusHistoryDescription(bonus));
-
-    html += `<div class="history-bonuses">
-      <span class="history-label">Bonus éphémères :</span> ${bonusDescriptions.join(' • ')}
-    </div>`;
-  }
-
-  // Note indiquant que ce sont des données recalculées
-  html += `<div class="history-note" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; font-style: italic;">
-    ⚡ Données recalculées (round non figé)
-  </div>`;
-
-  // Ajouter le dropdown du classement (caché par défaut)
-  html += `
-    <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">📊 Classement du round</div>
-      <div class="history-ranking-list">
-        ${rankingHtml}
-      </div>
-    </div>
-  </div>`;
-
-  return html;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 16px;
 }
 
-/**
- * Génère le HTML pour le classement final du Challenge des Éliminés (saisons terminées)
- */
-function renderCompletedEliminatedChallenge(summary) {
-  // Utiliser eliminatedRanking qui est déjà calculé par getSeasonSummary
-  if (!summary.eliminatedRanking?.length) return '';
-
-  const seasonNumber = summary.seasonNumber;
-
-  // Générer le HTML
-  let html = `
-    <div class="history-item history-eliminated-challenge">
-      <div class="history-round-header" onclick="toggleRoundDetails('eliminated-s${seasonNumber}')">
-        <div class="history-round">👻 Challenge des Éliminés - Classement Final</div>
-        <span class="history-toggle-icon">▼</span>
-      </div>
-      <div class="history-ranking-dropdown" id="ranking-eliminated-s${seasonNumber}" style="display: block;">
-        <div class="history-ranking-list eliminated-challenge-list">
-  `;
-
-  summary.eliminatedRanking.forEach((entry, idx) => {
-    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
-    const rankClass = idx < 3 ? 'top-three' : '';
-    const name = entry.participant?.name || 'Inconnu';
-    const elimRound = entry.eliminatedRound || '?';
-    const elevation = entry.totalElevation || 0;
-    const points = entry.points || 0;
-
-    // Générer les descriptions de bonus pour ce joueur
-    const bonusEffects = entry.bonusEffects || { gained: 0, lost: 0, details: [] };
-    let bonusHtml = '';
-
-    for (const detail of (bonusEffects.details || [])) {
-      if (detail.amount === 0 && detail.type !== 'duel' && detail.type !== 'brouillard') continue;
-
-      let desc = '';
-      const fmtAmt = formatElevation(detail.amount, false);
-      switch (detail.type) {
-        case 'embuscade_gain':
-          desc = `<span class="history-bonus-detail gained">🏹 <span class="bonus-long">+${fmtAmt} m volés à ${detail.from}</span><span class="bonus-short">+embuscade : ${fmtAmt} m</span></span>`;
-          break;
-        case 'trap_gain':
-          desc = `<span class="history-bonus-detail gained">🪤 <span class="bonus-long">+${fmtAmt} m piégés sur ${detail.from}</span><span class="bonus-short">+piège : ${fmtAmt} m</span></span>`;
-          break;
-        case 'second_souffle':
-          desc = `<span class="history-bonus-detail gained">🔥 <span class="bonus-long">+${fmtAmt} m (second souffle : x2 sur "${detail.activityName}")</span><span class="bonus-short">+second souffle : ${fmtAmt} m</span></span>`;
-          break;
-        case 'malediction_gain':
-          desc = `<span class="history-bonus-detail gained">🪬 <span class="bonus-long">+${fmtAmt} m maudits à ${detail.from}</span><span class="bonus-short">+malédiction : ${fmtAmt} m</span></span>`;
-          break;
-        case 'marquage':
-          desc = `<span class="history-bonus-detail lost">🎯 <span class="bonus-long">-${fmtAmt} m (marqué par ${detail.by})</span><span class="bonus-short">-marquage : ${fmtAmt} m</span></span>`;
-          break;
-        case 'malediction_victim':
-          desc = `<span class="history-bonus-detail lost">🪬 <span class="bonus-long">-${fmtAmt} m (maudit par ${detail.by})</span><span class="bonus-short">-malédiction : ${fmtAmt} m</span></span>`;
-          break;
-        case 'kamikaze_victim':
-          desc = `<span class="history-bonus-detail lost">💣 <span class="bonus-long">-${fmtAmt} m (kamikaze par ${detail.by})</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
-          break;
-        case 'kamikaze_self':
-          desc = `<span class="history-bonus-detail lost">💣 <span class="bonus-long">-${fmtAmt} m (kamikaze auto)</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
-          break;
-        case 'duel':
-          desc = `<span class="history-bonus-detail info">⚔️ <span class="bonus-long">Duel en cours</span><span class="bonus-short">Duel</span></span>`;
-          break;
-        case 'brouillard':
-          desc = `<span class="history-bonus-detail info">🌫️ <span class="bonus-long">Brouillard actif</span><span class="bonus-short">Brouillard</span></span>`;
-          break;
-      }
-      if (desc) bonusHtml += desc;
-    }
-
-    html += `
-      <div class="history-ranking-row eliminated-row ${rankClass}">
-        <span class="history-rank">${medal || (idx + 1)}</span>
-        <div class="history-name-block">
-          <span class="history-name">${name}</span>
-          <span class="history-elim-round">Éliminé R${elimRound}</span>
-          ${bonusHtml ? `<div class="history-bonus-list">${bonusHtml}</div>` : ''}
-        </div>
-        <span class="history-elevation">${formatElevation(elevation, false)}</span>
-        <span class="history-points ${points > 0 ? 'has-points' : ''}">${points > 0 ? `+${points} pts` : '-'}</span>
-      </div>
-    `;
-  });
-
-  html += `
-        </div>
-      </div>
-    </div>
-  `;
-
-  return html;
+.jokers-guide-section .section-title {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
 }
 
-/**
- * Affiche l'historique d'une saison terminée (avec tous les détails)
- * Utilise les résultats figés (frozen_results) comme source de vérité
- */
-function renderCompletedSeasonHistory(container, summary) {
-  const roundsPerSeason = getRoundsPerSeason();
-
-
-  let html = `<div class="history-season-summary"><h3>🏆 Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
-
-  summary.rounds.forEach(r => {
-    const globalRound = r.globalRound;
-
-    // Essayer de récupérer les données figées
-    const frozenRound = getFrozenRound(globalRound, frozenResultsCache);
-
-    if (frozenRound && frozenRound.frozen) {
-      // Utiliser les données figées (source de vérité)
-      html += renderFrozenRoundHistory(r.roundInSeason, frozenRound);
-    } else {
-      // Fallback: pas de données figées, affichage minimal
-      if (!r.eliminated.length) {
-        html += `<div class="history-item">
-          <div class="history-round">Round ${r.roundInSeason}</div>
-          <div class="history-title">Aucun éliminé</div>
-        </div>`;
-      } else {
-        html += `<div class="history-item">
-          <div class="history-round">Round ${r.roundInSeason}</div>
-          <div class="history-eliminated">
-            <span class="history-label">Éliminé(s) :</span> ${r.eliminated.join(', ')}
-          </div>
-          <div class="history-note" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
-            ⚠️ Détails non disponibles (round non figé)
-          </div>
-        </div>`;
-      }
-    }
-  });
-
-  // Ajouter le classement final du Challenge des Éliminés
-  if (summary.eliminatedRanking?.length > 0) {
-    html += renderCompletedEliminatedChallenge(summary);
-  }
-
-  container.innerHTML = html;
+.guide-intro {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 24px;
 }
 
-/**
- * Génère le HTML pour un round à partir des données figées
- */
-/**
- * Rendu de l'historique d'un round ÉQUIPE figé
- */
-function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
-  const globalRound = frozenRound.roundNumber;
-  const teams = frozenRound.teams || [];
-  const eliminations = frozenRound.eliminations || [];
-  const eliminatedIds = new Set(eliminations.map(e => e.id));
-
-  // Trouver l'équipe éliminée
-  const eliminatedTeam = teams.find(t => t.members.some(m => eliminatedIds.has(m.id)));
-  const eliminatedTeamLabel = eliminatedTeam?.animal
-    ? `${eliminatedTeam.animal.emoji} ${eliminatedTeam.animal.name}`
-    : (eliminatedTeam?.color?.name || 'Dernière');
-
-  // Construire le HTML du classement par équipe
-  const sortedTeams = [...teams].sort((a, b) => b.totalElevation - a.totalElevation);
-
-  const rankingHtml = sortedTeams.map((team, idx) => {
-    const isElimTeam = team === eliminatedTeam || (eliminatedTeam && team.index === eliminatedTeam.index);
-    const teamColor = team.color || TEAM_COLORS[idx % TEAM_COLORS.length];
-    const animal = team.animal || null;
-    const position = idx + 1;
-    const teamLabel = animal
-      ? `${animal.emoji} ${animal.name}`
-      : `Équipe ${teamColor.name}`;
-
-    const membersHtml = team.members
-      .sort((a, b) => (b.elevation || 0) - (a.elevation || 0))
-      .map(m => {
-        const isElim = eliminatedIds.has(m.id);
-        const pts = m.mainPoints || 0;
-        const ptsHtml = pts > 0 ? ` <span class="history-pts-badge">${pts} pts</span>` : '';
-        return `<div class="history-ranking-row ${isElim ? 'eliminated' : ''}" style="padding-left: 24px;">
-          <span class="history-name">${m.name || '?'}</span>
-          <span class="history-elevation">${formatElevation(m.elevation || 0, false)}</span>
-          ${isElim ? '<span class="history-elim-badge">Éliminé</span>' : ''}${ptsHtml}
-        </div>`;
-      }).join('');
-
-    return `<div class="history-team-block ${isElimTeam ? 'eliminated' : ''}" style="border-left: 3px solid ${teamColor.border};">
-      <div class="history-team-header">
-        <span class="history-rank">#${position}</span>
-        <span style="color: ${teamColor.border}; font-weight: 600;">${teamLabel}</span>
-        <span class="history-elevation">${formatElevation(team.totalElevation || 0, false)}</span>
-        ${isElimTeam ? '<span class="history-elim-badge">Éliminée</span>' : ''}
-      </div>
-      ${membersHtml}
-    </div>`;
-  }).join('');
-
-  let html = `<div class="history-item" data-round="${globalRound}">
-    <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
-      <div class="history-round">🤝 Round ${roundInSeason}</div>
-      <span class="history-toggle-icon">▼</span>
-    </div>
-    <div class="history-eliminated">
-      <span class="history-label">Équipe éliminée :</span>
-      <span class="eliminated-name">${eliminatedTeamLabel}</span>
-      <span class="eliminated-gap">(${eliminations.map(e => e.name).join(', ')})</span>
-    </div>
-    <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">📊 Classement des équipes</div>
-      <div class="history-ranking-list">
-        ${rankingHtml}
-      </div>
-    </div>
-  </div>`;
-
-  return html;
+.jokers-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
 }
 
-function renderFrozenRoundHistory(roundInSeason, frozenRound) {
-  const globalRound = frozenRound.roundNumber;
-
-  // Si c'est un round de saison équipe avec des données teams, afficher en mode équipe
-  if (frozenRound.teams && frozenRound.teams.length > 0) {
-    return renderFrozenTeamRoundHistory(roundInSeason, frozenRound);
-  }
-
-  // Extraire les données du frozen round
-  const ranking = frozenRound.ranking || [];
-  const eliminations = frozenRound.eliminations || [];
-  const jokersUsed = frozenRound.jokersUsed || [];
-
-  if (eliminations.length === 0) {
-    return `<div class="history-item">
-      <div class="history-round">Round ${roundInSeason}</div>
-      <div class="history-title">Aucun éliminé</div>
-    </div>`;
-  }
-
-  // Trouver le dernier survivant (pour calculer l'écart)
-  const eliminatedIds = new Set(eliminations.map(e => e.id));
-  const survivors = ranking.filter(r => !eliminatedIds.has(r.id));
-  const lastSurvivor = survivors[survivors.length - 1];
-  const lastSurvivorElevation = lastSurvivor?.elevation || 0;
-
-  // Construire les détails des éliminés
-  const eliminatedDetails = eliminations.map(elim => {
-    const gap = lastSurvivorElevation - (elim.elevation || 0);
-    const isZeroElim = elim.zeroElimination || elim.elevation === 0;
-    return {
-      name: elim.name,
-      elevation: elim.elevation || 0,
-      gap: gap,
-      isZeroElim: isZeroElim
-    };
-  }).sort((a, b) => b.elevation - a.elevation);
-
-  // Compter les éliminations à 0 D+
-  const zeroElimCount = eliminatedDetails.filter(e => e.isZeroElim).length;
-
-  // Récupérer les bonus utilisés ce round pour calculer les effets
-  const roundBonuses = getBonusesUsedInRound(globalRound, bonusesCache, seasonBonusesCache);
-
-  // Identifier le rescapé = dernier survivant (dernier non-éliminé du classement)
-  const survivorEntries = ranking.filter(e => !eliminatedIds.has(e.id));
-  const rescapeEntry = survivorEntries.length > 0 ? survivorEntries[survivorEntries.length - 1] : null;
-  const rescapeId = rescapeEntry ? String(rescapeEntry.id) : null;
-  const isFinaleRound = frozenRound.roundInSeason === getRoundsPerSeason();
-  const rescapeInfo = getRescapeInfoForRound(globalRound, frozenResultsCache);
-
-  // Générer le HTML du classement pour le dropdown avec pilules bonus
-  const rankingHtml = ranking.map((entry, idx) => {
-    const isEliminated = eliminatedIds.has(entry.id);
-    const position = idx + 1;
-    const isRescape = (String(entry.id) === rescapeId) && !isFinaleRound && eliminations.length > 0;
-
-    // Points gagnés par cet athlète dans ce round
-    const mainPts = entry.mainPoints || 0;
-
-    // Construire les badges de points
-    let pointsBadges = '';
-    if (mainPts > 0) {
-      pointsBadges += `<span class="history-pts-badge" title="Points challenge principal">${mainPts} pts</span>`;
-    }
-    if (isRescape && rescapeInfo) {
-      const streak = rescapeInfo.consecutive;
-      const rescPts = rescapeInfo.points;
-      if (streak === 1) {
-        pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">🎫 rescapé</span>`;
-      } else {
-        pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">🎫 rescapé ×${streak} (+${rescPts})</span>`;
-      }
-    } else if (isRescape) {
-      pointsBadges += `<span class="history-rescape-badge">🎫 rescapé</span>`;
-    }
-
-    // Calculer les pilules de bonus éphémères pour ce joueur
-    let bonusPills = '';
-    for (const bonus of roundBonuses) {
-      const result = bonus.effect_result;
-      if (!result) continue;
-
-      const entryId = String(entry.id);
-
-      // Dans l'historique du challenge principal, on affiche les effets sur les ACTIFS
-
-      // Embuscade - la victime (joueur actif) perd du D+
-      if (bonus.bonus_id === 'embuscade' && String(bonus.target_athlete_id) === entryId) {
-        const amount = result.stolenElevation || 0;
-        if (amount > 0) {
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Embuscade par ${bonus.athlete_name}">🏹 -${formatElevation(amount, false)} m</span>`;
-        }
-      }
-
-      // Ravitaillement - la cible (joueur actif) gagne du D+
-      if (bonus.bonus_id === 'ravitaillement' && String(bonus.target_athlete_id) === entryId) {
-        const amount = result.bonusElevation || 0;
-        if (amount > 0) {
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Ravitaillement de ${bonus.athlete_name}">🍖 +${formatElevation(amount, false)} m</span>`;
-        }
-      }
-
-      // Note: marquage, malédiction, kamikaze sont entre éliminés, pas dans le challenge principal
-    }
-
-    return `
-      <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''} ${isRescape ? 'rescape' : ''}">
-        <span class="history-rank">${position}</span>
-        <span class="history-name">${entry.name}</span>
-        <span class="history-elevation">${formatElevation(entry.elevation || 0, false)}${bonusPills ? ` ${bonusPills}` : ''}</span>
-        ${isEliminated ? '<span class="history-elim-badge">Éliminé</span>' : ''}
-        ${pointsBadges}
-      </div>
-    `;
-  }).join('');
-
-  // Construire le HTML complet
-  let html = `<div class="history-item" data-round="${globalRound}">
-    <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
-      <div class="history-round">Round ${roundInSeason}</div>
-      <span class="history-toggle-icon">▼</span>
-    </div>
-    <div class="history-eliminated">
-      <span class="history-label">Éliminé(s) :</span>
-      ${eliminatedDetails.map(e => {
-        if (e.isZeroElim) {
-          return `<span class="eliminated-name eliminated-zero">${e.name}</span> <span class="eliminated-gap">(0 D+ - inactif)</span>`;
-        } else {
-          return `<span class="eliminated-name">${e.name}</span> <span class="eliminated-gap">(à ${formatElevation(e.gap, false)} du maintien)</span>`;
-        }
-      }).join(', ')}
-    </div>
-    ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité</div>` : ''}`;
-
-  // Afficher les jokers utilisés
-  if (jokersUsed.length > 0) {
-    const jokerDescriptions = jokersUsed.map(joker => {
-      const jokerType = JOKER_TYPES[joker.jokerId];
-      const jokerIcon = jokerType?.icon || '🃏';
-      const participantName = joker.athleteName || joker.participantName || 'Inconnu';
-      const targetName = joker.targetName || 'Inconnu';
-
-      // Chercher les effets dans le ranking
-      const targetEntry = ranking.find(e => e.id === joker.targetId);
-      const participantEntry = ranking.find(e => e.id === joker.athleteId);
-
-      switch(joker.jokerId) {
-        case 'sabotage':
-          const sabotageAmount = targetEntry?.sabotageReceived?.amount || 0;
-          return `${jokerIcon} ${participantName} a saboté ${targetName} (-${formatElevation(sabotageAmount, false)})`;
-        case 'voleur':
-          const stolenAmount = targetEntry?.theftReceived?.amount || 0;
-          return `${jokerIcon} ${participantName} a volé ${targetName} (-${formatElevation(stolenAmount, false)})`;
-        case 'multiplicateur':
-          const bonusAmount = participantEntry?.multiplierBonus || 0;
-          return `${jokerIcon} ${participantName} a utilisé le multiplicateur (+${formatElevation(bonusAmount, false)})`;
-        case 'bouclier':
-          return `${jokerIcon} ${participantName} a utilisé le bouclier (protection)`;
-        default:
-          return `${jokerIcon} ${participantName} a utilisé un joker`;
-      }
-    });
-
-    html += `<div class="history-jokers">
-      <span class="history-label">Jokers :</span> ${jokerDescriptions.join(' • ')}
-    </div>`;
-  }
-
-  // Afficher les bonus éphémères utilisés ce round
-  const bonusesUsed = getBonusesUsedInRound(globalRound, bonusesCache, seasonBonusesCache);
-  if (bonusesUsed.length > 0) {
-    const bonusDescriptions = bonusesUsed.map(bonus => getBonusHistoryDescription(bonus));
-
-    html += `<div class="history-bonuses">
-      <span class="history-label">Bonus éphémères :</span> ${bonusDescriptions.join(' • ')}
-    </div>`;
-  }
-
-  // Ajouter le dropdown du classement (caché par défaut)
-  html += `
-    <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">📊 Classement du round</div>
-      <div class="history-ranking-list">
-        ${rankingHtml}
-      </div>
-    </div>
-  </div>`;
-
-  return html;
+.joker-guide-card {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 4px solid #f97316;
 }
 
-// ============================================
-// GESTION DES ÉVÉNEMENTS JOKERS
-// ============================================
+.joker-guide-card.multiplicateur {
+  border-left-color: #22d3ee;
+}
 
-// ============================================
-// INITIALISATION
-// ============================================
+.joker-guide-card.duel {
+  border-left-color: #ef4444;
+}
 
-// État du polling
-let lastActivitiesCount = 0;
-let lastModified = null;
-let pollingInterval = null;
+.joker-guide-card.sabotage {
+  border-left-color: #f97316;
+}
 
-async function init() {
+.joker-guide-card.bouclier {
+  border-left-color: #3b82f6;
+}
 
-  const loadingScreen = document.getElementById('loadingScreen');
+.joker-guide-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
 
-  try {
-    // Charger les participants depuis l'API (mode 2026) ou utiliser la liste statique (mode démo)
-    await loadParticipants();
+.joker-guide-content h3 {
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+}
 
-    if (PARTICIPANTS.length === 0) {
-      console.error('❌ Aucun participant chargé !');
-      if (loadingScreen) {
-        loadingScreen.innerHTML = `
-          <div class="loading-content">
-            <div class="loading-icon">⚠️</div>
-            <div class="loading-title">Aucun participant</div>
-            <div class="loading-text">Aucun participant inscrit pour le moment.<br>Inscrivez-vous sur la page d'inscription.</div>
-            <a href="inscription.html" style="margin-top:20px;color:var(--accent-primary);text-decoration:none;padding:10px 20px;border:1px solid var(--accent-primary);border-radius:8px;">→ S'inscrire</a>
-            <button onclick="location.reload()" style="margin-top:12px;background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:8px 16px;border-radius:6px;cursor:pointer;">↻ Réessayer</button>
-          </div>
-        `;
-      }
-      return;
-    }
+.joker-effect-desc {
+  font-weight: 600;
+  color: #22d3ee;
+  margin-bottom: 8px;
+}
 
+.joker-details {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
 
-    // Charger les résultats figés AVANT tout calcul
-    await loadFrozenResults();
+.joker-warning {
+  font-size: 0.85rem;
+  color: #ef4444;
+  margin-top: 8px;
+}
 
-    // Charger les règles spéciales manuelles
-    await loadSpecialRulesOverrides();
+.joker-tips {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
 
-    // Charger les bonus éphémères
-    await loadBonuses();
+.joker-tips h4 {
+  color: #10b981;
+  margin-bottom: 12px;
+}
 
-    // Initialiser les jokers (AWAIT AJOUTÉ - important pour charger avant le calcul)
-    await initializeJokersState();
+.joker-tips ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 
-    // Charger les données
-    await loadActivities();
+.joker-tips li {
+  padding: 6px 0;
+  padding-left: 24px;
+  position: relative;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
 
-    // Initialiser le compteur pour le polling
-    lastActivitiesCount = allActivities.length;
+.joker-tips li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #10b981;
+}
 
-    // Initialiser le mode démo si slider présent
-    if (document.getElementById('dateSliderContainer')) {
-      initDemoMode({
-        onDateChange: () => renderAll(),
-        showSlider: true,
-        enableRightClick: false // Géré séparément pour les jokers
-      });
-    }
+/* ============================================
+   MODALE JUMP TO DATE
+   ============================================ */
 
-    // Premier rendu
-    renderAll();
+.jump-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
 
-    // Démarrer le polling automatique (sauf en mode démo)
-    if (!CHALLENGE_CONFIG.isDemo) {
-      startAutoRefresh();
-    }
+.jump-modal-content {
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 360px;
+}
 
+.jump-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(249, 115, 22, 0.1);
+  font-weight: 600;
+  color: #f97316;
+  border-radius: 16px 16px 0 0;
+}
 
-  } catch (error) {
-    console.error('❌ Erreur d\'initialisation:', error);
-    if (loadingScreen) {
-      loadingScreen.innerHTML = `
-        <div class="loading-content">
-          <div class="loading-icon">❌</div>
-          <div class="loading-title">Erreur de connexion</div>
-          <div class="loading-text">Impossible de charger les données.<br>Vérifiez votre connexion internet.</div>
-          <button onclick="location.reload()" style="margin-top:20px;background:var(--accent-primary);border:none;color:white;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;">↻ Réessayer</button>
-        </div>
-      `;
-    }
+.jump-modal-body {
+  padding: 20px;
+}
+
+.jump-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.preset-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+
+.preset-btn:hover {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.jump-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jump-custom label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.jump-custom input[type="date"] {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.go-btn {
+  background: #f97316;
+  border: none;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.go-btn:hover {
+  background: #ea580c;
+}
+
+/* ============================================
+   ÉCRAN D'ATTENTE AVANT LE CHALLENGE
+   ============================================ */
+
+.waiting-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  min-height: 400px;
+}
+
+.waiting-icon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.waiting-title {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 30px;
+}
+
+.waiting-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.countdown-number {
+  font-family: var(--font-display);
+  font-size: 6rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  line-height: 1;
+}
+
+.countdown-label {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+}
+
+.waiting-date {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.waiting-date strong {
+  color: var(--accent-secondary);
+}
+
+.waiting-info {
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+.waiting-participants {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.participants-count {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.banner-waiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(34, 211, 238, 0.1) 100%);
+  border-radius: 12px;
+  border: 1px solid var(--border-accent);
+}
+
+.banner-waiting .banner-icon {
+  font-size: 1.5rem;
+}
+
+.banner-waiting .banner-text {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.banner-waiting .banner-countdown {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+/* ============================================
+   AMÉLIORATION DES BONUS (AFFICHAGE SUR UNE LIGNE)
+   ============================================ */
+
+.elevation-bonuses {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.bonus-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bonus-tag.multiplier {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.bonus-tag.duel-won {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.bonus-tag.duel-lost {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bonus-tag.sabotage {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bonus-tag.sabotage-done {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.bonus-tag.kamikaze {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bonus-tag.kamikaze-victim {
+  background: rgba(251, 146, 60, 0.2);
+  color: #fb923c;
+}
+
+.bonus-tag.cursed {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+}
+
+/* Indicateurs sur avatar pour kamikaze et malédiction */
+.avatar-bonus-icon.kamikaze {
+  background: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.avatar-bonus-icon.kamikaze-target {
+  background: rgba(251, 146, 60, 0.3);
+  color: #fb923c;
+}
+
+.avatar-bonus-icon.cursed {
+  background: rgba(168, 85, 247, 0.3);
+  color: #a855f7;
+  animation: cursedPulse 2s ease-in-out infinite;
+}
+
+@keyframes cursedPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Jokers dans la colonne */
+.jokers-cell {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.joker-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--bg-card);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.joker-badge sub {
+  font-size: 0.65rem;
+  margin-left: 2px;
+  color: var(--text-muted);
+}
+
+.joker-badge.active {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: var(--accent-primary);
+}
+
+.joker-badge.pending {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--accent-secondary);
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.no-jokers {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* === WAITING PARTICIPANTS GRID === */
+.waiting-participants-section {
+  padding: 30px;
+  text-align: center;
+}
+
+.waiting-section-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+
+.waiting-participants-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 800px;
+  margin: 0 auto 30px;
+}
+
+.waiting-participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 30px;
+  transition: all 0.2s ease;
+}
+
+.waiting-participant:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.participant-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+}
+
+.participant-name-small {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.waiting-inscription-cta {
+  margin-top: 20px;
+}
+
+.btn-inscription {
+  display: inline-block;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-inscription:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.3);
+}
+
+/* ============================================
+   MOBILE RESPONSIVE - TABLEAUX ÉLIMINÉS & CLASSEMENT GÉNÉRAL
+   ============================================ */
+
+/* === TABLET (768px) === */
+@media (max-width: 768px) {
+  /* Masquer les colonnes supplémentaires sur tablet/mobile */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Classement Général - 3 colonnes sur mobile (Rang, Athlète, Total) */
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 35px 1fr 60px;
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .standings-rank {
+    font-size: 0.9rem;
+  }
+
+  .standings-athlete {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .standings-athlete > span {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .standings-athlete .athlete-avatar-small {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.65rem;
+  }
+
+  .standings-athlete .wins-badge,
+  .standings-athlete .active-badge,
+  .standings-athlete .elim-badge {
+    display: none;
+  }
+
+  .standings-points {
+    font-size: 0.75rem;
+  }
+
+  .standings-total {
+    font-size: 0.9rem;
+  }
+
+  /* Challenge Éliminés - Compact */
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 30px 1fr 70px 40px 55px;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  #eliminatedChallengeContainer .ranking-position {
+    font-size: 0.85rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-athlete {
+    gap: 8px;
+  }
+
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.65rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.8rem;
+  }
+
+  #eliminatedChallengeContainer .athlete-status {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.8rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-round {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .points-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
   }
 }
 
-/**
- * Polling automatique pour détecter les nouvelles activités
- */
-function startAutoRefresh() {
-  const POLLING_INTERVAL = 180000; //3 min
-
-
-  pollingInterval = setInterval(async () => {
-    try {
-      const response = await fetch(`/api/activities-status/${CHALLENGE_CONFIG.leagueId}`);
-      if (!response.ok) return;
-
-      const status = await response.json();
-
-      // Vérifier si les données ont changé
-      if (status.count !== lastActivitiesCount || status.lastModified !== lastModified) {
-
-        // Afficher une notification si nouvelle activité
-        if (status.count > lastActivitiesCount && status.lastActivity) {
-          updateTickerWithNewActivity(status.lastActivity);
-        }
-
-        // Mettre à jour les compteurs
-        lastActivitiesCount = status.count;
-        lastModified = status.lastModified;
-
-        // Recharger les données et rafraîchir
-        await loadActivities();
-        renderAll();
-
-      }
-    } catch (error) {
-      // Silencieux - on ne veut pas spammer la console
-    }
-  }, POLLING_INTERVAL);
-}
-
-/**
- * Affiche le bandeau ticker des activités récentes (aujourd'hui + hier)
- * Desktop: en bas de page (fixed)
- * Mobile: dans la nav sticky
- */
-function renderActivityTicker() {
-  // Récupérer les activités des dernières 48h
-  const now = getCurrentDate();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
-
-  const recentActivities = allActivities
-    .filter(a => {
-      const actDate = new Date(a.start_date_local || a.start_date);
-      return actDate >= yesterday;
-    })
-    .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date));
-
-  // Ajouter les styles du ticker
-  injectTickerStyles();
-
-  // Générer le contenu du ticker
-  let tickerContent = '';
-
-  if (recentActivities.length === 0) {
-    tickerContent = `
-      <div class="ticker-track">
-        <span class="ticker-item ticker-no-activity">Aucune activité dans les dernières 48h • En attente de nouvelles sorties...</span>
-      </div>
-    `;
-  } else {
-    // Générer les items du ticker
-    const tickerItems = recentActivities.map(activity => {
-      const date = new Date(activity.start_date_local || activity.start_date);
-      const isToday = date.toDateString() === now.toDateString();
-      const dateStr = isToday ? "Auj." : "Hier";
-      const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      const athleteName = activity.athlete_name || getParticipantById(activity.athlete_id)?.name || 'Inconnu';
-      const sportIcon = getSportIcon(activity.sport_type || activity.type);
-      const elevation = Math.round(activity.total_elevation_gain || 0);
-
-      return `<span class="ticker-item">
-        <span class="ticker-date">${dateStr} ${timeStr}</span>
-        <span class="ticker-sep">•</span>
-        <span class="ticker-athlete">${athleteName}</span>
-        <span class="ticker-sep">•</span>
-        <span class="ticker-activity">${truncateText(activity.name, 20)}</span>
-        <span class="ticker-sep">•</span>
-        <span class="ticker-sport">${sportIcon}</span>
-        <span class="ticker-elev">+${elevation}m</span>
-        <span class="ticker-div">│</span>
-      </span>`;
-    }).join('');
-
-    // Tripler le contenu pour boucle infinie seamless
-    const fullContent = tickerItems + tickerItems + tickerItems;
-    tickerContent = `<div class="ticker-track">${fullContent}</div>`;
+/* === MOBILE (480px) === */
+@media (max-width: 480px) {
+  /* Classement Général - Ultra compact pour iPhone (3 colonnes) */
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 28px 1fr 50px;
+    padding: 8px 8px;
+    gap: 4px;
   }
 
-  // Appliquer aux deux tickers (mobile et desktop)
-  const tickerMobile = document.getElementById('activityTickerMobile');
-  const tickerDesktop = document.getElementById('activityTickerDesktop');
+  .standings-header {
+    font-size: 0.55rem;
+    letter-spacing: 0.05em;
+  }
 
-  if (tickerMobile) tickerMobile.innerHTML = tickerContent;
-  if (tickerDesktop) tickerDesktop.innerHTML = tickerContent;
+  .standings-rank {
+    font-size: 0.8rem;
+  }
 
-  // Calculer la durée d'animation
-  const itemCount = recentActivities.length;
-  const duration = Math.max(30, itemCount * 8);
+  .standings-athlete {
+    gap: 6px;
+  }
 
-  // Appliquer la durée aux deux tracks
-  [tickerMobile, tickerDesktop].forEach(ticker => {
-    if (ticker) {
-      const track = ticker.querySelector('.ticker-track');
-      if (track) track.style.animationDuration = `${duration}s`;
-    }
-  });
-}
+  .standings-athlete > span {
+    font-size: 0.7rem;
+  }
 
-/**
- * Tronque un texte à une longueur maximale
- */
-function truncateText(text, maxLength) {
-  if (!text) return '';
-  return text.length > maxLength ? text.substring(0, maxLength) + '…' : text;
-}
+  .standings-athlete .athlete-avatar-small {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    font-size: 0.55rem;
+  }
 
-/**
- * Retourne l'icône correspondant au type de sport
- * Modifie cette fonction pour changer les emojis
- */
-function getSportIcon(sportType) {
-  const icons = {
-    'Run': '👟',
-    'TrailRun': '⛰️',
-    'Hike': '🥾',
-    'Walk': '🚶',
-    'Ride': '🚴',
-    'MountainBikeRide': '🚵',
-    'GravelRide': '🚴',
-    'BackcountrySki': '⛷️',
-    'NordicSki': '🎿',
-    'Snowshoe': '❄️'
-  };
-  return icons[sportType] || '👟';
-}
+  .standings-points {
+    font-size: 0.65rem;
+  }
 
-/**
- * Injecte les styles CSS du ticker
- */
-function injectTickerStyles() {
-  if (document.getElementById('ticker-styles')) return;
+  .standings-total {
+    font-size: 0.8rem;
+  }
 
-  const style = document.createElement('style');
-  style.id = 'ticker-styles';
-  style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+  /* Challenge Éliminés - Ultra compact */
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 25px 1fr 60px 35px 45px;
+    padding: 6px 8px;
+    gap: 4px;
+  }
 
-    /* Base commune */
-    .activity-ticker {
-      width: 100%;
-      height: 22px;
-      background: #0a0a0a;
-      overflow: hidden;
-      font-family: 'VT323', 'Courier New', monospace;
-      display: flex;
-      align-items: center;
-    }
+  #eliminatedChallengeContainer .ranking-header {
+    font-size: 0.55rem;
+  }
 
-    /* Desktop: fixed en bas de page */
-    .activity-ticker-desktop {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 9999;
-      border-top: 1px solid #f97316;
-    }
+  #eliminatedChallengeContainer .ranking-position {
+    font-size: 0.75rem;
+  }
 
-    /* Mobile: dans la nav, caché par défaut sur desktop */
-    .activity-ticker-mobile {
-      border-bottom: 1px solid #f97316;
-      display: none;
-    }
+  #eliminatedChallengeContainer .ranking-athlete {
+    gap: 6px;
+  }
 
-    /* Responsive: inverser l'affichage sur mobile */
-    @media (max-width: 768px) {
-      .activity-ticker-desktop {
-        display: none;
-      }
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    font-size: 0.55rem;
+  }
 
-      .activity-ticker-mobile {
-        display: flex;
-        height: 20px;
-      }
-    }
+  #eliminatedChallengeContainer .athlete-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
 
-    /* Padding body pour ne pas cacher le contenu par le ticker desktop */
-    @media (min-width: 769px) {
-      body {
-        padding-bottom: 24px;
-      }
-    }
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.7rem;
+  }
 
-    .ticker-track {
-      display: inline-flex;
-      align-items: center;
-      height: 100%;
-      white-space: nowrap;
-      animation: ticker-scroll 60s linear infinite;
-      transform: translateX(-25%);
-      line-height: 22px;
-    }
+  #eliminatedChallengeContainer .athlete-status {
+    font-size: 0.55rem;
+  }
 
-    @keyframes ticker-scroll {
-      0% {
-        transform: translateX(-25%);
-      }
-      100% {
-        transform: translateX(-58.33%);
-      }
-    }
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.7rem;
+  }
 
-    .ticker-track:hover {
-      animation-play-state: paused;
-    }
+  #eliminatedChallengeContainer .elevation-unit {
+    display: none;
+  }
 
-    .ticker-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 14px;
-      letter-spacing: 0.3px;
-      line-height: 1;
-    }
+  #eliminatedChallengeContainer .ranking-round {
+    font-size: 0.6rem;
+  }
 
-    .ticker-date {
-      color: #f97316;
-      font-weight: bold;
-    }
+  #eliminatedChallengeContainer .points-badge {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
 
-    .ticker-sep {
-      color: #555;
-      margin: 0 2px;
-    }
+  /* Ranking principal - Ajustements supplémentaires */
+  .ranking-header,
+  .ranking-row {
+    grid-template-columns: 40px 1fr 80px;
+    padding: 8px 10px;
+  }
 
-    .ticker-athlete {
-      color: #22d3ee;
-      font-weight: bold;
-    }
+  .ranking-header {
+    font-size: 0.6rem;
+  }
 
-    .ticker-activity {
-      color: #d4d4d4;
-    }
+  .position {
+    font-size: 0.9rem;
+  }
 
-    .ticker-sport {
-      font-size: 11px;
-      line-height: 1;
-    }
+  .athlete-avatar {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 0.7rem;
+  }
 
-    .ticker-elev {
-      color: #10b981;
-      font-weight: bold;
-    }
+  .athlete-name {
+    font-size: 0.8rem;
+  }
 
-    .ticker-div {
-      color: #333;
-      margin: 0 10px;
-      font-size: 14px;
-    }
+  .athlete-status {
+    font-size: 0.6rem;
+  }
 
-    .ticker-no-activity {
-      color: #666;
-      padding: 0 20px;
-      font-size: 13px;
-    }
+  .elevation-cell .elevation-primary {
+    font-size: 0.85rem;
+  }
 
-    /* Mobile adjustments */
-    @media (max-width: 768px) {
-      .ticker-track {
-        line-height: 20px;
-      }
+  .elevation-bonuses {
+    flex-wrap: wrap;
+  }
 
-      .ticker-item {
-        font-size: 12px;
-        gap: 3px;
-      }
+  .bonus-tag {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+  }
 
-      .ticker-div {
-        margin: 0 6px;
-      }
+  /* Section titles - Plus compact */
+  .section-title {
+    font-size: clamp(1.25rem, 4vw, 2rem);
+  }
 
-      .ticker-sport {
-        font-size: 10px;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
+  /* Banner saison - Compact */
+  .season-banner {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-/**
- * Met à jour le ticker quand de nouvelles activités arrivent
- */
-function updateTickerWithNewActivity(activity) {
-  // Simplement re-render le ticker complet
-  renderActivityTicker();
-}
-
-// ============================================
-// ÉVÉNEMENTS DOM
-// ============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  init();
-
-  document.getElementById('loginBtn')?.addEventListener('click', () => {
-    window.location.href = 'login.html';
-  });
-
-  // ============================================
-  // TOGGLE Classement Principal / Éliminé
-  // ============================================
-  // Au refresh, on revient au tableau Principal par défaut (pas de persistance).
-  setupRankingToggle();
-});
-
-function setupRankingToggle() {
-  const buttons = document.querySelectorAll('.ranking-toggle-btn');
-  if (buttons.length === 0) return;
-
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetId = btn.dataset.target;
-      if (!targetId) return;
-
-      // Mettre à jour l'état actif des boutons
-      buttons.forEach(b => {
-        const isActive = b === btn;
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
-      });
-
-      // Afficher/masquer les containers
-      const principalContainer = document.getElementById('rankingContainer');
-      const eliminatedContainer = document.getElementById('eliminatedChallengeContainer');
-      if (principalContainer && eliminatedContainer) {
-        const showPrincipal = targetId === 'rankingContainer';
-        principalContainer.classList.toggle('ranking-container-hidden', !showPrincipal);
-        eliminatedContainer.classList.toggle('ranking-container-hidden', showPrincipal);
-      }
-    });
-  });
-}
-
-// ============================================
-// API PUBLIQUE
-// ============================================
-
-export function setAdminMode(enabled) {
-  isAdminMode = enabled;
-}
-
-// Fonction pour toggle le dropdown du classement d'un round
-function toggleRoundDetails(globalRound) {
-  const dropdown = document.getElementById(`ranking-${globalRound}`);
-  const historyItem = dropdown?.closest('.history-item');
-  const toggleIcon = historyItem?.querySelector('.history-toggle-icon');
-
-  if (dropdown) {
-    const isVisible = dropdown.style.display !== 'none';
-    dropdown.style.display = isVisible ? 'none' : 'block';
-
-    if (toggleIcon) {
-      toggleIcon.textContent = isVisible ? '▼' : '▲';
-      toggleIcon.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
-    }
+  /* Container padding réduit */
+  :root {
+    --container-padding: clamp(12px, 3vw, 40px);
   }
 }
 
-// Exposer globalement pour les onclick dans le HTML
-window.toggleRoundDetails = toggleRoundDetails;
+/* === TRÈS PETIT MOBILE (360px et moins) === */
+@media (max-width: 360px) {
+  .standings-header,
+  .standings-row {
+    grid-template-columns: 24px 1fr 38px 38px 45px;
+    padding: 6px 6px;
+    gap: 3px;
+  }
 
-window.versant = {
-  getCurrentDate,
-  setSimulatedDate,
-  refresh: renderAll,
-  useJoker: jokerUse,
-  addJoker,
-  removeJoker,
-  getJokerStock,
-  setAdminMode,
-  getActiveJokersForRound,
-  toggleRoundDetails
-};
+  .standings-header {
+    font-size: 0.5rem;
+  }
+
+  .standings-rank {
+    font-size: 0.7rem;
+  }
+
+  .standings-athlete > span {
+    font-size: 0.65rem;
+  }
+
+  .standings-athlete .athlete-avatar-small {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    font-size: 0.5rem;
+  }
+
+  .standings-points {
+    font-size: 0.6rem;
+  }
+
+  .standings-total {
+    font-size: 0.7rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-header,
+  #eliminatedChallengeContainer .ranking-row {
+    grid-template-columns: 22px 1fr 50px 30px 40px;
+    padding: 5px 6px;
+  }
+
+  #eliminatedChallengeContainer .athlete-avatar {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+  }
+
+  #eliminatedChallengeContainer .athlete-name {
+    font-size: 0.6rem;
+  }
+
+  #eliminatedChallengeContainer .ranking-elevation {
+    font-size: 0.6rem;
+  }
+}
+
+/* ============================================
+   AVATAR BONUS INDICATORS - MOBILE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .avatar-bonus-indicators {
+    bottom: -3px;
+    right: -3px;
+  }
+
+  .avatar-bonus-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 8px;
+    border-width: 1.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .avatar-bonus-indicators {
+    bottom: -2px;
+    right: -2px;
+  }
+
+  .avatar-bonus-icon {
+    width: 12px;
+    height: 12px;
+    font-size: 7px;
+    border-width: 1px;
+  }
+
+  /* Limiter à 2 indicateurs max sur mobile */
+  .avatar-bonus-icon:nth-child(n+3) {
+    display: none;
+  }
+}
+/* ============================================
+   SPECIAL RULES - BANNER & HANDICAP
+   ============================================ */
+
+.special-rule-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(168, 85, 247, 0.12));
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.special-rule-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.special-rule-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.special-rule-name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f97316;
+}
+
+.special-rule-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Ranking header variant for handicap mode */
+.ranking-header-handicap {
+  grid-template-columns: 50px minmax(120px, 1fr) 90px 70px 100px 100px !important;
+}
+
+.ranking-header-handicap + .ranking-row,
+.ranking-header-handicap ~ .ranking-row {
+  grid-template-columns: 50px minmax(120px, 1fr) 90px 70px 100px 100px !important;
+}
+
+/* Handicap adjustment display */
+.handicap-malus {
+  color: #ef4444;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.handicap-bonus {
+  color: #10b981;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.handicap-none {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.elevation-raw {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.elevation-final .elevation-primary {
+  font-weight: 700;
+}
+
+.handicap-tag {
+  font-size: 0.6rem !important;
+  background: rgba(249, 115, 22, 0.12) !important;
+  border: 1px solid rgba(249, 115, 22, 0.25) !important;
+  color: #f97316 !important;
+  padding: 1px 5px !important;
+}
+
+.hide-mobile-sm {
+  display: block;
+}
+
+/* Mobile responsive for handicap */
+@media (max-width: 768px) {
+  .special-rule-banner {
+    flex-direction: column;
+    text-align: center;
+    padding: 12px 16px;
+    gap: 8px;
+  }
+
+  .special-rule-icon {
+    font-size: 1.5rem;
+  }
+
+  .hide-mobile-sm {
+    display: none !important;
+  }
+
+  /* 4 colonnes sur mobile : Pos / Athlète / Brut / Final */
+  .ranking-header-handicap {
+    grid-template-columns: 32px 1fr 62px 72px !important;
+    padding: 10px 10px;
+    font-size: 0.6rem;
+    gap: 4px;
+  }
+
+  .ranking-header-handicap + .ranking-row,
+  .ranking-header-handicap ~ .ranking-row {
+    grid-template-columns: 32px 1fr 62px 72px !important;
+    padding: 8px 10px;
+    gap: 4px;
+  }
+
+  /* Cacher D+ Saison (6ème colonne) — déjà via hide-mobile */
+
+  .ranking-header-handicap .elevation-raw,
+  .ranking-header-handicap ~ .ranking-row .elevation-raw {
+    font-size: 0.72rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .elevation-final {
+    font-size: 0.75rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .elevation-final .elevation-primary {
+    font-size: 0.8rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .athlete-name {
+    font-size: 0.78rem;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .handicap-tag {
+    font-size: 0.55rem !important;
+    padding: 0px 4px !important;
+  }
+
+  .ranking-header-handicap ~ .ranking-row .athlete-avatar {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ranking-header-handicap {
+    grid-template-columns: 28px 1fr 55px 65px !important;
+    font-size: 0.55rem;
+  }
+
+  .ranking-header-handicap + .ranking-row,
+  .ranking-header-handicap ~ .ranking-row {
+    grid-template-columns: 28px 1fr 55px 65px !important;
+  }
+}
+
+/* Banner rule badge */
+.banner-rule-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(168, 85, 247, 0.2));
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #f97316;
+  margin-top: 4px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* ============================================
+   BONUS DETAILS IN ELIMINATED CHALLENGE HISTORY
+   ============================================ */
+
+.history-bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.history-bonus-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.history-bonus-detail.gained {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.history-bonus-detail.lost {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.history-bonus-detail.info {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  color: #22d3ee;
+}
+
+/* Pilule info style for duel/brouillard in live eliminated challenge */
+.bonus-tag.ephemeral-info {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  color: #22d3ee;
+}
+
+/* Eliminated challenge history rows — allow wrapping */
+.eliminated-challenge-list .history-ranking-row {
+  align-items: start;
+  min-height: auto;
+}
+
+@media (max-width: 768px) {
+  .eliminated-challenge-list .history-ranking-row {
+    grid-template-columns: 28px 1fr auto auto;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .history-bonus-list {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .history-bonus-detail {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    white-space: normal;
+  }
+
+  /* Short labels on mobile via CSS — hide long text, show short */
+  .history-bonus-detail .bonus-long {
+    display: none;
+  }
+  .history-bonus-detail .bonus-short {
+    display: inline;
+  }
+
+  .history-name-block .history-name {
+    font-size: 0.78rem;
+  }
+
+  .history-elevation {
+    font-size: 0.7rem;
+    min-width: 45px;
+  }
+
+  .history-points {
+    font-size: 0.7rem;
+    min-width: 40px;
+  }
+}
+
+/* Desktop: show long text, hide short */
+.history-bonus-detail .bonus-short {
+  display: none;
+}
+.history-bonus-detail .bonus-long {
+  display: inline;
+}
+
+/* ============================================
+   HARMONISATION TYPOGRAPHIQUE (commit D3-bis)
+   ============================================
+   Objectif : densifier et homogénéiser les tailles de police pour éviter
+   l'impression de "brouillon".
+
+   Règles :
+   - Texte courant (noms, descriptions, badges) : font-body (Inter), 0.9rem
+   - Labels techniques (eyebrow, banner-label, section-number) : font-mono, 0.7rem
+   - Valeurs numériques (D+, points, timer) : font-mono (garde son identité)
+   - Titres : font-display (Syne)
+   - Pas plus de 600 en font-weight pour le texte courant
+   - Pastilles bonus : 0.7rem pour rester plus petites que le texte courant
+   ============================================ */
+
+/* === BODY : reset à 0.9rem par défaut pour tout le site === */
+body {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+/* === Noms d'athlètes (homogénéisés à 0.9rem) === */
+.athlete-name,
+.team-member-name,
+.history-name,
+.eliminated-name,
+.standings-name,
+.bonus-card-target-name {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* === Valeurs numériques D+/points (homogénéisées) === */
+.ranking-elevation {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.ranking-elevation span {
+  font-size: 0.75rem;
+}
+
+.team-total-elevation {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.team-member-elevation,
+.history-elevation,
+.standings-points {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* === Positions (rangs dans les classements) : un poil plus gros === */
+.ranking-position,
+.history-rank {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* === Pastilles bonus : plus petites que le nom de l'athlète === */
+.bonus-tag,
+.bonus-detail,
+.history-bonus-detail,
+.points-badge,
+.active-badge,
+.history-elim-badge,
+.history-pts-badge,
+.eliminated-gap,
+.athlete-status {
+  font-size: 0.7rem !important;
+  font-weight: 500;
+  font-family: var(--font-body);
+}
+
+/* === Labels techniques (en mono, petits) === */
+.banner-label,
+.banner-stat-label,
+.countdown-label,
+.countdown-unit,
+.hero-eyebrow,
+.section-number,
+.loading-text,
+.section-desc {
+  font-size: 0.7rem;
+}
+
+/* === Nav-link reste la référence (0.9rem) === */
+.nav-link {
+  font-size: 0.9rem;
+  font-family: var(--font-body);
+}
+
+/* === Bandeau saison : tailles cohérentes === */
+.banner-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.banner-day {
+  font-size: 0.7rem;
+}
+
+/* === Toggle Principal/Éliminé : 0.85rem (légèrement plus petit que nav) === */
+.ranking-toggle-btn {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* === Sur mobile : conserver les overrides existants === */
+@media (max-width: 768px) {
+  body {
+    font-size: 0.875rem;
+  }
+  .athlete-name,
+  .team-member-name {
+    font-size: 0.875rem;
+  }
+  .banner-value {
+    font-size: 1rem;
+  }
+  .banner-label {
+    font-size: 0.55rem;
+  }
+  .banner-day {
+    font-size: 0.6rem;
+  }
+}
+
+
+/* ============================================
+   BOUTON RÉCAP SAISON PRÉCÉDENTE (commit D3)
+   ============================================ */
+
+.recap-wrapper {
+  padding: 8px var(--container-padding);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.recap-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg,
+    rgba(251, 191, 36, 0.12) 0%,
+    rgba(249, 115, 22, 0.12) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.recap-toggle-btn:hover {
+  background: linear-gradient(135deg,
+    rgba(251, 191, 36, 0.18) 0%,
+    rgba(249, 115, 22, 0.18) 100%);
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.15);
+}
+
+.recap-toggle-icon {
+  font-size: 1.1rem;
+}
+
+.recap-toggle-chevron {
+  margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.recap-toggle-btn[aria-expanded="true"] .recap-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+.recap-panel {
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.recap-loading {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .recap-toggle-btn {
+    font-size: 0.85rem;
+    padding: 10px 14px;
+  }
+  .recap-panel {
+    padding: 16px;
+  }
+}

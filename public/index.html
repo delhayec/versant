@@ -69,6 +69,18 @@
     <div class="season-banner" id="seasonBanner"></div>
   </section>
 
+  <!-- Bouton Récap de la saison précédente (visible 36h après début R1 saison N+1) -->
+  <section class="recap-wrapper" id="recapWrapper" style="display: none;">
+    <button type="button" class="recap-toggle-btn" id="recapToggleBtn" aria-expanded="false">
+      <span class="recap-toggle-icon">🏆</span>
+      <span class="recap-toggle-label" id="recapToggleLabel">Récap saison précédente</span>
+      <span class="recap-toggle-chevron">▼</span>
+    </button>
+    <div class="recap-panel" id="recapPanel" style="display: none;">
+      <!-- Rempli par JavaScript -->
+    </div>
+  </section>
+
   <!-- Classement combiné : Principal / Éliminés (toggle) + Bonus actifs -->
   <section class="ranking-section" id="ranking">
     <div class="section-header">
