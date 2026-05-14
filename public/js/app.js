@@ -738,7 +738,7 @@ async function renderAll() {
     // Ticker des activités récentes
     renderActivityTicker();
 
-    // Récap saison précédente (visible 36h après début R1 saison suivante)
+    // Récap saison précédente (visible 48h après début R1 saison suivante)
     checkAndShowRecapButton();
 
 
@@ -2577,9 +2577,9 @@ async function checkAndShowRecapButton() {
     const r1Start = new Date(firstRoundOfCurrent.dates?.start || firstRoundOfCurrent.startDate);
     if (isNaN(r1Start.getTime())) return;
 
-    // Fenêtre de 36h après le début du R1
+    // Fenêtre de 48h après le début du R1
     const now = getCurrentDate ? getCurrentDate() : new Date();
-    const cutoff = new Date(r1Start.getTime() + 36 * 60 * 60 * 1000);
+    const cutoff = new Date(r1Start.getTime() + 48 * 60 * 60 * 1000);
     if (now > cutoff || now < r1Start) return; // hors fenêtre
 
     // Afficher le bouton
