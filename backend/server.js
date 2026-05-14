@@ -1884,6 +1884,33 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
       return { id, name: a?.name || `Athlète ${id}` };
     });
 
+ // === 2.5 PRÉ-LOAD : équipes verrouillées dans season_teams.json ===
+    // Si la saison a été figée manuellement (ré-tirage indésirable, fix de
+    // composition), on lit directement le fichier au lieu de tirer aléatoirement.
+    // Le fichier est indexé par seasonNumber.
+    const SEASON_TEAMS_FILE = path.join(DATA_DIR, 'season_teams.json');
+    const storedSeasonTeams = await safeReadJSON(SEASON_TEAMS_FILE, {});
+    const lockedEntry = storedSeasonTeams[String(detectedSeason)];
+
+    if (lockedEntry && Array.isArray(lockedEntry.teams) && lockedEntry.teams.length > 0) {
+      // Réutiliser les équipes stockées : on construit le payload directement
+      // en mode "team" sans repasser par formBalancedTeams.
+      // Les équipes stockées contiennent déjà color + animal + members + totalPoints.
+      const payload = {
+        roundNumber,
+        seasonNumber: detectedSeason,
+        seasonType: 'team',
+        frozen: false,
+        teams: lockedEntry.teams,
+        eliminatedTeam: null,
+        lockedFromFile: true,
+        lockedAt: lockedEntry.lockedAt || null
+      };
+      _teamsCache.set(roundNumber, { ts: Date.now(), payload });
+      return res.json(payload);
+    }
+
+    // Sinon : tirage aléatoire normal
     const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
     const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, usedAnimalIds, roundNumber);
 
