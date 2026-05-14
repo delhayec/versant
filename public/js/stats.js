@@ -1742,16 +1742,32 @@ async function computePointsEvolution() {
   // (un round finale figé avec `isWinner: true` dans le ranking).
   // La saison en cours n'est pas affichée car ses points évoluent en continu
   // et peuvent être trompeurs.
-  const today = new Date();
+const today = new Date();
   const seasons = [];
-  const maxSeason = getSeasonNumber(today);
+  // Détection robuste : on s'appuie sur les saisons figées de
+  // eliminatedChallengeRankings, pas sur un calcul théorique basé sur la date.
+  const maxSeason = getSeasonNumber(today, frozen);
   for (let s = 1; s <= maxSeason; s++) {
-    // Trouver la finale de cette saison
-    const roundsOfSeason = Object.values(rounds).filter(r => r && Number(r.seasonNumber) === s);
-    const hasCompletedFinale = roundsOfSeason.some(r =>
+    // Trouver la finale de cette saison : on accepte 3 marqueurs
+    //   1. Un joueur avec isWinner: true dans le ranking (cas backend "propre")
+    //   2. eliminatedChallengeRankings[s] existe et est figé (= saison clôturée)
+    //   3. Fallback : tous les rounds attendus de la saison sont figés ET
+    //      le dernier round n'a qu'un survivant (= finale jouée)
+    const roundsOfSeason = Object.values(rounds)
+      .filter(r => r && Number(r.seasonNumber) === s)
+      .sort((a, b) => (a.roundInSeason || 0) - (b.roundInSeason || 0));
+
+    const hasExplicitWinner = roundsOfSeason.some(r =>
       r.frozen && Array.isArray(r.ranking) && r.ranking.some(e => e.isWinner)
     );
-    if (hasCompletedFinale) seasons.push(s);
+    const elimRankingExists = !!frozen?.eliminatedChallengeRankings?.[String(s)];
+    const lastRound = roundsOfSeason[roundsOfSeason.length - 1];
+    const lastRoundHasSingleSurvivor = lastRound?.frozen &&
+      ((lastRound.activeParticipants?.length || 0) - (lastRound.eliminations?.length || 0)) <= 1;
+
+    if (hasExplicitWinner || elimRankingExists || lastRoundHasSingleSurvivor) {
+      seasons.push(s);
+    }
   }
 
   if (seasons.length === 0) return null;
