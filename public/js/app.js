@@ -2627,18 +2627,443 @@ function findFirstRoundOfSeason(seasonNumber, frozen) {
 
 /**
  * Rend le contenu du panneau d'achievements pour une saison figée.
- * Sera implémenté complètement au commit D3.2.
- * Pour l'instant : placeholder.
+ * Affiche : podium finale + ranking éliminés + 5 achievements (top D+,
+ * top usage jokers, top ciblé, surperformance, sous-performance).
+ *
+ * @param {HTMLElement} panel - Container du panneau
+ * @param {number} seasonNumber - Saison figée à récapituler
+ * @param {Object} frozen - Cache complet de frozen_results.json
  */
 function renderSeasonRecap(panel, seasonNumber, frozen) {
+  const recap = computeSeasonRecap(seasonNumber, frozen);
+  if (!recap) {
+    panel.innerHTML = `<div class="recap-empty">Données indisponibles pour la saison ${seasonNumber}.</div>`;
+    return;
+  }
+
+  // Saison team : podium et classement éliminés présentés par équipe
+  const isTeam = recap.seasonType === 'team';
+
   panel.innerHTML = `
-    <div class="recap-loading">
-      <p>Récap de la saison ${seasonNumber} — bientôt disponible</p>
-      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
-        Le panneau d'achievements (top D+, top jokers, sur/sous-performance) sera rempli au prochain commit.
-      </p>
+    <div class="recap-grid">
+      <!-- Podium finale principale -->
+      ${isTeam ? renderTeamFinalePodium(recap.finaleTeams) : renderIndividualFinalePodium(recap.finalePodium)}
+
+      <!-- Classement éliminés -->
+      ${isTeam ? renderTeamEliminatedRanking(recap.eliminatedTeams) : renderIndividualEliminatedRanking(recap.eliminatedRanking)}
+
+      <!-- Top D+ saison -->
+      ${renderAchievementCard('🏔️', 'Top D+ saison', recap.topElevation, 'm')}
+
+      <!-- Top usage jokers/bonus -->
+      ${renderAchievementCard('🃏', 'Top usage jokers/bonus', recap.topJokerUsage, '', 'fois')}
+
+      <!-- Top ciblé -->
+      ${renderAchievementCard('🎯', 'Plus ciblé par jokers/bonus', recap.topTargeted, '', 'fois')}
+
+      <!-- Surperformance -->
+      ${renderAchievementCard('📈', 'Plus grosse surperformance', recap.topSurperf, '', 'pl.', true)}
+
+      <!-- Sous-performance -->
+      ${renderAchievementCard('📉', 'Plus grosse sous-performance', recap.topSousperf, '', 'pl.', true)}
     </div>
   `;
+}
+
+/** Podium finale en mode individuel (saisons standard) */
+function renderIndividualFinalePodium(podium) {
+  return `
+    <div class="recap-card recap-card-finale">
+      <h3 class="recap-card-title">🏆 Podium finale principale</h3>
+      <ol class="recap-podium">
+        ${podium.map((p, i) => `
+          <li class="recap-podium-row ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}">
+            <span class="recap-medal">${['🥇','🥈','🥉'][i]}</span>
+            <span class="recap-podium-name">${p.name}</span>
+            <span class="recap-podium-value">${formatElevation(p.elevation, false)} m • ${p.mainPoints} pts</span>
+          </li>
+        `).join('')}
+      </ol>
+    </div>
+  `;
+}
+
+/** Podium finale en mode team (saison 4+) : équipe gagnante vs équipe vaincue */
+function renderTeamFinalePodium(finaleTeams) {
+  if (!finaleTeams || finaleTeams.length === 0) {
+    return `<div class="recap-card recap-card-finale">
+      <h3 class="recap-card-title">🏆 Podium finale principale</h3>
+      <div class="recap-empty">Aucune équipe finaliste</div>
+    </div>`;
+  }
+  return `
+    <div class="recap-card recap-card-finale">
+      <h3 class="recap-card-title">🏆 Finale principale (équipes)</h3>
+      <div class="recap-team-finale">
+        ${finaleTeams.map((t, i) => `
+          <div class="recap-team-block ${i === 0 ? 'winner' : 'loser'}" style="border-left-color:${t.color?.border || '#fbbf24'};">
+            <div class="recap-team-header">
+              <span class="recap-team-medal">${i === 0 ? '🥇 Vainqueur' : '⚔️ Finaliste vaincu'}</span>
+              <span class="recap-team-name">${t.animal?.emoji || ''} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
+              <span class="recap-team-elev">${formatElevation(t.totalElevation || 0, false)} m</span>
+            </div>
+            <ol class="recap-team-members">
+              ${(t.members || []).map(m => `
+                <li>
+                  <span class="recap-team-member-name">${m.name}</span>
+                  <span class="recap-team-member-value">${formatElevation(m.elevation || 0, false)} m • ${m.mainPoints || 0} pts</span>
+                </li>
+              `).join('')}
+            </ol>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/** Classement éliminés individuel (saisons standard) */
+function renderIndividualEliminatedRanking(ranking) {
+  return `
+    <div class="recap-card">
+      <h3 class="recap-card-title">👻 Challenge éliminés</h3>
+      <ol class="recap-list">
+        ${ranking.map((e, i) => `
+          <li class="recap-list-row">
+            <span class="recap-pos">#${i + 1}</span>
+            <span class="recap-name">${e.name}</span>
+            <span class="recap-value">${formatElevation(e.totalElevation, false)} m • ${e.points} pts</span>
+          </li>
+        `).join('')}
+      </ol>
+    </div>
+  `;
+}
+
+/** Classement éliminés par équipes (saison team) */
+function renderTeamEliminatedRanking(teams) {
+  if (!teams || teams.length === 0) {
+    return `<div class="recap-card">
+      <h3 class="recap-card-title">👻 Challenge éliminés (équipes)</h3>
+      <div class="recap-empty">Aucune équipe éliminée</div>
+    </div>`;
+  }
+  return `
+    <div class="recap-card">
+      <h3 class="recap-card-title">👻 Challenge éliminés (équipes)</h3>
+      <ol class="recap-team-list">
+        ${teams.map((t, i) => `
+          <li class="recap-team-row" style="border-left-color:${t.color?.border || '#888'};">
+            <div class="recap-team-row-header">
+              <span class="recap-pos">#${i + 1}</span>
+              <span class="recap-team-name-inline">${t.animal?.emoji || ''} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
+              <span class="recap-value">${formatElevation(t.totalElevation || 0, false)} m</span>
+            </div>
+            <div class="recap-team-row-members">
+              ${(t.members || []).map(m =>
+                `<span class="recap-team-member-pill">${m.name} <em>${formatElevation(m.elevation || 0, false)}m</em> · ${m.points || 0} pts</span>`
+              ).join('')}
+            </div>
+          </li>
+        `).join('')}
+      </ol>
+    </div>
+  `;
+}
+
+/**
+ * Carte d'achievement : top 1 visible par défaut, hover = top 5 en dropdown.
+ */
+function renderAchievementCard(icon, title, leaderboard, unitBefore = '', unitAfter = '', isPosition = false) {
+  if (!leaderboard || leaderboard.length === 0) {
+    return `<div class="recap-card">
+      <h3 class="recap-card-title">${icon} ${title}</h3>
+      <div class="recap-empty">Aucune donnée</div>
+    </div>`;
+  }
+
+  const formatVal = (v) => {
+    if (isPosition) return (v > 0 ? '+' : '') + v + ' ' + unitAfter;
+    if (unitBefore === 'm') return formatElevation(v, false) + ' m';
+    return v + (unitAfter ? ' ' + unitAfter : '');
+  };
+
+  const top1 = leaderboard[0];
+  const top5 = leaderboard.slice(0, 5);
+
+  return `
+    <div class="recap-card recap-achievement" tabindex="0">
+      <h3 class="recap-card-title">${icon} ${title}</h3>
+      <div class="recap-top1">
+        <span class="recap-top1-name">${top1.name}</span>
+        <span class="recap-top1-value">${formatVal(top1.value)}</span>
+      </div>
+      <div class="recap-top5">
+        <div class="recap-top5-title">Top 5</div>
+        <ol class="recap-top5-list">
+          ${top5.map((e, i) => `
+            <li>
+              <span class="recap-top5-pos">${i + 1}.</span>
+              <span class="recap-top5-name">${e.name}</span>
+              <span class="recap-top5-value">${formatVal(e.value)}</span>
+            </li>
+          `).join('')}
+        </ol>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Calcule tous les achievements d'une saison à partir des données figées.
+ * Retourne null si impossible (saison non figée, données manquantes).
+ */
+function computeSeasonRecap(seasonNumber, frozen) {
+  const elimSeason = frozen?.eliminatedChallengeRankings?.[String(seasonNumber)];
+  if (!elimSeason) return null;
+
+  const rounds = frozen.rounds || {};
+  const seasonRounds = Object.entries(rounds)
+    .filter(([k, r]) => Number(r?.seasonNumber) === Number(seasonNumber))
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([k, r]) => ({ roundNumber: Number(k), ...r }));
+
+  if (seasonRounds.length === 0) return null;
+
+  // Détecter si saison team (= au moins un round avec seasonType: 'team')
+  const isTeamSeason = seasonRounds.some(r => r.seasonType === 'team' || r.isTeamSeasonRound);
+
+  // ===== Pour saison TEAM : podium = round finale principale (isFinalePrincipale) =====
+  // Pour saison STANDARD : podium = top 3 du dernier round
+  let finalePodium = [];
+  let finaleTeams = [];
+  let eliminatedRanking = [];
+  let eliminatedTeams = [];
+
+  if (isTeamSeason) {
+    const finalePrincipaleRound = seasonRounds.find(r => r.isFinalePrincipale === true);
+    if (finalePrincipaleRound?.teams) {
+      // Trier les 2 équipes par totalElevation décroissant
+      finaleTeams = [...finalePrincipaleRound.teams]
+        .sort((a, b) => (b.totalElevation || 0) - (a.totalElevation || 0))
+        .map(t => ({
+          color: t.color,
+          animal: t.animal,
+          totalElevation: t.totalElevation || 0,
+          members: (t.members || []).map(m => {
+            // Récupérer mainPoints depuis le ranking du round
+            const rankingEntry = (finalePrincipaleRound.ranking || []).find(r => String(r.id) === String(m.id));
+            return {
+              id: m.id,
+              name: m.name,
+              elevation: m.elevation || 0,
+              mainPoints: rankingEntry?.mainPoints || 0
+            };
+          })
+        }));
+    }
+    // Pour le challenge éliminés team : on présente par équipes
+    eliminatedTeams = (elimSeason.teams || [])
+      .sort((a, b) => (b.totalElevation || 0) - (a.totalElevation || 0))
+      .map(t => ({
+        color: t.color,
+        animal: t.animal,
+        totalElevation: t.totalElevation || 0,
+        members: (t.members || []).map(m => {
+          // Récupérer les points depuis le ranking individuel
+          const entry = (elimSeason.ranking || []).find(r => String(r.id) === String(m.id));
+          return {
+            id: m.id,
+            name: m.name,
+            elevation: m.elevation || 0,
+            points: entry?.points || 0
+          };
+        })
+      }));
+  } else {
+    // ===== STANDARD : podium top 3 du dernier round =====
+    const finalRound = seasonRounds[seasonRounds.length - 1];
+    finalePodium = (finalRound.ranking || [])
+      .slice(0, 3)
+      .map(r => ({
+        id: r.id,
+        name: r.name,
+        elevation: r.elevation || 0,
+        mainPoints: r.mainPoints || 0
+      }));
+    // Classement éliminés : tous ceux avec des points > 0
+    eliminatedRanking = (elimSeason.ranking || [])
+      .filter(r => (r.points || 0) > 0)
+      .map(r => ({
+        id: r.id || r.participant?.id,
+        name: r.name || r.participant?.name,
+        totalElevation: r.totalElevation || 0,
+        points: r.points || 0
+      }));
+  }
+
+  // ===== 3. TOP D+ SAISON =====
+  // Somme : D+ principal (tous les rounds de la saison) + D+ challenge éliminés
+  const elevByAthlete = {};
+  for (const r of seasonRounds) {
+    for (const entry of (r.ranking || [])) {
+      const id = String(entry.id);
+      if (!elevByAthlete[id]) elevByAthlete[id] = { id, name: entry.name, value: 0 };
+      elevByAthlete[id].value += (entry.elevation || 0);
+    }
+  }
+  for (const entry of (elimSeason.ranking || [])) {
+    const id = String(entry.id || entry.participant?.id);
+    const name = entry.name || entry.participant?.name;
+    if (!elevByAthlete[id]) elevByAthlete[id] = { id, name, value: 0 };
+    elevByAthlete[id].value += (entry.totalElevation || 0);
+  }
+  const topElevation = Object.values(elevByAthlete)
+    .map(e => ({ ...e, value: Math.round(e.value) }))
+    .sort((a, b) => b.value - a.value);
+
+  // ===== 4. TOP USAGE JOKERS + BONUS =====
+  const usageByAthlete = {};
+  const incrUsage = (athleteId, athleteName) => {
+    const id = String(athleteId);
+    if (!usageByAthlete[id]) usageByAthlete[id] = { id, name: athleteName, value: 0 };
+    usageByAthlete[id].value++;
+  };
+  for (const r of seasonRounds) {
+    for (const j of (r.jokersUsed || [])) {
+      if (j.athleteId) incrUsage(j.athleteId, j.athleteName);
+    }
+    for (const b of (r.bonusesUsed || [])) {
+      if (b.athlete_id) incrUsage(b.athlete_id, b.athlete_name);
+    }
+  }
+  // Compter aussi les bonus saisonniers (qui sont archivés dans seasonBonuses)
+  const seasonBonuses = frozen.seasonBonuses?.[String(seasonNumber)] || [];
+  for (const b of seasonBonuses) {
+    // Éviter de double-compter avec bonusesUsed des rounds : un bonus avec used_in_round
+    // a déjà été compté ci-dessus.
+    if (b.used_in_round) continue;
+    if (b.athlete_id) incrUsage(b.athlete_id, b.athlete_name);
+  }
+  const topJokerUsage = Object.values(usageByAthlete).sort((a, b) => b.value - a.value);
+
+  // ===== 5. TOP CIBLÉ =====
+  const targetedByAthlete = {};
+  const incrTarget = (targetId, targetName) => {
+    if (!targetId) return;
+    const id = String(targetId);
+    if (!targetedByAthlete[id]) targetedByAthlete[id] = { id, name: targetName, value: 0 };
+    targetedByAthlete[id].value++;
+  };
+  for (const r of seasonRounds) {
+    for (const j of (r.jokersUsed || [])) {
+      if (j.targetId) incrTarget(j.targetId, j.targetName);
+    }
+    for (const b of (r.bonusesUsed || [])) {
+      if (b.target_athlete_id) incrTarget(b.target_athlete_id, b.target_athlete_name);
+    }
+  }
+  for (const b of seasonBonuses) {
+    if (b.used_in_round) continue;
+    if (b.target_athlete_id) incrTarget(b.target_athlete_id, b.target_athlete_name);
+  }
+  const topTargeted = Object.values(targetedByAthlete).sort((a, b) => b.value - a.value);
+
+  // ===== 6. SUR/SOUS-PERFORMANCE =====
+  // Comparer 2 classements :
+  //   A. Classement général AVANT la saison (= yearlyStandings au moment où la saison N-1 s'est terminée)
+  //   B. Classement des points reçus PENDANT la saison (= main + eliminated)
+  //
+  // Score = positionAvantSaison - positionPointsSaison.
+  //   Positif → surperf (parti bas, fini haut)
+  //   Négatif → sous-perf
+  const perf = computePerformanceLeaderboard(seasonNumber, frozen, seasonRounds, elimSeason);
+  const topSurperf = perf.filter(p => p.value > 0).sort((a, b) => b.value - a.value);
+  const topSousperf = perf.filter(p => p.value < 0).sort((a, b) => a.value - b.value);
+
+  return {
+    seasonType: isTeamSeason ? 'team' : 'standard',
+    finalePodium,
+    finaleTeams,
+    eliminatedRanking,
+    eliminatedTeams,
+    topElevation,
+    topJokerUsage,
+    topTargeted,
+    topSurperf,
+    topSousperf
+  };
+}
+
+/**
+ * Construit le classement des performances :
+ * - positionAvant = rang du joueur dans le classement général au début de la saison
+ * - positionAprès = rang dans le classement des points gagnés CETTE saison uniquement
+ * - value = positionAvant - positionAprès (positif = surperf)
+ */
+function computePerformanceLeaderboard(seasonNumber, frozen, seasonRounds, elimSeason) {
+  // 1. Points gagnés PENDANT la saison (main + eliminated)
+  const pointsBySeason = {};
+  for (const r of seasonRounds) {
+    for (const entry of (r.ranking || [])) {
+      const id = String(entry.id);
+      if (!pointsBySeason[id]) pointsBySeason[id] = { id, name: entry.name, value: 0 };
+      pointsBySeason[id].value += (entry.mainPoints || 0);
+    }
+  }
+  for (const entry of (elimSeason.ranking || [])) {
+    const id = String(entry.id || entry.participant?.id);
+    const name = entry.name || entry.participant?.name;
+    if (!pointsBySeason[id]) pointsBySeason[id] = { id, name, value: 0 };
+    pointsBySeason[id].value += (entry.points || 0);
+  }
+  const pointsRanking = Object.values(pointsBySeason).sort((a, b) => b.value - a.value);
+  const positionAfter = {};
+  pointsRanking.forEach((entry, idx) => { positionAfter[entry.id] = idx + 1; });
+
+  // 2. Classement général AVANT la saison
+  // = somme de tous les rounds des saisons < seasonNumber + leur challenge éliminés
+  const standingsBefore = {};
+  const rounds = frozen.rounds || {};
+  const prevRounds = Object.values(rounds).filter(r => Number(r?.seasonNumber) < Number(seasonNumber));
+  for (const r of prevRounds) {
+    for (const entry of (r.ranking || [])) {
+      const id = String(entry.id);
+      if (!standingsBefore[id]) standingsBefore[id] = { id, name: entry.name, value: 0 };
+      standingsBefore[id].value += (entry.mainPoints || 0);
+    }
+  }
+  const prevElimSeasons = Object.entries(frozen.eliminatedChallengeRankings || {})
+    .filter(([k]) => Number(k) < Number(seasonNumber));
+  for (const [, season] of prevElimSeasons) {
+    for (const entry of (season.ranking || [])) {
+      const id = String(entry.id || entry.participant?.id);
+      const name = entry.name || entry.participant?.name;
+      if (!standingsBefore[id]) standingsBefore[id] = { id, name, value: 0 };
+      standingsBefore[id].value += (entry.points || 0);
+    }
+  }
+  const standingsRanking = Object.values(standingsBefore).sort((a, b) => b.value - a.value);
+  const positionBefore = {};
+  standingsRanking.forEach((entry, idx) => { positionBefore[entry.id] = idx + 1; });
+
+  // 3. Calculer le différentiel pour chaque athlète présent dans positionAfter
+  const result = [];
+  for (const entry of pointsRanking) {
+    const id = entry.id;
+    const before = positionBefore[id];
+    const after = positionAfter[id];
+    if (before == null || after == null) continue;
+    result.push({
+      id,
+      name: entry.name,
+      value: before - after, // positif = surperf
+      positionBefore: before,
+      positionAfter: after,
+      pointsSeason: entry.value
+    });
+  }
+  return result;
 }
 
 // ============================================

@@ -5241,3 +5241,379 @@ body {
     padding: 16px;
   }
 }
+
+
+/* ============================================
+   PANNEAU ACHIEVEMENTS RÉCAP SAISON (commit D3.2)
+   ============================================ */
+
+.recap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.recap-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+}
+
+/* La carte podium finale prend toute la largeur (max 2 colonnes) sur desktop */
+.recap-card-finale {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg,
+    rgba(251, 191, 36, 0.06) 0%,
+    rgba(251, 191, 36, 0.02) 100%);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+.recap-card-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* === PODIUM (finale) === */
+.recap-podium {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recap-podium-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.recap-podium-row.gold   { border-left: 3px solid #fbbf24; }
+.recap-podium-row.silver { border-left: 3px solid #9ca3af; }
+.recap-podium-row.bronze { border-left: 3px solid #cd7f32; }
+
+.recap-medal {
+  font-size: 1.1rem;
+}
+
+.recap-podium-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.recap-podium-value {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* === LISTE GÉNÉRIQUE (challenge éliminés) === */
+.recap-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.recap-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  font-size: 0.85rem;
+}
+
+.recap-pos {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+.recap-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.recap-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* === CARTE ACHIEVEMENT (top 1 visible, hover = top 5) === */
+.recap-achievement {
+  cursor: pointer;
+  overflow: visible;
+}
+
+.recap-top1 {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.recap-top1-name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.recap-top1-value {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.recap-top5 {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+  z-index: 100;
+}
+
+/* Top 5 apparaît au hover ou au focus (clavier) */
+.recap-achievement:hover .recap-top5,
+.recap-achievement:focus .recap-top5,
+.recap-achievement:focus-within .recap-top5 {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.recap-top5-title {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.recap-top5-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recap-top5-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.recap-top5-pos {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 16px;
+}
+
+.recap-top5-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.recap-top5-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.recap-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 12px 0;
+}
+
+/* === MOBILE === */
+@media (max-width: 768px) {
+  .recap-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Sur mobile : top 5 passe en static (toujours visible) plutôt que dropdown */
+  .recap-top5 {
+    position: static;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.02);
+    margin-top: 12px;
+  }
+}
+
+
+/* ============================================
+   PANNEAU ACHIEVEMENTS — MODE TEAM (commit D4)
+   ============================================ */
+
+/* === FINALE TEAM (2 équipes finalistes) === */
+.recap-team-finale {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .recap-team-finale {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recap-team-block {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 4px solid #888;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.recap-team-block.winner {
+  background: rgba(251, 191, 36, 0.05);
+}
+
+.recap-team-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.recap-team-medal {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.recap-team-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.recap-team-elev {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.recap-team-members {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recap-team-members li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.85rem;
+}
+
+.recap-team-member-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.recap-team-member-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* === CHALLENGE ÉLIMINÉS TEAM (équipes éliminées) === */
+.recap-team-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.recap-team-row {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 3px solid #888;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.recap-team-row-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.recap-team-name-inline {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.recap-team-row-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 32px;
+}
+
+.recap-team-member-pill {
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: var(--text-secondary);
+}
+
+.recap-team-member-pill em {
+  font-family: var(--font-mono);
+  font-style: normal;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
