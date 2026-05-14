@@ -5220,8 +5220,12 @@ body {
 
 .recap-panel {
   margin-top: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color);
+  /* Fond bronze pour distinguer le panneau récap du reste du site */
+  background: linear-gradient(135deg,
+    rgba(205, 127, 50, 0.10) 0%,
+    rgba(184, 115, 51, 0.05) 50%,
+    rgba(120, 75, 35, 0.08) 100%);
+  border: 1px solid rgba(205, 127, 50, 0.3);
   border-radius: 16px;
   padding: 24px;
 }
@@ -5616,4 +5620,172 @@ body {
   font-style: normal;
   color: var(--accent-primary);
   font-weight: 600;
+}
+
+
+/* === Layout spécial : carte éliminés prend 2 lignes sur desktop === */
+@media (min-width: 769px) {
+  .recap-card-eliminated {
+    grid-row: span 2;
+    max-height: none;
+  }
+  .recap-card-eliminated .recap-list {
+    max-height: 600px;
+  }
+}
+
+
+/* ============================================
+   NOUVELLES CARTES INSIGHTS (commit D5)
+   ============================================ */
+
+/* === D+ ligue saison === */
+.recap-league-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.recap-league-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+.recap-league-label {
+  color: var(--text-secondary);
+}
+.recap-league-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.recap-league-value.positive { color: #10b981; }
+.recap-league-value.negative { color: #ef4444; }
+.recap-league-comparison {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+.recap-league-cmp-title {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+/* === Round le plus chaud === */
+.recap-hottest {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.recap-hottest-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+}
+.recap-hottest-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.recap-hottest-value {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+.recap-hottest-detail {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* === Plus grosse activité === */
+.recap-biggest-act {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+.recap-biggest-elev {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+.recap-biggest-name {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.recap-biggest-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* === Sport préféré === */
+.recap-sport-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.recap-sport-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 0.85rem;
+}
+.recap-sport-name {
+  font-weight: 500;
+}
+.recap-sport-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* === Efficacité === */
+.recap-efficiency {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.recap-eff-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.recap-eff-title {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.recap-eff-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.recap-eff-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding: 2px 0;
+}
+.recap-eff-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }

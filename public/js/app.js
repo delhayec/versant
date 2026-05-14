@@ -2657,11 +2657,29 @@ function renderSeasonRecap(panel, seasonNumber, frozen) {
       <!-- Podium finale principale -->
       ${isTeam ? renderTeamFinalePodium(recap.finaleTeams) : renderIndividualFinalePodium(recap.finalePodium)}
 
-      <!-- Classement éliminés -->
+      <!-- Classement éliminés (span 2 rows sur desktop) -->
       ${isTeam ? renderTeamEliminatedRanking(recap.eliminatedTeams) : renderIndividualEliminatedRanking(recap.eliminatedRanking)}
+
+      <!-- D+ ligue saison -->
+      ${renderLeagueStatsCard(recap.leagueStats, recap.seasonNumber)}
+
+      <!-- Round le plus chaud -->
+      ${renderHottestRoundCard(recap.hottestByElev, recap.hottestByActs)}
+
+      <!-- Plus grosse activité solo -->
+      ${renderBiggestActivityCard(recap.biggestActivity)}
+
+      <!-- Total points -->
+      ${renderAchievementCard('💯', 'Total points saison', recap.topTotalPoints, '', 'pts')}
 
       <!-- Top D+ saison -->
       ${renderAchievementCard('🏔️', 'Top D+ saison', recap.topElevation, 'm')}
+
+      <!-- Efficacité D+/pts -->
+      ${renderEfficiencyCard(recap.topEfficiency, recap.flopEfficiency)}
+
+      <!-- Sport le plus pratiqué -->
+      ${renderTopSportsCard(recap.topSports)}
 
       <!-- Top usage jokers/bonus -->
       ${renderAchievementCard('🃏', 'Top usage jokers/bonus', recap.topJokerUsage, '', 'fois')}
@@ -2733,7 +2751,7 @@ function renderTeamFinalePodium(finaleTeams) {
 /** Classement éliminés individuel (saisons standard) */
 function renderIndividualEliminatedRanking(ranking) {
   return `
-    <div class="recap-card">
+    <div class="recap-card recap-card-eliminated">
       <h3 class="recap-card-title">👻 Challenge éliminés</h3>
       <ol class="recap-list">
         ${ranking.map((e, i) => `
@@ -2826,6 +2844,180 @@ function renderAchievementCard(icon, title, leaderboard, unitBefore = '', unitAf
  * Calcule tous les achievements d'une saison à partir des données figées.
  * Retourne null si impossible (saison non figée, données manquantes).
  */
+/** Carte "D+ ligue saison" : total absolu + par jour + comparaison saison N-1 */
+function renderLeagueStatsCard(stats, seasonNumber) {
+  if (!stats) return '';
+  const cmp = stats.comparison;
+  const deltaIcon = cmp ? (cmp.deltaTotal > 0 ? '📈' : cmp.deltaTotal < 0 ? '📉' : '➡️') : '';
+  return `
+    <div class="recap-card">
+      <h3 class="recap-card-title">🌍 D+ ligue saison</h3>
+      <div class="recap-league-stats">
+        <div class="recap-league-row">
+          <span class="recap-league-label">Total</span>
+          <span class="recap-league-value">${formatElevation(stats.total, false)} m</span>
+        </div>
+        <div class="recap-league-row">
+          <span class="recap-league-label">Par jour (${stats.daysInSeason} j)</span>
+          <span class="recap-league-value">${formatElevation(stats.perDay, false)} m/j</span>
+        </div>
+        ${cmp ? `
+          <div class="recap-league-comparison">
+            <div class="recap-league-cmp-title">vs Saison ${cmp.previousSeason}</div>
+            <div class="recap-league-row">
+              <span class="recap-league-label">${deltaIcon} Total</span>
+              <span class="recap-league-value ${cmp.deltaTotal >= 0 ? 'positive' : 'negative'}">
+                ${cmp.deltaTotal >= 0 ? '+' : ''}${formatElevation(cmp.deltaTotal, false)} m (${cmp.deltaTotalPercent >= 0 ? '+' : ''}${cmp.deltaTotalPercent}%)
+              </span>
+            </div>
+            <div class="recap-league-row">
+              <span class="recap-league-label">Par jour</span>
+              <span class="recap-league-value ${cmp.deltaPerDay >= 0 ? 'positive' : 'negative'}">
+                ${cmp.deltaPerDay >= 0 ? '+' : ''}${formatElevation(cmp.deltaPerDay, false)} m/j (${cmp.deltaPerDayPercent >= 0 ? '+' : ''}${cmp.deltaPerDayPercent}%)
+              </span>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+/** Carte "Round le plus chaud" (par D+ et par activités) */
+function renderHottestRoundCard(byElev, byActs) {
+  if (!byElev && !byActs) return '';
+  return `
+    <div class="recap-card">
+      <h3 class="recap-card-title">🔥 Round le plus chaud</h3>
+      <div class="recap-hottest">
+        ${byElev ? `
+          <div class="recap-hottest-row">
+            <div class="recap-hottest-label">Plus de D+</div>
+            <div class="recap-hottest-value">Round ${byElev.roundInSeason || byElev.roundNumber}</div>
+            <div class="recap-hottest-detail">${formatElevation(byElev.totalElevation, false)} m</div>
+          </div>
+        ` : ''}
+        ${byActs && byActs.roundNumber !== byElev?.roundNumber ? `
+          <div class="recap-hottest-row">
+            <div class="recap-hottest-label">Plus d'activités</div>
+            <div class="recap-hottest-value">Round ${byActs.roundInSeason || byActs.roundNumber}</div>
+            <div class="recap-hottest-detail">${byActs.totalActivities} activités</div>
+          </div>
+        ` : byActs ? `
+          <div class="recap-hottest-row">
+            <div class="recap-hottest-label">Activités</div>
+            <div class="recap-hottest-detail">${byActs.totalActivities} activités</div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+/** Carte "Plus grosse activité solo" */
+function renderBiggestActivityCard(act) {
+  if (!act) {
+    return `<div class="recap-card">
+      <h3 class="recap-card-title">⛰️ Plus grosse activité</h3>
+      <div class="recap-empty">Aucune donnée</div>
+    </div>`;
+  }
+  const date = new Date(act.date);
+  const dateStr = isNaN(date.getTime()) ? '' : date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  return `
+    <div class="recap-card">
+      <h3 class="recap-card-title">⛰️ Plus grosse activité</h3>
+      <div class="recap-biggest-act">
+        <div class="recap-biggest-elev">${formatElevation(act.elevation, false)} m</div>
+        <div class="recap-biggest-name">${act.name}</div>
+        <div class="recap-biggest-meta">${act.athleteName} • ${dateStr}</div>
+      </div>
+    </div>
+  `;
+}
+
+/** Carte "Sport le plus pratiqué" */
+function renderTopSportsCard(sports) {
+  if (!sports || sports.length === 0) {
+    return `<div class="recap-card">
+      <h3 class="recap-card-title">🏃 Sport préféré</h3>
+      <div class="recap-empty">Aucune donnée</div>
+    </div>`;
+  }
+  const total = sports.reduce((s, x) => s + x.value, 0);
+  // Mapping des noms anglais → français + emoji
+  const sportLabels = {
+    Ride: '🚴 Vélo route',
+    MountainBikeRide: '🚵 VTT',
+    GravelRide: '🚲 Gravel',
+    EBikeRide: '🚴‍♂️ E-Bike',
+    EMountainBikeRide: '🚵 E-VTT',
+    VirtualRide: '🎮 Home trainer',
+    Run: '🏃 Course',
+    TrailRun: '🏃‍♂️ Trail',
+    Hike: '🥾 Rando',
+    Walk: '🚶 Marche',
+    BackcountrySki: '⛷️ Ski rando',
+    NordicSki: '🎿 Ski nordique',
+    Snowshoe: '❄️ Raquettes'
+  };
+  return `
+    <div class="recap-card">
+      <h3 class="recap-card-title">🏃 Sport le plus pratiqué</h3>
+      <ol class="recap-sport-list">
+        ${sports.slice(0, 5).map(s => {
+          const pct = total > 0 ? Math.round(s.value / total * 100) : 0;
+          return `<li class="recap-sport-row">
+            <span class="recap-sport-name">${sportLabels[s.name] || s.name}</span>
+            <span class="recap-sport-value">${s.value} (${pct}%)</span>
+          </li>`;
+        }).join('')}
+      </ol>
+    </div>
+  `;
+}
+
+/** Carte "Efficacité D+/pts" : top 3 (les efficaces) + flop 3 (les bosseurs) */
+function renderEfficiencyCard(top3, flop3) {
+  if ((!top3 || top3.length === 0) && (!flop3 || flop3.length === 0)) {
+    return `<div class="recap-card">
+      <h3 class="recap-card-title">⚖️ Efficacité D+/pts</h3>
+      <div class="recap-empty">Aucune donnée</div>
+    </div>`;
+  }
+  return `
+    <div class="recap-card">
+      <h3 class="recap-card-title">⚖️ Efficacité D+/pts</h3>
+      <div class="recap-efficiency">
+        ${top3.length > 0 ? `
+          <div class="recap-eff-group">
+            <div class="recap-eff-title">🎯 Plus efficaces (peu de D+ / pt)</div>
+            <ol class="recap-eff-list">
+              ${top3.map((e, i) => `
+                <li><span>${i+1}. ${e.name}</span>
+                  <span class="recap-eff-value">${formatElevation(e.value, false)} m/pt</span>
+                </li>
+              `).join('')}
+            </ol>
+          </div>
+        ` : ''}
+        ${flop3.length > 0 ? `
+          <div class="recap-eff-group">
+            <div class="recap-eff-title">💪 Travailleurs (gros D+ / peu de pts)</div>
+            <ol class="recap-eff-list">
+              ${flop3.map((e, i) => `
+                <li><span>${i+1}. ${e.name}</span>
+                  <span class="recap-eff-value">${formatElevation(e.value, false)} m/pt</span>
+                </li>
+              `).join('')}
+            </ol>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
 function computeSeasonRecap(seasonNumber, frozen) {
   const elimSeason = frozen?.eliminatedChallengeRankings?.[String(seasonNumber)];
   if (!elimSeason) return null;
@@ -2897,8 +3089,28 @@ function computeSeasonRecap(seasonNumber, frozen) {
         id: r.id,
         name: r.name,
         elevation: r.elevation || 0,
-        mainPoints: r.mainPoints || 0
+        mainPoints: r.mainPoints || 0,
+        isWinner: r.isWinner === true
       }));
+
+    // === Fix bug "vainqueur 0 pts" ===
+    // Si la finale s'est jouée mais qu'aucun joueur n'a `isWinner: true`,
+    // on détecte le vainqueur : c'est le seul survivant non-éliminé du
+    // dernier round. Il reçoit les 24 pts de la 1re place du barème principal.
+    const hasExplicitWinner = finalePodium.some(p => p.isWinner);
+    if (!hasExplicitWinner) {
+      const nonEliminated = (finalRound.ranking || []).filter(r => r.eliminatedPosition == null);
+      if (nonEliminated.length === 1) {
+        // 1 seul survivant : c'est le vainqueur. Lui attribuer 24 pts.
+        const winnerId = String(nonEliminated[0].id);
+        const winnerEntry = finalePodium.find(p => String(p.id) === winnerId);
+        if (winnerEntry) {
+          winnerEntry.mainPoints = 24;
+          winnerEntry.isWinner = true;
+        }
+      }
+    }
+
     // Classement éliminés : tous ceux avec des points > 0
     eliminatedRanking = (elimSeason.ranking || [])
       .filter(r => (r.points || 0) > 0)
@@ -2989,8 +3201,182 @@ function computeSeasonRecap(seasonNumber, frozen) {
   const topSurperf = perf.filter(p => p.value > 0).sort((a, b) => b.value - a.value);
   const topSousperf = perf.filter(p => p.value < 0).sort((a, b) => a.value - b.value);
 
+  // ===== 7. TOTAL POINTS SAISON (principal + éliminé + rescapé + marquage/duel réussis) =====
+  const totalPointsByAthlete = {};
+  const addPts = (id, name, n) => {
+    if (!id || !n) return;
+    const k = String(id);
+    if (!totalPointsByAthlete[k]) totalPointsByAthlete[k] = { id: k, name, value: 0 };
+    totalPointsByAthlete[k].value += n;
+  };
+  // Points principal
+  for (const r of seasonRounds) {
+    for (const entry of (r.ranking || [])) {
+      addPts(entry.id, entry.name, entry.mainPoints || 0);
+    }
+    // Si winner détecté côté frontend (24 pts vainqueur), corriger
+    if (r.ranking?.length) {
+      const nonElim = r.ranking.filter(x => x.eliminatedPosition == null);
+      if (nonElim.length === 1) {
+        const w = nonElim[0];
+        // Ajouter 24 - mainPoints existant pour pas double-compter
+        const adjust = 24 - (w.mainPoints || 0);
+        if (adjust > 0) addPts(w.id, w.name, adjust);
+      }
+    }
+  }
+  // Points éliminés
+  for (const entry of (elimSeason.ranking || [])) {
+    addPts(entry.id || entry.participant?.id, entry.name || entry.participant?.name, entry.points || 0);
+  }
+  // Points rescapé : présents dans rescapeInfo de chaque round
+  for (const r of seasonRounds) {
+    if (r.rescapeInfo?.points) {
+      addPts(r.rescapeInfo.athleteId, r.rescapeInfo.athleteName, r.rescapeInfo.points);
+    }
+  }
+  // Points marquage réussi (+1 par marquage où targetEliminated)
+  const allBonuses = (frozen.seasonBonuses?.[String(seasonNumber)] || []).concat(
+    seasonRounds.flatMap(r => r.bonusesUsed || [])
+  );
+  const seenBonusIds = new Set();
+  for (const b of allBonuses) {
+    if (b.id && seenBonusIds.has(b.id)) continue;
+    if (b.id) seenBonusIds.add(b.id);
+    if (b.bonus_id === 'marquage' && b.effect_result?.targetEliminated === true) {
+      addPts(b.athlete_id, b.athlete_name, b.effect_result.pointsAwarded || 1);
+    }
+    if (b.bonus_id === 'duel' && b.effect_result?.won === true) {
+      addPts(b.athlete_id, b.athlete_name, b.effect_result.pointsAwarded || 1);
+    }
+  }
+  const topTotalPoints = Object.values(totalPointsByAthlete).sort((a, b) => b.value - a.value);
+
+  // ===== 8. RATIO D+/PTS =====
+  // Top 3 = meilleur ratio points par D+ (efficaces, peu de D+ pour beaucoup de pts)
+  // Flop 3 = pire ratio (gros bosseurs sans récompense)
+  // Pour éviter division par 0 : on n'inclut que les athlètes avec >= 100m ET >= 1 pt
+  const ratioList = [];
+  for (const elev of topElevation) {
+    const pts = totalPointsByAthlete[elev.id]?.value || 0;
+    if (elev.value < 100) continue; // exclure ceux qui n'ont presque rien fait
+    const ratio = elev.value / Math.max(pts, 0.5); // m par pt
+    ratioList.push({
+      id: elev.id,
+      name: elev.name,
+      value: Math.round(ratio),
+      elevation: elev.value,
+      points: pts
+    });
+  }
+  // Top efficacité = ratio le PLUS BAS (peu de m par pt = efficace)
+  const topEfficiency = [...ratioList].sort((a, b) => a.value - b.value).slice(0, 3);
+  // Flop = ratio le PLUS HAUT (beaucoup de m pour peu de pts)
+  const flopEfficiency = [...ratioList].sort((a, b) => b.value - a.value).slice(0, 3);
+
+  // ===== 9. D+ LIGUE SAISON (absolu + normalisé par jour) =====
+  let totalLeagueElev = 0;
+  for (const r of seasonRounds) {
+    totalLeagueElev += r.stats?.totalElevation || 0;
+  }
+  // Ajouter les D+ challenge éliminés (rawElevation = sans bonus, pour éviter double-comptage)
+  let totalEliminatedElev = 0;
+  for (const entry of (elimSeason.ranking || [])) {
+    totalEliminatedElev += entry.rawElevation || 0;
+  }
+  const leagueTotal = totalLeagueElev + totalEliminatedElev;
+  // Nombre de jours de la saison
+  const firstRound = seasonRounds[0];
+  const lastRound = seasonRounds[seasonRounds.length - 1];
+  let daysInSeason = 0;
+  if (firstRound?.dates?.start && lastRound?.dates?.end) {
+    const startMs = new Date(firstRound.dates.start).getTime();
+    const endMs = new Date(lastRound.dates.end).getTime();
+    daysInSeason = Math.max(1, Math.round((endMs - startMs) / 86400000));
+  } else {
+    daysInSeason = seasonRounds.length * 5;
+  }
+  const leagueDPerDay = Math.round(leagueTotal / daysInSeason);
+
+  // Comparaison saison précédente
+  let leagueComparison = null;
+  if (seasonNumber > 1) {
+    const prevSeasonRounds = Object.values(frozen.rounds || {}).filter(r => r.seasonNumber === seasonNumber - 1);
+    if (prevSeasonRounds.length > 0) {
+      let prevTotal = 0;
+      for (const r of prevSeasonRounds) prevTotal += r.stats?.totalElevation || 0;
+      const prevElim = frozen.eliminatedChallengeRankings?.[String(seasonNumber - 1)];
+      if (prevElim) {
+        for (const e of (prevElim.ranking || [])) prevTotal += e.rawElevation || 0;
+      }
+      const prevFirst = prevSeasonRounds[0];
+      const prevLast = prevSeasonRounds[prevSeasonRounds.length - 1];
+      let prevDays = prevSeasonRounds.length * 5;
+      if (prevFirst?.dates?.start && prevLast?.dates?.end) {
+        prevDays = Math.max(1, Math.round((new Date(prevLast.dates.end).getTime() - new Date(prevFirst.dates.start).getTime()) / 86400000));
+      }
+      const prevPerDay = Math.round(prevTotal / prevDays);
+      leagueComparison = {
+        previousSeason: seasonNumber - 1,
+        previousTotal: Math.round(prevTotal),
+        previousPerDay: prevPerDay,
+        deltaTotal: Math.round(leagueTotal - prevTotal),
+        deltaPerDay: leagueDPerDay - prevPerDay,
+        deltaTotalPercent: prevTotal > 0 ? Math.round((leagueTotal - prevTotal) / prevTotal * 100) : 0,
+        deltaPerDayPercent: prevPerDay > 0 ? Math.round((leagueDPerDay - prevPerDay) / prevPerDay * 100) : 0
+      };
+    }
+  }
+  const leagueStats = {
+    total: Math.round(leagueTotal),
+    perDay: leagueDPerDay,
+    daysInSeason,
+    comparison: leagueComparison
+  };
+
+  // ===== 10. ROUND LE PLUS CHAUD (= plus de D+ ou plus d'activités) =====
+  const roundsHeat = seasonRounds.map(r => ({
+    roundNumber: r.roundNumber,
+    roundInSeason: r.roundInSeason,
+    totalElevation: r.stats?.totalElevation || 0,
+    totalActivities: r.stats?.totalActivities || 0
+  }));
+  const hottestByElev = [...roundsHeat].sort((a, b) => b.totalElevation - a.totalElevation)[0];
+  const hottestByActs = [...roundsHeat].sort((a, b) => b.totalActivities - a.totalActivities)[0];
+
+  // ===== 11. SPORT LE PLUS PRATIQUÉ + 12. PLUS GROSSE ACTIVITÉ SOLO =====
+  // Nécessite l'accès à allActivities. Filtrer celles qui sont dans la fenêtre saison.
+  const sportCounts = {};
+  let biggestActivity = null;
+  if (firstRound?.dates?.start && lastRound?.dates?.end && Array.isArray(allActivities)) {
+    const startMs = new Date(firstRound.dates.start).getTime();
+    const endMs = new Date(lastRound.dates.end).getTime();
+    for (const a of allActivities) {
+      const ts = new Date(a.start_date).getTime();
+      if (isNaN(ts) || ts < startMs || ts > endMs) continue;
+      if (a.excluded) continue;
+      const sport = a.sport_type || a.type || 'Other';
+      sportCounts[sport] = (sportCounts[sport] || 0) + 1;
+      // Plus grosse activité
+      const elev = a.total_elevation_gain || 0;
+      if (!biggestActivity || elev > biggestActivity.elevation) {
+        biggestActivity = {
+          name: a.name || 'Activité',
+          athleteName: a.athlete?.firstname ? `${a.athlete.firstname} ${a.athlete.lastname || ''}`.trim() : (a.athlete_name || 'Inconnu'),
+          elevation: Math.round(elev),
+          sport,
+          date: a.start_date
+        };
+      }
+    }
+  }
+  const topSports = Object.entries(sportCounts)
+    .map(([sport, count]) => ({ name: sport, value: count }))
+    .sort((a, b) => b.value - a.value);
+
   return {
     seasonType: isTeamSeason ? 'team' : 'standard',
+    seasonNumber,
     finalePodium,
     finaleTeams,
     eliminatedRanking,
@@ -2999,7 +3385,16 @@ function computeSeasonRecap(seasonNumber, frozen) {
     topJokerUsage,
     topTargeted,
     topSurperf,
-    topSousperf
+    topSousperf,
+    // Nouveaux insights
+    topTotalPoints,
+    topEfficiency,
+    flopEfficiency,
+    leagueStats,
+    hottestByElev,
+    hottestByActs,
+    topSports,
+    biggestActivity
   };
 }
 
