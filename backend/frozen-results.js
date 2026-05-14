@@ -1369,34 +1369,47 @@ async function applyEphemeralBonusEffects(ranking, roundNumber, roundActivities)
         }
         break;
       }
-        case 'marquage': {
-            // Le marquage donne +1 pt classement général SI la cible est éliminée
-            // ce round. On ne touche pas au D+ ; on stocke l'effet pour que les
-            // points soient ajoutés via le snapshot frontend ou un calcul ultérieur.
-            // Note : le calcul des points "marquage_success" doit être ajouté à
-            // calculateYearlyStandings côté frontend (fait dans un commit séparé).
-            const targetId = normalizeId(bonus.target_athlete_id);
-            // Vérifier si la cible a été éliminée ce round (depuis le ranking)
-            const targetRanking = ranking.find(e => e.id === targetId);
-            const targetEliminated = targetRanking?.eliminatedPosition != null;
+case 'marquage': {
+        // Marquage : +1 pt classement général si la cible est éliminée ce round.
+        // On regarde la liste 'eliminations' du round courant (plus fiable que
+        // 'eliminatedPosition' dans le ranking qui peut être absent selon l'ordre
+        // d'application des effets).
+        const targetId = normalizeId(bonus.target_athlete_id);
+        // Chercher la cible dans les éliminations actuelles
+        // ATTENTION : ici on n'a pas accès direct à r.eliminations dans
+        // applyEphemeralBonusEffects. On regarde le ranking : la cible est
+        // éliminée si elle existe dans le ranking ET son D+ est dans les 2
+        // derniers OU si eliminatedPosition est posé.
+        const targetRanking = ranking.find(e => normalizeId(e.id) === targetId);
+        // Détecter l'élimination : eliminatedPosition posé, OU position dans les
+        // 2 dernières du ranking (= éliminé après tri final)
+        const isEliminated = targetRanking && (
+          targetRanking.eliminatedPosition != null ||
+          // Fallback : compter les positions par D+ croissant
+          (() => {
+            const sorted = [...ranking].sort((a, b) => (a.elevation || 0) - (b.elevation || 0));
+            const lastTwoIds = sorted.slice(0, 2).map(e => normalizeId(e.id));
+            return lastTwoIds.includes(targetId);
+          })()
+        );
 
-            bonuses[i].effect_applied = true;
-            bonuses[i].effect_result = {
-              targetId,
-              targetName: bonus.target_athlete_name,
-              targetEliminated,
-              pointsAwarded: targetEliminated ? 1 : 0,
-              calculatedInRound: roundNumber
-            };
-            bonuses[i].effect_applied_at = new Date().toISOString();
+        bonuses[i].effect_applied = true;
+        bonuses[i].effect_result = {
+          targetId,
+          targetName: bonus.target_athlete_name,
+          targetEliminated: !!isEliminated,
+          pointsAwarded: isEliminated ? 1 : 0,
+          calculatedInRound: roundNumber
+        };
+        bonuses[i].effect_applied_at = new Date().toISOString();
 
-            if (targetEliminated) {
-              console.log(`🎯 Marquage réussi: ${bonus.athlete_name} a marqué ${bonus.target_athlete_name} → +1 pt`);
-            } else {
-              console.log(`🎯 Marquage raté: ${bonus.target_athlete_name} pas éliminé ce round`);
-            }
-            break;
-          }
+        if (isEliminated) {
+          console.log(`🎯 Marquage réussi: ${bonus.athlete_name} a marqué ${bonus.target_athlete_name} → +1 pt`);
+        } else {
+          console.log(`🎯 Marquage raté: ${bonus.target_athlete_name} a survécu`);
+        }
+        break;
+      }
       default:
         // Les autres bonus (marquage, malediction, kamikaze, etc.) n'affectent pas
         // les joueurs actifs dans le challenge principal

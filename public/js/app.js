@@ -176,8 +176,14 @@ function getBonusHistoryDescription(bonus) {
     case 'brouillard':
       return `${icon} ${athleteName} a activé le brouillard (D+ masqué)`;
     case 'marquage':
-      const markPenalty = effectResult?.penaltyAmount || 0;
-      return `${icon} ${athleteName} a marqué ${targetName} (${markPenalty > 0 ? '-' + fmtElev(markPenalty) : '-20% D+'})`;
+      // Affichage marquage selon résultat
+      if (effectResult?.targetEliminated === true) {
+        return `${icon} Marquage réussi : ${athleteName} avait marqué ${targetName} (éliminé) → +1 pt`;
+      } else if (effectResult && Object.keys(effectResult).length > 0) {
+        return `${icon} Marquage raté : ${athleteName} avait marqué ${targetName} qui a survécu ce round`;
+      } else {
+        return `${icon} ${athleteName} a marqué ${targetName} (+1 pt si éliminé ce round)`;
+      }
     case 'trap':
       const trapAmount = effectResult?.stolenElevation || effectResult?.amount || 0;
       return `${icon} ${athleteName} a piégé ${targetName} (${trapAmount > 0 ? '-' + fmtElev(trapAmount) : 'piège déclenché'})`;
@@ -543,7 +549,9 @@ async function renderAll() {
       return;
     }
 
-    currentSeasonNumber = getSeasonNumber(today);
+    // Passer frozenResultsCache pour détection robuste de la saison
+    // (basée sur les saisons figées dans eliminatedChallengeRankings)
+    currentSeasonNumber = getSeasonNumber(today, frozenResultsCache);
 
     currentRoundNumber = getGlobalRoundNumber(today);
 
