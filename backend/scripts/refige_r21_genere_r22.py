@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """
-RE-FIGEMENT DU R21 + GÉNÉRATION DU R22
+RE-FIGEMENT DU R21 (vraies équipes) + GÉNÉRATION DU R22 (4 équipes de 3 survivants)
 
-Objectif :
-  1. Re-figer le R21 avec les VRAIES compositions d'équipes (issues de season_teams.json saison 4)
-     - Calcul du D+ par équipe à partir du ranking individuel existant
-     - Identification de l'équipe avec le D+ minimum → équipe éliminée
-     - Mise à jour de rounds[21].teams, eliminations, eliminatedTeam, ranking (teamIndex/Animal/Color)
-  2. Générer la composition R22 (12 survivants en 4 équipes de 3) avec rotation d'animaux
-     - Option B : exclure tous les animaux déjà utilisés dans la saison
-     - Tirage équilibré par points cumulés (mêmes points utilisés que season 4 R21)
-     - Stockage dans season_teams.json sous une nouvelle clé indexée par round
-  3. Backup avant tout
+Caractéristiques :
+- IDEMPOTENT : détecte si R21 a déjà été refigé et refuse de retravailler dessus
+- Lit la VRAIE compo initiale depuis season_teams.json["4"]["teams"]
+  (= les 5 équipes qui ont joué le R21 selon ce que les joueurs ont vu)
+- Identifie l'équipe avec le D+ MINIMUM au R21 → équipe éliminée
+- Génère R22 avec exactement 4 équipes de 3 joueurs (12 survivants)
+- Animaux R22 : seulement parmi ceux NON utilisés en saison 4 (option B)
+- Backup avant toute modification
+- Ne touche PAS au champ "teams" à la racine de season_teams_file["4"]
+  pour préserver la compo R21 d'origine
 """
 import json
 import os
 import shutil
 import random
+import sys
 from datetime import datetime, timezone
 
 FROZEN_PATH = '/opt/versant-api/backend/data/frozen_results.json'
@@ -25,30 +26,53 @@ SEASON_TEAMS_PATH = '/opt/versant-api/backend/data/season_teams.json'
 TS = datetime.now().strftime('%Y%m%d_%H%M%S')
 NOW_ISO = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
-# === 1. BACKUPS ===
-shutil.copyfile(FROZEN_PATH, FROZEN_PATH + '.bak.' + TS)
-shutil.copyfile(SEASON_TEAMS_PATH, SEASON_TEAMS_PATH + '.bak.' + TS)
-print(f'✅ Backups créés : .bak.{TS}\n')
-
-# === 2. CHARGEMENT ===
+# === 1. CHARGEMENT + VÉRIFICATIONS PRÉ-EXÉCUTION ===
 with open(FROZEN_PATH, 'r', encoding='utf-8') as f:
     frozen = json.load(f)
 with open(SEASON_TEAMS_PATH, 'r', encoding='utf-8') as f:
     season_teams_file = json.load(f)
 
 r21 = frozen['rounds']['21']
-true_teams = season_teams_file['4']['teams']
+season_4 = season_teams_file.get('4', {})
+true_teams = season_4.get('teams', [])
 
-# === 3. RE-CALCUL R21 ===
+# === GARDE-FOUS ===
+if len(true_teams) != 5:
+    print(f"❌ season_teams.json['4']['teams'] doit contenir 5 équipes, trouvé {len(true_teams)}")
+    sys.exit(1)
+if not all(len(t['members']) == 3 for t in true_teams):
+    print("❌ Toutes les équipes doivent avoir 3 membres")
+    for t in true_teams:
+        print(f"   {t['animal']['name']}: {len(t['members'])} membres")
+    sys.exit(1)
+
+# Idempotence : si R21 a déjà été refigé par CE script, refuser
+if r21.get('frozenMethod') == 'recalculated_with_correct_teams':
+    print("⚠️  R21 a déjà été refigé par ce script (frozenMethod = recalculated_with_correct_teams).")
+    print("    Pour le re-traiter, restaurer manuellement le backup d'avant.")
+    sys.exit(1)
+
+# Idempotence : si R22 existe déjà dans rounds, refuser
+existing_rounds = season_4.get('rounds', {})
+if '22' in existing_rounds:
+    print("⚠️  R22 existe déjà dans season_teams.json['4']['rounds']['22'].")
+    print("    Pour le re-générer, supprimer cette entrée manuellement.")
+    sys.exit(1)
+
+# === 2. BACKUPS ===
+shutil.copyfile(FROZEN_PATH, FROZEN_PATH + '.bak.' + TS)
+shutil.copyfile(SEASON_TEAMS_PATH, SEASON_TEAMS_PATH + '.bak.' + TS)
+print(f'✅ Backups créés : .bak.{TS}\n')
+
+# === 3. CONSTRUIRE LE NOUVEAU R21 AVEC LES VRAIES ÉQUIPES ===
 print('═══ RE-FIGEMENT DU R21 ═══')
 
-# Map id -> elevation/name à partir du ranking existant
+# Map id → données du ranking individuel R21 (les D+ individuels sont corrects, juste les groupements étaient faux)
 elev_by_id = {r['id']: r['elevation'] for r in r21['ranking']}
 name_by_id = {r['id']: r['name'] for r in r21['ranking']}
 acts_by_id = {r['id']: r.get('activitiesCount', 0) for r in r21['ranking']}
 original_by_id = {r['id']: r.get('originalElevation', r['elevation']) for r in r21['ranking']}
 
-# Construire les équipes avec leur D+ total
 def make_team(t):
     members = []
     for m in t['members']:
@@ -66,16 +90,13 @@ def make_team(t):
         'color': t['color'],
         'animal': t['animal'],
         'members': members,
-        'totalPoints': t.get('totalPoints', sum(m.get('points', 0) for m in t['members'])),
+        'totalPoints': t.get('totalPoints', 0),
         'totalElevation': sum(m['elevation'] for m in members),
-        # Pour départager les ex aequo : on prend le 0 car on a pas l'info "lastActivityTime" précise.
-        # En pratique l'écart est suffisant pour ne pas avoir besoin de tie-break ici.
         'lastActivityTime': 0
     }
 
 new_teams = [make_team(t) for t in true_teams]
-
-# Trier par D+ décroissant (la dernière du tri sera éliminée)
+# Trier par D+ décroissant (la dernière = éliminée)
 new_teams.sort(key=lambda t: -t['totalElevation'])
 
 print('\nClassement R21 par équipe :')
@@ -84,27 +105,14 @@ for i, t in enumerate(new_teams):
     marker = ' ← ÉLIMINÉE' if i == len(new_teams) - 1 else ''
     print(f"  {i+1}. {t['animal']['emoji']} {t['animal']['name']:10s} = {t['totalElevation']:>5} m  ({members_str}){marker}")
 
-eliminated_team = dict(new_teams[-1])
+eliminated_team_data = new_teams[-1]
+eliminated_team = dict(eliminated_team_data)
 eliminated_team['eliminationReason'] = 'team_elimination'
+eliminated_ids = {m['id'] for m in eliminated_team['members']}
 
-# Nouvelles éliminations
-eliminations = []
-for m in eliminated_team['members']:
-    eliminations.append({
-        'id': m['id'],
-        'name': m['name'],
-        'elevation': m['elevation'],
-        'reason': 'team_elimination',
-        'position': 0,  # on assigne après le ranking
-        'teamIndex': eliminated_team['index'],
-        'teamAnimal': eliminated_team['animal'],
-        'teamColor': eliminated_team['color']
-    })
-
-# Re-construire le ranking : ordre = ordre des équipes (top first), individus triés par D+ desc DANS l'équipe
+# Re-construire le ranking : ordre = position des équipes, individus triés par D+ desc DANS l'équipe
 new_ranking = []
 position = 1
-eliminated_ids = {m['id'] for m in eliminated_team['members']}
 for t in new_teams:
     sorted_members = sorted(t['members'], key=lambda m: -m['elevation'])
     for m in sorted_members:
@@ -119,36 +127,41 @@ for t in new_teams:
             'teamIndex': t['index'],
             'teamAnimal': t['animal'],
             'teamColor': t['color'],
-            'mainPoints': 0  # à recalculer plus bas
+            'mainPoints': 0
         }
         new_ranking.append(entry)
         position += 1
 
-# Attribution des mainPoints pour les éliminés (rang dans l'équipe éliminée à partir du D+)
-# Barème : 1=10, 2=8, 3=6, 4=5, 5=4, 6=3, 7=2, 8=1
-ELIM_POINTS = {1: 10, 2: 8, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1}
-# En team-elim : chaque joueur éliminé reçoit des points "main" basés sur sa position globale
-# parmi les éliminés (= position dans le ranking parmi les eliminés)
-elim_ranking = [r for r in new_ranking if r['id'] in eliminated_ids]
-elim_ranking.sort(key=lambda r: r['position'])  # ordre du ranking
-for idx, r in enumerate(elim_ranking):
-    # mainPoints = position dans la liste des éliminés en partant de la fin
-    elim_pos = idx + 1  # 1er éliminé du ranking = "meilleur" éliminé
-    # Mapping simple : meilleur des éliminés = 3 pts, milieu = 2 pts, dernier = 1 pt
-    # On copie la logique de l'ancien R21 : Leo B = 1 pt, autres = 0
-    # ⚠️ Ajuste si tu veux une autre règle
+# Attribution des mainPoints (barème ELIM classique global)
+# Position 13 (1er des éliminés) = 1 pt selon le barème d'élimination historique
+# Position 14 = 0 pt (puisqu'il n'est pas premier des éliminés)
+# Position 15 = 0 pt
+# En fait dans les saisons standards, on attribue selon le rang local des éliminés.
+# Pour rester cohérent avec ce que les autres saisons font (Leo B avait 1pt au R21
+# d'avant), on garde la règle "top éliminé = 1pt, autres = 0"
+elim_in_ranking = [r for r in new_ranking if r['id'] in eliminated_ids]
+elim_in_ranking.sort(key=lambda r: r['position'])  # le mieux placé d'abord
+for idx, r in enumerate(elim_in_ranking):
     r['eliminatedPosition'] = r['position']
-    r['mainPoints'] = max(0, len(elim_ranking) - idx - 1)  # ex: 3 elims → 2,1,0
+    r['mainPoints'] = 1 if idx == 0 else 0  # 1 pt pour le mieux classé des éliminés
 
-# Mettre à jour eliminations avec les positions
-for e in eliminations:
-    matching = next((r for r in new_ranking if r['id'] == e['id']), None)
-    if matching:
-        e['position'] = matching['position']
+# Construire eliminations
+eliminations = []
+for r in elim_in_ranking:
+    eliminations.append({
+        'id': r['id'],
+        'name': r['name'],
+        'elevation': r['elevation'],
+        'reason': 'team_elimination',
+        'position': r['position'],
+        'teamIndex': eliminated_team_data['index'],
+        'teamAnimal': eliminated_team_data['animal'],
+        'teamColor': eliminated_team_data['color']
+    })
+# Trier les éliminés du PIRE au MIEUX (= position décroissante)
+eliminations.sort(key=lambda e: -e['position'])
 
-eliminations.sort(key=lambda e: -e['position'])  # ordre du pire au meilleur
-
-# === 4. APPLIQUER LES CHANGEMENTS AU R21 ===
+# === 4. APPLIQUER AU R21 ===
 r21['ranking'] = new_ranking
 r21['eliminations'] = eliminations
 r21['teams'] = new_teams
@@ -160,54 +173,68 @@ r21['frozenMethod'] = 'recalculated_with_correct_teams'
 print(f"\n✅ R21 re-figé : équipe {eliminated_team['animal']['emoji']} {eliminated_team['animal']['name']} éliminée")
 print(f"   Éliminés : {', '.join(e['name'] for e in eliminations)}")
 
-# === 5. GÉNÉRER LA COMPO R22 ===
+# === 5. GÉNÉRER R22 (12 survivants, 4 équipes de 3) ===
 print('\n═══ GÉNÉRATION R22 ═══')
 
-# Survivants = tous les joueurs sauf ceux de l'équipe éliminée
+# Survivants = tous sauf les 3 de l'équipe éliminée
 survivors = [r for r in new_ranking if r['id'] not in eliminated_ids]
-print(f'\n12 survivants pour le R22 :')
+print(f'\nSurvivants pour R22 : {len(survivors)}')
 
-# Points cumulés saison 1+2+3 pour chaque survivant (pour équilibrage)
-# On les lit dans yearlyStandingsSnapshot
+if len(survivors) != 12:
+    print(f"❌ Erreur : attendu 12 survivants, trouvé {len(survivors)}")
+    sys.exit(1)
+if len(survivors) % 3 != 0:
+    print(f"❌ Erreur : {len(survivors)} survivants pas divisible par 3")
+    sys.exit(1)
+
+NUM_TEAMS = len(survivors) // 3
+TEAM_SIZE = 3
+print(f'   → {NUM_TEAMS} équipes de {TEAM_SIZE}')
+
+# Points cumulés par survivant (depuis yearlyStandingsSnapshot)
 standings = {s['id']: s['totalPoints'] for s in frozen.get('yearlyStandingsSnapshot', {}).get('standings', [])}
 survivors_with_points = []
 for s in survivors:
     pts = standings.get(s['id'], 0)
-    survivors_with_points.append({
-        'id': s['id'],
-        'name': s['name'],
-        'points': pts
-    })
-    print(f"  {s['name']:15s} {pts} pts")
+    survivors_with_points.append({'id': s['id'], 'name': s['name'], 'points': pts})
 
-# Tirage équilibré (algorithme simple : tri par points puis snake-draft sur 4 équipes)
-# Le snake-draft est moins parfait que formBalancedTeams mais suffisant pour 12 joueurs/4 équipes
-survivors_with_points.sort(key=lambda p: -p['points'])
+print('\nSurvivants par points cumulés :')
+for p in sorted(survivors_with_points, key=lambda x: -x['points']):
+    print(f"  {p['name']:15s} {p['points']:>3} pts")
 
-# 4 équipes
-teams_r22 = [[], [], [], []]
-# Snake draft : 1→4, 4→1, 1→4, 4→1 ...
+# === SNAKE DRAFT amélioré ===
+# Trier par points décroissants, puis distribuer 1→N, N→1, 1→N, etc.
+# Garantit que chaque équipe a TEAM_SIZE joueurs (puisque len % TEAM_SIZE == 0)
+sorted_survivors = sorted(survivors_with_points, key=lambda x: -x['points'])
+teams_r22 = [[] for _ in range(NUM_TEAMS)]
+
+idx = 0
 direction = 1
-team_idx = 0
-for i, p in enumerate(survivors_with_points):
-    teams_r22[team_idx].append(p)
-    team_idx += direction
-    if team_idx >= 4 or team_idx < 0:
+for p in sorted_survivors:
+    teams_r22[idx].append(p)
+    next_idx = idx + direction
+    if next_idx >= NUM_TEAMS or next_idx < 0:
         direction *= -1
-        team_idx += direction
+        # Garde le même idx (pas de mouvement) pour le prochain tour
+    else:
+        idx = next_idx
 
-print('\nÉquipes R22 (snake draft équilibré par points cumulés) :')
-team_points_r22 = []
+# Vérification : toutes les équipes ont la bonne taille
+for i, t in enumerate(teams_r22):
+    if len(t) != TEAM_SIZE:
+        print(f"❌ Bug snake draft : équipe {i} a {len(t)} membres au lieu de {TEAM_SIZE}")
+        sys.exit(1)
+
+print(f'\nÉquipes R22 (snake draft) :')
+team_totals = []
 for i, t in enumerate(teams_r22):
     total = sum(p['points'] for p in t)
-    team_points_r22.append(total)
+    team_totals.append(total)
     members_str = ', '.join(f"{p['name']} ({p['points']})" for p in t)
-    print(f"  Team {i+1} ({total} pts) : {members_str}")
-print(f'\n  Std dev équipes : ±{(max(team_points_r22) - min(team_points_r22))} pts')
+    print(f"  Team {i+1} = {total:>3} pts  : {members_str}")
+print(f"  Écart max/min : {max(team_totals) - min(team_totals)} pts")
 
-# === 6. ROTATION DES ANIMAUX (OPTION B) ===
-# Exclure tous les animaux utilisés dans les rounds précédents de la saison 4
-
+# === 6. ROTATION DES ANIMAUX (option B = exclure tous ceux déjà utilisés) ===
 ALL_ANIMALS = [
     {'id': 'loup',       'emoji': '🐺', 'name': 'Loup'},
     {'id': 'aigle',      'emoji': '🦅', 'name': 'Aigle'},
@@ -239,59 +266,47 @@ TEAM_COLORS = [
 
 # Animaux utilisés au R21
 used_animal_ids = {t['animal']['id'] for t in new_teams}
-print(f"\nAnimaux déjà utilisés saison 4 : {sorted(used_animal_ids)}")
+print(f"\nAnimaux utilisés au R21 : {sorted(used_animal_ids)}")
 
-# Tirer 4 nouveaux animaux parmi les non-utilisés
+# Tirer NUM_TEAMS animaux parmi les non-utilisés
 available_animals = [a for a in ALL_ANIMALS if a['id'] not in used_animal_ids]
-# Seed déterministe basé sur round + saison pour reproductibilité
-random.seed(22 * 1000 + 4)
-chosen_animals = random.sample(available_animals, 4)
-print(f"Nouveaux animaux R22 : {[a['name'] for a in chosen_animals]}")
+random.seed(22 * 1000 + 4)  # seed déterministe
+chosen_animals = random.sample(available_animals, NUM_TEAMS)
+print(f"Animaux R22 : {[a['name'] for a in chosen_animals]}")
 
 # === 7. CONSTRUIRE LA STRUCTURE R22 ===
 r22_teams = []
-for i, t in enumerate(teams_r22):
+for i, team_members in enumerate(teams_r22):
     r22_teams.append({
         'index': i,
         'color': TEAM_COLORS[i],
         'animal': chosen_animals[i],
-        'members': [{'id': p['id'], 'name': p['name'], 'points': p['points']} for p in t],
-        'totalPoints': sum(p['points'] for p in t)
+        'members': [{'id': p['id'], 'name': p['name'], 'points': p['points']} for p in team_members],
+        'totalPoints': sum(p['points'] for p in team_members)
     })
 
 # === 8. SAUVEGARDER ===
-# Nouvelle structure season_teams.json :
-#   { "4": { "round_21": {...}, "round_22": {...}, "teams": [...] (legacy) } }
-# On garde la clé "teams" pour la rétro-compat de l'endpoint actuel,
-# mais on ajoute "rounds" pour le futur.
+# ⚠️ IMPORTANT : on NE TOUCHE PAS à season_teams_file["4"]["teams"]
+# qui contient toujours la compo R21 originale (source de vérité)
+# On ajoute la compo R22 dans season_teams_file["4"]["rounds"]["22"]
 
-if 'rounds' not in season_teams_file['4']:
-    season_teams_file['4']['rounds'] = {}
+if 'rounds' not in season_4:
+    season_4['rounds'] = {}
 
-# Archiver la compo R21 (= ce qui était dans teams[] avant)
-season_teams_file['4']['rounds']['21'] = {
+# Archiver R21 dans rounds (pour traçabilité)
+season_4['rounds']['21'] = {
     'roundNumber': 21,
     'frozenAt': NOW_ISO,
-    'teams': true_teams  # = la vraie compo R21
+    'teams': true_teams
 }
-# Stocker la compo R22
-season_teams_file['4']['rounds']['22'] = {
+# Stocker R22
+season_4['rounds']['22'] = {
     'roundNumber': 22,
     'createdAt': NOW_ISO,
     'teams': r22_teams
 }
 
-# IMPORTANT : Le champ "teams" à la racine de season_teams_file["4"] est lu par
-# l'endpoint actuel pour TOUS les rounds de la saison. On le supprime pour
-# forcer le backend à ne plus utiliser cette logique "verrou saison-entière".
-# L'endpoint patché lira "rounds[X].teams" via une logique par-round.
-# Pour ne pas casser l'endpoint actuel AVANT le patch, on garde "teams" =
-# la compo R22 (= round actif) pour que ça marche au moins en attendant.
-season_teams_file['4']['teams'] = r22_teams
-season_teams_file['4']['lockedAt'] = NOW_ISO
-season_teams_file['4']['lockedReason'] = f"R21 re-figé + R22 généré le {TS}"
-
-# Écrire
+# Écrire (atomique)
 with open(FROZEN_PATH + '.tmp', 'w', encoding='utf-8') as f:
     json.dump(frozen, f, indent=2, ensure_ascii=False)
 os.replace(FROZEN_PATH + '.tmp', FROZEN_PATH)
@@ -301,12 +316,16 @@ with open(SEASON_TEAMS_PATH + '.tmp', 'w', encoding='utf-8') as f:
 os.replace(SEASON_TEAMS_PATH + '.tmp', SEASON_TEAMS_PATH)
 
 print(f'\n✅ Fichiers mis à jour')
-print(f'   - {FROZEN_PATH} (R21 re-figé)')
-print(f'   - {SEASON_TEAMS_PATH} (R22 généré + structure par-round)')
+print(f'   - frozen_results.json (R21 re-figé)')
+print(f'   - season_teams.json (R22 stocké dans rounds["22"])')
 print(f'\nBackups :')
 print(f'   {FROZEN_PATH}.bak.{TS}')
 print(f'   {SEASON_TEAMS_PATH}.bak.{TS}')
-print(f'\n⚠️  IMPORTANT :')
-print(f'   1. Relance "pm2 restart versant-api" pour vider le cache mémoire des équipes')
-print(f'   2. Vérifie ensuite : curl https://versant-app.fr/api/teams/round/22')
-print(f'      → doit afficher la nouvelle compo R22')
+print(f'\n⚠️  ATTENTION ÉTAPES SUIVANTES :')
+print(f'   1. Le champ "teams" à la racine de season_teams_file["4"] EST INCHANGÉ')
+print(f'      → Il contient toujours la compo R21 (Sanglier/Ours/Loup/Canard/Aigle)')
+print(f'      → L\'endpoint actuel /api/teams/round/22 va donc renvoyer la compo R21 !')
+print(f'   2. Tu DOIS patcher l\'endpoint pour qu\'il lise rounds["22"] en priorité.')
+print(f'      C\'est le livrable 2 que je te livre juste après.')
+print(f'   3. NE PAS faire "pm2 restart" tant que le patch endpoint n\'est pas déployé,')
+print(f'      sinon les joueurs verront temporairement la compo R21 sur le R22.')
