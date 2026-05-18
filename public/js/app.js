@@ -868,14 +868,57 @@ function renderTeamRanking(container, data) {
 // RENDU: CHALLENGE DES ÉLIMINÉS
 // ============================================
 
+/**
+ * Extrait les éliminés de la saison courante depuis frozen_results.json.
+ * Utilisé comme fallback quand seasonData.eliminated est vide (cas saison team
+ * où simulateTeamSeasonEliminations ne remplit pas correctement le tableau).
+ *
+ * Retourne un tableau d'objets { id, name, eliminatedRound, eliminatedSeason, reason }.
+ * Le `eliminatedRound` est en numérotation "in-season" (1-based depuis le début de la saison),
+ * pas la numérotation globale.
+ */
+function getEliminatedFromFrozen(seasonNumber, frozen) {
+  if (!frozen?.rounds) return [];
+  const seasonStartRound = getSeasonStartRound(seasonNumber);
+  const result = [];
+  const seen = new Set();
+  // Trier les rounds par numéro pour éliminer dans l'ordre
+  const seasonRounds = Object.values(frozen.rounds)
+    .filter(r => r && Number(r.seasonNumber) === Number(seasonNumber) && r.frozen)
+    .sort((a, b) => (a.roundNumber || 0) - (b.roundNumber || 0));
+
+  for (const round of seasonRounds) {
+    const roundInSeason = (round.roundNumber || 0) - seasonStartRound + 1;
+    for (const elim of (round.eliminations || [])) {
+      if (!elim.id || seen.has(elim.id)) continue;
+      seen.add(elim.id);
+      result.push({
+        id: String(elim.id),
+        name: elim.name,
+        eliminatedRound: roundInSeason,
+        eliminatedSeason: Number(seasonNumber),
+        reason: elim.reason || 'last_position'
+      });
+    }
+  }
+  return result;
+}
+
 function renderEliminatedChallenge(container) {
-  if (!seasonData?.eliminated?.length) {
+  // Fallback : si seasonData.eliminated est vide, lire depuis frozen_results.
+  // Nécessaire pour les saisons team où le calcul live ne remplit pas seasonData.eliminated.
+  let eliminatedList = seasonData?.eliminated;
+  if (!eliminatedList?.length && frozenResultsCache) {
+    eliminatedList = getEliminatedFromFrozen(currentSeasonNumber, frozenResultsCache);
+  }
+
+  if (!eliminatedList?.length) {
     container.innerHTML = '<div class="empty-state"><p>Aucun éliminé cette saison</p></div>';
     return;
   }
 
   const seasonDates = getSeasonDates(currentSeasonNumber);
-  const ranking = calculateEliminatedChallenge(allActivities, seasonData.eliminated, seasonDates, getCurrentDate());
+  const ranking = calculateEliminatedChallenge(allActivities, eliminatedList, seasonDates, getCurrentDate());
 
   if (ranking.length === 0) {
     container.innerHTML = '<div class="empty-state"><p>Les éliminés n\'ont pas encore d\'activités depuis leur élimination</p></div>';
@@ -887,7 +930,7 @@ function renderEliminatedChallenge(container) {
 
   // Calculer les effets de bonus pour chaque éliminé (cumulés sur toute la saison)
   const bonusEffectsByAthlete = {};
-  for (const eliminated of seasonData.eliminated) {
+  for (const eliminated of eliminatedList) {
     const effects = { gained: 0, lost: 0, details: [] };
     // Parcourir tous les rounds de la saison pour cumuler les effets par-round
     const roundsPerSeason = getRoundsPerSeason();
@@ -1487,7 +1530,14 @@ function renderHistorySection(container) {
  * Utilise les résultats figés (frozen_results) comme source de vérité
  */
 function renderCurrentSeasonHistory(container) {
-  if (!seasonData?.eliminated?.length && !seasonData?.roundResults?.length) {
+  // Fallback : si seasonData.eliminated est vide (cas saison team), lire les éliminés
+  // depuis frozen_results.json
+  let eliminatedList = seasonData?.eliminated || [];
+  if (!eliminatedList.length && frozenResultsCache) {
+    eliminatedList = getEliminatedFromFrozen(currentSeasonNumber, frozenResultsCache);
+  }
+
+  if (!eliminatedList.length && !seasonData?.roundResults?.length) {
     container.innerHTML = '<div class="history-item"><div class="history-title">Aucune élimination encore</div></div>';
     return;
   }
@@ -1505,7 +1555,7 @@ function renderCurrentSeasonHistory(container) {
     if (today <= roundDates.end) continue;
 
     // Récupérer les éliminés de ce round (pour savoir s'il y en a)
-    const roundEliminated = seasonData.eliminated.filter(e => e.eliminatedRound === r);
+    const roundEliminated = eliminatedList.filter(e => e.eliminatedRound === r);
     if (roundEliminated.length === 0) continue;
 
     // Essayer d'utiliser les données figées (source de vérité)

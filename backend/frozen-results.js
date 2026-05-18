@@ -777,10 +777,54 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     console.warn('⚠️ Snapshot yearlyStandings indisponible:', e.message);
   }
 
-  // Tirage des équipes
-  const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
-  // Attribution des animaux (uniques sur la saison)
-  const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, history.usedAnimalIds, roundNumber);
+// === Lecture prioritaire des équipes verrouillées dans season_teams.json ===
+  // Évite que le freeze nocturne tire une nouvelle compo différente de celle
+  // affichée aux joueurs pendant la semaine.
+  // Priorité :
+  //   1. season_teams.json["<season>"]["rounds"]["<round>"]["teams"]
+  //   2. season_teams.json["<season>"]["teams"] uniquement si R1 de la saison team
+  //   3. fallback : tirage normal via formBalancedTeams
+  let teamsWithAnimal = null;
+  let teamsLockedSource = null;
+  try {
+    const path = require('path');
+    const fs = require('fs').promises;
+    const SEASON_TEAMS_FILE = path.join(__dirname, 'data', 'season_teams.json');
+    const raw = await fs.readFile(SEASON_TEAMS_FILE, 'utf8').catch(() => null);
+    if (raw) {
+      const stored = JSON.parse(raw);
+      const seasonEntry = stored[String(seasonNumber)];
+      if (seasonEntry) {
+        // 1. Round spécifique
+        const roundEntry = seasonEntry.rounds?.[String(roundNumber)];
+        if (roundEntry && Array.isArray(roundEntry.teams) && roundEntry.teams.length > 0) {
+          teamsWithAnimal = roundEntry.teams;
+          teamsLockedSource = `rounds["${roundNumber}"]`;
+        }
+        // 2. Compo "racine" uniquement pour R1 de saison team
+        else if (Array.isArray(seasonEntry.teams) && seasonEntry.teams.length > 0) {
+          const isFirstRoundOfSeason = !Object.values(previousRounds || {}).some(r =>
+            Number(r?.seasonNumber) === Number(seasonNumber) && Number(r?.roundNumber) < Number(roundNumber)
+          );
+          if (isFirstRoundOfSeason) {
+            teamsWithAnimal = seasonEntry.teams;
+            teamsLockedSource = 'teams (root, legacy)';
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ Lecture season_teams.json échouée:', e.message);
+  }
+
+  // 3. Fallback : tirage normal
+  if (!teamsWithAnimal) {
+    const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
+    teamsWithAnimal = teamUtils.assignTeamAnimals(teams, history.usedAnimalIds, roundNumber);
+    teamsLockedSource = 'computed (formBalancedTeams)';
+  }
+
+  console.log(`📋 R${roundNumber} équipes : source = ${teamsLockedSource}`);
 
   // Calcul des D+ par membre puis par équipe.
   // ÉTAPE 1 : construire un ranking individuel temporaire pour pouvoir
