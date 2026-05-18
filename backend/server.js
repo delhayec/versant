@@ -1884,32 +1884,60 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
       return { id, name: a?.name || `Athlète ${id}` };
     });
 
- // === 2.5 PRÉ-LOAD : équipes verrouillées dans season_teams.json ===
-    // Si la saison a été figée manuellement (ré-tirage indésirable, fix de
-    // composition), on lit directement le fichier au lieu de tirer aléatoirement.
-    // Le fichier est indexé par seasonNumber.
+ // === 2.5 PRÉ-LOAD : équipes verrouillées (par round si dispo, sinon par saison) ===
+    // Nouvelle structure attendue dans season_teams.json :
+    //   { "<seasonNum>": { "teams": [...] (compo originale R1), "rounds": { "<roundNum>": { "teams": [...] } } } }
+    //
+    // Priorité de lecture :
+    //   1. season_teams.json["<season>"]["rounds"]["<round>"]["teams"]  (= compo spécifique du round)
+    //   2. season_teams.json["<season>"]["teams"]                       (= legacy, compo de toute la saison)
+    //
+    // Cas d'usage :
+    //   - R21 = round 1 d'une saison team : lit "teams" à la racine (compo initiale tirée au sort)
+    //   - R22, R23 ... : lit "rounds[X].teams" si stocké (re-tirage après élimination)
     const SEASON_TEAMS_FILE = path.join(DATA_DIR, 'season_teams.json');
     const storedSeasonTeams = await safeReadJSON(SEASON_TEAMS_FILE, {});
-    const lockedEntry = storedSeasonTeams[String(detectedSeason)];
+    const seasonEntry = storedSeasonTeams[String(detectedSeason)];
 
-    if (lockedEntry && Array.isArray(lockedEntry.teams) && lockedEntry.teams.length > 0) {
-      // Réutiliser les équipes stockées : on construit le payload directement
-      // en mode "team" sans repasser par formBalancedTeams.
-      // Les équipes stockées contiennent déjà color + animal + members + totalPoints.
+    let lockedTeams = null;
+    let lockedSource = null;
+    if (seasonEntry) {
+      // 1. Priorité au round spécifique
+      const roundEntry = seasonEntry.rounds?.[String(roundNumber)];
+      if (roundEntry && Array.isArray(roundEntry.teams) && roundEntry.teams.length > 0) {
+        lockedTeams = roundEntry.teams;
+        lockedSource = `rounds["${roundNumber}"]`;
+      }
+      // 2. Sinon fallback : compo "racine" UNIQUEMENT pour le R1 de la saison
+      else if (Array.isArray(seasonEntry.teams) && seasonEntry.teams.length > 0) {
+        // Détecter si c'est le R1 de la saison team : on regarde s'il n'y a aucun round
+        // précédent figé pour cette saison
+        const isFirstRoundOfSeason = !Object.values(allFrozen.rounds || {}).some(r =>
+          Number(r?.seasonNumber) === detectedSeason && Number(r?.roundNumber) < roundNumber
+        );
+        if (isFirstRoundOfSeason) {
+          lockedTeams = seasonEntry.teams;
+          lockedSource = 'teams (root, legacy)';
+        }
+      }
+    }
+
+    if (lockedTeams) {
       const payload = {
         roundNumber,
         seasonNumber: detectedSeason,
         seasonType: 'team',
         frozen: false,
-        teams: lockedEntry.teams,
+        teams: lockedTeams,
         eliminatedTeam: null,
         lockedFromFile: true,
-        lockedAt: lockedEntry.lockedAt || null
+        lockedSource
       };
       _teamsCache.set(roundNumber, { ts: Date.now(), payload });
       return res.json(payload);
     }
 
+    // Sinon : tirage aléatoire normal
     // Sinon : tirage aléatoire normal
     const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
     const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, usedAnimalIds, roundNumber);
