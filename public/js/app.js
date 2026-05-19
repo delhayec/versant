@@ -869,6 +869,55 @@ function renderTeamRanking(container, data) {
 // ============================================
 
 /**
+ * Helper local : détermine les bornes réelles d'une saison.
+ *
+ * En théorie, getSeasonStartRound(s) calcule via formule basée sur PARTICIPANTS.length.
+ * Mais cette formule est THÉORIQUE et peut diverger de la réalité quand :
+ *   - Une saison a un round handicap qui élimine plus de 2 joueurs
+ *   - Plus de 2 joueurs sont inactifs sur un round
+ *   - Une saison se termine plus tôt que prévu (moins de rounds)
+ *
+ * Pour les saisons FIGÉES (rounds frozen dans frozen_results.json), on lit la réalité.
+ * Pour la saison EN COURS, on retombe sur le calcul théorique pour anticiper.
+ *
+ * @returns {object} { startRound, endRound, roundsCount, isCompleted }
+ */
+function getRealSeasonBounds(seasonNumber, frozen) {
+  if (frozen?.rounds) {
+    const frozenRoundsOfSeason = Object.values(frozen.rounds)
+      .filter(r => r && Number(r.seasonNumber) === Number(seasonNumber) && r.frozen)
+      .map(r => Number(r.roundNumber))
+      .sort((a, b) => a - b);
+
+    if (frozenRoundsOfSeason.length > 0) {
+      const startRound = frozenRoundsOfSeason[0];
+      const lastFrozen = frozenRoundsOfSeason[frozenRoundsOfSeason.length - 1];
+      // Saison terminée si elle a un eliminatedChallengeRankings entry
+      const isCompleted = !!frozen.eliminatedChallengeRankings?.[String(seasonNumber)];
+      // endRound : pour saison terminée = lastFrozen ; sinon = startRound + max rounds théoriques - 1
+      const theoreticalRounds = getRoundsForSeason(seasonNumber);
+      const endRound = isCompleted ? lastFrozen : (startRound + theoreticalRounds - 1);
+      return {
+        startRound,
+        endRound,
+        roundsCount: isCompleted ? frozenRoundsOfSeason.length : theoreticalRounds,
+        isCompleted
+      };
+    }
+  }
+
+  // Fallback : calcul théorique
+  const startRound = getSeasonStartRound(seasonNumber);
+  const roundsCount = getRoundsForSeason(seasonNumber);
+  return {
+    startRound,
+    endRound: startRound + roundsCount - 1,
+    roundsCount,
+    isCompleted: false
+  };
+}
+
+/**
  * Extrait les éliminés de la saison courante depuis frozen_results.json.
  * Utilisé comme fallback quand seasonData.eliminated est vide (cas saison team
  * où simulateTeamSeasonEliminations ne remplit pas correctement le tableau).
@@ -879,7 +928,7 @@ function renderTeamRanking(container, data) {
  */
 function getEliminatedFromFrozen(seasonNumber, frozen) {
   if (!frozen?.rounds) return [];
-  const seasonStartRound = getSeasonStartRound(seasonNumber);
+  const { startRound } = getRealSeasonBounds(seasonNumber, frozen);
   const result = [];
   const seen = new Set();
   // Trier les rounds par numéro pour éliminer dans l'ordre
@@ -888,7 +937,7 @@ function getEliminatedFromFrozen(seasonNumber, frozen) {
     .sort((a, b) => (a.roundNumber || 0) - (b.roundNumber || 0));
 
   for (const round of seasonRounds) {
-    const roundInSeason = (round.roundNumber || 0) - seasonStartRound + 1;
+    const roundInSeason = (round.roundNumber || 0) - startRound + 1;
     for (const elim of (round.eliminations || [])) {
       if (!elim.id || seen.has(elim.id)) continue;
       seen.add(elim.id);
@@ -917,13 +966,12 @@ function renderTeamEliminatedChallenge(container) {
     return;
   }
 
-  // Récupérer toutes les équipes éliminées dans la saison courante
-  const seasonStartRound = getSeasonStartRound(currentSeasonNumber);
-  const seasonEndRound = seasonStartRound + getRoundsForSeason(currentSeasonNumber) - 1;
+  // Bornes RÉELLES de la saison (lit dans frozen_results) plutôt que théoriques
+  const { startRound, endRound } = getRealSeasonBounds(currentSeasonNumber, frozenResultsCache);
   const today = getCurrentDate();
 
   const eliminatedTeams = [];
-  for (let rn = seasonStartRound; rn <= seasonEndRound; rn++) {
+  for (let rn = startRound; rn <= endRound; rn++) {
     const round = frozenResultsCache.rounds[String(rn)];
     if (!round?.frozen) continue;
     if (!round.eliminatedTeam) continue;
@@ -931,7 +979,7 @@ function renderTeamEliminatedChallenge(container) {
     if (!elimEnd) continue;
     eliminatedTeams.push({
       roundNumber: rn,
-      roundInSeason: rn - seasonStartRound + 1,
+      roundInSeason: rn - startRound + 1,
       eliminatedTeam: round.eliminatedTeam,
       eliminatedAfter: elimEnd
     });
@@ -1672,13 +1720,13 @@ function renderCurrentSeasonHistory(container) {
     return;
   }
 
-  const roundsPerSeason = getRoundsForSeason(currentSeasonNumber);
-  const seasonStartRound = getSeasonStartRound(currentSeasonNumber);
+  // Bornes RÉELLES de la saison (corrigent les saisons raccourcies par handicap, etc.)
+  const { startRound, roundsCount } = getRealSeasonBounds(currentSeasonNumber, frozenResultsCache);
   let html = '';
 
   // Parcourir les rounds terminés
-  for (let r = 1; r <= roundsPerSeason; r++) {
-    const globalRound = seasonStartRound + r - 1;
+  for (let r = 1; r <= roundsCount; r++) {
+    const globalRound = startRound + r - 1;
     const roundDates = getRoundDates(globalRound);
     const today = getCurrentDate();
 
