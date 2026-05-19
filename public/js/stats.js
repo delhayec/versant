@@ -2193,7 +2193,6 @@ async function renderMoneyTimeChart() {
 // ============================================
 let compareChart = null;
 let elevation2025Cache = null;
-let compareMode = 'individual'; // 'individual' | 'global'
 
 async function loadElevation2025() {
   if (elevation2025Cache !== null) return elevation2025Cache;
@@ -2215,8 +2214,7 @@ async function loadElevation2025() {
  * Renvoie [{ x: 'MM-DD', y: cumElevation }, ...] où x est le jour de l'année (au format MM-DD)
  * pour pouvoir aligner 2025 et 2026 sur le même axe X.
  */
-function buildCumulativeSeries(byDate, yearStart) {
-  // byDate = { 'YYYY-MM-DD': elevation }
+function buildCumulativeSeries(byDate) {
   const sortedDates = Object.keys(byDate).sort();
   const series = [];
   let cum = 0;
@@ -2233,202 +2231,145 @@ async function renderCompareChart() {
   if (!dom) return;
 
   const data2025 = await loadElevation2025();
-  const data2026 = getFilteredData(); // activités 2026
+  const data2026 = getFilteredData(); // activités 2026 (déjà filtrées par athlète si sélection)
 
   if (compareChart) compareChart.dispose();
   compareChart = echarts.init(dom);
 
-  // Agréger 2026 par athlète et par jour
-  const by2026 = {};
-  for (const a of data2026) {
-    const id = String(a.athlete_id);
-    if (!by2026[id]) by2026[id] = { byDate: {} };
-    const date = a.start_date.substring(0, 10);
-    by2026[id].byDate[date] = (by2026[id].byDate[date] || 0) + (a.total_elevation_gain || 0);
-  }
-
   const selectedAthleteId = document.getElementById('athleteSelect')?.value;
+  const isFilteredByAthlete = !!selectedAthleteId;
 
-  if (compareMode === 'individual') {
-    // 1 série par athlète × 2 années
-    const series = [];
-    const allAthleteIds = new Set([...Object.keys(data2025.byAthlete || {}), ...Object.keys(by2026)]);
-
-    for (const id of allAthleteIds) {
-      const isHighlighted = !selectedAthleteId || String(id) === String(selectedAthleteId);
-      const color = getAthleteColor(id);
-      const name = getAthleteName(id);
-
-      const s2025 = data2025.byAthlete?.[id]?.byDate
-        ? buildCumulativeSeries(data2025.byAthlete[id].byDate)
-        : null;
-      const s2026 = by2026[id]?.byDate
-        ? buildCumulativeSeries(by2026[id].byDate)
-        : null;
-
-      if (s2025 && s2025.length > 0) {
-        series.push({
-          name: `${name} 2025`,
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          data: s2025.map(p => [p.x, p.y]),
-          lineStyle: { color, width: isHighlighted ? 2 : 1, type: 'dashed', opacity: isHighlighted ? 0.7 : 0.1 },
-          itemStyle: { color, opacity: isHighlighted ? 0.7 : 0.1 }
-        });
-      }
-      if (s2026 && s2026.length > 0) {
-        series.push({
-          name: `${name} 2026`,
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          data: s2026.map(p => [p.x, p.y]),
-          lineStyle: { color, width: isHighlighted ? 3 : 1, opacity: isHighlighted ? 1 : 0.15 },
-          itemStyle: { color, opacity: isHighlighted ? 1 : 0.15 }
-        });
-      }
+  // === Construire byDate 2025 ===
+  let byDate2025 = {};
+  let title2025 = 'Ligue 2025';
+  if (isFilteredByAthlete) {
+    // Mode 1 athlète : prendre uniquement ses données 2025 (si dispo)
+    const athleteData = data2025.byAthlete?.[String(selectedAthleteId)];
+    if (athleteData?.byDate) {
+      byDate2025 = athleteData.byDate;
+      title2025 = `${getAthleteName(selectedAthleteId)} 2025`;
+    } else {
+      // Pas de données 2025 pour cet athlète (= nouveau participant)
+      title2025 = `${getAthleteName(selectedAthleteId)} 2025 (aucune donnée)`;
     }
-
-    compareChart.setOption({
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: 'rgba(10,10,15,0.95)',
-        borderColor: 'rgba(255,255,255,0.08)',
-        textStyle: { color: '#fff' }
-      },
-      legend: {
-        type: 'scroll',
-        bottom: 0,
-        textStyle: { color: 'rgba(255,255,255,0.7)' },
-        pageIconColor: 'rgba(255,255,255,0.5)',
-        pageTextStyle: { color: 'rgba(255,255,255,0.7)' }
-      },
-      grid: { left: 60, right: 30, top: 30, bottom: 60 },
-      xAxis: {
-        type: 'category',
-        name: 'Jour de l\'année',
-        nameLocation: 'middle',
-        nameGap: 30,
-        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
-        axisLabel: { color: 'rgba(255,255,255,0.6)', interval: 30 },
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
-      },
-      yAxis: {
-        type: 'value',
-        name: 'D+ cumulé (m)',
-        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
-        axisLabel: {
-          color: 'rgba(255,255,255,0.6)',
-          formatter: v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v
-        },
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
-      },
-      series
-    });
   } else {
-    // === MODE GLOBAL : somme de tous les athlètes ===
-    const sumByDate2025 = {};
+    // Mode global : somme de tous les athlètes 2025
     for (const [, info] of Object.entries(data2025.byAthlete || {})) {
       for (const [date, elev] of Object.entries(info.byDate || {})) {
-        sumByDate2025[date] = (sumByDate2025[date] || 0) + elev;
+        byDate2025[date] = (byDate2025[date] || 0) + elev;
       }
     }
-    const sumByDate2026 = {};
-    for (const [, info] of Object.entries(by2026)) {
-      for (const [date, elev] of Object.entries(info.byDate || {})) {
-        sumByDate2026[date] = (sumByDate2026[date] || 0) + elev;
-      }
-    }
-    const s2025 = buildCumulativeSeries(sumByDate2025);
-    const s2026 = buildCumulativeSeries(sumByDate2026);
+  }
 
-    compareChart.setOption({
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: 'rgba(10,10,15,0.95)',
-        borderColor: 'rgba(255,255,255,0.08)',
-        textStyle: { color: '#fff' },
-        formatter: params => {
-          return params.map(p => {
-            const v = typeof p.value === 'object' ? p.value[1] : p.value;
-            return `<div style="display:flex;align-items:center;gap:6px;margin:2px 0">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></span>
-              <span>${p.seriesName}: <strong>${(v/1000).toFixed(0)} km D+</strong></span>
-            </div>`;
-          }).join('');
-        }
+  // === Construire byDate 2026 ===
+  const byDate2026 = {};
+  for (const a of data2026) {
+    const date = a.start_date.substring(0, 10);
+    byDate2026[date] = (byDate2026[date] || 0) + (a.total_elevation_gain || 0);
+  }
+  const title2026 = isFilteredByAthlete
+    ? `${getAthleteName(selectedAthleteId)} 2026`
+    : 'Ligue 2026';
+
+  const s2025 = buildCumulativeSeries(byDate2025);
+  const s2026 = buildCumulativeSeries(byDate2026);
+
+  // === Couleur 2026 : si athlète sélectionné, sa couleur sinon orange Versant ===
+  const color2026 = isFilteredByAthlete ? getAthleteColor(selectedAthleteId) : '#f97316';
+  const color2025 = '#94a3b8';
+
+  // Stops du gradient pour 2026
+  const rgb2026 = hexToRgba(color2026, 0.3);
+  const rgb2026Transparent = hexToRgba(color2026, 0);
+
+  compareChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(10,10,15,0.95)',
+      borderColor: 'rgba(255,255,255,0.08)',
+      textStyle: { color: '#fff' },
+      formatter: params => {
+        return params.map(p => {
+          const v = typeof p.value === 'object' ? p.value[1] : p.value;
+          const display = v >= 1000 ? `${(v/1000).toFixed(1)} km` : `${v} m`;
+          return `<div style="display:flex;align-items:center;gap:6px;margin:2px 0">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></span>
+            <span>${p.seriesName}: <strong>${display} D+</strong></span>
+          </div>`;
+        }).join('');
+      }
+    },
+    legend: {
+      bottom: 0,
+      textStyle: { color: 'rgba(255,255,255,0.85)' }
+    },
+    grid: { left: 60, right: 30, top: 30, bottom: 60 },
+    xAxis: {
+      type: 'category',
+      name: 'Jour de l\'année',
+      nameLocation: 'middle',
+      nameGap: 30,
+      nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
+      axisLabel: { color: 'rgba(255,255,255,0.6)', interval: 30 },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+    },
+    yAxis: {
+      type: 'value',
+      name: isFilteredByAthlete ? 'D+ cumulé (m)' : 'D+ total ligue (m)',
+      nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
+      axisLabel: {
+        color: 'rgba(255,255,255,0.6)',
+        formatter: v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v
       },
-      legend: {
-        bottom: 0,
-        textStyle: { color: 'rgba(255,255,255,0.85)' }
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+    },
+    series: [
+      {
+        name: title2025,
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        data: s2025.map(p => [p.x, p.y]),
+        lineStyle: { color: color2025, width: 2.5, type: 'dashed' },
+        itemStyle: { color: color2025 }
       },
-      grid: { left: 60, right: 30, top: 30, bottom: 60 },
-      xAxis: {
-        type: 'category',
-        name: 'Jour de l\'année',
-        nameLocation: 'middle',
-        nameGap: 30,
-        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
-        axisLabel: { color: 'rgba(255,255,255,0.6)', interval: 30 },
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
-      },
-      yAxis: {
-        type: 'value',
-        name: 'D+ total ligue (m)',
-        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
-        axisLabel: {
-          color: 'rgba(255,255,255,0.6)',
-          formatter: v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v
-        },
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
-      },
-      series: [
-        {
-          name: 'Ligue 2025',
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          data: s2025.map(p => [p.x, p.y]),
-          lineStyle: { color: '#94a3b8', width: 3, type: 'dashed' },
-          itemStyle: { color: '#94a3b8' }
-        },
-        {
-          name: 'Ligue 2026',
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          data: s2026.map(p => [p.x, p.y]),
-          lineStyle: { color: '#f97316', width: 3 },
-          itemStyle: { color: '#f97316' },
-          areaStyle: {
-            color: {
-              type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(249, 115, 22, 0.3)' },
-                { offset: 1, color: 'rgba(249, 115, 22, 0)' }
-              ]
-            }
+      {
+        name: title2026,
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        data: s2026.map(p => [p.x, p.y]),
+        lineStyle: { color: color2026, width: 3 },
+        itemStyle: { color: color2026 },
+        areaStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: rgb2026 },
+              { offset: 1, color: rgb2026Transparent }
+            ]
           }
         }
-      ]
-    });
-  }
+      }
+    ]
+  });
 }
 
-function setupCompareToggle() {
-  document.querySelectorAll('.compare-toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.compare-toggle-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      compareMode = btn.dataset.mode;
-      renderCompareChart();
-    });
-  });
+/**
+ * Helper : convertir un hex (#rrggbb) en rgba avec alpha.
+ * Pour les couleurs d'athlètes qui sont en hex.
+ */
+function hexToRgba(hex, alpha) {
+  if (!hex) return `rgba(249, 115, 22, ${alpha})`;
+  // Si déjà rgba/rgb, on retourne tel quel
+  if (hex.startsWith('rgb')) return hex;
+  const cleaned = hex.replace('#', '');
+  const r = parseInt(cleaned.substring(0, 2), 16);
+  const g = parseInt(cleaned.substring(2, 4), 16);
+  const b = parseInt(cleaned.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 
@@ -2453,6 +2394,7 @@ function computeAthleteStats(data, frozenResults = null) {
         elevation_by_day: {},
         elevation_by_round: {},   // map roundNumber -> { elevation, dateStart }
         activities_without_elevation: 0,
+        activities_low_elevation: 0,  // < 100m de D+ (inclut activities_without_elevation)
         night_activities: 0,
         morning_activities: 0,
         weekend_activities: 0,
@@ -2499,6 +2441,7 @@ function computeAthleteStats(data, frozenResults = null) {
     }
 
     if (!a.total_elevation_gain || a.total_elevation_gain === 0) s.activities_without_elevation++;
+    if ((a.total_elevation_gain || 0) < 100) s.activities_low_elevation++;
 
     const localTime = a.start_date_local || a.start_date;
     const hour = parseInt(localTime.substring(11, 13));
@@ -2516,11 +2459,15 @@ function computeAthleteStats(data, frozenResults = null) {
 
   // Lookup points totaux par athlète depuis yearlyStandingsSnapshot
   const pointsByAthlete = {};
+  const mainPointsByAthlete = {};
+  const elimPointsByAthlete = {};
   const winsByAthlete = {};
   if (frozenResults?.yearlyStandingsSnapshot?.standings) {
     for (const e of frozenResults.yearlyStandingsSnapshot.standings) {
       const id = String(e.id);
       pointsByAthlete[id] = e.totalPoints || 0;
+      mainPointsByAthlete[id] = e.totalMainPoints || 0;
+      elimPointsByAthlete[id] = e.totalEliminatedPoints || 0;
       winsByAthlete[id] = e.wins || 0;
     }
   }
@@ -2538,6 +2485,8 @@ function computeAthleteStats(data, frozenResults = null) {
       { roundNumber: null, elevation: 0 }
     );
     const totalPoints = pointsByAthlete[String(s.athlete_id)] || 0;
+    const mainPoints = mainPointsByAthlete[String(s.athlete_id)] || 0;
+    const eliminatedPoints = elimPointsByAthlete[String(s.athlete_id)] || 0;
     const seasonsWon = winsByAthlete[String(s.athlete_id)] || 0;
     // Rapport D+ / points (= combien de m de D+ pour 1 point)
     // Plus c'est bas, plus c'est efficace
@@ -2554,6 +2503,8 @@ function computeAthleteStats(data, frozenResults = null) {
       best_round_number: bestRound.roundNumber,
       num_sports: s.sports_used.size,
       total_points: totalPoints,
+      main_points: mainPoints,
+      eliminated_points: eliminatedPoints,
       seasons_won: seasonsWon,
       elevation_per_point: elevationPerPoint
     };
@@ -2628,8 +2579,10 @@ function renderAchievements(stats) {
     // === ACHIEVEMENTS PRINCIPAUX CHALLENGE ===
     { id: 'king', emoji: '👑', name: 'Roi du D+', desc: 'Le plus de dénivelé total', type: 'legendary',
       getValue: s => s.total_elevation, format: v => `${formatElevation(v)} m` },
-    { id: 'points_king', emoji: '🏆', name: 'Roi des Points', desc: 'Le plus de points marqués', type: 'legendary',
-      getValue: s => s.total_points, format: v => `${v} pts` },
+    { id: 'points_king', emoji: '🏆', name: 'Roi des Points', desc: 'Plus de points au challenge principal', type: 'legendary',
+      getValue: s => s.main_points, format: v => `${v} pts` },
+    { id: 'elim_prince', emoji: '👻', name: 'Prince des Éliminés', desc: 'Plus de points au challenge éliminés', type: 'legendary',
+      getValue: s => s.eliminated_points, format: v => `${v} pts` },
     { id: 'champion', emoji: '🥇', name: 'Champion', desc: 'Saisons remportées', type: 'legendary',
       getValue: s => s.seasons_won, format: v => `${v} saison${v > 1 ? 's' : ''}` },
 
@@ -2671,8 +2624,8 @@ function renderAchievements(stats) {
       getValue: s => s.total_distance, format: v => `${(v/1000).toFixed(0)} km` },
     { id: 'marathoner', emoji: '⏱️', name: 'Marathonien', desc: 'Plus longue activité', type: 'normal',
       getValue: s => s.longest_activity_time, format: v => `${(v/3600).toFixed(1)} h` },
-    { id: 'flat', emoji: '🪜', name: 'Plat Pays', desc: 'Activités sans D+', type: 'fun',
-      getValue: s => s.activities_without_elevation, format: v => `${v} activités` },
+    { id: 'flat', emoji: '🪜', name: 'Plat Pays', desc: 'Activités à moins de 100 m de D+', type: 'fun',
+      getValue: s => s.activities_low_elevation, format: v => `${v} activités` },
 
     // === SPORTS ===
     { id: 'cyclist', emoji: '🚴', name: 'Roi de la Pédale', desc: 'Le plus de D+ à vélo', type: 'normal',
@@ -2923,7 +2876,6 @@ async function init() {
 
           // Comparaison 2025 vs 2026 (nécessite fetch elevation_2025.json)
           renderCompareChart();
-          setupCompareToggle();
 
           // Sorties de groupe : le PLUS LOURD → on le fait via requestIdleCallback si dispo
           const ric = window.requestIdleCallback || function(cb) { return setTimeout(cb, 100); };
