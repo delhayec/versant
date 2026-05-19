@@ -5789,3 +5789,20 @@ body {
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
+
+
+/* ============================================
+   CHALLENGE ÉLIMINÉS - SAISON TEAM
+   ============================================ */
+.team-elim-round-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  background: rgba(255, 100, 100, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 4px;
+  margin-left: auto;
+}

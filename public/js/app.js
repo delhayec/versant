@@ -904,9 +904,139 @@ function getEliminatedFromFrozen(seasonNumber, frozen) {
   return result;
 }
 
+/**
+ * Rendu spécifique du challenge des éliminés en saison TEAM.
+ * Les équipes éliminées sont conservées (composition figée au moment de l'élimination).
+ * Classement :
+ *   - Entre équipes : par D+ collectif cumulé depuis élimination
+ *   - Au sein d'une équipe : par D+ individuel cumulé depuis élimination
+ */
+function renderTeamEliminatedChallenge(container) {
+  if (!frozenResultsCache?.rounds) {
+    container.innerHTML = '<div class="empty-state"><p>Aucun éliminé cette saison</p></div>';
+    return;
+  }
+
+  // Récupérer toutes les équipes éliminées dans la saison courante
+  const seasonStartRound = getSeasonStartRound(currentSeasonNumber);
+  const seasonEndRound = seasonStartRound + getRoundsForSeason(currentSeasonNumber) - 1;
+  const today = getCurrentDate();
+
+  const eliminatedTeams = [];
+  for (let rn = seasonStartRound; rn <= seasonEndRound; rn++) {
+    const round = frozenResultsCache.rounds[String(rn)];
+    if (!round?.frozen) continue;
+    if (!round.eliminatedTeam) continue;
+    const elimEnd = round.dates?.end ? new Date(round.dates.end) : null;
+    if (!elimEnd) continue;
+    eliminatedTeams.push({
+      roundNumber: rn,
+      roundInSeason: rn - seasonStartRound + 1,
+      eliminatedTeam: round.eliminatedTeam,
+      eliminatedAfter: elimEnd
+    });
+  }
+
+  if (eliminatedTeams.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>Aucune équipe éliminée cette saison</p></div>';
+    return;
+  }
+
+  // Pour chaque équipe éliminée : calculer D+ par membre depuis l'élimination
+  const teamsWithStats = eliminatedTeams.map(et => {
+    const startMs = et.eliminatedAfter.getTime();
+    const endMs = today.getTime();
+    const members = (et.eliminatedTeam.members || []).map(m => {
+      const acts = (allActivities || []).filter(a => {
+        if (String(a.athlete?.id || a.athlete_id) !== String(m.id)) return false;
+        if (a.excluded) return false;
+        const ts = new Date(a.start_date).getTime();
+        return ts >= startMs && ts <= endMs;
+      });
+      const elev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+      return {
+        id: String(m.id),
+        name: m.name,
+        elevation: Math.round(elev),
+        activitiesCount: acts.length
+      };
+    });
+    const totalElevation = members.reduce((s, m) => s + m.elevation, 0);
+    return {
+      animal: et.eliminatedTeam.animal,
+      color: et.eliminatedTeam.color,
+      members,
+      totalElevation,
+      eliminatedAtRound: et.roundInSeason
+    };
+  });
+
+  // Trier les équipes par D+ cumulé décroissant
+  teamsWithStats.sort((a, b) => b.totalElevation - a.totalElevation);
+
+  // === RENDU HTML ===
+  let html = `
+    <div class="team-ranking">
+      <div class="team-ranking-header">
+        <span>👻 Challenge des éliminés — Saison ${currentSeasonNumber}</span>
+      </div>
+  `;
+
+  teamsWithStats.forEach((team, teamPosition) => {
+    const teamColor = team.color || TEAM_COLORS[teamPosition % TEAM_COLORS.length];
+    const animal = team.animal;
+    const position = teamPosition + 1;
+    const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '';
+    const teamLabel = animal ? `${animal.emoji} ${animal.name}` : `Équipe`;
+    const elimBadge = `<span class="team-elim-round-badge">Éliminée R${team.eliminatedAtRound}</span>`;
+
+    html += `
+      <div class="team-block" style="border-left: 4px solid ${teamColor.border}; background: ${teamColor.bg};">
+        <div class="team-block-header">
+          <span class="team-position">${medal || '#' + position}</span>
+          <span class="team-name">${teamLabel}</span>
+          <span class="team-total-elevation">${formatElevation(team.totalElevation)}</span>
+          ${elimBadge}
+        </div>
+        <div class="team-members">
+    `;
+
+    const membersSorted = [...team.members].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
+    membersSorted.forEach(member => {
+      const participant = getParticipantById(member.id);
+      const name = participant?.name || member.name || '?';
+      const color = getAthleteColor(member.id);
+      const initials = getAthleteInitials(member.id);
+      html += `
+          <div class="team-member-row">
+            <div class="team-member-info">
+              <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${color},${color}88)">${initials}</div>
+              <span class="team-member-name">${name}</span>
+            </div>
+            <span class="team-member-elevation">${formatElevation(member.elevation || 0)}</span>
+          </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 function renderEliminatedChallenge(container) {
+  // Branchement saison team : rendu spécifique par équipes éliminées
+  const seasonType = getSeasonType(currentSeasonNumber);
+  if (seasonType?.isTeamBased) {
+    return renderTeamEliminatedChallenge(container);
+  }
+
+  // === SAISON STANDARD ===
   // Fallback : si seasonData.eliminated est vide, lire depuis frozen_results.
-  // Nécessaire pour les saisons team où le calcul live ne remplit pas seasonData.eliminated.
   let eliminatedList = seasonData?.eliminated;
   if (!eliminatedList?.length && frozenResultsCache) {
     eliminatedList = getEliminatedFromFrozen(currentSeasonNumber, frozenResultsCache);
@@ -1542,12 +1672,13 @@ function renderCurrentSeasonHistory(container) {
     return;
   }
 
-  const roundsPerSeason = getRoundsPerSeason();
+  const roundsPerSeason = getRoundsForSeason(currentSeasonNumber);
+  const seasonStartRound = getSeasonStartRound(currentSeasonNumber);
   let html = '';
 
   // Parcourir les rounds terminés
   for (let r = 1; r <= roundsPerSeason; r++) {
-    const globalRound = (currentSeasonNumber - 1) * roundsPerSeason + r;
+    const globalRound = seasonStartRound + r - 1;
     const roundDates = getRoundDates(globalRound);
     const today = getCurrentDate();
 
