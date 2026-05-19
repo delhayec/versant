@@ -2189,10 +2189,254 @@ async function renderMoneyTimeChart() {
 
 
 // ============================================
+// COMPARAISON 2025 vs 2026
+// ============================================
+let compareChart = null;
+let elevation2025Cache = null;
+let compareMode = 'individual'; // 'individual' | 'global'
+
+async function loadElevation2025() {
+  if (elevation2025Cache !== null) return elevation2025Cache;
+  try {
+    const response = await fetch('/data/elevation_2025.json', { cache: 'force-cache' });
+    if (response.ok) {
+      elevation2025Cache = await response.json();
+    } else {
+      elevation2025Cache = { byAthlete: {} };
+    }
+  } catch (e) {
+    elevation2025Cache = { byAthlete: {} };
+  }
+  return elevation2025Cache;
+}
+
+/**
+ * Construit la série cumulative pour une année donnée.
+ * Renvoie [{ x: 'MM-DD', y: cumElevation }, ...] où x est le jour de l'année (au format MM-DD)
+ * pour pouvoir aligner 2025 et 2026 sur le même axe X.
+ */
+function buildCumulativeSeries(byDate, yearStart) {
+  // byDate = { 'YYYY-MM-DD': elevation }
+  const sortedDates = Object.keys(byDate).sort();
+  const series = [];
+  let cum = 0;
+  for (const date of sortedDates) {
+    cum += byDate[date] || 0;
+    // x = MM-DD pour alignement entre années
+    series.push({ x: date.substring(5), y: Math.round(cum) });
+  }
+  return series;
+}
+
+async function renderCompareChart() {
+  const dom = document.getElementById('compareChart');
+  if (!dom) return;
+
+  const data2025 = await loadElevation2025();
+  const data2026 = getFilteredData(); // activités 2026
+
+  if (compareChart) compareChart.dispose();
+  compareChart = echarts.init(dom);
+
+  // Agréger 2026 par athlète et par jour
+  const by2026 = {};
+  for (const a of data2026) {
+    const id = String(a.athlete_id);
+    if (!by2026[id]) by2026[id] = { byDate: {} };
+    const date = a.start_date.substring(0, 10);
+    by2026[id].byDate[date] = (by2026[id].byDate[date] || 0) + (a.total_elevation_gain || 0);
+  }
+
+  const selectedAthleteId = document.getElementById('athleteSelect')?.value;
+
+  if (compareMode === 'individual') {
+    // 1 série par athlète × 2 années
+    const series = [];
+    const allAthleteIds = new Set([...Object.keys(data2025.byAthlete || {}), ...Object.keys(by2026)]);
+
+    for (const id of allAthleteIds) {
+      const isHighlighted = !selectedAthleteId || String(id) === String(selectedAthleteId);
+      const color = getAthleteColor(id);
+      const name = getAthleteName(id);
+
+      const s2025 = data2025.byAthlete?.[id]?.byDate
+        ? buildCumulativeSeries(data2025.byAthlete[id].byDate)
+        : null;
+      const s2026 = by2026[id]?.byDate
+        ? buildCumulativeSeries(by2026[id].byDate)
+        : null;
+
+      if (s2025 && s2025.length > 0) {
+        series.push({
+          name: `${name} 2025`,
+          type: 'line',
+          smooth: true,
+          symbol: 'none',
+          data: s2025.map(p => [p.x, p.y]),
+          lineStyle: { color, width: isHighlighted ? 2 : 1, type: 'dashed', opacity: isHighlighted ? 0.7 : 0.1 },
+          itemStyle: { color, opacity: isHighlighted ? 0.7 : 0.1 }
+        });
+      }
+      if (s2026 && s2026.length > 0) {
+        series.push({
+          name: `${name} 2026`,
+          type: 'line',
+          smooth: true,
+          symbol: 'none',
+          data: s2026.map(p => [p.x, p.y]),
+          lineStyle: { color, width: isHighlighted ? 3 : 1, opacity: isHighlighted ? 1 : 0.15 },
+          itemStyle: { color, opacity: isHighlighted ? 1 : 0.15 }
+        });
+      }
+    }
+
+    compareChart.setOption({
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(10,10,15,0.95)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        textStyle: { color: '#fff' }
+      },
+      legend: {
+        type: 'scroll',
+        bottom: 0,
+        textStyle: { color: 'rgba(255,255,255,0.7)' },
+        pageIconColor: 'rgba(255,255,255,0.5)',
+        pageTextStyle: { color: 'rgba(255,255,255,0.7)' }
+      },
+      grid: { left: 60, right: 30, top: 30, bottom: 60 },
+      xAxis: {
+        type: 'category',
+        name: 'Jour de l\'année',
+        nameLocation: 'middle',
+        nameGap: 30,
+        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
+        axisLabel: { color: 'rgba(255,255,255,0.6)', interval: 30 },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'D+ cumulé (m)',
+        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
+        axisLabel: {
+          color: 'rgba(255,255,255,0.6)',
+          formatter: v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v
+        },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+      },
+      series
+    });
+  } else {
+    // === MODE GLOBAL : somme de tous les athlètes ===
+    const sumByDate2025 = {};
+    for (const [, info] of Object.entries(data2025.byAthlete || {})) {
+      for (const [date, elev] of Object.entries(info.byDate || {})) {
+        sumByDate2025[date] = (sumByDate2025[date] || 0) + elev;
+      }
+    }
+    const sumByDate2026 = {};
+    for (const [, info] of Object.entries(by2026)) {
+      for (const [date, elev] of Object.entries(info.byDate || {})) {
+        sumByDate2026[date] = (sumByDate2026[date] || 0) + elev;
+      }
+    }
+    const s2025 = buildCumulativeSeries(sumByDate2025);
+    const s2026 = buildCumulativeSeries(sumByDate2026);
+
+    compareChart.setOption({
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(10,10,15,0.95)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        textStyle: { color: '#fff' },
+        formatter: params => {
+          return params.map(p => {
+            const v = typeof p.value === 'object' ? p.value[1] : p.value;
+            return `<div style="display:flex;align-items:center;gap:6px;margin:2px 0">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></span>
+              <span>${p.seriesName}: <strong>${(v/1000).toFixed(0)} km D+</strong></span>
+            </div>`;
+          }).join('');
+        }
+      },
+      legend: {
+        bottom: 0,
+        textStyle: { color: 'rgba(255,255,255,0.85)' }
+      },
+      grid: { left: 60, right: 30, top: 30, bottom: 60 },
+      xAxis: {
+        type: 'category',
+        name: 'Jour de l\'année',
+        nameLocation: 'middle',
+        nameGap: 30,
+        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
+        axisLabel: { color: 'rgba(255,255,255,0.6)', interval: 30 },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'D+ total ligue (m)',
+        nameTextStyle: { color: 'rgba(255,255,255,0.5)' },
+        axisLabel: {
+          color: 'rgba(255,255,255,0.6)',
+          formatter: v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v
+        },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+      },
+      series: [
+        {
+          name: 'Ligue 2025',
+          type: 'line',
+          smooth: true,
+          symbol: 'none',
+          data: s2025.map(p => [p.x, p.y]),
+          lineStyle: { color: '#94a3b8', width: 3, type: 'dashed' },
+          itemStyle: { color: '#94a3b8' }
+        },
+        {
+          name: 'Ligue 2026',
+          type: 'line',
+          smooth: true,
+          symbol: 'none',
+          data: s2026.map(p => [p.x, p.y]),
+          lineStyle: { color: '#f97316', width: 3 },
+          itemStyle: { color: '#f97316' },
+          areaStyle: {
+            color: {
+              type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: 'rgba(249, 115, 22, 0.3)' },
+                { offset: 1, color: 'rgba(249, 115, 22, 0)' }
+              ]
+            }
+          }
+        }
+      ]
+    });
+  }
+}
+
+function setupCompareToggle() {
+  document.querySelectorAll('.compare-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.compare-toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      compareMode = btn.dataset.mode;
+      renderCompareChart();
+    });
+  });
+}
+
+
+// ============================================
 // TABLE DÉTAILLÉE + ACHIEVEMENTS
 // ============================================
 
-function computeAthleteStats(data) {
+function computeAthleteStats(data, frozenResults = null) {
   const stats = new Map();
 
   for (const a of data) {
@@ -2207,6 +2451,7 @@ function computeAthleteStats(data) {
         best_activity: null,
         elevation_by_sport: {},
         elevation_by_day: {},
+        elevation_by_round: {},   // map roundNumber -> { elevation, dateStart }
         activities_without_elevation: 0,
         night_activities: 0,
         morning_activities: 0,
@@ -2229,6 +2474,20 @@ function computeAthleteStats(data) {
 
     const sport = mapSportName(a.sport_type);
     s.elevation_by_sport[sport] = (s.elevation_by_sport[sport] || 0) + (a.total_elevation_gain || 0);
+
+    // Bin par round (5 jours depuis yearStart)
+    try {
+      const actDate = new Date(a.start_date);
+      const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
+      const daysSinceStart = Math.floor((actDate - yearStart) / 86400000);
+      if (daysSinceStart >= 0) {
+        const roundNum = Math.floor(daysSinceStart / 5) + 1;
+        if (!s.elevation_by_round[roundNum]) {
+          s.elevation_by_round[roundNum] = { elevation: 0 };
+        }
+        s.elevation_by_round[roundNum].elevation += a.total_elevation_gain || 0;
+      }
+    } catch (e) { /* ignore date parse errors */ }
 
     if (!s.best_activity || (a.total_elevation_gain || 0) > s.best_activity.elevation) {
       s.best_activity = {
@@ -2255,11 +2514,34 @@ function computeAthleteStats(data) {
     s.total_kudos += a.kudos_count || 0;
   }
 
+  // Lookup points totaux par athlète depuis yearlyStandingsSnapshot
+  const pointsByAthlete = {};
+  const winsByAthlete = {};
+  if (frozenResults?.yearlyStandingsSnapshot?.standings) {
+    for (const e of frozenResults.yearlyStandingsSnapshot.standings) {
+      const id = String(e.id);
+      pointsByAthlete[id] = e.totalPoints || 0;
+      winsByAthlete[id] = e.wins || 0;
+    }
+  }
+
   return [...stats.values()].map(s => {
     const best24h = Object.entries(s.elevation_by_day).reduce(
       (acc, [day, el]) => el > acc.elevation ? { day, elevation: el } : acc,
       { day: null, elevation: 0 }
     );
+    // Plus gros round
+    const bestRound = Object.entries(s.elevation_by_round).reduce(
+      (acc, [r, info]) => info.elevation > acc.elevation
+        ? { roundNumber: parseInt(r, 10), elevation: info.elevation }
+        : acc,
+      { roundNumber: null, elevation: 0 }
+    );
+    const totalPoints = pointsByAthlete[String(s.athlete_id)] || 0;
+    const seasonsWon = winsByAthlete[String(s.athlete_id)] || 0;
+    // Rapport D+ / points (= combien de m de D+ pour 1 point)
+    // Plus c'est bas, plus c'est efficace
+    const elevationPerPoint = totalPoints > 0 ? Math.round(s.total_elevation / totalPoints) : 0;
     return {
       ...s,
       elevation_per_distance: s.total_distance > 0 ? (s.total_elevation / (s.total_distance / 1000)).toFixed(1) : 0,
@@ -2268,7 +2550,12 @@ function computeAthleteStats(data) {
       best_elevation: s.best_activity ? s.best_activity.elevation : 0,
       best_24h_elevation: best24h.elevation,
       best_24h_day: best24h.day,
-      num_sports: s.sports_used.size
+      best_round_elevation: bestRound.elevation,
+      best_round_number: bestRound.roundNumber,
+      num_sports: s.sports_used.size,
+      total_points: totalPoints,
+      seasons_won: seasonsWon,
+      elevation_per_point: elevationPerPoint
     };
   });
 }
@@ -2285,9 +2572,14 @@ function renderRankingTable(stats) {
         ? new Date(s.best_activity.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
         : '-';
       const stravaLink = s.best_activity ? `https://www.strava.com/activities/${s.best_activity.id}` : '#';
+      const elevPerPt = s.total_points > 0 ? s.elevation_per_point.toLocaleString('fr-FR') : '-';
+      const wins = s.seasons_won > 0 ? '🏆'.repeat(Math.min(s.seasons_won, 5)) : '-';
       return `<tr>
         <td style="color:${getAthleteColor(s.athlete_id)}">${getAthleteName(s.athlete_id)}</td>
         <td>${Math.round(s.total_elevation).toLocaleString('fr-FR')}</td>
+        <td>${s.total_points || 0}</td>
+        <td>${elevPerPt}</td>
+        <td>${wins}</td>
         <td>${s.activity_count}</td>
         <td>${(s.total_distance / 1000).toFixed(0)}</td>
         <td>${Math.round(s.total_time / 3600)}</td>
@@ -2333,28 +2625,56 @@ function renderAchievements(stats) {
   if (!grid) return;
 
   const achievements = [
+    // === ACHIEVEMENTS PRINCIPAUX CHALLENGE ===
     { id: 'king', emoji: '👑', name: 'Roi du D+', desc: 'Le plus de dénivelé total', type: 'legendary',
       getValue: s => s.total_elevation, format: v => `${formatElevation(v)} m` },
+    { id: 'points_king', emoji: '🏆', name: 'Roi des Points', desc: 'Le plus de points marqués', type: 'legendary',
+      getValue: s => s.total_points, format: v => `${v} pts` },
+    { id: 'champion', emoji: '🥇', name: 'Champion', desc: 'Saisons remportées', type: 'legendary',
+      getValue: s => s.seasons_won, format: v => `${v} saison${v > 1 ? 's' : ''}` },
+
+    // === RECORDS PUNCTUELS ===
     { id: 'best24h', emoji: '🔥', name: 'Journée de Feu', desc: 'Le plus gros D+ en 24h', type: 'legendary',
       getValue: s => s.best_24h_elevation, format: v => `${formatElevation(v)} m` },
-    { id: 'polyvalent', emoji: '🎯', name: 'Polyvalent', desc: 'Le plus de sports différents', type: 'normal',
-      getValue: s => s.num_sports, format: v => `${v} sports` },
+    { id: 'bestRound', emoji: '⚡', name: 'Round de Folie', desc: 'Le plus gros D+ sur un round (5j)', type: 'legendary',
+      getValue: s => s.best_round_elevation, format: v => `${formatElevation(v)} m` },
+    { id: 'biggestAct', emoji: '⛰️', name: 'Sortie Légende', desc: 'La plus grosse sortie unique', type: 'legendary',
+      getValue: s => s.best_elevation, format: v => `${formatElevation(v)} m` },
+
+    // === EFFICACITÉ ===
     { id: 'efficient', emoji: '⚡', name: 'Efficace', desc: 'Le plus de D+ par sortie', type: 'normal',
       getValue: s => parseFloat(s.elevation_per_activity), format: v => `${formatElevation(v)} m/sortie` },
+    { id: 'lost', emoji: '🤷', name: 'A pas compris', desc: 'Plus de sorties pour peu de D+ (moins de D+ par sortie)', type: 'fun',
+      // Critère inversé : on prend le plus haut "déficit" en m/sortie.
+      // getValue retourne (1000 - elevation_per_activity) pour qu'un faible m/sortie
+      // donne une valeur élevée (= "champion" du concept).
+      // On ne montre que ceux avec >= 10 activités pour éviter de pénaliser les peu actifs.
+      getValue: s => s.activity_count >= 10 ? Math.max(0, 1000 - parseFloat(s.elevation_per_activity)) : 0,
+      format: (_v, s) => `${s ? s.elevation_per_activity : 0} m/sortie`,
+      formatWinner: s => `${s.elevation_per_activity} m/sortie (${s.activity_count} act.)` },
     { id: 'steep', emoji: '🧗', name: 'Accro à la Pente', desc: 'Le plus de D+ par km', type: 'normal',
       getValue: s => parseFloat(s.elevation_per_distance), format: v => `${v} m/km` },
+    { id: 'worker', emoji: '💪', name: 'Le Travailleur', desc: 'Le plus de D+ pour 1 point', type: 'normal',
+      getValue: s => s.total_points > 0 ? s.elevation_per_point : 0,
+      format: v => `${formatElevation(v)} m/pt` },
+
+    // === HABITUDES ===
     { id: 'nightowl', emoji: '🦉', name: 'Oiseau de Nuit', desc: 'Activités après 20h', type: 'fun',
       getValue: s => s.night_activities, format: v => `${v} sorties` },
     { id: 'earlybird', emoji: '🐓', name: 'Lève-tôt', desc: 'Activités 4h-7h', type: 'normal',
       getValue: s => s.morning_activities, format: v => `${v} sorties` },
     { id: 'weekend', emoji: '🏖️', name: 'Weekend Warrior', desc: 'Activités le weekend', type: 'fun',
       getValue: s => s.weekend_activities, format: v => `${v} sorties` },
+
+    // === VOLUMES ===
     { id: 'distance', emoji: '🛣️', name: 'Forrest Gump', desc: 'La plus grande distance', type: 'normal',
       getValue: s => s.total_distance, format: v => `${(v/1000).toFixed(0)} km` },
     { id: 'marathoner', emoji: '⏱️', name: 'Marathonien', desc: 'Plus longue activité', type: 'normal',
       getValue: s => s.longest_activity_time, format: v => `${(v/3600).toFixed(1)} h` },
-    { id: 'flat', emoji: '🤷', name: 'A pas compris', desc: "Activités sans D+", type: 'fun',
+    { id: 'flat', emoji: '🪜', name: 'Plat Pays', desc: 'Activités sans D+', type: 'fun',
       getValue: s => s.activities_without_elevation, format: v => `${v} activités` },
+
+    // === SPORTS ===
     { id: 'cyclist', emoji: '🚴', name: 'Roi de la Pédale', desc: 'Le plus de D+ à vélo', type: 'normal',
       getValue: s => s.elevation_by_sport['Bike'] || 0, format: v => `${formatElevation(v)} m` },
     { id: 'runner', emoji: '🏃', name: 'Crapahute', desc: 'Le plus de D+ en trail/run', type: 'normal',
@@ -2389,6 +2709,7 @@ function renderAchievements(stats) {
     const winner = sorted[0];
     const top3 = sorted.slice(0, 3);
 
+    const winnerText = ach.formatWinner ? ach.formatWinner(winner) : ach.format(ach.getValue(winner));
     cards.push(`
       <div class="achievement-card" data-idx="${aIdx}">
         <div class="achievement-badge ${ach.type}">${ach.emoji}</div>
@@ -2398,7 +2719,7 @@ function renderAchievements(stats) {
           <div class="achievement-winner">
             <div class="achievement-winner-color" style="background:${getAthleteColor(winner.athlete_id)}"></div>
             <span class="achievement-winner-name">${getAthleteName(winner.athlete_id)}</span>
-            <span class="achievement-winner-value">${ach.format(ach.getValue(winner))}</span>
+            <span class="achievement-winner-value">${winnerText}</span>
           </div>
         </div>
       </div>
@@ -2420,12 +2741,13 @@ function renderAchievements(stats) {
       let html = `<div style="font-weight:600;margin-bottom:10px;font-size:13px">${ach.emoji} ${ach.name}</div>`;
       sorted.forEach((s, i) => {
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
+        const txt = ach.formatWinner ? ach.formatWinner(s) : ach.format(ach.getValue(s));
         html += `
           <div style="display:flex;align-items:center;gap:8px;margin:6px 0">
             <span>${medal}</span>
             <span style="width:10px;height:10px;border-radius:50%;background:${getAthleteColor(s.athlete_id)};flex-shrink:0"></span>
             <span style="color:rgba(255,255,255,0.9)">${getAthleteName(s.athlete_id)}</span>
-            <span style="color:rgba(255,255,255,0.5);margin-left:auto">${ach.format(ach.getValue(s))}</span>
+            <span style="color:rgba(255,255,255,0.5);margin-left:auto">${txt}</span>
           </div>`;
       });
       tooltipEl.innerHTML = html;
@@ -2485,10 +2807,12 @@ function refreshFilteredViews() {
   renderCalendar(filtered);
   renderRidgelineBySport(filtered);
   renderRidgelineByRoundDay(filtered);
+  // Re-rendre la comparaison 2025 vs 2026 quand le filtre athlète change
+  renderCompareChart();
 
   // Si tableau détaillé visible, le re-rendre
   if (rankingVisible) {
-    const stats = computeAthleteStats(filtered);
+    const stats = computeAthleteStats(filtered, frozenResultsCache);
     renderRankingTable(stats);
     renderAchievements(stats);
   }
@@ -2505,7 +2829,7 @@ function toggleRankingSection() {
 
   if (rankingVisible) {
     const filtered = getFilteredData();
-    const stats = computeAthleteStats(filtered);
+    const stats = computeAthleteStats(filtered, frozenResultsCache);
     renderRankingTable(stats);
     renderAchievements(stats);
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2597,6 +2921,10 @@ async function init() {
           // Money Time (nécessite fetch aussi)
           renderMoneyTimeChart();
 
+          // Comparaison 2025 vs 2026 (nécessite fetch elevation_2025.json)
+          renderCompareChart();
+          setupCompareToggle();
+
           // Sorties de groupe : le PLUS LOURD → on le fait via requestIdleCallback si dispo
           const ric = window.requestIdleCallback || function(cb) { return setTimeout(cb, 100); };
           ric(() => {
@@ -2612,7 +2940,7 @@ async function init() {
 
     // Resize handler global
     window.addEventListener('resize', () => {
-      [sportPieChart, sankeyChart, calendarChart, ridgelineChart, pointsChart, moneyTimeChart].forEach(c => {
+      [sportPieChart, sankeyChart, calendarChart, ridgelineChart, pointsChart, moneyTimeChart, compareChart].forEach(c => {
         if (c) c.resize();
       });
       if (window.roundRidgeChart) window.roundRidgeChart.resize();

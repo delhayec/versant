@@ -327,10 +327,27 @@
     </div>
   </section>
 
-  <!-- 10. Achievements + tableau détaillé (toggle) -->
-  <section class="ranking-stats-section" id="rankingStatsSection" style="display: none;">
+  <!-- 10. Comparaison 2025 vs 2026 -->
+  <section class="compare-section" id="compareSection">
     <div class="section-header">
       <span class="section-number">10</span>
+      <h2 class="section-title">2025 vs 2026</h2>
+      <p class="section-desc">Évolution du D+ cumulé jour après jour, année après année</p>
+    </div>
+
+    <div class="compare-chart-wrapper">
+      <div class="compare-toggle">
+        <button class="compare-toggle-btn active" data-mode="individual">Par athlète</button>
+        <button class="compare-toggle-btn" data-mode="global">Cumul ligue</button>
+      </div>
+      <div id="compareChart"></div>
+    </div>
+  </section>
+
+  <!-- 11. Achievements + tableau détaillé (toggle) -->
+  <section class="ranking-stats-section" id="rankingStatsSection" style="display: none;">
+    <div class="section-header">
+      <span class="section-number">11</span>
       <h2 class="section-title">🏆 Tableau détaillé</h2>
       <p class="section-desc">Classements thématiques et stats complètes par athlète</p>
     </div>
@@ -346,6 +363,9 @@
           <tr>
             <th data-sort="athlete_id">Athlète</th>
             <th data-sort="total_elevation">D+ (m)</th>
+            <th data-sort="total_points">Points</th>
+            <th data-sort="elevation_per_point">D+/Pt</th>
+            <th data-sort="seasons_won">🏆</th>
             <th data-sort="activity_count">Activités</th>
             <th data-sort="total_distance">Distance (km)</th>
             <th data-sort="total_time">Temps (h)</th>
