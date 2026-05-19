@@ -24,6 +24,7 @@ import {
   getRoundsForSeason,
   getSeasonNumber,
   getSeasonStartRound,
+  setFrozenCache,
   loadParticipants,
   getAthleteColor as configAthleteColor
 } from './config.js';
@@ -1709,6 +1710,8 @@ async function loadFrozenResults() {
   } catch (e) {
     frozenResultsCache = { rounds: {} };
   }
+  // Propager le cache aux helpers de config.js
+  setFrozenCache(frozenResultsCache);
   return frozenResultsCache;
 }
 

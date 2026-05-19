@@ -16,6 +16,7 @@ import {
   getParticipantById, getRoundDates, getSeasonNumber, getSeasonDates,
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
+  setFrozenCache,
   getMainChallengePoints, getEliminatedChallengePoints,
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
@@ -127,10 +128,14 @@ async function loadFrozenResults() {
       frozenResultsCache = await response.json();
       // Charger les bonus archivés dans frozen_results
       seasonBonusesCache = frozenResultsCache.seasonBonuses || {};
+      // Propager le cache aux helpers de config.js pour qu'ils utilisent
+      // la réalité figée (saisons raccourcies par handicap, etc.)
+      setFrozenCache(frozenResultsCache);
     }
   } catch (error) {
     console.warn('⚠️ Impossible de charger les résultats figés:', error);
     frozenResultsCache = { rounds: {} };
+    setFrozenCache(frozenResultsCache);
   }
 }
 
@@ -869,51 +874,24 @@ function renderTeamRanking(container, data) {
 // ============================================
 
 /**
- * Helper local : détermine les bornes réelles d'une saison.
+ * Helper local : retourne les bornes d'une saison sous forme d'objet complet.
  *
- * En théorie, getSeasonStartRound(s) calcule via formule basée sur PARTICIPANTS.length.
- * Mais cette formule est THÉORIQUE et peut diverger de la réalité quand :
- *   - Une saison a un round handicap qui élimine plus de 2 joueurs
- *   - Plus de 2 joueurs sont inactifs sur un round
- *   - Une saison se termine plus tôt que prévu (moins de rounds)
- *
- * Pour les saisons FIGÉES (rounds frozen dans frozen_results.json), on lit la réalité.
- * Pour la saison EN COURS, on retombe sur le calcul théorique pour anticiper.
+ * Depuis le refactor de config.js, getSeasonStartRound() et getRoundsForSeason()
+ * lisent automatiquement la réalité depuis _frozenCache (via setFrozenCache).
+ * Ce helper est juste un wrapper qui assemble les 2 valeurs.
  *
  * @returns {object} { startRound, endRound, roundsCount, isCompleted }
  */
 function getRealSeasonBounds(seasonNumber, frozen) {
-  if (frozen?.rounds) {
-    const frozenRoundsOfSeason = Object.values(frozen.rounds)
-      .filter(r => r && Number(r.seasonNumber) === Number(seasonNumber) && r.frozen)
-      .map(r => Number(r.roundNumber))
-      .sort((a, b) => a - b);
-
-    if (frozenRoundsOfSeason.length > 0) {
-      const startRound = frozenRoundsOfSeason[0];
-      const lastFrozen = frozenRoundsOfSeason[frozenRoundsOfSeason.length - 1];
-      // Saison terminée si elle a un eliminatedChallengeRankings entry
-      const isCompleted = !!frozen.eliminatedChallengeRankings?.[String(seasonNumber)];
-      // endRound : pour saison terminée = lastFrozen ; sinon = startRound + max rounds théoriques - 1
-      const theoreticalRounds = getRoundsForSeason(seasonNumber);
-      const endRound = isCompleted ? lastFrozen : (startRound + theoreticalRounds - 1);
-      return {
-        startRound,
-        endRound,
-        roundsCount: isCompleted ? frozenRoundsOfSeason.length : theoreticalRounds,
-        isCompleted
-      };
-    }
-  }
-
-  // Fallback : calcul théorique
-  const startRound = getSeasonStartRound(seasonNumber);
-  const roundsCount = getRoundsForSeason(seasonNumber);
+  const cache = frozen || frozenResultsCache;
+  const startRound = getSeasonStartRound(seasonNumber, cache);
+  const roundsCount = getRoundsForSeason(seasonNumber, cache);
+  const isCompleted = !!cache?.eliminatedChallengeRankings?.[String(seasonNumber)];
   return {
     startRound,
     endRound: startRound + roundsCount - 1,
     roundsCount,
-    isCompleted: false
+    isCompleted
   };
 }
 
@@ -2077,6 +2055,13 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
   const teams = frozenRound.teams || [];
   const eliminations = frozenRound.eliminations || [];
   const eliminatedIds = new Set(eliminations.map(e => e.id));
+  // Lookup mainPoints depuis le ranking : team.members[*] ne contient pas mainPoints,
+  // alors que ranking[*] oui (renseigné lors du figement).
+  const ranking = frozenRound.ranking || [];
+  const mainPointsByMember = {};
+  for (const r of ranking) {
+    if (r.id != null) mainPointsByMember[String(r.id)] = r.mainPoints || 0;
+  }
 
   // Trouver l'équipe éliminée
   const eliminatedTeam = teams.find(t => t.members.some(m => eliminatedIds.has(m.id)));
@@ -2100,7 +2085,8 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
       .sort((a, b) => (b.elevation || 0) - (a.elevation || 0))
       .map(m => {
         const isElim = eliminatedIds.has(m.id);
-        const pts = m.mainPoints || 0;
+        // Récupère mainPoints depuis le ranking (pas depuis team.members qui ne l'a pas)
+        const pts = mainPointsByMember[String(m.id)] || 0;
         const ptsHtml = pts > 0 ? ` <span class="history-pts-badge">${pts} pts</span>` : '';
         return `<div class="history-ranking-row ${isElim ? 'eliminated' : ''}" style="padding-left: 24px;">
           <span class="history-name">${m.name || '?'}</span>

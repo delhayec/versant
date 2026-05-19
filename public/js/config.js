@@ -602,6 +602,61 @@ export const getParticipantById = (id) => PARTICIPANTS.find(p => p.id === String
 // UTILITAIRES DE DATE
 // ============================================
 
+// ---------------------------------------------------------------------------
+// CACHE DES RÉSULTATS FIGÉS (module-level)
+// ---------------------------------------------------------------------------
+// Les helpers ci-dessous (getRoundsForSeason, getSeasonStartRound, etc.)
+// utilisent par DÉFAUT un calcul THÉORIQUE basé sur PARTICIPANTS.length.
+// Or la réalité peut diverger : une saison peut être raccourcie (handicap,
+// multi-éliminations) ou modifiée par des règles spéciales.
+//
+// Pour avoir des calculs précis sur les saisons figées, l'application doit
+// appeler `setFrozenCache(frozenResultsCache)` une fois après chargement.
+// Tous les helpers utiliseront alors la réalité figée pour les saisons
+// passées et le théorique pour la saison en cours.
+//
+// Les helpers acceptent aussi un paramètre `frozen` optionnel en dernier
+// argument pour passer le cache explicitement (utile en testing).
+// ---------------------------------------------------------------------------
+let _frozenCache = null;
+
+export function setFrozenCache(cache) {
+  _frozenCache = cache || null;
+}
+
+export function getFrozenCache() {
+  return _frozenCache;
+}
+
+/**
+ * Retourne les bornes RÉELLES d'une saison si elle est figée dans le cache,
+ * sinon null. Utilisé en interne par getRoundsForSeason/getSeasonStartRound.
+ *
+ * @returns {object|null} { startRound, endRound, roundsCount, isCompleted } ou null
+ */
+function _getRealSeasonBounds(seasonNumber, frozen) {
+  const data = frozen || _frozenCache;
+  if (!data?.rounds) return null;
+
+  const frozenRoundsOfSeason = Object.values(data.rounds)
+    .filter(r => r && Number(r.seasonNumber) === Number(seasonNumber) && r.frozen)
+    .map(r => Number(r.roundNumber))
+    .sort((a, b) => a - b);
+
+  if (frozenRoundsOfSeason.length === 0) return null;
+
+  const startRound = frozenRoundsOfSeason[0];
+  const lastFrozen = frozenRoundsOfSeason[frozenRoundsOfSeason.length - 1];
+  const isCompleted = !!data.eliminatedChallengeRankings?.[String(seasonNumber)];
+
+  return {
+    startRound,
+    endRound: isCompleted ? lastFrozen : null, // null pour saison en cours
+    roundsCount: isCompleted ? frozenRoundsOfSeason.length : null,
+    isCompleted
+  };
+}
+
 // Utiliser PARTICIPANTS.length dynamiquement (pas de variable statique)
 export function getRoundsPerSeason() {
   const count = PARTICIPANTS.length || 13; // Fallback à 13 si pas encore chargé
@@ -611,8 +666,21 @@ export function getRoundsPerSeason() {
 /**
  * Retourne le nombre de rounds pour une saison donnée.
  * Saison standard = ceil((N-1)/2), Saison équipe = ceil((N-1)/3) + 1 (finale)
+ *
+ * Si la saison est figée et terminée dans le cache, retourne le nombre RÉEL
+ * de rounds figés. Sinon retourne le calcul théorique.
+ *
+ * @param {number} seasonNumber
+ * @param {Object} [frozen] - Cache /api/frozen-results explicite (ou utilise _frozenCache)
  */
-export function getRoundsForSeason(seasonNumber) {
+export function getRoundsForSeason(seasonNumber, frozen = null) {
+  // 1. Si saison terminée dans le cache → vraie valeur
+  const bounds = _getRealSeasonBounds(seasonNumber, frozen);
+  if (bounds && bounds.isCompleted) {
+    return bounds.roundsCount;
+  }
+
+  // 2. Sinon calcul théorique (saison en cours ou pas de cache)
   const seasonType = getSeasonType(seasonNumber);
   const count = PARTICIPANTS.length || 13;
 
@@ -628,12 +696,25 @@ export function getRoundsForSeason(seasonNumber) {
 }
 
 /**
- * Retourne le round global du premier round d'une saison
+ * Retourne le round global du premier round d'une saison.
+ * Si la saison N existe dans le cache figé → utilise le vrai startRound.
+ * Sinon → accumule les durées théoriques des saisons précédentes.
+ *
+ * @param {number} seasonNumber
+ * @param {Object} [frozen] - Cache explicite
  */
-export function getSeasonStartRound(seasonNumber) {
+export function getSeasonStartRound(seasonNumber, frozen = null) {
+  // 1. Si la saison existe dans le cache → vraie valeur (lit directement)
+  const bounds = _getRealSeasonBounds(seasonNumber, frozen);
+  if (bounds) {
+    return bounds.startRound;
+  }
+
+  // 2. Sinon : accumuler les rounds des saisons précédentes
+  // (chaque getRoundsForSeason() utilisera le cache pour les saisons figées)
   let globalRound = 1;
   for (let s = 1; s < seasonNumber; s++) {
-    globalRound += getRoundsForSeason(s);
+    globalRound += getRoundsForSeason(s, frozen);
   }
   return globalRound;
 }
@@ -641,18 +722,18 @@ export function getSeasonStartRound(seasonNumber) {
 /**
  * Nombre de jours d'une saison
  */
-export function getSeasonDurationDays(seasonNumber) {
+export function getSeasonDurationDays(seasonNumber, frozen = null) {
   const sn = seasonNumber || 1;
-  return getRoundsForSeason(sn) * CHALLENGE_CONFIG.roundDurationDays;
+  return getRoundsForSeason(sn, frozen) * CHALLENGE_CONFIG.roundDurationDays;
 }
 
 /**
  * Jour de début d'une saison (en jours depuis yearStartDate)
  */
-function getSeasonStartDay(seasonNumber) {
+function getSeasonStartDay(seasonNumber, frozen = null) {
   let day = 0;
   for (let s = 1; s < seasonNumber; s++) {
-    day += getRoundsForSeason(s) * CHALLENGE_CONFIG.roundDurationDays;
+    day += getRoundsForSeason(s, frozen) * CHALLENGE_CONFIG.roundDurationDays;
   }
   return day;
 }
@@ -681,10 +762,10 @@ export function getTotalSeasons() {
  * @param {Object} [frozenData] - Cache de /api/frozen-results pour la détection robuste
  */
 export function getSeasonNumber(date, frozenData = null) {
+  const data = frozenData || _frozenCache;
   // 1. DÉTECTION ROBUSTE : on prend la dernière saison figée + 1.
-  // Si frozenData est fourni (cas du rendu principal), on l'utilise en priorité.
-  if (frozenData?.eliminatedChallengeRankings) {
-    const frozenSeasonNumbers = Object.keys(frozenData.eliminatedChallengeRankings)
+  if (data?.eliminatedChallengeRankings) {
+    const frozenSeasonNumbers = Object.keys(data.eliminatedChallengeRankings)
       .map(k => Number(k))
       .filter(n => !isNaN(n))
       .sort((a, b) => b - a);
@@ -699,7 +780,7 @@ export function getSeasonNumber(date, frozenData = null) {
   let accumulated = 0;
   let s = 1;
   while (s <= 20) {
-    const seasonDays = getRoundsForSeason(s) * CHALLENGE_CONFIG.roundDurationDays;
+    const seasonDays = getRoundsForSeason(s, data) * CHALLENGE_CONFIG.roundDurationDays;
     if (accumulated + seasonDays > days) return s;
     accumulated += seasonDays;
     s++;
@@ -707,10 +788,10 @@ export function getSeasonNumber(date, frozenData = null) {
   return s;
 }
 
-export function getSeasonDates(seasonNumber) {
+export function getSeasonDates(seasonNumber, frozen = null) {
   const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const startDay = getSeasonStartDay(seasonNumber);
-  const duration = getRoundsForSeason(seasonNumber) * CHALLENGE_CONFIG.roundDurationDays;
+  const startDay = getSeasonStartDay(seasonNumber, frozen);
+  const duration = getRoundsForSeason(seasonNumber, frozen) * CHALLENGE_CONFIG.roundDurationDays;
 
   const start = new Date(yearStart);
   start.setDate(start.getDate() + startDay);
@@ -730,10 +811,10 @@ export function getGlobalRoundNumber(date) {
   return Math.max(1, Math.floor(days / CHALLENGE_CONFIG.roundDurationDays) + 1);
 }
 
-export function getRoundInSeason(date) {
+export function getRoundInSeason(date, frozen = null) {
   const globalRound = getGlobalRoundNumber(date);
-  const seasonNumber = getSeasonNumber(date);
-  const seasonStartRound = getSeasonStartRound(seasonNumber);
+  const seasonNumber = getSeasonNumber(date, frozen);
+  const seasonStartRound = getSeasonStartRound(seasonNumber, frozen);
   return globalRound - seasonStartRound + 1;
 }
 
@@ -747,9 +828,9 @@ export function getRoundDates(globalRoundNumber) {
   return { start, end };
 }
 
-export function isFinaleRound(roundInSeason, seasonNumber) {
-  const sn = seasonNumber || getSeasonNumber(new Date());
-  return roundInSeason === getRoundsForSeason(sn);
+export function isFinaleRound(roundInSeason, seasonNumber, frozen = null) {
+  const sn = seasonNumber || getSeasonNumber(new Date(), frozen);
+  return roundInSeason === getRoundsForSeason(sn, frozen);
 }
 
 export function isLastDayOfRound(date, globalRoundNumber) {
