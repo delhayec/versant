@@ -2213,15 +2213,33 @@ async function loadElevation2025() {
  * Construit la série cumulative pour une année donnée.
  * Renvoie [{ x: 'MM-DD', y: cumElevation }, ...] où x est le jour de l'année (au format MM-DD)
  * pour pouvoir aligner 2025 et 2026 sur le même axe X.
+ *
+ * IMPORTANT : densifie en ajoutant des points pour les jours intermédiaires sans activité
+ * (= la courbe reste plate ces jours-là). Sinon avec peu d'activités (vue 1 athlète),
+ * echarts trace des segments qui sautent les jours vides → visuel saccadé.
  */
 function buildCumulativeSeries(byDate) {
-  const sortedDates = Object.keys(byDate).sort();
+  const dates = Object.keys(byDate);
+  if (dates.length === 0) return [];
+  dates.sort();
+  const firstDate = dates[0];
+  // Borne supérieure : aujourd'hui pour 2026, sinon dernière activité
+  const today = new Date();
+  const currentYearStr = today.toISOString().substring(0, 10);
+  const firstYear = firstDate.substring(0, 4);
+  const lastDate = (firstYear === currentYearStr.substring(0, 4))
+    ? currentYearStr
+    : dates[dates.length - 1];
+
   const series = [];
   let cum = 0;
-  for (const date of sortedDates) {
-    cum += byDate[date] || 0;
-    // x = MM-DD pour alignement entre années
-    series.push({ x: date.substring(5), y: Math.round(cum) });
+  let d = new Date(firstDate + 'T00:00:00Z');
+  const end = new Date(lastDate + 'T00:00:00Z');
+  while (d <= end) {
+    const dateStr = d.toISOString().substring(0, 10);
+    cum += byDate[dateStr] || 0;
+    series.push({ x: dateStr.substring(5), y: Math.round(cum) });
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return series;
 }
@@ -2329,7 +2347,7 @@ async function renderCompareChart() {
       {
         name: title2025,
         type: 'line',
-        smooth: true,
+        smooth: false,
         symbol: 'none',
         data: s2025.map(p => [p.x, p.y]),
         lineStyle: { color: color2025, width: 2.5, type: 'dashed' },
@@ -2338,7 +2356,7 @@ async function renderCompareChart() {
       {
         name: title2026,
         type: 'line',
-        smooth: true,
+        smooth: false,
         symbol: 'none',
         data: s2026.map(p => [p.x, p.y]),
         lineStyle: { color: color2026, width: 3 },
