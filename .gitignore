@@ -34,3 +34,13 @@ build/
 *.tmp
 .cache/
 backend/data/*.json
+backend/data/frozen_results.json
+backend/data/bonuses.json
+backend/data/jokers_usage.json
+backend/data/pending_bonus_choices.json
+backend/data/sessions.json
+backend/data/leagues/
+*.bak
+*.bak.*
+*.backup
+*.bak_*
