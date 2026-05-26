@@ -344,79 +344,82 @@ export function applyJokerEffects(ranking, currentRoundNumber, activities = []) 
   });
 
   // ========================================
-  // ÉTAPE 2: Appliquer les VOLS (sur D+ original, même activité peut être volée plusieurs fois)
-  // ========================================
-  const voleurJokers = activeJokers.filter(j => j.jokerId === 'voleur');
+// ÉTAPE 2: Appliquer les VOLS (sur D+ original, même activité peut être volée plusieurs fois)
+// ========================================
+const voleurJokers = activeJokers.filter(j => j.jokerId === 'voleur');
 
-  // === Grouper les voleurs PAR CIBLE (option C) ===
-  // Règle : si plusieurs voleurs visent la même victime, celle-ci ne perd
-  // sa plus grosse activité QU'UNE SEULE FOIS, mais CHAQUE voleur gagne ce montant.
-  const voleursByTarget = {};
-  voleurJokers.forEach(joker => {
-    if (!joker.targetId || activities.length === 0) return;
-    if (!voleursByTarget[joker.targetId]) voleursByTarget[joker.targetId] = [];
-    voleursByTarget[joker.targetId].push(joker);
-  });
+// === Grouper les voleurs PAR CIBLE (option C) ===
+// Règle : si plusieurs voleurs visent la même victime, celle-ci ne perd
+// sa plus grosse activité QU'UNE SEULE FOIS, mais CHAQUE voleur gagne ce montant.
+const voleursByTarget = {};
+voleurJokers.forEach(joker => {
+  if (!joker.targetId || activities.length === 0) return;
+  if (!voleursByTarget[joker.targetId]) voleursByTarget[joker.targetId] = [];
+  voleursByTarget[joker.targetId].push(joker);
+});
 
-  Object.entries(voleursByTarget).forEach(([targetId, thieves]) => {
-    const targetEntry = modifiedRanking.find(e => String(e.participant.id) === targetId);
-    if (!targetEntry) return;
+Object.entries(voleursByTarget).forEach(([targetId, thieves]) => {
+  const targetEntry = modifiedRanking.find(e => String(e.participant.id) === targetId);
+  if (!targetEntry) return;
 
-    // Activités de la cible
-    const targetActivities = activities.filter(a =>
-      String(a.athlete_id || a.athlete?.id) === targetId
-    );
-    if (targetActivities.length === 0) return;
+  // Activités de la cible
+  const targetActivities = activities.filter(a =>
+    String(a.athlete_id || a.athlete?.id) === targetId
+  );
+  if (targetActivities.length === 0) return;
 
-    // La plus grosse activité (volée par tous les voleurs de cette cible)
-    const bestActivity = targetActivities.reduce((best, current) =>
-      (current.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? current : best
-    );
-    const stolenElevation = Math.round(bestActivity.total_elevation_gain || 0);
-    if (stolenElevation <= 0) return;
+  // La plus grosse activité (volée par tous les voleurs de cette cible)
+  const bestActivity = targetActivities.reduce((best, current) =>
+    (current.total_elevation_gain || 0) > (best.total_elevation_gain || 0) ? current : best
+  );
+  const stolenElevation = Math.round(bestActivity.total_elevation_gain || 0);
+  if (stolenElevation <= 0) return;
 
-    // DÉBIT VICTIME : une seule fois, quel que soit le nombre de voleurs
-    targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - stolenElevation);
+  // DÉBIT VICTIME : une seule fois, quel que soit le nombre de voleurs
+  targetEntry.totalElevation = Math.max(0, targetEntry.totalElevation - stolenElevation);
 
-    // CRÉDIT : chaque voleur gagne le montant
-    thieves.forEach(joker => {
-      const thiefEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
-      if (!thiefEntry) return;
+  // CRÉDIT : chaque voleur gagne le montant
+  thieves.forEach(joker => {
+    const thiefEntry = modifiedRanking.find(e => String(e.participant.id) === joker.participantId);
+    if (!thiefEntry) return;
 
-      thiefEntry.totalElevation += stolenElevation;
+    thiefEntry.totalElevation += stolenElevation;
 
-      // Enregistrer le vol côté victime (pour l'affichage : qui a volé)
-      targetEntry.jokerEffects.thefts.push({
-        by: joker.participantName,
-        byId: joker.participantId,
-        amount: stolenElevation,
-        activity: bestActivity.name
-      });
+    // Enregistrer le vol côté victime (pour l'affichage : qui a volé)
+    targetEntry.jokerEffects.thefts.push({
+      by: joker.participantName,
+      byId: joker.participantId,
+      amount: stolenElevation,
+      activity: bestActivity.name
+    });
 
-      // Enregistrer le gain côté voleur
-      if (!thiefEntry.jokerEffects.bonuses.thief) {
-        thiefEntry.jokerEffects.bonuses.thief = [];
-      }
-      thiefEntry.jokerEffects.bonuses.thief.push({
-        from: targetEntry.participant.name,
-        fromId: targetId,
-        amount: stolenElevation,
-        activity: bestActivity.name
-      });
+    // Enregistrer le gain côté voleur
+    if (!thiefEntry.jokerEffects.bonuses.thief) {
+      thiefEntry.jokerEffects.bonuses.thief = [];
+    }
+    thiefEntry.jokerEffects.bonuses.thief.push({
+      from: targetEntry.participant.name,
+      fromId: targetId,
+      amount: stolenElevation,
+      activity: bestActivity.name
     });
   });
+}); // <--- Fin de la boucle principale des cibles
 
-      if (!thiefEntry.jokerEffects.bonuses.thief) {
-        thiefEntry.jokerEffects.bonuses.thief = [];
-      }
-      thiefEntry.jokerEffects.bonuses.thief.push({
-        from: targetEntry.participant.name,
-        fromId: joker.targetId,
-        amount: stolenElevation,
-        activity: bestActivity.name
-      });
-    }
-
+// Consolider les vols pour l'affichage
+modifiedRanking.forEach(entry => {
+  if (entry.jokerEffects.thefts.length > 0) {
+    // Tous les vols d'une même cible portent sur la même activité (même montant).
+    // Le montant perdu = le maximum (= le montant unique débité).
+    const actualStolen = entry.jokerEffects.thefts.reduce((max, t) => Math.max(max, t.amount), 0);
+    const thieves = entry.jokerEffects.thefts.map(t => t.by).join(', ');
+    entry.jokerEffects.bonuses.stolen = {
+      by: thieves,
+      amount: actualStolen,
+      count: entry.jokerEffects.thefts.length
+    };
+  }
+});
 
   // Consolider les vols pour l'affichage
   modifiedRanking.forEach(entry => {
