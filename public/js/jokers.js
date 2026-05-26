@@ -416,7 +416,7 @@ export function applyJokerEffects(ranking, currentRoundNumber, activities = []) 
         activity: bestActivity.name
       });
     }
-  });
+
 
   // Consolider les vols pour l'affichage
   modifiedRanking.forEach(entry => {
