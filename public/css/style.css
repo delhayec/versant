@@ -5967,3 +5967,81 @@ body {
   .sim-table td { border: none; padding: 6px 10px; }
   .sim-effects { width: 100%; }
 }
+
+/* ============================================
+   SIMULATEUR - MODE ÉQUIPE
+   ============================================ */
+.sim-team {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 4px solid var(--team-color, #888);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.sim-team-eliminated {
+  border-color: rgba(244, 63, 94, 0.4);
+  border-left-color: #f43f5e;
+  background: rgba(244, 63, 94, 0.05);
+}
+.sim-team-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sim-team-rank {
+  font-weight: 700;
+  font-size: 1.1rem;
+  min-width: 24px;
+  color: var(--team-color, #fff);
+}
+.sim-team-animal {
+  font-weight: 600;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+.sim-team-total {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sim-team-elim-badge {
+  background: #f43f5e;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+.sim-team-members {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sim-team-member {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.sim-tm-name {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+.sim-tm-elev {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  text-align: right;
+}
+.sim-tm-effects {
+  grid-column: 1 / -1;
+  padding-left: 8px;
+}
+.sim-tm-effects .sim-effect {
+  font-size: 0.78rem;
+}
