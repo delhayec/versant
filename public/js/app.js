@@ -77,6 +77,8 @@ import {
   getEliminatedActivities
 } from './standings-engine.js';
 
+import { toggleSimulator } from './simulator.js';
+
 // ============================================
 // ÉTAT GLOBAL
 // ============================================
@@ -709,6 +711,17 @@ async function renderAll() {
       });
       } // fin else mode standard
     }
+
+    // Câbler le bouton simulateur (idempotent : on remplace le handler)
+        const simBtn = document.getElementById('simulatorBtn');
+        if (simBtn) {
+          simBtn.onclick = () => toggleSimulator(
+            currentRoundNumber,
+            allActivities,
+            seasonData?.active || []
+          );
+        }
+
 
     // Arsenal (Jokers & Bonus)
     const arsenalContainer = document.getElementById('arsenalContainer');

@@ -5806,3 +5806,164 @@ body {
   border-radius: 4px;
   margin-left: auto;
 }
+
+/* ============================================
+   SIMULATEUR D'EFFETS (jokers + bonus)
+   À ajouter dans public/css/style.css
+   ============================================ */
+
+.sim-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 16px 0;
+}
+.sim-button:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.7);
+  transform: translateY(-1px);
+}
+
+#simulatorPanel {
+  display: none;
+  margin: 16px 0 32px;
+}
+#simulatorPanel.open {
+  display: block;
+  animation: simFadeIn 0.25s ease;
+}
+@keyframes simFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sim-banner {
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 16px;
+}
+.sim-banner.sim-error {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fda4af;
+}
+
+.sim-empty {
+  text-align: center;
+  padding: 32px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.sim-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.sim-table thead th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sim-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: top;
+}
+.sim-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.sim-row-moved {
+  background: rgba(168, 85, 247, 0.04);
+}
+
+.sim-pos {
+  white-space: nowrap;
+  min-width: 70px;
+}
+.sim-pos-final {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-right: 6px;
+}
+.sim-mvt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.sim-mvt-up   { color: #34d399; background: rgba(16, 185, 129, 0.12); }
+.sim-mvt-down { color: #fb7185; background: rgba(244, 63, 94, 0.12); }
+.sim-mvt-same { color: rgba(255, 255, 255, 0.3); }
+
+.sim-name {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sim-elev {
+  white-space: nowrap;
+}
+.sim-elev-final {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sim-delta {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.sim-delta-gain { color: #34d399; }
+.sim-delta-loss { color: #fb7185; }
+
+.sim-effects {
+  width: 45%;
+}
+.sim-no-effect {
+  color: rgba(255, 255, 255, 0.25);
+}
+.sim-effect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  margin: 2px 0;
+  color: rgba(255, 255, 255, 0.75);
+}
+.sim-eff-icon { flex-shrink: 0; }
+.sim-eff-text { flex: 1; }
+.sim-eff-gain { color: #34d399; font-weight: 600; }
+.sim-eff-loss { color: #fb7185; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .sim-table thead { display: none; }
+  .sim-table, .sim-table tbody, .sim-table tr, .sim-table td { display: block; width: 100%; }
+  .sim-table tr {
+    margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 6px;
+  }
+  .sim-table td { border: none; padding: 6px 10px; }
+  .sim-effects { width: 100%; }
+}
