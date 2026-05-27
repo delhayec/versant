@@ -282,10 +282,10 @@ function renderTeamHTML(sim) {
 function renderSimulationHTML(sim) {
   const banner = `
     <div class="sim-banner">
-      🧪 <strong>SIMULATION</strong> —
+
       ${sim.mode === 'team' ? 'Classement par équipe' : 'Classement individuel'},
       effets jokers &amp; bonus du round ${sim.roundNumber}.
-      Aucune donnée n'est enregistrée.
+      Reservé aux membres Premium (i.e qui paye une biere à Clem de temps en temps)
     </div>
   `;
 
