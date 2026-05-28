@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Versant - Challenge à Élimination </title>
+
+  <!-- CACHE CONTROL -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style-overhaul.css?v=20260506">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-content">
+      <div class="loading-icon">◭️</div>
+      <div class="loading-title">Versant</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Chargement des données...</div>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <span class="hero-eyebrow">Challenge 2026 &bull; Saison en cours</span>
+      <h1 class="hero-title">
+        <span class="title-line">Challenge</span>
+        <span class="title-line accent">Versant</span>
+      </h1>
+      <p class="hero-subtitle">Données Strava &mdash; Mis à jour quotidiennement</p>
+    </div>
+  </section>
+
+  <!-- Navigation -->
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <span class="brand-icon">◭️</span>
+        <span class="brand-text">Versant</span>
+      </a>
+      <div class="nav-links">
+        <a href="#ranking" class="nav-link active">Classement</a>
+        <a href="rules.html" class="nav-link">Règles</a>
+        <a href="stats.html" class="nav-link" id="statsLink" style="display:none;">Stats</a>
+        <a href="dashboard.html" class="nav-link nav-link-with-badge" id="dashboardLink" style="display:none;">
+          Dashboard
+          <span class="nav-badge" id="dashboardBadge" style="display:none;">!</span>
+        </a>
+        <a href="login.html" class="nav-link" id="loginLink">Connexion</a>
+      </div>
+    </div>
+    <!-- Ticker mobile (dans la nav) -->
+    <div id="activityTickerMobile" class="activity-ticker activity-ticker-mobile"></div>
+  </nav>
+
+  <!-- Ticker desktop (en bas de page) -->
+  <div id="activityTickerDesktop" class="activity-ticker activity-ticker-desktop"></div>
+
+  <!-- Season Banner -->
+  <section class="season-banner-wrapper">
+    <div class="season-banner" id="seasonBanner"></div>
+  </section>
+
+  <!-- Bouton Récap de la saison précédente (visible 36h après début R1 saison N+1) -->
+  <section class="recap-wrapper" id="recapWrapper" style="display: none;">
+    <button type="button" class="recap-toggle-btn" id="recapToggleBtn" aria-expanded="false">
+      <span class="recap-toggle-icon">🏆</span>
+      <span class="recap-toggle-label" id="recapToggleLabel">Récap saison précédente</span>
+      <span class="recap-toggle-chevron">▼</span>
+    </button>
+    <div class="recap-panel" id="recapPanel" style="display: none;">
+      <!-- Rempli par JavaScript -->
+    </div>
+  </section>
+
+  <!-- Classement combiné : Principal / Éliminés (toggle) + Bonus actifs -->
+  <section class="ranking-section" id="ranking">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <h2 class="section-title">Classement du Round</h2>
+      <p class="section-desc">Survolez un athlète pour voir ses activités • Les derniers seront éliminés</p>
+    </div>
+
+    <!-- Toggle Principal / Éliminés -->
+    <div class="ranking-toggle" role="tablist">
+      <button type="button"
+              class="ranking-toggle-btn active"
+              role="tab"
+              aria-selected="true"
+              data-target="rankingContainer">
+        Versant principal
+      </button>
+      <button type="button"
+              class="ranking-toggle-btn"
+              role="tab"
+              aria-selected="false"
+              data-target="eliminatedChallengeContainer">
+        Versant éliminé
+      </button>
+    </div>
+
+    <!-- Les deux containers : principal visible par défaut, éliminé caché -->
+    <div class="ranking-container" id="rankingContainer"></div>
+    <button id="simulatorBtn" class="sim-button"> Simuler les effets jokers (*PREMIUM*) </button>
+    <div id="simulatorPanel"></div>
+    <div class="ranking-container ranking-container-hidden" id="eliminatedChallengeContainer"></div>
+
+    <!-- Arsenal (jokers actifs + bonus éliminés) déplacé sous le tableau combiné -->
+    <div class="arsenal-container" id="arsenalContainer">
+      <!-- Rempli par JavaScript -->
+    </div>
+  </section>
+
+  <!-- Classement Général (Points) -->
+  <section class="ranking-section standings-section" id="standings">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <h2 class="section-title">Classement Général</h2>
+      <p class="section-desc">Points totaux = Challenge Principal + Challenge Éliminés</p>
+    </div>
+    <div class="standings-container" id="finalStandingsContainer"></div>
+  </section>
+
+  <!-- Historique -->
+  <section class="history-section" id="history">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <h2 class="section-title">Historique des Saisons</h2>
+      <p class="section-desc">Détails et résumés des saisons passées</p>
+    </div>
+    <div class="history-timeline" id="historyTimeline"></div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">◭️ Versant</div>
+      <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
+    </div>
+  </footer>
+
+  <script>
+  // Force reload - purge du cache à chaque visite
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(name => caches.delete(name)));
+  }
+  // Vider le localStorage des anciennes versions de jokers
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('versant_jokers') && !key.includes('v2_20260202')) {
+      localStorage.removeItem(key);
+    }
+  });
+
+  // Afficher "Mon Dashboard" si connecté, sinon "Connexion"
+  const athleteId = localStorage.getItem('versant_athlete_id');
+  const token = localStorage.getItem('versant_token');
+  const dashboardLink = document.getElementById('dashboardLink');
+  const dashboardBadge = document.getElementById('dashboardBadge');
+  const loginLink = document.getElementById('loginLink');
+  const statsLink = document.getElementById('statsLink');
+
+  if (athleteId || token) {
+    // Utilisateur connecté
+    if (dashboardLink) dashboardLink.style.display = 'inline-flex';
+    if (statsLink) statsLink.style.display = 'inline-flex';
+    if (loginLink) loginLink.style.display = 'none';
+
+    // Vérifier s'il y a des notifications (bonus à choisir)
+    if (token && dashboardBadge) {
+      checkDashboardNotifications(token, dashboardBadge);
+    }
+  } else {
+    // Non connecté
+    if (dashboardLink) dashboardLink.style.display = 'none';
+    if (loginLink) loginLink.style.display = 'inline-block';
+  }
+
+  // Fonction pour vérifier les notifications dashboard
+  async function checkDashboardNotifications(authToken, badgeEl) {
+    try {
+      // Vérifier s'il y a des choix de bonus en attente
+      const choicesRes = await fetch('/api/bonuses/choices', {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      });
+
+      if (choicesRes.ok) {
+        const choicesData = await choicesRes.json();
+        if (choicesData.hasChoice) {
+          // Il y a un bonus à choisir !
+          badgeEl.textContent = '🎁';
+          badgeEl.style.display = 'inline-flex';
+          badgeEl.title = 'Tu as un bonus à choisir !';
+          return;
+        }
+      }
+
+      // Vérifier s'il y a un bonus disponible non utilisé
+      const bonusRes = await fetch('/api/bonuses/my', {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      });
+
+      if (bonusRes.ok) {
+        const bonusData = await bonusRes.json();
+        if (bonusData.bonus && bonusData.bonus.status === 'available') {
+          // Il y a un bonus disponible
+          badgeEl.textContent = '!';
+          badgeEl.style.display = 'inline-flex';
+          badgeEl.title = 'Tu as un bonus à utiliser !';
+          return;
+        }
+      }
+
+      // Pas de notification
+      badgeEl.style.display = 'none';
+    } catch (err) {
+      console.warn('Erreur vérification notifications:', err);
+      badgeEl.style.display = 'none';
+    }
+  }
+</script>
+  <!-- Safety timeout: masquer le loader après 12 secondes max -->
+  <script>
+    setTimeout(function() {
+      var loader = document.getElementById('loadingScreen');
+      if (loader && !loader.classList.contains('hidden')) {
+        console.warn('⚠️ Safety timeout: masquage forcé du loader');
+        loader.classList.add('hidden');
+        loader.style.display = 'none';
+        loader.style.visibility = 'hidden';
+      }
+    }, 12000);
+  </script>
+
+  <!-- App JS - Version simple avec query string -->
+  <script type="module" src="js/app.js?v=20260505c"></script>
+</body>
+</html>
