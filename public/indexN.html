@@ -3,24 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Versant - Challenge à Élimination </title>
-
-  <!-- CACHE CONTROL -->
+  <title>Versant - Challenge à Élimination</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style-overhaul.css?v=20260506">
+  <link rel="stylesheet" href="css/style-overhaul.css.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
 </head>
 <body>
+
   <!-- Loading Screen -->
   <div class="loading-screen" id="loadingScreen">
     <div class="loading-content">
-      <div class="loading-icon">◭️</div>
+      <div class="loading-icon">◭</div>
       <div class="loading-title">Versant</div>
       <div class="loading-spinner"></div>
       <div class="loading-text">Chargement des données...</div>
@@ -29,7 +27,55 @@
 
   <!-- Hero Section -->
   <section class="hero">
-    <div class="hero-bg"></div>
+    <div class="hero-bg">
+
+      <!-- SVG GRILLE MILLIMÉTRÉE ANIMÉE -->
+      <svg class="hero-grid-svg" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMid slice"
+           xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <pattern id="grid-minor" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#22d3ee" stroke-width="0.4" stroke-opacity="0.07"/>
+          </pattern>
+          <pattern id="grid-major" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+            <rect width="200" height="200" fill="url(#grid-minor)"/>
+            <path d="M 200 0 L 0 0 0 200" fill="none" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.12"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid-major)"/>
+        <line x1="0" y1="600" x2="480" y2="0" stroke="#f97316" stroke-width="0.6" stroke-opacity="0.06" stroke-dasharray="4 20"/>
+        <line x1="240" y1="600" x2="720" y2="0" stroke="#f97316" stroke-width="0.6" stroke-opacity="0.04" stroke-dasharray="4 20"/>
+        <!-- Réticule bas-gauche -->
+        <g transform="translate(80, 490)" stroke="#22d3ee" stroke-opacity="0.3" fill="none">
+          <line x1="-20" y1="0" x2="20" y2="0" stroke-width="0.8"/>
+          <line x1="0" y1="-20" x2="0" y2="20" stroke-width="0.8"/>
+          <circle cx="0" cy="0" r="14" stroke-width="0.6"/>
+          <line x1="14" y1="0" x2="22" y2="0" stroke-width="0.5"/>
+          <line x1="-14" y1="0" x2="-22" y2="0" stroke-width="0.5"/>
+          <line x1="0" y1="14" x2="0" y2="22" stroke-width="0.5"/>
+          <line x1="0" y1="-14" x2="0" y2="-22" stroke-width="0.5"/>
+        </g>
+        <text x="1420" y="585" text-anchor="end"
+              font-family="IBM Plex Mono, monospace"
+              font-size="9" fill="#22d3ee" fill-opacity="0.18" letter-spacing="1">REF: VRS-2026 / ALPES</text>
+        <line x1="200" y1="0" x2="200" y2="600" stroke="#22d3ee" stroke-width="0.5" stroke-opacity="0.05" stroke-dasharray="2 18"/>
+        <line x1="400" y1="0" x2="400" y2="600" stroke="#22d3ee" stroke-width="0.5" stroke-opacity="0.05" stroke-dasharray="2 18"/>
+        <line x1="1040" y1="0" x2="1040" y2="600" stroke="#22d3ee" stroke-width="0.5" stroke-opacity="0.03" stroke-dasharray="2 18"/>
+        <!-- Ligne de scan orange descendante -->
+        <line x1="0" y1="0" x2="1440" y2="0" stroke="#f97316" stroke-width="1" stroke-opacity="0">
+          <animate attributeName="y1" from="0" to="600" dur="8s" repeatCount="indefinite" begin="0s"/>
+          <animate attributeName="y2" from="0" to="600" dur="8s" repeatCount="indefinite" begin="0s"/>
+          <animate attributeName="stroke-opacity" values="0;0.12;0.04;0" dur="8s" repeatCount="indefinite" begin="0s"/>
+        </line>
+        <!-- Ligne de scan cyan remontante -->
+        <line x1="0" y1="600" x2="1440" y2="600" stroke="#22d3ee" stroke-width="0.6" stroke-opacity="0">
+          <animate attributeName="y1" from="600" to="0" dur="12s" repeatCount="indefinite" begin="2s"/>
+          <animate attributeName="y2" from="600" to="0" dur="12s" repeatCount="indefinite" begin="2s"/>
+          <animate attributeName="stroke-opacity" values="0;0.06;0.02;0" dur="12s" repeatCount="indefinite" begin="2s"/>
+        </line>
+      </svg>
+
+    </div><!-- /.hero-bg -->
+
     <div class="hero-content">
       <span class="hero-eyebrow">Challenge 2026 &bull; Saison en cours</span>
       <h1 class="hero-title">
@@ -44,7 +90,7 @@
   <nav class="nav-sticky">
     <div class="nav-container">
       <a href="index.html" class="nav-brand">
-        <span class="brand-icon">◭️</span>
+        <span class="brand-icon">◭</span>
         <span class="brand-text">Versant</span>
       </a>
       <div class="nav-links">
@@ -58,11 +104,9 @@
         <a href="login.html" class="nav-link" id="loginLink">Connexion</a>
       </div>
     </div>
-    <!-- Ticker mobile (dans la nav) -->
     <div id="activityTickerMobile" class="activity-ticker activity-ticker-mobile"></div>
   </nav>
 
-  <!-- Ticker desktop (en bas de page) -->
   <div id="activityTickerDesktop" class="activity-ticker activity-ticker-desktop"></div>
 
   <!-- Season Banner -->
@@ -70,57 +114,35 @@
     <div class="season-banner" id="seasonBanner"></div>
   </section>
 
-  <!-- Bouton Récap de la saison précédente (visible 36h après début R1 saison N+1) -->
-  <section class="recap-wrapper" id="recapWrapper" style="display: none;">
+  <!-- Récap saison précédente -->
+  <section class="recap-wrapper" id="recapWrapper" style="display:none;">
     <button type="button" class="recap-toggle-btn" id="recapToggleBtn" aria-expanded="false">
       <span class="recap-toggle-icon">🏆</span>
       <span class="recap-toggle-label" id="recapToggleLabel">Récap saison précédente</span>
       <span class="recap-toggle-chevron">▼</span>
     </button>
-    <div class="recap-panel" id="recapPanel" style="display: none;">
-      <!-- Rempli par JavaScript -->
-    </div>
+    <div class="recap-panel" id="recapPanel" style="display:none;"></div>
   </section>
 
-  <!-- Classement combiné : Principal / Éliminés (toggle) + Bonus actifs -->
+  <!-- Classement -->
   <section class="ranking-section" id="ranking">
     <div class="section-header">
       <span class="section-number">01</span>
       <h2 class="section-title">Classement du Round</h2>
-      <p class="section-desc">Survolez un athlète pour voir ses activités • Les derniers seront éliminés</p>
+      <p class="section-desc">Survolez un athlète pour voir ses activités &bull; Les derniers seront éliminés</p>
     </div>
-
-    <!-- Toggle Principal / Éliminés -->
     <div class="ranking-toggle" role="tablist">
-      <button type="button"
-              class="ranking-toggle-btn active"
-              role="tab"
-              aria-selected="true"
-              data-target="rankingContainer">
-        Versant principal
-      </button>
-      <button type="button"
-              class="ranking-toggle-btn"
-              role="tab"
-              aria-selected="false"
-              data-target="eliminatedChallengeContainer">
-        Versant éliminé
-      </button>
+      <button type="button" class="ranking-toggle-btn active" role="tab" aria-selected="true" data-target="rankingContainer">Versant principal</button>
+      <button type="button" class="ranking-toggle-btn" role="tab" aria-selected="false" data-target="eliminatedChallengeContainer">Versant éliminé</button>
     </div>
-
-    <!-- Les deux containers : principal visible par défaut, éliminé caché -->
     <div class="ranking-container" id="rankingContainer"></div>
-    <button id="simulatorBtn" class="sim-button"> Simuler les effets jokers (*PREMIUM*) </button>
+    <button id="simulatorBtn" class="sim-button">Simuler les effets jokers (*PREMIUM*)</button>
     <div id="simulatorPanel"></div>
     <div class="ranking-container ranking-container-hidden" id="eliminatedChallengeContainer"></div>
-
-    <!-- Arsenal (jokers actifs + bonus éliminés) déplacé sous le tableau combiné -->
-    <div class="arsenal-container" id="arsenalContainer">
-      <!-- Rempli par JavaScript -->
-    </div>
+    <div class="arsenal-container" id="arsenalContainer"></div>
   </section>
 
-  <!-- Classement Général (Points) -->
+  <!-- Classement Général -->
   <section class="ranking-section standings-section" id="standings">
     <div class="section-header">
       <span class="section-number">02</span>
@@ -143,104 +165,106 @@
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-content">
-      <div class="footer-brand">◭️ Versant</div>
+      <div class="footer-brand">◭ Versant</div>
       <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
     </div>
   </footer>
 
   <script>
-  // Force reload - purge du cache à chaque visite
-  if ('caches' in window) {
-    caches.keys().then(names => names.forEach(name => caches.delete(name)));
-  }
-  // Vider le localStorage des anciennes versions de jokers
-  Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('versant_jokers') && !key.includes('v2_20260202')) {
-      localStorage.removeItem(key);
+    if ('caches' in window) {
+      caches.keys().then(names => names.forEach(name => caches.delete(name)));
     }
-  });
-
-  // Afficher "Mon Dashboard" si connecté, sinon "Connexion"
-  const athleteId = localStorage.getItem('versant_athlete_id');
-  const token = localStorage.getItem('versant_token');
-  const dashboardLink = document.getElementById('dashboardLink');
-  const dashboardBadge = document.getElementById('dashboardBadge');
-  const loginLink = document.getElementById('loginLink');
-  const statsLink = document.getElementById('statsLink');
-
-  if (athleteId || token) {
-    // Utilisateur connecté
-    if (dashboardLink) dashboardLink.style.display = 'inline-flex';
-    if (statsLink) statsLink.style.display = 'inline-flex';
-    if (loginLink) loginLink.style.display = 'none';
-
-    // Vérifier s'il y a des notifications (bonus à choisir)
-    if (token && dashboardBadge) {
-      checkDashboardNotifications(token, dashboardBadge);
-    }
-  } else {
-    // Non connecté
-    if (dashboardLink) dashboardLink.style.display = 'none';
-    if (loginLink) loginLink.style.display = 'inline-block';
-  }
-
-  // Fonction pour vérifier les notifications dashboard
-  async function checkDashboardNotifications(authToken, badgeEl) {
-    try {
-      // Vérifier s'il y a des choix de bonus en attente
-      const choicesRes = await fetch('/api/bonuses/choices', {
-        headers: { 'Authorization': 'Bearer ' + authToken }
-      });
-
-      if (choicesRes.ok) {
-        const choicesData = await choicesRes.json();
-        if (choicesData.hasChoice) {
-          // Il y a un bonus à choisir !
-          badgeEl.textContent = '🎁';
-          badgeEl.style.display = 'inline-flex';
-          badgeEl.title = 'Tu as un bonus à choisir !';
-          return;
-        }
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('versant_jokers') && !key.includes('v2_20260202')) {
+        localStorage.removeItem(key);
       }
+    });
 
-      // Vérifier s'il y a un bonus disponible non utilisé
-      const bonusRes = await fetch('/api/bonuses/my', {
-        headers: { 'Authorization': 'Bearer ' + authToken }
-      });
+    const athleteId   = localStorage.getItem('versant_athlete_id');
+    const token       = localStorage.getItem('versant_token');
+    const dashboardLink = document.getElementById('dashboardLink');
+    const dashboardBadge= document.getElementById('dashboardBadge');
+    const loginLink   = document.getElementById('loginLink');
+    const statsLink   = document.getElementById('statsLink');
 
-      if (bonusRes.ok) {
-        const bonusData = await bonusRes.json();
-        if (bonusData.bonus && bonusData.bonus.status === 'available') {
-          // Il y a un bonus disponible
-          badgeEl.textContent = '!';
-          badgeEl.style.display = 'inline-flex';
-          badgeEl.title = 'Tu as un bonus à utiliser !';
-          return;
-        }
-      }
-
-      // Pas de notification
-      badgeEl.style.display = 'none';
-    } catch (err) {
-      console.warn('Erreur vérification notifications:', err);
-      badgeEl.style.display = 'none';
+    if (athleteId || token) {
+      if (dashboardLink) dashboardLink.style.display = 'inline-flex';
+      if (statsLink)     statsLink.style.display     = 'inline-flex';
+      if (loginLink)     loginLink.style.display      = 'none';
+      if (token && dashboardBadge) checkDashboardNotifications(token, dashboardBadge);
+    } else {
+      if (dashboardLink) dashboardLink.style.display = 'none';
+      if (loginLink)     loginLink.style.display      = 'inline-block';
     }
-  }
-</script>
-  <!-- Safety timeout: masquer le loader après 12 secondes max -->
+
+    async function checkDashboardNotifications(authToken, badgeEl) {
+      try {
+        const choicesRes = await fetch('/api/bonuses/choices', {
+          headers: { 'Authorization': 'Bearer ' + authToken }
+        });
+        if (choicesRes.ok) {
+          const d = await choicesRes.json();
+          if (d.hasChoice) { badgeEl.textContent = '🎁'; badgeEl.style.display = 'inline-flex'; return; }
+        }
+        const bonusRes = await fetch('/api/bonuses/my', {
+          headers: { 'Authorization': 'Bearer ' + authToken }
+        });
+        if (bonusRes.ok) {
+          const d = await bonusRes.json();
+          if (d.bonus && d.bonus.status === 'available') { badgeEl.textContent = '!'; badgeEl.style.display = 'inline-flex'; return; }
+        }
+        badgeEl.style.display = 'none';
+      } catch (err) { badgeEl.style.display = 'none'; }
+    }
+  </script>
+
   <script>
     setTimeout(function() {
       var loader = document.getElementById('loadingScreen');
       if (loader && !loader.classList.contains('hidden')) {
-        console.warn('⚠️ Safety timeout: masquage forcé du loader');
         loader.classList.add('hidden');
         loader.style.display = 'none';
-        loader.style.visibility = 'hidden';
       }
     }, 12000);
   </script>
 
-  <!-- App JS - Version simple avec query string -->
-  <script type="module" src="js/app.js?v=20260505c"></script>
+  <!-- Patch avatars losange — reconstruit les .athlete-avatar depuis le HTML généré par app.js -->
+  <script>
+    function patchAvatars() {
+      document.querySelectorAll('.athlete-avatar').forEach(function(el) {
+        if (el.dataset.patched) return;
+        el.dataset.patched = '1';
+        var text = el.textContent.trim();
+        if (!text) return;
+        el.textContent = '';
+        var span = document.createElement('span');
+        span.className = 'athlete-avatar-text';
+        span.textContent = text;
+        el.appendChild(span);
+        var row = el.closest('.ranking-row, .standings-row');
+        if (row) {
+          var nameEl = row.querySelector('.athlete-name');
+          if (nameEl) el.setAttribute('data-name', nameEl.textContent.trim());
+        }
+      });
+      document.querySelectorAll('.athlete-avatar-small').forEach(function(el) {
+        if (el.dataset.patched) return;
+        el.dataset.patched = '1';
+        var text = el.textContent.trim();
+        if (!text) return;
+        el.textContent = '';
+        var span = document.createElement('span');
+        span.className = 'athlete-avatar-small-text';
+        span.textContent = text;
+        el.appendChild(span);
+      });
+    }
+    document.addEventListener('versant:rendered', patchAvatars);
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(patchAvatars, 800); });
+  </script>
+
+  <!-- NOTE app.js : remplacer les emoji médailles par les chiffres "1" "2" "3"
+       dans la génération des .ranking-position gold/silver/bronze -->
+  <script type="module" src="js/app.js?v=20260506"></script>
 </body>
 </html>
