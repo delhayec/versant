@@ -961,13 +961,26 @@ function renderTeamEliminatedChallenge(container) {
   const { startRound, endRound } = getRealSeasonBounds(currentSeasonNumber, frozenResultsCache);
   const today = getCurrentDate();
 
-  const eliminatedTeams = [];
-  for (let rn = startRound; rn <= endRound; rn++) {
-    const round = frozenResultsCache.rounds[String(rn)];
-    if (!round?.frozen) continue;
-    if (!round.eliminatedTeam) continue;
-    const elimEnd = round.dates?.end ? new Date(round.dates.end) : null;
-    if (!elimEnd) continue;
+const eliminatedTeams = [];
+for (let rn = startRound; rn <= endRound; rn++) {
+  const round = frozenResultsCache.rounds[String(rn)];
+  if (!round?.frozen) continue;
+  const elimEnd = round.dates?.end ? new Date(round.dates.end) : null;
+  if (!elimEnd) continue;
+
+  // Finale team (isFinalePrincipale) : TOUTES les équipes sont éliminées,
+  // pas seulement celle stockée dans eliminatedTeam. On les récupère depuis round.teams.
+  if (round.isFinalePrincipale && Array.isArray(round.teams) && round.teams.length > 0) {
+    round.teams.forEach(team => {
+      eliminatedTeams.push({
+        roundNumber: rn,
+        roundInSeason: rn - startRound + 1,
+        eliminatedTeam: team,
+        eliminatedAfter: elimEnd
+      });
+    });
+  } else if (round.eliminatedTeam) {
+    // Round normal team : une seule équipe éliminée
     eliminatedTeams.push({
       roundNumber: rn,
       roundInSeason: rn - startRound + 1,
@@ -975,6 +988,7 @@ function renderTeamEliminatedChallenge(container) {
       eliminatedAfter: elimEnd
     });
   }
+}
 
   if (eliminatedTeams.length === 0) {
     container.innerHTML = '<div class="empty-state"><p>Aucune équipe éliminée cette saison</p></div>';
