@@ -793,6 +793,7 @@ export function simulateTeamSeasonEliminations(activities, seasonNumber, current
             ...participant,
             eliminatedRound: roundInSeason,
             eliminatedSeason: seasonNumber,
+            frozenPosition: elim.position,
             zeroElimination: elim.reason === 'zero_elevation'
           });
           active = active.filter(a => String(a.id) !== String(elim.id));
@@ -930,20 +931,20 @@ export function simulateSeasonEliminations(activities, seasonNumber, currentDate
     // ============================================
     const frozenRound = getFrozenRound(globalRound, frozenResultsCache);
 
-    if (frozenRound && frozenRound.frozen) {
-      // UTILISER LES RÉSULTATS FIGÉS
-      frozenRound.eliminations.forEach(elim => {
-        const participant = PARTICIPANTS.find(p => String(p.id) === String(elim.id));
-        if (participant) {
-          eliminated.push({
-            ...participant,
-            eliminatedRound: roundInSeason,
-            eliminatedSeason: seasonNumber,
-            zeroElimination: elim.reason === 'zero_elevation'
-          });
-          active = active.filter(a => String(a.id) !== String(elim.id));
-        }
+if (frozenRound && frozenRound.frozen) {
+  frozenRound.eliminations.forEach(elim => {
+    const participant = PARTICIPANTS.find(p => String(p.id) === String(elim.id));
+    if (participant) {
+      eliminated.push({
+        ...participant,
+        eliminatedRound: roundInSeason,
+        eliminatedSeason: seasonNumber,
+        frozenPosition: elim.position,  // ← AJOUT
+        zeroElimination: elim.reason === 'zero_elevation'
       });
+      active = active.filter(a => String(a.id) !== String(elim.id));
+    }
+  });
 
       roundResults.push({
         round: roundInSeason,
@@ -1219,14 +1220,23 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
       let mainPts = 0, elimPts = 0;
 
       if (elim) {
-        const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-        const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-        const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
-        const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
-        const position = activeAtRoundStart - indexInRound;
-        mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
-        elimPts = elimPointsMap[p.id] || 0;
-      } else if (sData.winner?.id === p.id) {
+  // Privilégier la position réelle stockée par le backend au moment du figement.
+  // Le recalcul via activeAtRoundStart - indexInRound est faux quand plusieurs
+  // joueurs sont éliminés au même round (finales team notamment).
+  let position;
+  if (elim.frozenPosition) {
+    position = elim.frozenPosition;
+  } else {
+    // Fallback pour les rounds sans position stockée (ex: round non figé en preview)
+    const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
+    const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+    const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
+    const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
+    position = activeAtRoundStart - indexInRound;
+  }
+  mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
+  elimPts = elimPointsMap[p.id] || 0;
+} else if (sData.winner?.id === p.id) {
         mainPts = getMainChallengePoints(1);
         totals[p.id].wins++;
       } else if (sData.seasonComplete) {
