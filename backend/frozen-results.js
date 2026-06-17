@@ -472,11 +472,17 @@ async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
     // Fichier n'existe pas encore
   }
 
-  // Vérifier si déjà généré pour ce joueur
+  // Vérifier si déjà généré pour ce round précis.
+  // Un pending d'un round antérieur (saison précédente non utilisée) ne doit
+  // pas bloquer la génération d'un nouveau bonus pour un round ultérieur.
   const playerId = String(bestEliminated.id);
-  if (pendingChoices[playerId]) {
-    console.log(`🎁 Choix bonus déjà existant pour ${bestEliminated.name}`);
+  const existing = pendingChoices[playerId];
+  if (existing && Number(existing.elimination_round) === Number(roundNumber)) {
+    console.log(`🎁 Choix bonus déjà existant pour ${bestEliminated.name} au round ${roundNumber}`);
     return null;
+  }
+  if (existing) {
+    console.log(`🎁 Ancien pending de ${bestEliminated.name} (R${existing.elimination_round}) remplacé par nouveau choix R${roundNumber}`);
   }
 
   // Tirer 2 bonus au hasard parmi les bonus que l'athlète n'a pas déjà.
@@ -1246,16 +1252,23 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   // Calculer les points pour chaque participant
   const activeAtRoundStart = activeParticipants.length;
 
-  ranking.forEach(entry => {
+ranking.forEach(entry => {
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
-
     if (eliminationEntry) {
       // indexInElims: 0 = dernier, 1 = avant-dernier, etc.
       const indexInElims = eliminations.findIndex(e => e.id === entry.id);
       // Position: dernier = activeAtRoundStart, avant-dernier = activeAtRoundStart - 1
       // Exemple avec 11 actifs: dernier → 11 (2 pts), avant-dernier → 10 (4 pts)
       const position = activeAtRoundStart - indexInElims;
-      entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
+      // Règle métier : un joueur éliminé pour zero_elevation (0 D+) ne reçoit
+      // aucun point. Quand la règle "≥2 inactifs → tous les inactifs éliminés"
+      // se déclenche, le barème par position pourrait donner 1 pt au mieux
+      // classé des inactifs (cas Da M au R26 en pos 13 → MAIN_CHALLENGE_POINTS[13]=1).
+      if (eliminationEntry.reason === 'zero_elevation') {
+        entry.mainPoints = 0;
+      } else {
+        entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
+      }
       entry.eliminatedPosition = position;
     } else if (isFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
       entry.mainPoints = getMainPoints(1);
