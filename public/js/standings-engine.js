@@ -1109,7 +1109,7 @@ export function calculateEliminatedChallenge(activities, eliminatedList, seasonD
 
   for (const p of eliminatedList) {
     // Calculer le round global à partir du round dans la saison et de la saison d'élimination
-    const globalRound = (p.eliminatedSeason - 1) * roundsPerSeason + p.eliminatedRound;
+    const globalRound = getSeasonStartRound(p.eliminatedSeason) + p.eliminatedRound - 1;
     const roundDates = getRoundDates(globalRound);
 
     // L'éliminé peut participer dès la fin de son round d'élimination
