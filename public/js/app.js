@@ -451,10 +451,14 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
   const seasonDates = getSeasonDates(seasonNumber);
   const sData = simulateSeasonEliminations(activities, seasonNumber, currentDate, frozenResultsCache, yearlyStandingsCache);
   const rounds = [];
-  const roundsPerSeason = getRoundsPerSeason();
+  // Utiliser les helpers qui gèrent les saisons à longueurs variables
+  // (S1/S2=7 rounds, S3=6, S4=5, etc.) plutôt que la formule rigide
+  // (seasonNumber - 1) * roundsPerSeason + r qui pose un décalage dès la S3.
+  const seasonStartRound = getSeasonStartRound(seasonNumber, frozenResultsCache);
+  const seasonRoundsCount = getRoundsForSeason(seasonNumber, frozenResultsCache);
 
-  for (let r = 1; r <= roundsPerSeason; r++) {
-    const globalRound = (seasonNumber - 1) * roundsPerSeason + r;
+  for (let r = 1; r <= seasonRoundsCount; r++) {
+    const globalRound = seasonStartRound + r - 1;
     const roundDates = getRoundDates(globalRound);
     if (currentDate < roundDates.start) break;
 
@@ -497,8 +501,7 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
 
     // Appliquer les bonus éphémères (embuscade, marquage, malédiction, kamikaze)
     // sur le classement des éliminés — identique à ce que fait renderEliminatedChallenge()
-    const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-    const seasonEndRound = seasonNumber * roundsPerSeason;
+        const seasonEndRound = seasonStartRound + seasonRoundsCount - 1;
 
     eliminatedRanking.forEach(e => {
       let gained = 0, lost = 0;
