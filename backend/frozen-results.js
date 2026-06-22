@@ -452,6 +452,26 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
 async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
   if (!eliminations || eliminations.length < 2) return null;
 
+  // Ne pas générer de bonus si la saison de ce round est déjà close.
+  // Cas typique : on défige/refige un round d'une saison passée pour réparer
+  // des données (cf. restauration du fichier d'avril). Sans ce garde-fou, un
+  // pending parasite est créé pour le "meilleur éliminé" d'une saison
+  // terminée depuis longtemps, et s'affiche au mauvais utilisateur sur le
+  // dashboard. Une saison est "close" si son challenge éliminés a été figé
+  // (eliminatedChallengeRankings[seasonNumber] existe).
+  try {
+    const data = await loadFrozenResults();
+    const frozenRound = data.rounds?.[String(roundNumber)];
+    const seasonNumber = frozenRound?.seasonNumber;
+    if (seasonNumber && data.eliminatedChallengeRankings?.[String(seasonNumber)]) {
+      console.log(`🎁 Pas de bonus pour round ${roundNumber}: saison ${seasonNumber} déjà close (challenge éliminés figé)`);
+      return null;
+    }
+  } catch (e) {
+    console.warn(`⚠️ Erreur lecture frozen_results pour check saison close:`, e.message);
+    // En cas d'erreur, on continue (ne pas bloquer la génération par sécurité)
+  }
+
   // Trier par D+ décroissant pour trouver le meilleur
   const sorted = [...eliminations].sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
   const bestEliminated = sorted[0];
