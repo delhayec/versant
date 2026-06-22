@@ -542,36 +542,6 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const athleteId = await validateSession(token);
-    if (!athleteId) return res.status(401).json({ error: 'Non authentifié' });
-
-    const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const athlete = athletes.find(a => normalizeId(a.id) === normalizeId(athleteId));
-    if (!athlete) return res.status(404).json({ error: 'Athlète non trouvé' });
-
-    // Calculer les jokers restants
-    const jokerUsage = await readJokerUsage();
-    const usedByAthlete = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(athleteId));
-
-    const availableJokers = JOKER_IDS.filter(jokerId => {
-      const usedCount = usedByAthlete.filter(j => j.joker_id === jokerId).length;
-      return usedCount < INITIAL_JOKER_STOCK;
-    });
-
-    res.json({
-      id: athlete.id,
-      name: athlete.name,
-      email: athlete.email,
-      league_id: athlete.league_id,
-      jokers: availableJokers
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
 
 // ============================================
 // ATHLETES ROUTES
