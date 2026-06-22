@@ -8,7 +8,20 @@ let athletesCache = {}; // Cache pour résoudre les noms d'athlètes
 // AUTHENTIFICATION
 // ============================================
 function checkAuth() {
-  adminPassword = localStorage.getItem('versant_admin_password');
+  const stored = localStorage.getItem('versant_admin_password');
+  if (stored) {
+    try {
+      // Essayer de d\u00e9coder en base64 (nouveau format)
+      adminPassword = atob(stored);
+    } catch (e) {
+      // Si \u00e7a plante, c'est l'ancien format (clair) - on migre
+      adminPassword = stored;
+      localStorage.setItem('versant_admin_password', btoa(stored));
+    }
+  } else {
+    adminPassword = null;
+  }
+
   if (adminPassword) {
     showDashboard();
   } else {
@@ -97,8 +110,10 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
       throw new Error('Mot de passe incorrect');
     }
 
-    adminPassword = password;
-    localStorage.setItem('versant_admin_password', password);
+adminPassword = password;
+    // Stocker en base64 (obfuscation, pas s\u00e9curit\u00e9 forte) pour \u00e9viter
+    // l'affichage en clair dans le devtools localStorage.
+    localStorage.setItem('versant_admin_password', btoa(password));
     showDashboard();
     addLog('✅ Connexion admin réussie');
 
