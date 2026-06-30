@@ -1190,7 +1190,7 @@ async function loadSeasonVisualizer() {
     const specialRules = await rulesRes.json();
 
     // Déterminer la saison courante et ses rounds
-    const seasonInfo = computeCurrentSeasonInfo(frozenData);
+    const seasonInfo = computeCurrentSeasonInfo(frozenData, configs);
     if (!seasonInfo) {
       container.innerHTML = '<p style="color: #ef4444;">Impossible de déterminer la saison en cours</p>';
       return;
@@ -1308,7 +1308,7 @@ async function loadSeasonVisualizer() {
   }
 }
 
-function computeCurrentSeasonInfo(frozenData) {
+function computeCurrentSeasonInfo(frozenData, configs = {}) {
   if (!frozenData?.rounds) return null;
 
   const rounds = Object.entries(frozenData.rounds)
@@ -1325,9 +1325,19 @@ function computeCurrentSeasonInfo(frozenData) {
   const seasonRounds = rounds.filter(r => (r.seasonNumber || 1) === currentSeasonNumber);
   const startRound = seasonRounds[0].roundNumber;
 
-  // Estimer endRound : si la saison n'est pas finie, on prend startRound + 6 (estimation 7 rounds)
-  // Sinon, le dernier round figé
-  const endRound = startRound + 6; // Affichage saison entière (7 rounds estimés)
+  // Déterminer endRound :
+  // 1. Si un round est configuré comme 'finale' (via round_configs.json), c'est lui qui ferme la saison
+  // 2. Sinon, on extrapole "7 rounds par défaut" depuis startRound
+  let endRound = null;
+  for (let r = startRound; r <= startRound + 15; r++) {
+    if (configs[String(r)]?.type === 'finale') {
+      endRound = r;
+      break;
+    }
+  }
+  if (endRound === null) {
+    endRound = startRound + 6; // Fallback : estimation 7 rounds
+  }
 
   return {
     seasonNumber: currentSeasonNumber,
