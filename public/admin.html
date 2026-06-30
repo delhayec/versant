@@ -79,6 +79,25 @@
         </div>
       </div>
 
+
+          <!-- ============================================
+     VISUALISATEUR DE SAISON
+     ============================================ -->
+        <div class="card" style="margin-bottom: 20px;">
+          <h2 style="color: #22d3ee; margin-bottom: 16px;">🗓️ Configuration de la saison en cours</h2>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
+            Vue d'ensemble des rounds de la saison en cours. Vous pouvez modifier le nombre d'éliminations
+            et le type de chaque round à venir.
+          </p>
+          <div id="seasonVisualizerContent" style="overflow-x: auto;">
+            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
+          </div>
+          <button id="refreshSeasonVisualizerBtn" style="margin-top: 12px; padding: 10px 20px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+            🔄 Rafraîchir
+          </button>
+        </div>
+
+
       <!-- Actions -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px;">
 
@@ -351,22 +370,6 @@
       </div>
     </div>
 
-    <!-- ============================================
-     VISUALISATEUR DE SAISON
-     ============================================ -->
-        <div class="card" style="margin-bottom: 20px;">
-          <h2 style="color: #22d3ee; margin-bottom: 16px;">🗓️ Configuration de la saison en cours</h2>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
-            Vue d'ensemble des rounds de la saison en cours. Vous pouvez modifier le nombre d'éliminations
-            et le type de chaque round à venir.
-          </p>
-          <div id="seasonVisualizerContent" style="overflow-x: auto;">
-            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
-          </div>
-          <button id="refreshSeasonVisualizerBtn" style="margin-top: 12px; padding: 10px 20px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-            🔄 Rafraîchir
-          </button>
-        </div>
   </section>
 
   <!-- Footer -->
