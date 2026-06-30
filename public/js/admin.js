@@ -1150,6 +1150,266 @@ document.getElementById('removeSpecialRuleBtn')?.addEventListener('click', () =>
   }
   setSpecialRule(Number(roundNum), 'standard');
 });
+// ============================================
+// VISUALISATEUR DE SAISON
+// ============================================
+
+const ROUND_TYPE_LABELS = {
+  standard: '📊 Standard',
+  finale: '🏆 Finale',
+  bonus_round: '🎁 Round bonus',
+  no_eliminations: '🛑 Sans élimination'
+};
+
+const SPECIAL_RULE_LABELS_VISU = {
+  standard: '📊 Standard',
+  handicap: '⚖️ Handicap',
+  combinado: '🔄 Combiné',
+  double_weekend: '📅 Double Weekend',
+  pentes_raides: '📐 Pentes Raides',
+  hors_bitume: '🌲 Hors Bitume'
+};
+
+async function loadSeasonVisualizer() {
+  const container = document.getElementById('seasonVisualizerContent');
+  if (!container) return;
+
+  try {
+    container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Chargement...</p>';
+
+    // Charger les configs de rounds
+    const configsRes = await fetch(`${API_BASE}/round-configs`);
+    const configs = await configsRes.json();
+
+    // Charger les frozen_results pour connaître l'état des rounds
+    const frozenRes = await fetch(`${API_BASE}/frozen-results`);
+    const frozenData = await frozenRes.json();
+
+    // Charger les special-rules pour la pré-config
+    const rulesRes = await fetch(`${API_BASE}/special-rules`);
+    const specialRules = await rulesRes.json();
+
+    // Déterminer la saison courante et ses rounds
+    const seasonInfo = computeCurrentSeasonInfo(frozenData);
+    if (!seasonInfo) {
+      container.innerHTML = '<p style="color: #ef4444;">Impossible de déterminer la saison en cours</p>';
+      return;
+    }
+
+    const { seasonNumber, startRound, endRound } = seasonInfo;
+
+    // Construire le tableau
+    let html = `
+      <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin-bottom: 12px;">
+        Saison ${seasonNumber} — Rounds R${startRound} à R${endRound}
+      </p>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="border-bottom: 2px solid rgba(255,255,255,0.15);">
+            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Round</th>
+            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Dates</th>
+            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Statut</th>
+            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Actifs<br>début</th>
+            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Nb élim</th>
+            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Type</th>
+            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Règle spéciale</th>
+            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    let activesBeforeRound = 15;
+
+    for (let r = startRound; r <= endRound; r++) {
+      const frozenRound = frozenData.rounds?.[String(r)];
+      const config = configs[String(r)] || {};
+      const isFrozen = !!frozenRound?.frozen;
+      const elimCount = isFrozen ? (frozenRound.eliminations?.length || 0) : null;
+
+      const today = new Date();
+      const roundStart = frozenRound?.dates?.start ? new Date(frozenRound.dates.start) : null;
+      const roundEnd = frozenRound?.dates?.end ? new Date(frozenRound.dates.end) : null;
+      const isOngoing = roundStart && roundEnd && today >= roundStart && today <= roundEnd;
+      const isToCome = roundStart && today < roundStart;
+
+      let statusHtml;
+      if (isFrozen) {
+        statusHtml = '<span style="color: #10b981;">❄️ Figé</span>';
+      } else if (isOngoing) {
+        statusHtml = '<span style="color: #fbbf24;">⏳ En cours</span>';
+      } else if (isToCome) {
+        statusHtml = '<span style="color: rgba(255,255,255,0.5);">📅 À venir</span>';
+      } else {
+        statusHtml = '<span style="color: rgba(255,255,255,0.5);">—</span>';
+      }
+
+      const datesHtml = roundStart && roundEnd
+        ? `${roundStart.toLocaleDateString('fr-FR')} → ${roundEnd.toLocaleDateString('fr-FR')}`
+        : '—';
+
+      // Champs éditables uniquement si pas figé
+      const nbElimInput = isFrozen
+        ? `<span style="color: rgba(255,255,255,0.7);">${elimCount}</span>`
+        : `<input type="number" id="config-nbElim-${r}" min="0" max="15" value="${config.nbEliminations ?? 2}" style="width: 60px; padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; text-align: center;">`;
+
+      const currentType = config.type || 'standard';
+      const typeSelect = isFrozen
+        ? `<span style="color: rgba(255,255,255,0.7);">${ROUND_TYPE_LABELS[frozenRound.isFinalePrincipale ? 'finale' : 'standard'] || 'standard'}</span>`
+        : `<select id="config-type-${r}" style="padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white;">
+            ${Object.entries(ROUND_TYPE_LABELS).map(([val, label]) =>
+              `<option value="${val}" ${currentType === val ? 'selected' : ''}>${label}</option>`
+            ).join('')}
+          </select>`;
+
+      const currentRule = config.specialRule || specialRules[String(r)] || 'standard';
+      const ruleSelect = isFrozen
+        ? '—'
+        : `<select id="config-rule-${r}" style="padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white;">
+            ${Object.entries(SPECIAL_RULE_LABELS_VISU).map(([val, label]) =>
+              `<option value="${val}" ${currentRule === val ? 'selected' : ''}>${label}</option>`
+            ).join('')}
+          </select>`;
+
+      const actionsHtml = isFrozen
+        ? '<span style="color: rgba(255,255,255,0.4); font-size: 11px;">verrouillé</span>'
+        : `<button onclick="saveRoundConfigFromUI(${r})" style="padding: 6px 10px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;">💾</button>
+           ${configs[String(r)] ? `<button onclick="deleteRoundConfigFromUI(${r})" style="margin-left: 4px; padding: 6px 10px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; font-size: 12px; cursor: pointer;">✕</button>` : ''}`;
+
+      html += `
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${isFrozen ? 'opacity: 0.7;' : ''}">
+          <td style="padding: 10px 8px; font-weight: 600;">R${r}</td>
+          <td style="padding: 10px 8px; font-size: 12px;">${datesHtml}</td>
+          <td style="padding: 10px 8px; text-align: center;">${statusHtml}</td>
+          <td style="padding: 10px 8px; text-align: center; font-family: 'Space Mono', monospace;">${activesBeforeRound}</td>
+          <td style="padding: 10px 8px; text-align: center;">${nbElimInput}</td>
+          <td style="padding: 10px 8px;">${typeSelect}</td>
+          <td style="padding: 10px 8px;">${ruleSelect}</td>
+          <td style="padding: 10px 8px; text-align: center;">${actionsHtml}</td>
+        </tr>
+      `;
+
+      // Mettre à jour le nombre d'actifs pour le round suivant
+      if (isFrozen) {
+        activesBeforeRound -= elimCount;
+      } else {
+        const projectedElim = config.nbEliminations ?? 2;
+        activesBeforeRound -= projectedElim;
+      }
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+  } catch (error) {
+    console.error('Erreur loadSeasonVisualizer:', error);
+    container.innerHTML = `<p style="color: #ef4444;">❌ ${error.message}</p>`;
+    addLog(`❌ Erreur visualisateur: ${error.message}`);
+  }
+}
+
+function computeCurrentSeasonInfo(frozenData) {
+  if (!frozenData?.rounds) return null;
+
+  const rounds = Object.entries(frozenData.rounds)
+    .map(([key, r]) => ({ roundNumber: parseInt(key), ...r }))
+    .filter(r => r.frozen)
+    .sort((a, b) => a.roundNumber - b.roundNumber);
+
+  if (rounds.length === 0) return null;
+
+  const lastRound = rounds[rounds.length - 1];
+  const currentSeasonNumber = lastRound.seasonNumber || 1;
+
+  // Trouver le premier round de cette saison
+  const seasonRounds = rounds.filter(r => (r.seasonNumber || 1) === currentSeasonNumber);
+  const startRound = seasonRounds[0].roundNumber;
+
+  // Estimer endRound : si la saison n'est pas finie, on prend startRound + 6 (estimation 7 rounds)
+  // Sinon, le dernier round figé
+  const endRound = startRound + 6; // Affichage saison entière (7 rounds estimés)
+
+  return {
+    seasonNumber: currentSeasonNumber,
+    startRound,
+    endRound
+  };
+}
+
+async function saveRoundConfigFromUI(roundNumber) {
+  const nbElim = parseInt(document.getElementById(`config-nbElim-${roundNumber}`)?.value);
+  const type = document.getElementById(`config-type-${roundNumber}`)?.value;
+  const specialRule = document.getElementById(`config-rule-${roundNumber}`)?.value;
+
+  if (isNaN(nbElim) || nbElim < 0) {
+    alert('Nombre d\'éliminations invalide');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/round-configs/${roundNumber}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': adminPassword
+      },
+      body: JSON.stringify({
+        nbEliminations: nbElim,
+        type: type || 'standard',
+        specialRule: specialRule || 'standard'
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Erreur sauvegarde');
+    }
+
+    addLog(`💾 Config R${roundNumber} sauvegardée (nbElim=${nbElim}, type=${type})`);
+    loadSeasonVisualizer();
+  } catch (error) {
+    addLog(`❌ Erreur sauvegarde config: ${error.message}`);
+    alert('Erreur: ' + error.message);
+  }
+}
+
+async function deleteRoundConfigFromUI(roundNumber) {
+  if (!confirm(`Supprimer la config personnalisée du R${roundNumber} ?`)) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/round-configs/${roundNumber}`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Password': adminPassword }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Erreur suppression');
+    }
+
+    addLog(`🗑️ Config R${roundNumber} supprimée`);
+    loadSeasonVisualizer();
+  } catch (error) {
+    addLog(`❌ Erreur suppression: ${error.message}`);
+  }
+}
+
+// Expose pour onclick inline
+window.saveRoundConfigFromUI = saveRoundConfigFromUI;
+window.deleteRoundConfigFromUI = deleteRoundConfigFromUI;
+
+// Bouton refresh
+document.getElementById('refreshSeasonVisualizerBtn')?.addEventListener('click', loadSeasonVisualizer);
+
+// Charger au démarrage du dashboard admin
+const originalShowDashboard = showDashboard;
+showDashboard = function() {
+  originalShowDashboard();
+  setTimeout(loadSeasonVisualizer, 500); // Petit délai pour s'assurer que les autres données sont chargées
+};
+
+
+
 
 // ============================================
 // INIT

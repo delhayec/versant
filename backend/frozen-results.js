@@ -16,6 +16,7 @@
 
 const fs = require('fs').promises;
 const path = require('path');
+const roundConfigs = require('./round-configs');
 
 // Import configuration partagée (source unique de vérité)
 const {
@@ -1075,6 +1076,9 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   const ctx = detectSeasonContext(roundNumber, previousRounds || {});
   const seasonNumber = ctx.seasonNumber;
   const roundInSeason = ctx.roundInSeason;
+  const roundCustomConfig = await roundConfigs.getRoundConfig(roundNumber);
+ const isCustomFinale = roundCustomConfig?.type === 'finale';
+ const customNbEliminations = roundCustomConfig?.nbEliminations;
 
   // BRANCHING SAISON TEAM
   // ====================
@@ -1228,8 +1232,15 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
 
   const eliminations = [];
 
-  // Nombre d'éliminations (peut être overridé par la règle spéciale)
-  const eliminationsForThisRound = specialRule?.parameters?.eliminationsOverride || config.eliminationsPerRound;
+// Nombre d'éliminations (peut être overridé par la règle spéciale ou la config admin du round)
+  // Priorité : config admin > règle spéciale > config par défaut
+  const eliminationsForThisRound = customNbEliminations
+    ?? specialRule?.parameters?.eliminationsOverride
+    ?? config.eliminationsPerRound;
+
+  // Forcer le statut finale si configuré par l'admin
+  // (override le calcul automatique basé sur le nombre de rounds)
+  const effectiveIsFinale = isFinale || isCustomFinale;
 
   // Joueurs éligibles (sans bouclier)
   const eligibleForElimination = ranking.filter(e => !e.hasShield);
@@ -1243,15 +1254,21 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   // Appliquer les nouvelles règles seulement à partir du R7
   const useNewRules = roundNumber >= 7;
 
-  if (isFinale) {
+  if (effectiveIsFinale) {
     // FINALE: éliminer tous sauf 1
-    toEliminate = eligibleForElimination.slice(1); // Garder seulement le premier
+    // Sauf si la config admin force nbEliminations: 0 (cas finale à plusieurs joueurs sans élimination)
+    if (customNbEliminations === 0) {
+      toEliminate = [];
+      console.log(`🏆 Round ${roundNumber}: finale sans élimination (${eligibleForElimination.length} finalistes)`);
+    } else {
+      toEliminate = eligibleForElimination.slice(1);
+    }
   } else if (useNewRules && zeroElevationPlayers.length >= 2 && zeroElevationPlayers.length >= eliminationsForThisRound) {
     // Si le nombre de joueurs à 0 D+ dépasse le nombre d'éliminations prévues → tous éliminés
     toEliminate = zeroElevationPlayers;
     console.log(`📋 Round ${roundNumber}: ${zeroElevationPlayers.length} joueurs à 0 D+ (≥${eliminationsForThisRound}) → tous éliminés`);
   } else {
-    // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap)
+    // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap, ou config admin)
     toEliminate = eligibleForElimination.slice(-eliminationsForThisRound);
   }
 
