@@ -1286,30 +1286,39 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     });
   });
 
-  // Calculer les points pour chaque participant
+// Calculer les points pour chaque participant
   const activeAtRoundStart = activeParticipants.length;
 
-ranking.forEach(entry => {
+  // Règle "inactifs ex-aequo" : tous les inactifs éliminés sont ex-aequo et
+  // reçoivent les points de la dernière position inactive du round (= position
+  // la plus basse). Exemple : 9 actifs, 4 inactifs éliminés en positions 9/8/7/6,
+  // tous les 4 reçoivent les points de la position 9 (= MAIN_CHALLENGE_POINTS[9]).
+  // Justification : ils n'ont rien fait, donc indissociables — pas de gradation.
+  const nbInactiveElims = eliminations.filter(e => e.reason === 'zero_elevation').length;
+  const lastInactivePosition = nbInactiveElims > 0 ? activeAtRoundStart : null;
+
+  ranking.forEach(entry => {
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
     if (eliminationEntry) {
-      // indexInElims: 0 = dernier, 1 = avant-dernier, etc.
       const indexInElims = eliminations.findIndex(e => e.id === entry.id);
       // Position: dernier = activeAtRoundStart, avant-dernier = activeAtRoundStart - 1
-      // Exemple avec 11 actifs: dernier → 11 (2 pts), avant-dernier → 10 (4 pts)
       const position = activeAtRoundStart - indexInElims;
-      // Règle métier : un joueur éliminé pour zero_elevation (0 D+) ne reçoit
-      // aucun point. Quand la règle "≥2 inactifs → tous les inactifs éliminés"
-      // se déclenche, le barème par position pourrait donner 1 pt au mieux
-      // classé des inactifs (cas Da M au R26 en pos 13 → MAIN_CHALLENGE_POINTS[13]=1).
-      if (eliminationEntry.reason === 'zero_elevation') {
-        entry.mainPoints = 0;
+
+      if (eliminationEntry.reason === 'zero_elevation' && lastInactivePosition !== null) {
+        // Inactif éliminé : ex-aequo avec les autres inactifs, points de la dernière position inactive
+        entry.mainPoints = getMainPoints(Math.max(1, Math.min(lastInactivePosition, totalParticipants)));
       } else {
+        // Actif éliminé : points selon sa position absolue dans le classement
         entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
       }
       entry.eliminatedPosition = position;
-    } else if (isFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
+    } else if (effectiveIsFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
       entry.mainPoints = getMainPoints(1);
       entry.isWinner = true;
+    } else if (effectiveIsFinale) {
+      // Finale sans élimination (customNbEliminations === 0) : chaque finaliste reçoit
+      // les points correspondant à sa position dans le classement final
+      entry.mainPoints = getMainPoints(Math.max(1, Math.min(entry.position, totalParticipants)));
     } else {
       entry.mainPoints = 0;
     }
@@ -1337,8 +1346,11 @@ ranking.forEach(entry => {
     },
     frozen: true,
     frozenAt: new Date().toISOString(),
-    frozenMethod: 'calculated', // Indique que c'est recalculé
-    specialRule: specialRule?.id || null, // Règle spéciale appliquée
+    frozenMethod: 'calculated',
+    specialRule: specialRule?.id || null,
+    // Propager le statut de finale (utile pour les snapshots et le calcul des bonus)
+    // En saison individuelle, on utilise le même flag que la saison team pour cohérence.
+    isFinalePrincipale: effectiveIsFinale,
     activeParticipants,
     ranking,
     eliminations,
