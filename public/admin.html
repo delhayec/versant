@@ -234,6 +234,34 @@
           </div>
         </div>
 
+                <!-- Reset Mot de Passe -->
+        <div class="info-box">
+          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
+            🔑 Reset Mot de Passe
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
+            Réinitialiser le mot de passe d'un joueur qui l'a oublié.
+          </p>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Sélectionner l'athlète</label>
+            <select id="resetPasswordAthlete" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px;">
+              <option value="">-- Choisir un athlète --</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Nouveau mot de passe</label>
+            <input type="text" id="resetPasswordNew" placeholder="Minimum 6 caractères" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px; box-sizing: border-box;">
+          </div>
+
+          <button id="resetPasswordBtn" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">
+            🔐 Réinitialiser le mot de passe
+          </button>
+
+          <div id="resetPasswordResult" style="margin-top: 12px; font-size: 14px;"></div>
+        </div>
+
         <!-- Gestion des activités (exclure) -->
         <div class="info-box" style="grid-column: 1 / -1;">
           <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
@@ -271,33 +299,7 @@
           </div>
         </div>
 
-        <!-- Reset Mot de Passe -->
-        <div class="info-box">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            🔑 Reset Mot de Passe
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Réinitialiser le mot de passe d'un joueur qui l'a oublié.
-          </p>
 
-          <div style="margin-bottom: 16px;">
-            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Sélectionner l'athlète</label>
-            <select id="resetPasswordAthlete" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px;">
-              <option value="">-- Choisir un athlète --</option>
-            </select>
-          </div>
-
-          <div style="margin-bottom: 16px;">
-            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Nouveau mot de passe</label>
-            <input type="text" id="resetPasswordNew" placeholder="Minimum 6 caractères" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px; box-sizing: border-box;">
-          </div>
-
-          <button id="resetPasswordBtn" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">
-            🔐 Réinitialiser le mot de passe
-          </button>
-
-          <div id="resetPasswordResult" style="margin-top: 12px; font-size: 14px;"></div>
-        </div>
 
         <!-- Gestion des Jokers -->
         <div class="info-box" style="grid-column: 1 / -1;">
