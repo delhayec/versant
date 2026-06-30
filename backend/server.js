@@ -406,6 +406,57 @@ app.delete('/api/admin/special-rules', async (req, res) => {
 });
 
 // ============================================
+// ROUND CONFIGS (configurations par round)
+// ============================================
+const roundConfigsModule = require('./round-configs');
+
+// GET /api/round-configs - Lecture publique
+app.get('/api/round-configs', async (req, res) => {
+  try {
+    const configs = await roundConfigsModule.loadRoundConfigs();
+    res.json(configs);
+  } catch (error) {
+    console.error('Erreur round-configs GET:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/admin/round-configs/:roundNumber - Sauvegarder
+app.post('/api/admin/round-configs/:roundNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const roundNumber = parseInt(req.params.roundNumber);
+    if (isNaN(roundNumber) || roundNumber < 1) {
+      return res.status(400).json({ error: 'Numéro de round invalide' });
+    }
+    const { nbEliminations, type, specialRule } = req.body;
+    const config = await roundConfigsModule.saveRoundConfig(roundNumber, {
+      nbEliminations, type, specialRule
+    });
+    res.json({ success: true, config });
+  } catch (error) {
+    console.error('Erreur round-configs POST:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/admin/round-configs/:roundNumber - Supprimer
+app.delete('/api/admin/round-configs/:roundNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const roundNumber = parseInt(req.params.roundNumber);
+    if (isNaN(roundNumber) || roundNumber < 1) {
+      return res.status(400).json({ error: 'Numéro de round invalide' });
+    }
+    await roundConfigsModule.deleteRoundConfig(roundNumber);
+    res.json({ success: true, roundNumber });
+  } catch (error) {
+    console.error('Erreur round-configs DELETE:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ============================================
 // SEASON BONUSES ARCHIVE (dans frozen_results)
 // ============================================
 
