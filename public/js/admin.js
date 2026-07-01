@@ -1054,12 +1054,9 @@ document.getElementById('resetPasswordBtn')?.addEventListener('click', async () 
 // ============================================
 
 const RULE_LABELS = {
-  standard: '📊 Standard',
-  handicap: '⚖️ Handicap',
-  combinado: '🔄 Combiné',
-  double_weekend: '📅 Double Weekend',
-  pentes_raides: '📐 Pentes Raides',
-  hors_bitume: '🌲 Hors Bitume'
+  standard: 'Standard',
+  handicap: 'Handicap',
+  no_bonus: 'Sans bonus (D+ pur)'
 };
 
 async function loadSpecialRules() {
@@ -1155,20 +1152,12 @@ document.getElementById('removeSpecialRuleBtn')?.addEventListener('click', () =>
 // ============================================
 
 const ROUND_TYPE_LABELS = {
-  standard: '📊 Standard',
-  finale: '🏆 Finale',
-  bonus_round: '🎁 Round bonus',
-  no_eliminations: '🛑 Sans élimination'
+  standard: 'Standard',
+  finale: 'Finale',
+  bonus_round: 'Round bonus',
+  no_eliminations: 'Sans élimination'
 };
 
-const SPECIAL_RULE_LABELS_VISU = {
-  standard: '📊 Standard',
-  handicap: '⚖️ Handicap',
-  combinado: '🔄 Combiné',
-  double_weekend: '📅 Double Weekend',
-  pentes_raides: '📐 Pentes Raides',
-  hors_bitume: '🌲 Hors Bitume'
-};
 
 async function loadSeasonVisualizer() {
   const container = document.getElementById('seasonVisualizerContent');
@@ -1266,7 +1255,7 @@ async function loadSeasonVisualizer() {
       const ruleSelect = isFrozen
         ? '—'
         : `<select id="config-rule-${r}" style="padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white;">
-            ${Object.entries(SPECIAL_RULE_LABELS_VISU).map(([val, label]) =>
+            ${Object.entries(RULE_LABELS).map(([val, label]) =>
               `<option value="${val}" ${currentRule === val ? 'selected' : ''}>${label}</option>`
             ).join('')}
           </select>`;

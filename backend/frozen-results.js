@@ -56,6 +56,13 @@ const ROUND_RULES_BACKEND = {
       bonusLastPercent: 10,
       eliminationsOverride: 4
     }
+  },
+  no_bonus: {
+    id: 'no_bonus',
+    // Aucun paramètre : la règle désactive simplement tous les jokers, bonus éphémères
+    // et bonus saisonniers sur ce round, ET empêche la génération d'un nouveau bonus
+    // éphémère pour le meilleur éliminé. Round au D+ pur.
+    parameters: {}
   }
 };
 
@@ -364,8 +371,10 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
   console.log(`❄️ Round ${roundNumber} figé (via frontend): ${frozenRound.eliminations.length} éliminé(s)`);
 
   // Appliquer automatiquement les effets des bonus si la fonction est disponible
+  // (sauf si le round a la règle 'no_bonus' — dans ce cas, aucun bonus n'est appliqué)
   let appliedBonuses = [];
-  if (applyBonusEffectsForRound && roundData.activities) {
+  const skipBonusApplication = frozenRound.specialRule === 'no_bonus';
+  if (!skipBonusApplication && applyBonusEffectsForRound && roundData.activities) {
     try {
       appliedBonuses = await applyBonusEffectsForRound(roundNumber, roundData.activities, {
         yearStartDate: roundData.dates?.start || new Date().toISOString(),
@@ -388,8 +397,11 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
   // finale principale R4 (règle métier : "Les 6 finalistes (R4) entrent au
   // R5 sans avoir reçu de bonus éphémère du R4"). On skip aussi pour le R5
   // qui n'a aucune élimination de toute façon.
-  let bonusChoiceGenerated = null;
-  const skipBonusGen = frozenRound.isFinalePrincipale === true || frozenRound.teamFinalRound === true;
+ let bonusChoiceGenerated = null;
+  const isNoBonusRound = frozenRound.specialRule === 'no_bonus';
+  const skipBonusGen = frozenRound.isFinalePrincipale === true
+    || frozenRound.teamFinalRound === true
+    || isNoBonusRound;
   if (!skipBonusGen && frozenRound.eliminations && frozenRound.eliminations.length >= 2) {
     try {
       bonusChoiceGenerated = await generateBonusChoiceForBestEliminated(frozenRound.eliminations, roundNumber);
@@ -1157,18 +1169,24 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     };
   });
 
-  // Appliquer les effets des jokers actifs ce round
+  // Vérifier si ce round a une règle spéciale (chargée AVANT l'application des jokers/bonus
+  // pour permettre à la règle 'no_bonus' de désactiver leurs effets sur ce round)
+  const specialRule = await getSpecialRuleForRound(roundNumber);
+  const isNoBonusRound = specialRule?.id === 'no_bonus';
+
+  // Appliquer les effets des jokers actifs ce round (sauf si round no_bonus)
   const activeJokers = jokerUsage.filter(j =>
     j.round_number === roundNumber && j.status === 'active'
   );
 
-  applyJokerEffects(ranking, activeJokers, roundActivities, athletes);
+  if (!isNoBonusRound) {
+    applyJokerEffects(ranking, activeJokers, roundActivities, athletes);
 
-  // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
-  await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities);
-
-  // Vérifier si ce round a une règle spéciale
-  const specialRule = await getSpecialRuleForRound(roundNumber);
+    // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
+    await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities);
+  } else {
+    console.log(`🚫 Round ${roundNumber}: règle 'no_bonus' - jokers et bonus éphémères désactivés`);
+  }
 
   // Appliquer le handicap si actif (malus/bonus sur le D+)
   if (specialRule?.id === 'handicap' && specialRule.parameters) {
@@ -1637,7 +1655,10 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
   // EXCEPTION saison team : pas de bonus éphémère pour les éliminés de la
   // finale principale R4 (règle métier : "Les 6 finalistes (R4) entrent au
   // R5 sans avoir reçu de bonus éphémère du R4"). On skip aussi pour le R5.
-  const skipBonusGen = results.isFinalePrincipale === true || results.teamFinalRound === true;
+const isNoBonusRound = results.specialRule === 'no_bonus';
+  const skipBonusGen = results.isFinalePrincipale === true
+    || results.teamFinalRound === true
+    || isNoBonusRound;
   if (!skipBonusGen && results.eliminations && results.eliminations.length >= 2) {
     try {
       const generated = await generateBonusChoiceForBestEliminated(results.eliminations, roundNumber);
