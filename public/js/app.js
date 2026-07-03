@@ -744,7 +744,7 @@ async function renderAll() {
         ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForActiveAthlete(e.participant.id, currentRoundNumber, bonusesCache, seasonBonusesCache);
       });
 
-      renderRanking(rankingContainer, {
+renderRanking(rankingContainer, {
         ranking,
         seasonData,
         currentSeasonNumber,
@@ -754,7 +754,10 @@ async function renderAll() {
         rescapeId,
         ephemeralEffects,
         specialRule: currentRule,
-        specialRuleDetails: currentRuleDetails
+        specialRuleDetails: currentRuleDetails,
+        // Nouveaux champs pour l'affichage du bandeau finale / no_bonus
+        isFinale: isFinaleRoundEffective(currentRoundNumber),
+        isNoBonus: isNoBonusRound(currentRoundNumber)
       });
       } // fin else mode standard
     }

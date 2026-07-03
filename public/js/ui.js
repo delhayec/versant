@@ -251,7 +251,7 @@ export function renderActiveJokersSection(container, data) {
 // ============================================
 
 export function renderRanking(container, data) {
-  const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, rescapeId, ephemeralEffects, specialRule, specialRuleDetails } = data;
+ const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, currentRoundNumber, rescapeId, ephemeralEffects, specialRule, specialRuleDetails, isFinale, isNoBonus } = data;
 
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
@@ -284,6 +284,25 @@ export function renderRanking(container, data) {
     `;
   }
 
+  // Bandeau spécial en haut du classement (finale / no_bonus)
+  // Affiché quand la config admin (round_configs.json) définit type=finale
+  // et/ou specialRule=no_bonus pour le round courant.
+  let specialBanner = '';
+  if (isFinale) {
+    specialBanner += `
+      <div style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #1f2937; padding: 16px 20px; border-radius: 10px; margin-bottom: 16px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3); font-size: 16px;">
+        🏆 FINALE — Round ${currentRoundNumber} — Dernière ligne droite !
+      </div>
+    `;
+  }
+  if (isNoBonus) {
+    specialBanner += `
+      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 14px 20px; border-radius: 10px; margin-bottom: 16px; font-weight: 600; text-align: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
+        🚫 Round au D+ pur — Jokers et bonus désactivés
+      </div>
+    `;
+  }
+
   // En-têtes adaptatifs
   let headerHtml;
   if (isHandicap) {
@@ -309,7 +328,7 @@ export function renderRanking(container, data) {
     `;
   }
 
-  let html = specialRuleHtml + headerHtml;
+let html = specialBanner + specialRuleHtml + headerHtml;
 
   ranking.forEach((entry, i) => {
     const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
