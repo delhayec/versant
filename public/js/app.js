@@ -2426,7 +2426,7 @@ async function init() {
 
     // Charger les résultats figés AVANT tout calcul
     await loadFrozenResults();
-
+    await loadRoundConfigs();
     // Charger les règles spéciales manuelles
     await loadSpecialRulesOverrides();
 
