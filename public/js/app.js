@@ -79,6 +79,14 @@ import {
 
 import { toggleSimulator } from './simulator.js';
 
+// Debug console (à retirer plus tard)
+window._debug = {
+  get cache() { return roundConfigsCache; },
+  getRoundConfig,
+  getEffectiveNbEliminations,
+  isFinaleRoundEffective,
+  isNoBonusRound
+};
 // ============================================
 // ÉTAT GLOBAL
 // ============================================
