@@ -79,14 +79,7 @@ import {
 
 import { toggleSimulator } from './simulator.js';
 
-// Debug console (à retirer plus tard)
-window._debug = {
-  get cache() { return roundConfigsCache; },
-  getRoundConfig,
-  getEffectiveNbEliminations,
-  isFinaleRoundEffective,
-  isNoBonusRound
-};
+
 // ============================================
 // ÉTAT GLOBAL
 // ============================================
@@ -121,8 +114,10 @@ function getRoundConfig(roundNumber) {
 
 function getEffectiveNbEliminations(roundNumber) {
   const config = getRoundConfig(roundNumber);
-  // Priorité : config.nbEliminations > défaut (2)
-  return config?.nbEliminations ?? 2;
+  // Retourne null si pas de config admin, pour permettre au caller
+  // de retomber sur les autres règles (handicap, défaut).
+  // Si config.nbEliminations est explicitement défini (même à 0), on le retourne.
+  return config?.nbEliminations !== undefined ? config.nbEliminations : null;
 }
 
 function isFinaleRoundEffective(roundNumber) {
@@ -727,7 +722,11 @@ async function renderAll() {
       });
 
       // Marquer la zone de danger (prend en compte l'override d'éliminations du handicap)
-      const elimCount = currentRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound;
+     // Priorité : config admin (round_configs.json) > règle spéciale > config par défaut
+        // Permet à l'admin de forcer le nombre d'éliminations d'un round via l'UI admin
+        // (ex: R31 finale avec nbEliminations: 0 → aucune zone de danger)
+        const configElimCount = getEffectiveNbEliminations(currentRoundNumber);
+        const elimCount = configElimCount ?? (currentRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound);
       ranking.forEach((e, i) => {
         e.isInDangerZone = i >= ranking.length - elimCount;
         if (e.jokerEffects?.hasShield && e.isInDangerZone) {
