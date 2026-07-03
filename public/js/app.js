@@ -91,6 +91,43 @@ let isAdminMode = false;
 let frozenResultsCache = null; // Cache des résultats figés
 let bonusesCache = []; // Cache des bonus éphémères
 let seasonBonusesCache = {}; // Cache des bonus archivés par saison (depuis frozen_results)
+// Cache des configurations de round (round_configs.json)
+let roundConfigsCache = {};
+
+async function loadRoundConfigs() {
+  try {
+    const res = await fetch('/api/round-configs');
+    if (res.ok) {
+      roundConfigsCache = await res.json();
+      console.log('✅ Round configs chargées:', Object.keys(roundConfigsCache).length, 'config(s)');
+    }
+  } catch (e) {
+    console.warn('⚠️ Impossible de charger round-configs:', e.message);
+    roundConfigsCache = {};
+  }
+}
+
+function getRoundConfig(roundNumber) {
+  return roundConfigsCache[String(roundNumber)] || null;
+}
+
+function getEffectiveNbEliminations(roundNumber) {
+  const config = getRoundConfig(roundNumber);
+  // Priorité : config.nbEliminations > défaut (2)
+  return config?.nbEliminations ?? 2;
+}
+
+function isFinaleRoundEffective(roundNumber) {
+  const config = getRoundConfig(roundNumber);
+  if (config?.type === 'finale') return true;
+  // Fallback : logique existante basée sur roundInSeason
+  return isFinaleRound?.(roundNumber) === true;
+}
+
+function isNoBonusRound(roundNumber) {
+  const config = getRoundConfig(roundNumber);
+  return config?.specialRule === 'no_bonus';
+}
 
 // ============================================
 // SYNC SNAPSHOT YEARLY STANDINGS → BACKEND
