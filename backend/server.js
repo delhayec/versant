@@ -661,6 +661,23 @@ app.get('/api/jokers/my', requireAuth, async (req, res) => {
 app.post('/api/jokers/use', requireAuth, async (req, res) => {
   try {
     const { joker_id, target_athlete_id, round_number, selected_day, activate_now } = req.body;
+    // Bloquer les jokers "activate_now" (usage immédiat) si le round ciblé est no_bonus.
+    // La règle no_bonus (configurée dans round_configs.json via le visualisateur admin)
+    // désactive TOUT effet de joker/bonus sur ce round.
+    if (activate_now === true && round_number != null) {
+      try {
+        const cfg = await roundConfigsModule.getRoundConfig(round_number);
+        if (cfg?.specialRule === 'no_bonus') {
+          return res.status(403).json({
+            error: `Round ${round_number} : jokers désactivés (règle "sans bonus / D+ pur")`,
+            round: round_number,
+            reason: 'no_bonus_round'
+          });
+        }
+      } catch (e) {
+        console.warn('Impossible de vérifier round no_bonus pour joker:', e.message);
+      }
+    }
 
     if (!joker_id || round_number === undefined) {
       return res.status(400).json({ error: 'Données manquantes' });

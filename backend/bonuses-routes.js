@@ -16,6 +16,7 @@
 
 const fs = require('fs').promises;
 const path = require('path');
+const roundConfigs = require('./round-configs');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
@@ -345,6 +346,27 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   app.post('/api/bonuses/use', requireAuth, async (req, res) => {
     try {
       const { target_athlete_id, round_number } = req.body;
+    // Bloquer l'utilisation du bonus si le round ciblé est no_bonus.
+      // La règle no_bonus (configurée dans round_configs.json via le visualisateur admin)
+      // désactive TOUT effet de bonus sur ce round. Par défaut, on cible le round courant
+      // si round_number n'est pas précisé.
+      try {
+        let targetRound = round_number;
+        if (targetRound == null) {
+          const { getGlobalRoundNumber } = require('./config');
+          targetRound = getGlobalRoundNumber(new Date());
+        }
+        const cfg = await roundConfigs.getRoundConfig(targetRound);
+        if (cfg?.specialRule === 'no_bonus') {
+          return res.status(403).json({
+            error: `Round ${targetRound} : bonus désactivés (règle "sans bonus / D+ pur")`,
+            round: targetRound,
+            reason: 'no_bonus_round'
+          });
+        }
+      } catch (e) {
+        console.warn('Impossible de vérifier round no_bonus pour bonus:', e.message);
+      }
       const athleteId = normalizeId(req.athleteId);
 
       // Récupérer les bonus du joueur. Préférer un bonus 'available'
