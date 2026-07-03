@@ -1063,16 +1063,6 @@ const RULE_LABELS = {
 // Expose pour le onclick inline
 window.removeSpecialRuleForRound = removeSpecialRuleForRound;
 
-
-
-document.getElementById('removeSpecialRuleBtn')?.addEventListener('click', () => {
-  const roundNum = document.getElementById('specialRuleRound')?.value;
-  if (!roundNum) {
-    document.getElementById('specialRulesResult').innerHTML = '<span style="color: #ef4444;">⚠️ Entrez un numéro de round</span>';
-    return;
-  }
-  setSpecialRule(Number(roundNum), 'standard');
-});
 // ============================================
 // VISUALISATEUR DE SAISON
 // ============================================
