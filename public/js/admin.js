@@ -65,7 +65,6 @@ function showDashboard() {
   loadDashboardData();
   checkWebhookStatus(); // Vérifier le statut du webhook
   loadAthletesForReset(); // Charger la liste pour le reset password
-  loadSpecialRules(); // Charger les règles spéciales
 }
 
 // Fonction pour vérifier le statut du webhook
@@ -1059,85 +1058,12 @@ const RULE_LABELS = {
   no_bonus: 'Sans bonus (D+ pur)'
 };
 
-async function loadSpecialRules() {
-  const listDiv = document.getElementById('specialRulesList');
-  if (!listDiv) return;
 
-  try {
-    const response = await fetch(`${API_BASE}/special-rules`);
-    const rules = await response.json();
-
-    const entries = Object.entries(rules);
-    if (entries.length === 0) {
-      listDiv.innerHTML = '<p style="color: rgba(255,255,255,0.5); margin: 0;">Aucune règle spéciale définie. Tous les rounds sont en mode Standard.</p>';
-      return;
-    }
-
-    // Trier par numéro de round
-    entries.sort((a, b) => Number(a[0]) - Number(b[0]));
-
-    let html = '<div style="display: grid; gap: 8px;">';
-    for (const [roundNum, rule] of entries) {
-      const label = RULE_LABELS[rule] || rule;
-      html += `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid #f97316;">
-          <div>
-            <span style="color: #f97316; font-weight: 600;">Round ${roundNum}</span>
-            <span style="color: rgba(255,255,255,0.7); margin-left: 12px;">${label}</span>
-          </div>
-          <button onclick="removeSpecialRuleForRound('${roundNum}')" style="padding: 4px 10px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; cursor: pointer; font-size: 12px;">✕</button>
-        </div>
-      `;
-    }
-    html += '</div>';
-    listDiv.innerHTML = html;
-  } catch (error) {
-    listDiv.innerHTML = '<p style="color: #ef4444;">Erreur de chargement</p>';
-  }
-}
-
-async function setSpecialRule(roundNumber, rule) {
-  const resultDiv = document.getElementById('specialRulesResult');
-  try {
-    const response = await fetch(`${API_BASE}/admin/special-rules`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({ roundNumber, rule })
-    });
-
-    if (!response.ok) throw new Error('Erreur serveur');
-
-    const data = await response.json();
-    const label = RULE_LABELS[rule] || rule;
-    resultDiv.innerHTML = `<span style="color: #10b981;">✅ Round ${roundNumber} → ${label}</span>`;
-    addLog(`⚖️ Règle spéciale Round ${roundNumber} → ${label}`);
-    await loadSpecialRules();
-  } catch (error) {
-    resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
-  }
-}
-
-async function removeSpecialRuleForRound(roundNumber) {
-  if (!confirm(`Supprimer la règle spéciale du Round ${roundNumber} ?`)) return;
-  await setSpecialRule(roundNumber, 'standard');
-}
 
 // Expose pour le onclick inline
 window.removeSpecialRuleForRound = removeSpecialRuleForRound;
 
-// Boutons
-document.getElementById('setSpecialRuleBtn')?.addEventListener('click', () => {
-  const roundNum = document.getElementById('specialRuleRound')?.value;
-  const rule = document.getElementById('specialRuleSelect')?.value;
-  if (!roundNum) {
-    document.getElementById('specialRulesResult').innerHTML = '<span style="color: #ef4444;">⚠️ Entrez un numéro de round</span>';
-    return;
-  }
-  setSpecialRule(Number(roundNum), rule);
-});
+
 
 document.getElementById('removeSpecialRuleBtn')?.addEventListener('click', () => {
   const roundNum = document.getElementById('specialRuleRound')?.value;

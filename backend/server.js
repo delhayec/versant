@@ -362,48 +362,6 @@ app.get('/api/special-rules', async (req, res) => {
   }
 });
 
-// POST admin - définir la règle spéciale pour un round
-app.post('/api/admin/special-rules', async (req, res) => {
-  try {
-    const password = req.headers['x-admin-password'];
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: 'Non autorisé' });
-    }
-
-    const { roundNumber, rule } = req.body;
-    if (!roundNumber) return res.status(400).json({ error: 'roundNumber requis' });
-
-    const rules = await safeReadJSON(SPECIAL_RULES_FILE, {});
-
-    if (!rule || rule === 'standard') {
-      // Supprimer l'override pour revenir à standard
-      delete rules[String(roundNumber)];
-    } else {
-      rules[String(roundNumber)] = rule;
-    }
-
-    await fs.writeFile(SPECIAL_RULES_FILE, JSON.stringify(rules, null, 2));
-    res.json({ success: true, rules });
-  } catch (error) {
-    console.error('Erreur special-rules:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// DELETE admin - supprimer toutes les règles spéciales
-app.delete('/api/admin/special-rules', async (req, res) => {
-  try {
-    const password = req.headers['x-admin-password'];
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: 'Non autorisé' });
-    }
-
-    await fs.writeFile(SPECIAL_RULES_FILE, JSON.stringify({}, null, 2));
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
 
 // ============================================
 // ROUND CONFIGS (configurations par round)
