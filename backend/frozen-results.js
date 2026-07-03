@@ -427,10 +427,23 @@ async function freezeRoundWithData(roundNumber, roundData, options = {}) {
       // finale principale) ne déclenchent pas le freeze.
       shouldFreezeSeason = frozenRound.teamFinalRound === true;
     } else {
+      // Cas 1 : la saison se termine "naturellement" quand il reste ≤ 1 survivant
       const activeAtStart = frozenRound.activeParticipants?.length || 0;
       const eliminatedThisRound = frozenRound.eliminations?.length || 0;
       const survivors = activeAtStart - eliminatedThisRound;
-      shouldFreezeSeason = activeAtStart > 0 && survivors <= 1;
+      const naturalEnd = activeAtStart > 0 && survivors <= 1;
+
+      // Cas 2 : la saison est forcée en finale par la config admin (round_configs.json)
+      // Utile pour les finales à plusieurs joueurs sans élimination (ex: R31 saison 5).
+      let forcedFinale = false;
+      try {
+        const roundConfig = await roundConfigs.getRoundConfig(frozenRound.roundNumber);
+        forcedFinale = roundConfig?.type === 'finale';
+      } catch (e) {
+        console.warn(`⚠️ Erreur lecture config round ${frozenRound.roundNumber}:`, e.message);
+      }
+
+      shouldFreezeSeason = naturalEnd || forcedFinale;
     }
 
     if (shouldFreezeSeason) {
@@ -1678,13 +1691,26 @@ const isNoBonusRound = results.specialRule === 'no_bonus';
     const isTeamRound = results.seasonType === 'team' || isTeamSeason(results.seasonNumber);
     let shouldFreezeSeason = false;
 
-    if (isTeamRound) {
+if (isTeamRound) {
       shouldFreezeSeason = results.teamFinalRound === true;
     } else {
+      // Cas 1 : la saison se termine "naturellement" quand il reste ≤ 1 survivant
       const activeAtStart = results.activeParticipants?.length || 0;
       const eliminatedThisRound = results.eliminations?.length || 0;
       const survivors = activeAtStart - eliminatedThisRound;
-      shouldFreezeSeason = activeAtStart > 0 && survivors <= 1;
+      const naturalEnd = activeAtStart > 0 && survivors <= 1;
+
+      // Cas 2 : la saison est forcée en finale par la config admin (round_configs.json)
+      // Utile pour les finales à plusieurs joueurs sans élimination (ex: R31 saison 5).
+      let forcedFinale = false;
+      try {
+        const roundConfig = await roundConfigs.getRoundConfig(results.roundNumber);
+        forcedFinale = roundConfig?.type === 'finale';
+      } catch (e) {
+        console.warn(`⚠️ Erreur lecture config round ${results.roundNumber}:`, e.message);
+      }
+
+      shouldFreezeSeason = naturalEnd || forcedFinale;
     }
 
     if (shouldFreezeSeason) {
