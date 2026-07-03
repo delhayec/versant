@@ -69,13 +69,23 @@ const ROUND_RULES_BACKEND = {
 /**
  * Charge les overrides de règles spéciales depuis le fichier JSON
  */
-async function loadSpecialRules() {
+async function getSpecialRuleForRound(roundNumber) {
+  // Priorité 1 : lire depuis round_configs.json (visualisateur admin, source de vérité)
   try {
-    const data = await fs.readFile(SPECIAL_RULES_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return {};
+    const config = await roundConfigs.getRoundConfig(roundNumber);
+    if (config?.specialRule && config.specialRule !== 'standard') {
+      return { id: config.specialRule, ...(ROUND_RULES_BACKEND[config.specialRule] || {}) };
+    }
+  } catch (e) {
+    console.warn(`⚠️ Erreur lecture round_configs pour round ${roundNumber}:`, e.message);
   }
+
+  // Priorité 2 (fallback) : lire depuis l'ancien special_rules.json
+  // (compat pour les rounds pas encore migrés)
+  const rules = await loadSpecialRules();
+  const ruleId = rules[String(roundNumber)];
+  if (!ruleId || ruleId === 'standard') return null;
+  return { id: ruleId, ...(ROUND_RULES_BACKEND[ruleId] || {}) };
 }
 
 /**
