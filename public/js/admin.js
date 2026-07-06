@@ -1058,11 +1058,6 @@ const RULE_LABELS = {
   no_bonus: 'Sans bonus (D+ pur)'
 };
 
-
-
-// Expose pour le onclick inline
-window.removeSpecialRuleForRound = removeSpecialRuleForRound;
-
 // ============================================
 // VISUALISATEUR DE SAISON
 // ============================================
