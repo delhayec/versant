@@ -751,18 +751,25 @@ function renderJokers() {
   const isTeamMode = (() => {
     try { return isTeamSeason(getSeasonNumber(new Date())); } catch { return false; }
   })();
-
+// Si le round courant est no_bonus (règle admin), TOUS les jokers sont désactivés
+  // — que ce soit pour ce round ou le prochain, pour éviter la confusion utilisateur
+  const isNoBonus = isNoBonusRound(currentRound);
   grid.innerHTML = Object.entries(JOKER_TYPES).map(([id, joker]) => {
     const count = jokerStock[id] || 0;
     const isPending = pendingJokers.some(j => j.joker_id === id);
     const isAvailable = count > 0 && !isPending;
-    const isDisabledByTeam = isTeamMode && id === 'bouclier';
+const isDisabledByTeam = isTeamMode && id === 'bouclier';
+    const isDisabledByNoBonus = isNoBonus;
 
     let statusClass = 'used';
     let statusText = 'Épuisé';
     let statusIcon = '✗';
 
-    if (isDisabledByTeam) {
+    if (isDisabledByNoBonus) {
+      statusClass = 'disabled-nobonus';
+      statusText = 'Round au D+ pur';
+      statusIcon = '🚫';
+    } else if (isDisabledByTeam) {
       statusClass = 'disabled-team';
       statusText = 'Désactivé en saison Équipes';
       statusIcon = '🤝';
@@ -777,7 +784,7 @@ function renderJokers() {
     }
 
     return `
-      <div class="joker-card ${statusClass}" data-joker="${id}" ${isDisabledByTeam ? 'data-disabled-team="true"' : ''}>
+      <div class="joker-card ${statusClass}" data-joker="${id}" ${isDisabledByTeam ? 'data-disabled-team="true"' : ''} ${isDisabledByNoBonus ? 'data-disabled-nobonus="true"' : ''}>
         <div class="joker-icon">${joker.icon}</div>
         <div class="joker-name">${joker.name}</div>
         <div class="joker-desc">${joker.description}</div>
@@ -1179,27 +1186,15 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
   const currentRound = getCurrentRound();
   const dayInRound = getDayInRound();
   const canActivateNow = joker.canActivateNow && dayInRound <= (joker.maxDayForImmediateUse || 3);
-// Bloquer l'activation immédiate si le round courant est no_bonus (règle admin)
-  const isNoBonusCurrentRound = isNoBonusRound(currentRound);
 
   const modal = document.createElement('div');
   modal.className = 'joker-selection-modal';
 
   // Construire les options de timing
   let timingOptionsHtml = '';
-  if (canActivateNow) {
-    // Si round no_bonus : désactiver "Round actuel" et sélectionner "Prochain round" par défaut
-    const nowCardClass = isNoBonusCurrentRound
-      ? 'timing-card disabled'
-      : 'timing-card selected';
-    const nowCardExtra = isNoBonusCurrentRound
-      ? 'style="opacity: 0.4; cursor: not-allowed; pointer-events: none;" title="Round au D+ pur : jokers/bonus désactivés sur ce round"'
-      : '';
-    const nextCardClass = isNoBonusCurrentRound
-      ? 'timing-card selected'
-      : 'timing-card';
+if (canActivateNow) {
     timingOptionsHtml = `
-      <div class="${nowCardClass}" data-timing="now" data-round="${currentRound}" ${nowCardExtra}>
+      <div class="timing-card selected" data-timing="now" data-round="${currentRound}">
         <div class="timing-card-label">⚡ Round actuel</div>
         <div class="timing-card-value">${roundInSeason} / ${roundsPerSeason}</div>
         ${(() => {
@@ -1212,13 +1207,12 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
           return `<div style="margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.4;">${badges.join(' · ')}</div>`;
         })()}
       </div>
-      <div class="${nextCardClass}" data-timing="next" data-round="${currentRound + 1}">
+      <div class="timing-card" data-timing="next" data-round="${currentRound + 1}">
         <div class="timing-card-label">⏳ Prochain round</div>
         <div class="timing-card-value">Round ${currentRound + 1}</div>
         <div class="timing-card-hint">Programmé</div>
       </div>
     `;
-
   } else {
     // Après jour 3, uniquement round suivant
     timingOptionsHtml = `
@@ -1271,10 +1265,8 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
   document.body.appendChild(modal);
 
   // Gestion de la sélection du timing
-// Si le round actuel est no_bonus, forcer la sélection sur le prochain round
-  let selectedRound = (canActivateNow && !isNoBonusCurrentRound) ? currentRound : currentRound + 1;
-  let activateNow = canActivateNow && !isNoBonusCurrentRound;
-
+   let selectedRound = canActivateNow ? currentRound : currentRound + 1;
+   let activateNow = canActivateNow;
   modal.querySelectorAll('.timing-card:not(.disabled)').forEach(card => {
     card.onclick = () => {
       modal.querySelectorAll('.timing-card').forEach(c => c.classList.remove('selected'));
