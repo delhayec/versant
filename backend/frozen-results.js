@@ -44,7 +44,7 @@ const elimChallenge = require('./elim-challenge');
 const DATA_DIR = path.join(__dirname, 'data');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
 const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
-const SPECIAL_RULES_FILE = path.join(DATA_DIR, 'special_rules.json');
+
 
 // Définition des règles spéciales (miroir de config.js frontend)
 const ROUND_RULES_BACKEND = {
@@ -66,11 +66,9 @@ const ROUND_RULES_BACKEND = {
   }
 };
 
-/**
- * Charge les overrides de règles spéciales depuis le fichier JSON
- */
 async function getSpecialRuleForRound(roundNumber) {
-  // Priorité 1 : lire depuis round_configs.json (visualisateur admin, source de vérité)
+  // Lire depuis round_configs.json (visualisateur admin, source de vérité unique)
+  // La migration special_rules.json → round_configs.json a été effectuée
   try {
     const config = await roundConfigs.getRoundConfig(roundNumber);
     if (config?.specialRule && config.specialRule !== 'standard') {
@@ -79,24 +77,9 @@ async function getSpecialRuleForRound(roundNumber) {
   } catch (e) {
     console.warn(`⚠️ Erreur lecture round_configs pour round ${roundNumber}:`, e.message);
   }
-
-  // Priorité 2 (fallback) : lire depuis l'ancien special_rules.json
-  // (compat pour les rounds pas encore migrés)
-  const rules = await loadSpecialRules();
-  const ruleId = rules[String(roundNumber)];
-  if (!ruleId || ruleId === 'standard') return null;
-  return { id: ruleId, ...(ROUND_RULES_BACKEND[ruleId] || {}) };
+  return null;
 }
 
-/**
- * Retourne la règle spéciale et ses paramètres pour un round donné
- */
-async function getSpecialRuleForRound(roundNumber) {
-  const rules = await loadSpecialRules();
-  const ruleId = rules[String(roundNumber)];
-  if (!ruleId || ruleId === 'standard') return null;
-  return { id: ruleId, ...(ROUND_RULES_BACKEND[ruleId] || {}) };
-}
 
 // ============================================
 // UTILITAIRES DE FICHIER

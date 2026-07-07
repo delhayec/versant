@@ -1128,8 +1128,24 @@ async function loadSeasonVisualizer() {
       const elimCount = isFrozen ? (frozenRound.eliminations?.length || 0) : null;
 
       const today = new Date();
-      const roundStart = frozenRound?.dates?.start ? new Date(frozenRound.dates.start) : null;
-      const roundEnd = frozenRound?.dates?.end ? new Date(frozenRound.dates.end) : null;
+    // Si le round est figé, on prend les dates figées.
+      // Sinon on les calcule via getRoundDates() pour afficher les rounds à venir.
+      let roundStart = null, roundEnd = null;
+      if (frozenRound?.dates?.start) {
+        roundStart = new Date(frozenRound.dates.start);
+        roundEnd = new Date(frozenRound.dates.end);
+      } else if (typeof getRoundDates === 'function') {
+        try {
+          const computed = getRoundDates(r);
+          if (computed?.start) {
+            roundStart = new Date(computed.start);
+            roundEnd = new Date(computed.end);
+          }
+        } catch (e) {
+          console.warn(`Impossible de calculer les dates pour R${r}:`, e.message);
+        }
+      }
+
       const isOngoing = roundStart && roundEnd && today >= roundStart && today <= roundEnd;
       const isToCome = roundStart && today < roundStart;
 
