@@ -1730,7 +1730,31 @@ function renderHistorySection(container) {
   const completedSeasons = [];
   for (let s = 1; s < currentSeasonNumber; s++) {
     const summary = getSeasonSummary(allActivities, s, getCurrentDate());
-    if (summary.isComplete) completedSeasons.push(summary);
+    // Considérer une saison comme complète si :
+    // - Le simulateur dit qu'elle est complète (mécanisme historique)
+    // - OU un round figé de cette saison contient un joueur avec isWinner=true (patch)
+    let hasExplicitWinner = null;
+    if (frozenResultsCache?.rounds) {
+      for (const roundKey in frozenResultsCache.rounds) {
+        const r = frozenResultsCache.rounds[roundKey];
+        if (r?.frozen && Number(r.seasonNumber) === s && Array.isArray(r.ranking)) {
+          const winner = r.ranking.find(e => e.isWinner === true);
+          if (winner) {
+            hasExplicitWinner = { id: winner.id, name: winner.name };
+            break;
+          }
+        }
+      }
+    }
+    if (summary.isComplete || hasExplicitWinner) {
+      // Si le simulateur n'a pas identifié la saison comme complète mais qu'un winner
+      // explicite existe dans les données figées, on force isComplete et on utilise ce winner
+      if (!summary.isComplete && hasExplicitWinner) {
+        summary.winner = hasExplicitWinner;
+        summary.isComplete = true;
+      }
+      completedSeasons.push(summary);
+    }
   }
 
   container.innerHTML = `<div class="history-controls">
