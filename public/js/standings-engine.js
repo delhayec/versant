@@ -1262,7 +1262,31 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
     });
   }
 
-  const standings = Object.values(totals);
+const standings = Object.values(totals);
+
+  // Passe finale : forcer wins basé sur isWinner explicite des rounds figés.
+  // Cela couvre les cas où l'ancien mécanisme "dernier survivant" échoue :
+  // - Saison team (S4) : plusieurs joueurs actifs à la fin, mais un est marqué isWinner
+  // - Finale sans élimination (S5) : plusieurs finalistes, mais pos 1 est marqué isWinner
+  // On ne touche PAS aux points, uniquement au compteur wins.
+  if (frozenResultsCache?.rounds) {
+    const explicitWinsByAthlete = {};
+    for (const roundKey in frozenResultsCache.rounds) {
+      const r = frozenResultsCache.rounds[roundKey];
+      if (r?.frozen && Array.isArray(r.ranking)) {
+        const winner = r.ranking.find(e => e.isWinner === true);
+        if (winner && winner.id != null) {
+          const wid = String(winner.id);
+          explicitWinsByAthlete[wid] = (explicitWinsByAthlete[wid] || 0) + 1;
+        }
+      }
+    }
+    for (const s of standings) {
+      const explicit = explicitWinsByAthlete[String(s.id)] || 0;
+      s.wins = Math.max(s.wins || 0, explicit);
+    }
+  }
+
   standings.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
   standings.forEach((e, i) => e.rank = i + 1);
   return standings;
