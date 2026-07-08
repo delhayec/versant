@@ -1214,11 +1214,10 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
     // Calculer les points rescapé de cette saison
     const rescapeData = calculateRescapePointsForSeason(s, frozenResultsCache);
 
-    // Calcul des points pour TOUS les participants
+// Calcul des points pour TOUS les participants
     PARTICIPANTS.forEach(p => {
       const elim = sData.eliminated.find(e => e.id === p.id);
       let mainPts = 0, elimPts = 0;
-
       if (elim) {
   // Privilégier la position réelle stockée par le backend au moment du figement.
   // Le recalcul via activeAtRoundStart - indexInRound est faux quand plusieurs
@@ -1241,6 +1240,22 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
         totals[p.id].wins++;
       } else if (sData.seasonComplete) {
         mainPts = getMainChallengePoints(2);
+      } else {
+        // Fallback : chercher directement les mainPoints attribués par le backend
+        // dans le ranking figé du dernier round de la saison (cas finale team ou
+        // finale sans élimination où sData.winner/seasonComplete peuvent être null)
+        if (frozenResultsCache?.rounds) {
+          const roundsOfSeason = Object.values(frozenResultsCache.rounds)
+            .filter(r => r?.frozen && Number(r.seasonNumber) === s)
+            .sort((a, b) => (a.roundInSeason || 0) - (b.roundInSeason || 0));
+          const lastRound = roundsOfSeason[roundsOfSeason.length - 1];
+          if (lastRound?.ranking) {
+            const entry = lastRound.ranking.find(e => String(e.id) === String(p.id));
+            if (entry?.mainPoints) {
+              mainPts = entry.mainPoints;
+            }
+          }
+        }
       }
 
       // Points rescapé
