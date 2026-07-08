@@ -1343,8 +1343,11 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
       // Finale sans élimination (customNbEliminations === 0) : chaque finaliste reçoit
       // les points correspondant à sa position dans le classement final
       entry.mainPoints = getMainPoints(Math.max(1, Math.min(entry.position, totalParticipants)));
-    } else {
-      entry.mainPoints = 0;
+      // Le vainqueur de la finale (pos=1) reçoit aussi le flag isWinner
+      // pour être détecté comme champion de saison par le frontend
+      if (entry.position === 1) {
+        entry.isWinner = true;
+      }
     }
   });
 
