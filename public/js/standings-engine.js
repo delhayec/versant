@@ -1098,7 +1098,6 @@ if (frozenRound && frozenRound.frozen) {
     active,
     eliminated,
     roundResults,
-    isTeamSeason: true,
     actualRoundsPlayed: roundResults.length
   };
 }
