@@ -1258,15 +1258,29 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
         }
       }
 
-      // Points rescapé
+// Points rescapé
       const rescapePts = rescapeData[p.id]?.totalPoints || 0;
-
-      if (sData.seasonComplete || elim) {
+      // Détecter si un vainqueur explicite existe dans les rounds figés de cette saison
+      // (permet de compter S5 comme "terminée" même quand sData.seasonComplete est false)
+      let seasonHasExplicitWinner = false;
+      if (frozenResultsCache?.rounds) {
+        for (const roundKey in frozenResultsCache.rounds) {
+          const r = frozenResultsCache.rounds[roundKey];
+          if (r?.frozen && Number(r.seasonNumber) === s && Array.isArray(r.ranking)) {
+            if (r.ranking.some(e => e.isWinner === true)) {
+              seasonHasExplicitWinner = true;
+              break;
+            }
+          }
+        }
+      }
+      const seasonEffectivelyComplete = sData.seasonComplete || seasonHasExplicitWinner;
+      if (seasonEffectivelyComplete || elim) {
         totals[p.id].totalMainPoints += mainPts;
         totals[p.id].totalEliminatedPoints += elimPts;
         totals[p.id].totalRescapePoints += rescapePts;
         totals[p.id].totalPoints += mainPts + elimPts + rescapePts;
-        if (sData.seasonComplete) {
+        if (seasonEffectivelyComplete) {
           totals[p.id].seasonsPlayed++;
         }
       } else {
