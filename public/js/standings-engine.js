@@ -729,27 +729,6 @@ export function applyHandicapRule(ranking, yearlyStandings) {
  * Simulation pour les saisons en mode ÉQUIPE.
  * PORTÉ DEPUIS : app.js::simulateTeamSeasonEliminations()
  */
-
-/**
- * Cherche un vainqueur explicite dans les résultats figés pour une saison donnée.
- * Un vainqueur explicite est un athlète marqué isWinner=true dans le ranking
- * du dernier round de la saison.
- * Retourne { id, name } si trouvé, null sinon.
- */
-function findExplicitWinnerInFrozen(seasonNumber, frozenResultsCache) {
-  if (!frozenResultsCache?.rounds) return null;
-  // Trouver les rounds de la saison, prendre le dernier
-  const roundsOfSeason = Object.entries(frozenResultsCache.rounds)
-    .filter(([_, r]) => r && Number(r.seasonNumber) === Number(seasonNumber) && r.frozen)
-    .map(([k, r]) => ({ ...r, roundNumber: parseInt(k, 10) }))
-    .sort((a, b) => a.roundNumber - b.roundNumber);
-  if (roundsOfSeason.length === 0) return null;
-  const lastRound = roundsOfSeason[roundsOfSeason.length - 1];
-  const winner = (lastRound.ranking || []).find(e => e.isWinner === true);
-  return winner ? { id: winner.id, name: winner.name } : null;
-}
-
-
 export function simulateTeamSeasonEliminations(activities, seasonNumber, currentDate, yearlyStandingsCache, frozenResultsCache) {
   const seasonDates = getSeasonDates(seasonNumber);
   const seasonStartRound = getSeasonStartRound(seasonNumber);
@@ -876,12 +855,9 @@ export function simulateTeamSeasonEliminations(activities, seasonNumber, current
     }
 
     if (active.length <= 3) {
-      // Priorité au flag isWinner du round figé (cas saison team, ou finale sans élim)
-      // Fallback : ancien mécanisme "un seul survivant"
-      const explicitWinner = findExplicitWinnerInFrozen(seasonNumber, frozenResultsCache);
       return {
-        seasonComplete: active.length <= 1 || !!explicitWinner,
-        winner: explicitWinner || (active.length === 1 ? active[0] : null),
+        seasonComplete: active.length <= 1,
+        winner: active.length === 1 ? active[0] : null,
         active,
         eliminated,
         roundResults,
@@ -1073,14 +1049,10 @@ if (frozenRound && frozenRound.frozen) {
     }
 
     // Vérifier si la saison est terminée (un seul joueur restant)
-// Vérifier si la saison est terminée
-    // Priorité au flag isWinner du round figé (cas finale sans élim → active.length > 1)
-    // Fallback : ancien mécanisme "un seul survivant"
-    const explicitWinner = findExplicitWinnerInFrozen(seasonNumber, frozenResultsCache);
-    if (active.length <= 1 || explicitWinner) {
+    if (active.length <= 1) {
       return {
         seasonComplete: true,
-        winner: explicitWinner || active[0] || null,
+        winner: active[0] || null,
         active,
         eliminated,
         roundResults,
@@ -1089,16 +1061,11 @@ if (frozenRound && frozenRound.frozen) {
     }
   }
 
-// Vérification finale : peut-être qu'il y a un vainqueur explicite figé
-  // même si le mécanisme de simulation ne l'a pas détecté (cas finale sans élimination)
-  const finalExplicitWinner = findExplicitWinnerInFrozen(seasonNumber, frozenResultsCache);
   return {
-    seasonComplete: !!finalExplicitWinner,
-    winner: finalExplicitWinner || null,
+    seasonComplete: false,
     active,
     eliminated,
     roundResults,
-    isTeamSeason: true,
     actualRoundsPlayed: roundResults.length
   };
 }
