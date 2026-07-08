@@ -1310,11 +1310,11 @@ const standings = Object.values(totals);
         }
       }
     }
-    for (const s of standings) {
-      const explicit = explicitWinsByAthlete[String(s.id)] || 0;
+for (const s of standings) {
+      const sid = String(s.participant?.id ?? s.id);
+      const explicit = explicitWinsByAthlete[sid] || 0;
       s.wins = Math.max(s.wins || 0, explicit);
     }
-  }
 
   standings.sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
   standings.forEach((e, i) => e.rank = i + 1);
