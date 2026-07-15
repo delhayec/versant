@@ -1182,11 +1182,34 @@ export function countEliminationsBeforeRound(eliminatedList, roundInSeason) {
 // ============================================
 
 /**
+ * Détermine la saison la plus avancée ayant réellement commencé à `currentDate`,
+ * en se basant sur la date de début des rounds figés — pas sur getSeasonNumber()
+ * (qui ignore currentDate dans son mode robuste et retourne toujours "la saison
+ * d'aujourd'hui") ni sur getSeasonDates() (théorique, les bornes ne collent pas
+ * aux vraies saisons dès qu'une saison a une durée différente). Sans ça, un
+ * snapshot "fin de saison N" (utilisé par ex. dans Stats > Évolution des points)
+ * fuit et inclut aussi les saisons suivantes déjà terminées AUJOURD'HUI, ce qui
+ * rend leurs points identiques d'une saison à l'autre dans le graphe.
+ */
+function getMaxSeasonAsOf(currentDate, frozenResultsCache) {
+  if (!frozenResultsCache?.rounds) return getSeasonNumber(currentDate, frozenResultsCache);
+  const cd = currentDate instanceof Date ? currentDate : new Date(currentDate);
+  let maxSeason = 0;
+  for (const r of Object.values(frozenResultsCache.rounds)) {
+    if (!r?.frozen || !r.dates?.start) continue;
+    if (new Date(r.dates.start) <= cd) {
+      maxSeason = Math.max(maxSeason, Number(r.seasonNumber) || 0);
+    }
+  }
+  return maxSeason || getSeasonNumber(currentDate, frozenResultsCache);
+}
+
+/**
  * Calcule le classement annuel complet.
  * PORTÉ DEPUIS : app.js::calculateYearlyStandings()
  */
 export function calculateYearlyStandings(activities, currentDate, frozenResultsCache, bonusesCache, seasonBonusesCache) {
-  const currentSeason = getSeasonNumber(currentDate);
+  const currentSeason = getMaxSeasonAsOf(currentDate, frozenResultsCache);
   const totals = {};
 
   // Initialiser pour TOUS les participants
@@ -1204,9 +1227,9 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
   });
 
   for (let s = 1; s <= currentSeason; s++) {
-    const seasonDates = getSeasonDates(s);
-    if (currentDate < seasonDates.start) continue;
-
+    // Pas de filtre théorique ici : getMaxSeasonAsOf() garantit déjà que les
+    // saisons 1..currentSeason ont toutes commencé à currentDate. simulateSeasonEliminations
+    // gère lui-même, round par round, jusqu'où on va dans la saison à cette date.
     const sData = simulateSeasonEliminations(activities, s, currentDate, frozenResultsCache);
 
     // Règle métier : les points du challenge des éliminés n'apparaissent dans
@@ -1508,7 +1531,9 @@ export function computeFinalStandings({ activities, currentDate, frozenResults, 
   const frozenPoints = calculatePointsFromFrozenResults(frozenResultsCache, currentDate);
 
   // 3. Breakdown par saison pour affichage (comme renderFinalStandings)
-  const currentSeasonNumber = getSeasonNumber(currentDate);
+  // Même correctif que calculateYearlyStandings : ne pas utiliser getSeasonNumber()
+  // seul, qui ignore currentDate en mode robuste (retourne toujours la saison du jour).
+  const currentSeasonNumber = getMaxSeasonAsOf(currentDate, frozenResultsCache);
   const previousSeasonPoints = calculatePointsForSeason(
     currentSeasonNumber - 1, activities, currentDate, frozenResultsCache, bonusesCache, seasonBonusesCache
   );
