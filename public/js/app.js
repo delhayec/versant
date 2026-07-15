@@ -2228,8 +2228,77 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
   return html;
 }
 
+/**
+ * Rendu de l'historique du round bonus "finale éliminés" en saison équipe.
+ * Ce round ne fait que classer les équipes déjà éliminées lors des rounds précédents
+ * (D+ cumulé depuis leur élimination) : 0 actif, 0 élimination, donc pas un round
+ * d'élimination classique — nécessite un rendu dédié plutôt que le message générique
+ * "Aucun éliminé" ou l'affichage d'un round d'élimination équipe normal.
+ */
+function renderFrozenTeamEliminatedChallengeHistory(roundInSeason, frozenRound) {
+  const globalRound = frozenRound.roundNumber;
+  const teams = [...(frozenRound.teams || [])].sort((a, b) => (b.totalElevation || 0) - (a.totalElevation || 0));
+
+  const teamsHtml = teams.map((team, idx) => {
+    const teamColor = team.color || TEAM_COLORS[idx % TEAM_COLORS.length];
+    const animal = team.animal || null;
+    const position = idx + 1;
+    const teamLabel = animal
+      ? `${animal.emoji} ${animal.name}`
+      : `Équipe ${teamColor.name}`;
+
+    const membersHtml = [...(team.members || [])]
+      .sort((a, b) => (b.elevation || 0) - (a.elevation || 0))
+      .map(m => {
+        const pts = m.teamElimPoints || 0;
+        const ptsHtml = pts > 0 ? ` <span class="history-pts-badge">${pts} pts</span>` : '';
+        return `<div class="history-ranking-row" style="padding-left: 24px;">
+          <span class="history-name">${m.name || '?'}</span>
+          <span class="history-elevation">${formatElevation(m.elevation || 0, false)}</span>
+          ${ptsHtml}
+        </div>`;
+      }).join('');
+
+    return `<div class="history-team-block" style="border-left: 3px solid ${teamColor.border};">
+      <div class="history-team-header">
+        <span class="history-rank">#${position}</span>
+        <span style="color: ${teamColor.border}; font-weight: 600;">${teamLabel}</span>
+        <span class="history-elevation">${formatElevation(team.totalElevation || 0, false)}</span>
+      </div>
+      ${membersHtml}
+    </div>`;
+  }).join('');
+
+  return `<div class="history-item" data-round="${globalRound}">
+    <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
+      <div class="history-round">🎖️ Round ${roundInSeason} — Classement des éliminés par équipe</div>
+      <span class="history-toggle-icon">▼</span>
+    </div>
+    <div class="history-eliminated">
+      <span class="history-label">Round bonus : classement final du challenge des éliminés (D+ cumulé depuis l'élimination de chaque équipe)</span>
+    </div>
+    <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
+      <div class="history-ranking-title">🎖️ Classement des équipes éliminées</div>
+      <div class="history-ranking-list">
+        ${teamsHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   const globalRound = frozenRound.roundNumber;
+
+  // Round bonus "finale éliminés" (saison équipe) : classe les équipes DÉJÀ éliminées
+  // selon leur D+ cumulé depuis leur élimination — 0 actif et 0 élimination ce round-là,
+  // donc à ne pas confondre avec un round d'élimination normal (cf. renderFrozenTeamRoundHistory
+  // ci-dessous qui suppose toujours une équipe éliminée CE round).
+  const isTeamEliminatedChallengeRound = (frozenRound.teams?.length > 0) &&
+    (frozenRound.activeParticipants?.length || 0) === 0 &&
+    (frozenRound.eliminations?.length || 0) === 0;
+  if (isTeamEliminatedChallengeRound) {
+    return renderFrozenTeamEliminatedChallengeHistory(roundInSeason, frozenRound);
+  }
 
   // Si c'est un round de saison équipe avec des données teams, afficher en mode équipe
   if (frozenRound.teams && frozenRound.teams.length > 0) {
@@ -2241,7 +2310,14 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   const eliminations = frozenRound.eliminations || [];
   const jokersUsed = frozenRound.jokersUsed || [];
 
-  if (eliminations.length === 0) {
+  // Finale forcée par le configurateur admin (round_configs.json, type: 'finale')
+  // avec 0 élimination : plusieurs finalistes se départagent sans qu'aucun ne soit
+  // techniquement "éliminé" ce round-là. On affiche quand même le classement final,
+  // au lieu du message générique "Aucun éliminé" qui masquait le résultat de la finale.
+  const isFinaleNoElim = eliminations.length === 0 &&
+    (frozenRound.isFinalePrincipale === true || frozenRound.configForcedFinale === true);
+
+  if (eliminations.length === 0 && !isFinaleNoElim) {
     return `<div class="history-item">
       <div class="history-round">Round ${roundInSeason}</div>
       <div class="history-title">Aucun éliminé</div>
@@ -2348,9 +2424,13 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   // Construire le HTML complet
   let html = `<div class="history-item" data-round="${globalRound}">
     <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
-      <div class="history-round">Round ${roundInSeason}</div>
+      <div class="history-round">${isFinaleNoElim ? '🏆 ' : ''}Round ${roundInSeason}${isFinaleNoElim ? ' — Finale' : ''}</div>
       <span class="history-toggle-icon">▼</span>
     </div>
+    ${isFinaleNoElim ? `
+    <div class="history-eliminated">
+      <span class="history-label">🏆 Finale — classement final (plusieurs finalistes, aucune élimination ce round)</span>
+    </div>` : `
     <div class="history-eliminated">
       <span class="history-label">Éliminé(s) :</span>
       ${eliminatedDetails.map(e => {
@@ -2360,7 +2440,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
           return `<span class="eliminated-name">${e.name}</span> <span class="eliminated-gap">(à ${formatElevation(e.gap, false)} du maintien)</span>`;
         }
       }).join(', ')}
-    </div>
+    </div>`}
     ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité</div>` : ''}`;
 
   // Afficher les jokers utilisés
@@ -2410,7 +2490,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   // Ajouter le dropdown du classement (caché par défaut)
   html += `
     <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">📊 Classement du round</div>
+      <div class="history-ranking-title">${isFinaleNoElim ? '🏆 Classement final' : '📊 Classement du round'}</div>
       <div class="history-ranking-list">
         ${rankingHtml}
       </div>

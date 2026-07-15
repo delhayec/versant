@@ -32,7 +32,8 @@ import {
 // Moteur de calcul du classement (fidèle à app.js)
 import {
   computeFinalStandings,
-  computeStandingsAtEndOfSeason
+  computeStandingsAtEndOfSeason,
+  calculatePointsForSeason
 } from './standings-engine.js';
 
 // ============================================
@@ -1783,6 +1784,7 @@ const today = new Date();
       name: p.name,
       cumulative: [],        // [{season, points, breakdown}]
       ranks: [],             // [{season, rank}]
+      seasonBreakdown: [],   // [{season, mainRank, mainPoints, elimRank, elimPoints, rescapePoints}]
       eliminatedAtSeason: null
     };
   });
@@ -1845,6 +1847,33 @@ const today = new Date();
         }
       });
       byAthlete[id].ranks.push({ season: s, rank: entry.rank });
+    }
+
+    // Points gagnés SUR CETTE SAISON (pas cumulés) + rang par catégorie ce round-là,
+    // pour l'affichage détaillé "Challenge principal : 7ème (+8pts)" dans le tooltip.
+    const seasonPoints = calculatePointsForSeason(
+      s, allActivities, snapshotDate, frozen, bonusesCache, frozen?.seasonBonuses || {}
+    );
+    const mainRankOrder = Object.entries(seasonPoints)
+      .sort((a, b) => b[1].mainPoints - a[1].mainPoints);
+    const mainRankMap = {};
+    mainRankOrder.forEach(([id], idx) => { mainRankMap[id] = idx + 1; });
+    const elimRankOrder = Object.entries(seasonPoints)
+      .sort((a, b) => b[1].elimPoints - a[1].elimPoints);
+    const elimRankMap = {};
+    elimRankOrder.forEach(([id], idx) => { elimRankMap[id] = idx + 1; });
+
+    for (const id in seasonPoints) {
+      if (!byAthlete[id]) continue;
+      byAthlete[id].seasonBreakdown = byAthlete[id].seasonBreakdown || [];
+      byAthlete[id].seasonBreakdown.push({
+        season: s,
+        mainRank: mainRankMap[id],
+        mainPoints: seasonPoints[id].mainPoints,
+        elimRank: elimRankMap[id],
+        elimPoints: seasonPoints[id].elimPoints,
+        rescapePoints: seasonPoints[id].rescapePoints
+      });
     }
   }
 
@@ -1926,8 +1955,28 @@ async function renderPointsChart() {
           const bdStr = bd
             ? `<div style="opacity:0.7;font-size:11px;margin-top:4px">Principal : ${bd.main} • Éliminés : ${bd.elim} • Rescapé : ${bd.rescape} • Bonus : ${bd.bonus}</div>`
             : '';
+
+          // Détail des points gagnés SUR cette saison (pas cumulés), avec rang par catégorie
+          const sb = athleteInfo?.seasonBreakdown?.[p.dataIndex];
+          const ordinal = n => n === 1 ? '1er' : `${n}ème`;
+          const seasonLines = [];
+          if (sb) {
+            if (sb.mainPoints > 0) {
+              seasonLines.push(`Challenge principal : ${ordinal(sb.mainRank)} (+${sb.mainPoints}pts)`);
+            }
+            if (sb.elimPoints > 0) {
+              seasonLines.push(`Challenge des Éliminés : ${ordinal(sb.elimRank)} (+${sb.elimPoints}pts)`);
+            }
+            if (sb.rescapePoints > 0) {
+              seasonLines.push(`Jeton rescapé (+${sb.rescapePoints}pts)`);
+            }
+          }
+          const seasonStr = seasonLines.length
+            ? `<div style="opacity:0.9;font-size:11px;margin-top:6px;line-height:1.6">${seasonLines.join('<br/>')}</div>`
+            : '';
+
           return `<strong>${p.seriesName}</strong> — Saison ${season}<br/>` +
-                 `${p.marker}<strong>${p.value}</strong> pts cumulés${bdStr}`;
+                 `${p.marker}<strong>${p.value}</strong> pts cumulés${bdStr}${seasonStr}`;
         }
       },
       legend: {
