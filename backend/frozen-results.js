@@ -644,14 +644,22 @@ function detectSeasonContext(roundNumber, previousRounds) {
   // Cas 1 : le round précédent a marqué la saison comme terminée (séason team R5
   //         a aucun éliminé mais a un teamFinalRound: true ; saison standard
   //         finale a 1 actif restant à la fin).
-  // Cas 2 : on regarde si des actifs restent.
+  // Cas 2 : le round précédent était une finale FORCÉE par le configurateur admin
+  //         (round_configs.json, type: 'finale') — ex: finale à plusieurs joueurs
+  //         sans élimination (R31 saison 5). Dans ce cas la saison est terminée
+  //         dès ce round, même s'il reste plusieurs finalistes actifs : le round
+  //         suivant doit repartir sur une saison neuve avec le roster complet,
+  //         sinon il continue à tort d'éliminer les finalistes restants (cf. bug
+  //         round 32 qui a hérité des 4 finalistes de R31 et les a réduits à 1).
+  // Cas 3 : on regarde si des actifs restent.
   const prevSeasonNumber = lastFrozen.seasonNumber;
   const activeAtStart = (lastFrozen.activeParticipants?.length || 0);
   const eliminatedCount = (lastFrozen.eliminations?.length || 0);
   const survivorsAfter = activeAtStart - eliminatedCount;
   const wasTeamFinalRound = lastFrozen.teamFinalRound === true;
+  const wasConfigForcedFinale = lastFrozen.configForcedFinale === true;
 
-  if (survivorsAfter <= 1 || wasTeamFinalRound) {
+  if (survivorsAfter <= 1 || wasTeamFinalRound || wasConfigForcedFinale) {
     // Saison terminée → on commence une nouvelle saison
     return { seasonNumber: prevSeasonNumber + 1, roundInSeason: 1 };
   }
@@ -1378,6 +1386,11 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     // Propager le statut de finale (utile pour les snapshots et le calcul des bonus)
     // En saison individuelle, on utilise le même flag que la saison team pour cohérence.
     isFinalePrincipale: effectiveIsFinale,
+    // Distinct de isFinalePrincipale : uniquement vrai si la finale a été explicitement
+    // configurée par l'admin (round_configs.json), pas si elle a été auto-détectée par
+    // la formule théorique roundInSeason === roundsPerSeason. Lu par detectSeasonContext()
+    // pour terminer la saison au bon round, même quand plusieurs finalistes restent actifs.
+    configForcedFinale: isCustomFinale === true,
     activeParticipants,
     ranking,
     eliminations,

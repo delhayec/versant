@@ -701,10 +701,12 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
         for (let r = round_number - 1; r >= 1; r--) {
           const prev = frozenData?.rounds?.[String(r)];
           if (prev?.seasonNumber != null) {
-            // Si saison terminée (1 actif restant), on est dans la saison suivante
+            // Si saison terminée (1 actif restant, finale équipe, ou finale forcée
+            // par le configurateur admin), on est dans la saison suivante
             const survivors = (prev.activeParticipants?.length || 0) - (prev.eliminations?.length || 0);
             const wasTeamFinal = prev.teamFinalRound === true;
-            roundSeason = (survivors <= 1 || wasTeamFinal)
+            const wasConfigForcedFinale = prev.configForcedFinale === true;
+            roundSeason = (survivors <= 1 || wasTeamFinal || wasConfigForcedFinale)
               ? Number(prev.seasonNumber) + 1
               : Number(prev.seasonNumber);
             break;
@@ -1813,7 +1815,8 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
       if (prev?.seasonNumber != null) {
         const survivors = (prev.activeParticipants?.length || 0) - (prev.eliminations?.length || 0);
         const wasTeamFinal = prev.teamFinalRound === true;
-        detectedSeason = (survivors <= 1 || wasTeamFinal)
+        const wasConfigForcedFinale = prev.configForcedFinale === true;
+        detectedSeason = (survivors <= 1 || wasTeamFinal || wasConfigForcedFinale)
           ? Number(prev.seasonNumber) + 1
           : Number(prev.seasonNumber);
         break;
