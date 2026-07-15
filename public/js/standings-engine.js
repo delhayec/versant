@@ -409,25 +409,40 @@ export function calculateRescapePointsForSeason(seasonNumber, frozenResultsCache
 
   if (!frozenResultsCache?.rounds) return result;
 
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  const seasonEndRound = seasonNumber * roundsPerSeason;
+  // Bornes RÉELLES de la saison (issues des rounds figés), pas la formule théorique
+  // (nombre de rounds/saison fixe) qui se trompe dès qu'une saison a une durée
+  // différente (finale forcée, saison team, règles spéciales, etc.) — cf. round 21
+  // qui appartient réellement à la saison 4 mais que la formule théorique rattachait
+  // à tort à la saison 3, cassant le streak rescapé en cours.
+  const seasonRoundNumbers = Object.entries(frozenResultsCache.rounds)
+    .filter(([, r]) => r?.frozen && Number(r.seasonNumber) === Number(seasonNumber))
+    .map(([k]) => Number(k))
+    .sort((a, b) => a - b);
+
+  if (seasonRoundNumbers.length === 0) return result;
+
+  // La saison n'est considérée "terminée" (donc son dernier round = la finale, sans
+  // rescapé) que si le challenge des éliminés a été figé pour elle. Sinon (saison en
+  // cours), on ne sait pas encore quel round sera la finale : tous les rounds figés
+  // jusqu'ici sont traités normalement.
+  const isSeasonCompleted = !!frozenResultsCache.eliminatedChallengeRankings?.[String(seasonNumber)];
+  const lastRoundOfSeason = seasonRoundNumbers[seasonRoundNumbers.length - 1];
 
   // Tracker le compteur consécutif par joueur
   const consecutiveCount = {};
   PARTICIPANTS.forEach(p => { consecutiveCount[p.id] = 0; });
 
-  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
+  for (const roundNum of seasonRoundNumbers) {
     const round = frozenResultsCache.rounds[String(roundNum)];
-    if (!round?.frozen || !round.ranking || round.ranking.length < 4) continue;
+    if (!round.ranking || round.ranking.length < 4) continue;
 
     const eliminations = round.eliminations || [];
     if (eliminations.length === 0) continue;
 
     // Trouver le rescapé de ce round
     const eliminatedIds = new Set(eliminations.map(e => String(e.id)));
-    const roundInSeason = ((roundNum - 1) % roundsPerSeason) + 1;
-    const isFinale = roundInSeason === roundsPerSeason;
+    const roundInSeason = round.roundInSeason;
+    const isFinale = isSeasonCompleted && roundNum === lastRoundOfSeason;
 
     // Pas de rescapé en finale
     if (isFinale) {
@@ -481,8 +496,11 @@ export function calculateRescapePointsForSeason(seasonNumber, frozenResultsCache
  * PORTÉ DEPUIS : app.js::getRescapeInfoForRound()
  */
 export function getRescapeInfoForRound(globalRoundNumber, frozenResultsCache) {
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonNumber = Math.ceil(globalRoundNumber / roundsPerSeason);
+  // Lire la saison directement sur le round figé (fiable) plutôt que de la deviner
+  // via la formule théorique (fausse dès qu'une saison a une durée différente).
+  const frozenRound = frozenResultsCache?.rounds?.[String(globalRoundNumber)];
+  const seasonNumber = frozenRound?.seasonNumber
+    ?? Math.ceil(globalRoundNumber / getRoundsPerSeason());
   const rescapeData = calculateRescapePointsForSeason(seasonNumber, frozenResultsCache);
 
   for (const [athleteId, data] of Object.entries(rescapeData)) {
@@ -1219,21 +1237,38 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
       const elim = sData.eliminated.find(e => e.id === p.id);
       let mainPts = 0, elimPts = 0;
       if (elim) {
-  // Privilégier la position réelle stockée par le backend au moment du figement.
-  // Le recalcul via activeAtRoundStart - indexInRound est faux quand plusieurs
-  // joueurs sont éliminés au même round (finales team notamment).
-  let position;
-  if (elim.frozenPosition) {
-    position = elim.frozenPosition;
+  // Source de vérité : lire mainPoints directement dans le round figé où l'athlète
+  // a été éliminé, plutôt que de le recalculer depuis sa position. Le recalcul par
+  // position ignore les boucliers actifs (qui décalent les positions des autres
+  // éliminés) et les règles en vigueur au moment du figement (ex: barème "0 D+"
+  // qui a évolué en cours de saison) — seule la valeur figée est fiable.
+  let mainPtsFromFrozen = null;
+  if (frozenResultsCache?.rounds) {
+    const elimRound = Object.values(frozenResultsCache.rounds).find(r =>
+      r?.frozen && Number(r.seasonNumber) === s && Number(r.roundInSeason) === Number(elim.eliminatedRound)
+    );
+    const frozenEntry = elimRound?.ranking?.find(e => String(e.id) === String(elim.id));
+    if (frozenEntry && typeof frozenEntry.mainPoints === 'number') {
+      mainPtsFromFrozen = frozenEntry.mainPoints;
+    }
+  }
+
+  if (mainPtsFromFrozen !== null) {
+    mainPts = mainPtsFromFrozen;
   } else {
     // Fallback pour les rounds sans position stockée (ex: round non figé en preview)
-    const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-    const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
-    const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
-    const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
-    position = activeAtRoundStart - indexInRound;
+    let position;
+    if (elim.frozenPosition) {
+      position = elim.frozenPosition;
+    } else {
+      const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
+      const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+      const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
+      const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
+      position = activeAtRoundStart - indexInRound;
+    }
+    mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
   }
-  mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
   elimPts = elimPointsMap[p.id] || 0;
 } else if (sData.winner?.id === p.id) {
         mainPts = getMainChallengePoints(1);
