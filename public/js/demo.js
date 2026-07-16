@@ -9,6 +9,7 @@
  */
 
 import { CHALLENGE_CONFIG, getSeasonNumber, getRoundInSeason, getGlobalRoundNumber } from './config.js';
+import { formatDate } from './ui.js';
 
 // ============================================
 // GESTION DE LA DATE SIMULÉE
@@ -129,20 +130,7 @@ export function initDateSlider(onDateChange) {
 // UTILITAIRES DE FORMATAGE (LOCAUX)
 // ============================================
 
-function formatDate(date) {
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
-}
-
-function formatDateShort(date) {
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short'
-  });
-}
+// formatDate : voir import depuis ui.js (source unique).
 
 // ============================================
 // NAVIGATION PAR CLIC DROIT (JUMP TO DATE)

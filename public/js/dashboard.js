@@ -6,12 +6,15 @@
  * - Bonus éphémères du challenge des éliminés
  */
 
-import { 
+import {
   CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES,
-  getRoundDates as _getRoundDates, 
+  getRoundDates,
   getGlobalRoundNumber,
-  getSeasonNumber, isTeamSeason
+  getSeasonNumber, isTeamSeason,
+  getAthleteColor, getAthleteInitials,
+  fetchWithTimeout
 } from './config.js';
+import { formatDate, formatElevation } from './ui.js';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
@@ -142,11 +145,7 @@ async function loadCurrentUser() {
       throw new Error('Non connecté');
     }
 
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
+    const res = await fetchWithTimeout(`${API_BASE}/athletes/${LEAGUE_ID}`);
     if (!res.ok) throw new Error('Erreur chargement');
 
     const athletes = await res.json();
@@ -167,11 +166,7 @@ async function loadCurrentUser() {
 
 async function loadActivities() {
   try {
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/activities/${LEAGUE_ID}?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
+    const res = await fetchWithTimeout(`${API_BASE}/activities/${LEAGUE_ID}`);
     if (!res.ok) throw new Error('Erreur chargement activités');
 
     allActivities = await res.json();
@@ -184,11 +179,7 @@ async function loadActivities() {
 
 async function loadJokersFromServer() {
   try {
-    const cacheBuster = Date.now();
-    const res = await fetch(`${API_BASE}/jokers/all?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
+    const res = await fetchWithTimeout(`${API_BASE}/jokers/all`);
     if (!res.ok) {
       console.warn('⚠️ Impossible de charger les jokers');
       return [];
@@ -292,35 +283,10 @@ function getDayInRound() {
   return (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;
 }
 
-// Utilise getRoundDates importé de config.js (wrapper pour compatibilité)
-function getRoundDates(roundNumber) {
-  return _getRoundDates(roundNumber);
-}
-
 // ============================================
 // UTILITAIRES
 // ============================================
-function formatDate(date) {
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
-}
-
-function formatElevation(meters) {
-  return `${Math.round(meters).toLocaleString('fr-FR')} m`;
-}
-
-function getAthleteColorSimple(id) {
-  const colors = ['#f97316', '#22d3ee', '#10b981', '#8b5cf6', '#f43f5e', '#fbbf24', '#06b6d4', '#ec4899'];
-  const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-}
-
-function getInitials(name) {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-}
+// formatDate / formatElevation : voir import depuis ui.js (source unique).
 
 // ============================================
 // AFFICHAGE - HEADER & STATS
@@ -693,11 +659,6 @@ function calculateGeneralRanking(frozenResults, allAthletes) {
   return Object.values(pointsMap).sort((a, b) => b.points - a.points);
 }
 
-/**
- * Calcule les dates d'un round
- */
-// getRoundDates est défini plus haut (wrapper de config.js)
-
 function renderActivities() {
   const list = document.getElementById('activitiesList');
   if (!list || !currentUser) return;
@@ -1051,8 +1012,8 @@ function showBonusTargetModal(bonusId, bonusType) {
               <div class="target-selection-grid">
                 ${targets.map(t => `
                   <div class="target-card" data-id="${t.id}" data-name="${t.name}">
-                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColorSimple(t.id)}, ${getAthleteColorSimple(t.id)}88)">
-                      ${getInitials(t.name)}
+                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColor(t.id)}, ${getAthleteColor(t.id)}88)">
+                      ${getAthleteInitials(t.id)}
                     </div>
                     <div class="target-card-name">${t.name}</div>
                   </div>
@@ -1340,8 +1301,8 @@ function showJokerTargetModal(jokerId, joker) {
               <div class="target-selection-grid">
                 ${opponents.map(opp => `
                   <div class="target-card" data-id="${opp.id}" data-name="${opp.name}">
-                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColorSimple(opp.id)}, ${getAthleteColorSimple(opp.id)}88)">
-                      ${getInitials(opp.name)}
+                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColor(opp.id)}, ${getAthleteColor(opp.id)}88)">
+                      ${getAthleteInitials(opp.id)}
                     </div>
                     <div class="target-card-name">${opp.name}</div>
                   </div>

@@ -47,15 +47,6 @@ export const CHALLENGE_CONFIG = {
 };
 
 // ============================================
-// AUTHENTIFICATION
-// ============================================
-export const AUTH_CONFIG = {
-  accessCode: "versant2025",
-  sessionDurationHours: 24,
-  rememberMeDays: 30
-};
-
-// ============================================
 // TYPES DE SAISONS
 // ============================================
 export const SEASON_TYPES = {
@@ -485,7 +476,9 @@ export let PARTICIPANTS = IS_DEMO ? [...PARTICIPANTS_2025] : [];
  * À appeler au démarrage de l'application
  */
 // Helper pour fetch avec timeout et cache-busting (important pour mobile)
-async function fetchWithTimeout(url, timeout = 10000) {
+// Exporté : source unique pour les GET non authentifiés (remplace les
+// fetch + cache-buster inline dupliqués dans dashboard.js / jokers.js).
+export async function fetchWithTimeout(url, timeout = 10000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -720,14 +713,6 @@ export function getSeasonStartRound(seasonNumber, frozen = null) {
 }
 
 /**
- * Nombre de jours d'une saison
- */
-export function getSeasonDurationDays(seasonNumber, frozen = null) {
-  const sn = seasonNumber || 1;
-  return getRoundsForSeason(sn, frozen) * CHALLENGE_CONFIG.roundDurationDays;
-}
-
-/**
  * Jour de début d'une saison (en jours depuis yearStartDate)
  */
 function getSeasonStartDay(seasonNumber, frozen = null) {
@@ -916,9 +901,18 @@ export function getRoundInfo(globalRoundNumber) {
 // ============================================
 // FORMATION DES ÉQUIPES (Saison Team)
 // ============================================
+// L'ALGORITHME de formation d'équipes a une source unique :
+// public/shared/team-formation.js, chargé en <script> classique AVANT ce module
+// sur les pages qui forment des équipes (index, demo, stats, dashboard). Le
+// backend consomme le même fichier via require, garantissant des équipes
+// identiques pour un même seed. Ne PAS réintroduire d'implémentation ici.
+export const formBalancedTeams = (athletes, pointsMap, seed = 0, teamSize = 3) =>
+  window.TeamFormation.formBalancedTeams(athletes, pointsMap, seed, teamSize);
 
 /**
- * Couleurs d'équipe pour l'affichage
+ * Couleurs d'équipe (données présentationnelles, identiques backend/frontend).
+ * Gardées ici en littéral pour que config.js reste autonome au chargement,
+ * y compris sur les pages qui n'incluent pas team-formation.js.
  */
 export const TEAM_COLORS = [
   { bg: 'rgba(249, 115, 22, 0.15)', border: '#f97316', name: 'Orange' },
@@ -926,142 +920,8 @@ export const TEAM_COLORS = [
   { bg: 'rgba(168, 85, 247, 0.15)', border: '#a855f7', name: 'Violet' },
   { bg: 'rgba(16, 185, 129, 0.15)', border: '#10b981', name: 'Vert' },
   { bg: 'rgba(244, 63, 94, 0.15)', border: '#f43f5e', name: 'Rose' },
-  { bg: 'rgba(234, 179, 8, 0.15)', border: '#eab308', name: 'Or' },
+  { bg: 'rgba(234, 179, 8, 0.15)', border: '#eab308', name: 'Or' }
 ];
-
-/**
- * Forme des équipes équilibrées par points du classement général.
- * Brute-force exhaustif pour ≤12 joueurs, échantillonnage pour 13+.
- *
- * @param {Array} athletes - Liste des athlètes actifs [{id, name, ...}]
- * @param {Object} pointsMap - Points par athlète {id: points}
- * @param {number} seed - Graine pour le tirage (basé sur le round number pour reproductibilité)
- * @returns {Array} Équipes [{ index, color, members: [{id, name, points}], totalPoints }]
- */
-export function formBalancedTeams(athletes, pointsMap, seed = 0) {
-  const n = athletes.length;
-  if (n < 2) return [{ index: 0, color: TEAM_COLORS[0], members: athletes.map(a => ({ ...a, points: pointsMap[a.id] || 0 })), totalPoints: 0 }];
-
-  // Déterminer la structure des équipes
-  let teamsOf3 = Math.floor(n / 3);
-  let teamsOf2 = 0;
-  const remainder = n % 3;
-
-  if (remainder === 1) {
-    teamsOf3 -= 1;
-    teamsOf2 = 2;
-  } else if (remainder === 2) {
-    teamsOf2 = 1;
-  }
-
-  // Préparer les athlètes avec leurs points
-  const players = athletes.map(a => ({
-    ...a,
-    points: pointsMap[a.id] || 0
-  }));
-
-  // Générateur pseudo-aléatoire reproductible
-  function seededRandom(s) {
-    let state = s | 0 || 1;
-    return function() {
-      state = (state * 1103515245 + 12345) & 0x7fffffff;
-      return state / 0x7fffffff;
-    };
-  }
-
-  const random = seededRandom(seed);
-
-  // Fonction d'évaluation : écart-type des sommes de points
-  function evaluate(teams) {
-    const sums = teams.map(t => t.reduce((s, p) => s + p.points, 0));
-    const mean = sums.reduce((s, v) => s + v, 0) / sums.length;
-    const variance = sums.reduce((s, v) => s + (v - mean) ** 2, 0) / sums.length;
-    return Math.sqrt(variance);
-  }
-
-  // Former les équipes à partir d'un tableau mélangé
-  function buildTeams(arr) {
-    const teams = [];
-    let idx = 0;
-    for (let t = 0; t < teamsOf3; t++) { teams.push(arr.slice(idx, idx + 3)); idx += 3; }
-    for (let t = 0; t < teamsOf2; t++) { teams.push(arr.slice(idx, idx + 2)); idx += 2; }
-    return teams;
-  }
-
-  let candidates;
-
-  if (n <= 12) {
-    // BRUTE FORCE : énumérer toutes les partitions
-    candidates = [];
-
-    function* generatePartitions(remaining, teams, teamsOf3Left, teamsOf2Left) {
-      if (remaining.length === 0) {
-        yield teams.map(t => [...t]);
-        return;
-      }
-
-      // Prendre le premier joueur restant (il doit aller dans une équipe)
-      const first = remaining[0];
-      const rest = remaining.slice(1);
-
-      if (teamsOf3Left > 0) {
-        // Former une équipe de 3 avec 'first' + 2 parmi 'rest'
-        for (let i = 0; i < rest.length; i++) {
-          for (let j = i + 1; j < rest.length; j++) {
-            const team = [first, rest[i], rest[j]];
-            const newRemaining = rest.filter((_, k) => k !== i && k !== j);
-            yield* generatePartitions(newRemaining, [...teams, team], teamsOf3Left - 1, teamsOf2Left);
-          }
-        }
-      }
-
-      if (teamsOf2Left > 0) {
-        // Former une équipe de 2 avec 'first' + 1 parmi 'rest'
-        for (let i = 0; i < rest.length; i++) {
-          const team = [first, rest[i]];
-          const newRemaining = rest.filter((_, k) => k !== i);
-          yield* generatePartitions(newRemaining, [...teams, team], teamsOf3Left, teamsOf2Left - 1);
-        }
-      }
-    }
-
-    for (const partition of generatePartitions(players, [], teamsOf3, teamsOf2)) {
-      const stdDev = evaluate(partition);
-      candidates.push({ teams: partition, stdDev });
-    }
-  } else {
-    // ÉCHANTILLONNAGE pour 13+ joueurs
-    candidates = [];
-    const NUM_SAMPLES = 50000;
-
-    for (let sample = 0; sample < NUM_SAMPLES; sample++) {
-      const shuffled = [...players];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      const teams = buildTeams(shuffled);
-      const stdDev = evaluate(teams);
-      candidates.push({ teams, stdDev });
-    }
-  }
-
-  // Trier par écart-type et garder les 16 meilleurs
-  candidates.sort((a, b) => a.stdDev - b.stdDev);
-  const KEEP_BEST = Math.min(16, candidates.length);
-  const best = candidates.slice(0, KEEP_BEST);
-
-  // Tirer une partition au hasard parmi les meilleures
-  const chosen = best[Math.floor(random() * best.length)];
-
-  // Formater le résultat : membres triés par points desc dans chaque équipe
-  return chosen.teams.map((members, teamIdx) => ({
-    index: teamIdx,
-    color: TEAM_COLORS[teamIdx % TEAM_COLORS.length],
-    members: members.sort((a, b) => b.points - a.points),
-    totalPoints: members.reduce((s, p) => s + p.points, 0)
-  }));
-}
 
 // ============================================
 // GESTION DES INSCRIPTIONS TARDIVES

@@ -74,7 +74,7 @@ function getAthleteColor(id) {
   return configAthleteColor(String(id));
 }
 
-function formatElevation(v) {
+function formatElevationCompact(v) {
   if (v == null) return '0';
   if (v >= 10000) return `${(v / 1000).toFixed(1)}k`;
   return `${Math.round(v)}`;
@@ -641,7 +641,7 @@ function renderSportPieChart(data) {
       backgroundColor: 'rgba(10,10,15,0.95)',
       borderColor: 'rgba(255,255,255,0.08)',
       textStyle: { color: '#fff', fontFamily: "'Inter',sans-serif", fontSize: 12 },
-      formatter: p => `${p.name}<br/>↑ ${formatElevation(p.value)} m (${p.percent.toFixed(1)}%)`
+      formatter: p => `${p.name}<br/>↑ ${formatElevationCompact(p.value)} m (${p.percent.toFixed(1)}%)`
     },
     series: [{
       type: 'pie',
@@ -698,7 +698,7 @@ function renderMiniRanking(data) {
         <div class="mini-rank-position ${posClass}">${i + 1}</div>
         <div class="mini-rank-info">
           <div class="mini-rank-name" style="color:${getAthleteColor(s.id)}">${getAthleteName(s.id)}</div>
-          <div class="mini-rank-value">${formatElevation(s.total_elevation)} m</div>
+          <div class="mini-rank-value">${formatElevationCompact(s.total_elevation)} m</div>
         </div>
         <div class="mini-rank-bar">
           <div class="mini-rank-bar-fill" style="width:${pct}%;background:${getAthleteColor(s.id)}"></div>
@@ -815,7 +815,7 @@ function renderMap(data, athleteSelected) {
       pl.bindPopup(`
         <strong>${act.name || 'Activité'}</strong><br>
         ${date} · ${mapSportName(act.sport_type)}<br>
-        ↑ ${formatElevation(act.total_elevation_gain)} m D+
+        ↑ ${formatElevationCompact(act.total_elevation_gain)} m D+
       `);
       polylineLayers.push(pl);
     }
@@ -958,7 +958,7 @@ function renderMapLegend(activities, colorMode) {
           <span class="country-badge">${i + 1}</span>
           ${country}
         </div>
-        <div class="country-stats-line">↑ ${formatElevation(r.elevation)} m D+</div>
+        <div class="country-stats-line">↑ ${formatElevationCompact(r.elevation)} m D+</div>
         <div class="country-stats-line">◉ ${r.count} activités</div>
         <div class="country-stats-line">👥 ${r.athletes.size} athlète${r.athletes.size > 1 ? 's' : ''}</div>
       </div>`);
@@ -1058,10 +1058,10 @@ function renderSankey(data) {
       textStyle: { color: '#fff', fontFamily: "'Inter',sans-serif" },
       formatter: params => {
         if (params.dataType === 'edge') {
-          return `${params.data.source} → ${params.data.target}<br/>↑ ${formatElevation(params.data.value)} m`;
+          return `${params.data.source} → ${params.data.target}<br/>↑ ${formatElevationCompact(params.data.value)} m`;
         }
         const node = nodes.find(n => n.name === params.name);
-        if (node) return `<strong>${params.name}</strong><br/>↑ ${formatElevation(node.total)} m<br/>${node.percentage}% du total`;
+        if (node) return `<strong>${params.name}</strong><br/>↑ ${formatElevationCompact(node.total)} m<br/>${node.percentage}% du total`;
         return params.name;
       }
     },
@@ -1114,7 +1114,7 @@ function renderCalendar(data) {
         const d = new Date(p.data[0]).toLocaleDateString('fr-FR', {
           weekday: 'long', day: 'numeric', month: 'long'
         });
-        return `${d}<br/>↑ ${formatElevation(p.data[1])} m D+`;
+        return `${d}<br/>↑ ${formatElevationCompact(p.data[1])} m D+`;
       }
     },
     visualMap: {
@@ -1179,7 +1179,7 @@ function renderWeeklyBars(data, year) {
       <div class="perf-bar" style="height:${Math.max(height, 2)}%;transition:height .5s ease-out ${i * 15}ms">
         <div class="perf-bar-tooltip">
           <strong>S${weekNum}</strong><br>
-          ↑ ${formatElevation(w.value)} m
+          ↑ ${formatElevationCompact(w.value)} m
         </div>
         ${showLabel ? `<span class="perf-bar-label">${weekNum}</span>` : ''}
       </div>`;
@@ -1208,7 +1208,7 @@ function renderMonthlyBars(data, year) {
       <div class="perf-bar" style="height:${Math.max(height, 2)}%;transition:height .6s ease-out ${i * 50}ms">
         <div class="perf-bar-tooltip">
           <strong>${monthNames[i]}</strong><br>
-          ↑ ${formatElevation(v)} m
+          ↑ ${formatElevationCompact(v)} m
         </div>
         <span class="perf-bar-label">${monthNames[i]}</span>
       </div>`;
@@ -1549,7 +1549,7 @@ function renderSocialGraph(groups) {
         <div style="font-size:14px;margin-bottom:6px;font-weight:500">${d.name}</div>
         <div style="display:flex;gap:12px;font-size:11px;color:rgba(255,255,255,0.8)">
           <div><span style="color:rgba(255,255,255,0.5)">Sport:</span> ${d.sport}</div>
-          <div><span style="color:rgba(255,255,255,0.5)">D+:</span> ${formatElevation(d.value)} m</div>
+          <div><span style="color:rgba(255,255,255,0.5)">D+:</span> ${formatElevationCompact(d.value)} m</div>
         </div>
         <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)">
           ${getAthleteName(a1)} · ${getAthleteName(a2)}
@@ -1596,7 +1596,7 @@ function renderSocialGraph(groups) {
         <div style="font-size:11px;color:rgba(255,255,255,0.7)">
           ${grpCount} sortie${grpCount > 1 ? 's' : ''} en groupe<br>
           ${partners.size} partenaire${partners.size > 1 ? 's' : ''}<br>
-          ↑ ${formatElevation(totalEl)} m en groupe
+          ↑ ${formatElevationCompact(totalEl)} m en groupe
         </div>`)
         .style('left', (event.clientX + 15) + 'px')
         .style('top', (event.clientY - 10) + 'px')
@@ -1681,7 +1681,7 @@ function renderSocialStats(athleteIds, links, groups) {
   container.innerHTML = `
     <h4>Statistiques</h4>
     <div class="social-stat-item"><span>Sorties en groupe</span><span class="social-stat-value">${totalGroups}</span></div>
-    <div class="social-stat-item"><span>D+ en groupe</span><span class="social-stat-value">${formatElevation(totalEl)} m</span></div>
+    <div class="social-stat-item"><span>D+ en groupe</span><span class="social-stat-value">${formatElevationCompact(totalEl)} m</span></div>
     ${bigGroups > 0 ? `<div class="social-stat-item"><span>Sorties à 3+</span><span class="social-stat-value">${bigGroups}</span></div>` : ''}
     ${topPairNames ? `<div class="social-stat-item"><span>Duo le + actif</span><span class="social-stat-value" style="font-size:0.7rem">${topPairNames} (${topCount})</span></div>` : ''}
     ${mostSocial ? `<div class="social-stat-item"><span>Le + social</span><span class="social-stat-value">${getAthleteName(mostSocial[0])}</span></div>` : ''}
@@ -2205,7 +2205,7 @@ async function renderMoneyTimeChart() {
         let html = `<strong>${name}</strong><br/>`;
         params.forEach(p => {
           const raw = p.data?.rawElev ?? 0;
-          html += `${p.marker}${p.seriesName} : <strong>${p.value}%</strong> (${formatElevation(raw)} m)<br/>`;
+          html += `${p.marker}${p.seriesName} : <strong>${p.value}%</strong> (${formatElevationCompact(raw)} m)<br/>`;
         });
         return html;
       }
@@ -2607,7 +2607,7 @@ function renderRankingTable(stats) {
         <td data-sort-value="${s.best_elevation}">
           ${s.best_activity ? `
             <a href="${stravaLink}" target="_blank" rel="noopener" class="record-link" title="${s.best_activity.name}">
-              <span class="record-elevation">↑ ${formatElevation(s.best_activity.elevation)} m</span>
+              <span class="record-elevation">↑ ${formatElevationCompact(s.best_activity.elevation)} m</span>
               <span class="record-date">${recordDate}</span>
               <span class="record-strava">Strava →</span>
             </a>` : '-'}
@@ -2645,7 +2645,7 @@ function renderAchievements(stats) {
   const achievements = [
     // === ACHIEVEMENTS PRINCIPAUX CHALLENGE ===
     { id: 'king', emoji: '👑', name: 'Roi du D+', desc: 'Le plus de dénivelé total', type: 'legendary',
-      getValue: s => s.total_elevation, format: v => `${formatElevation(v)} m` },
+      getValue: s => s.total_elevation, format: v => `${formatElevationCompact(v)} m` },
     { id: 'points_king', emoji: '🏆', name: 'Roi des Points', desc: 'Plus de points au challenge principal', type: 'legendary',
       getValue: s => s.main_points, format: v => `${v} pts` },
     { id: 'elim_prince', emoji: '👻', name: 'Prince des Éliminés', desc: 'Plus de points au challenge éliminés', type: 'legendary',
@@ -2655,15 +2655,15 @@ function renderAchievements(stats) {
 
     // === RECORDS PUNCTUELS ===
     { id: 'best24h', emoji: '🔥', name: 'Journée de Feu', desc: 'Le plus gros D+ en 24h', type: 'legendary',
-      getValue: s => s.best_24h_elevation, format: v => `${formatElevation(v)} m` },
+      getValue: s => s.best_24h_elevation, format: v => `${formatElevationCompact(v)} m` },
     { id: 'bestRound', emoji: '⚡', name: 'Round de Folie', desc: 'Le plus gros D+ sur un round (5j)', type: 'legendary',
-      getValue: s => s.best_round_elevation, format: v => `${formatElevation(v)} m` },
+      getValue: s => s.best_round_elevation, format: v => `${formatElevationCompact(v)} m` },
     { id: 'biggestAct', emoji: '⛰️', name: 'Sortie Légende', desc: 'La plus grosse sortie unique', type: 'legendary',
-      getValue: s => s.best_elevation, format: v => `${formatElevation(v)} m` },
+      getValue: s => s.best_elevation, format: v => `${formatElevationCompact(v)} m` },
 
     // === EFFICACITÉ ===
     { id: 'efficient', emoji: '⚡', name: 'Efficace', desc: 'Le plus de D+ par sortie', type: 'normal',
-      getValue: s => parseFloat(s.elevation_per_activity), format: v => `${formatElevation(v)} m/sortie` },
+      getValue: s => parseFloat(s.elevation_per_activity), format: v => `${formatElevationCompact(v)} m/sortie` },
     { id: 'lost', emoji: '🤷', name: 'A pas compris', desc: 'Plus de sorties pour peu de D+ (moins de D+ par sortie)', type: 'fun',
       // Critère inversé : on prend le plus haut "déficit" en m/sortie.
       // getValue retourne (1000 - elevation_per_activity) pour qu'un faible m/sortie
@@ -2676,7 +2676,7 @@ function renderAchievements(stats) {
       getValue: s => parseFloat(s.elevation_per_distance), format: v => `${v} m/km` },
     { id: 'worker', emoji: '💪', name: 'Le Travailleur', desc: 'Le plus de D+ pour 1 point', type: 'normal',
       getValue: s => s.total_points > 0 ? s.elevation_per_point : 0,
-      format: v => `${formatElevation(v)} m/pt` },
+      format: v => `${formatElevationCompact(v)} m/pt` },
 
     // === HABITUDES ===
     { id: 'nightowl', emoji: '🦉', name: 'Oiseau de Nuit', desc: 'Activités après 20h', type: 'fun',
@@ -2696,13 +2696,13 @@ function renderAchievements(stats) {
 
     // === SPORTS ===
     { id: 'cyclist', emoji: '🚴', name: 'Roi de la Pédale', desc: 'Le plus de D+ à vélo', type: 'normal',
-      getValue: s => s.elevation_by_sport['Bike'] || 0, format: v => `${formatElevation(v)} m` },
+      getValue: s => s.elevation_by_sport['Bike'] || 0, format: v => `${formatElevationCompact(v)} m` },
     { id: 'runner', emoji: '🏃', name: 'Crapahute', desc: 'Le plus de D+ en trail/run', type: 'normal',
-      getValue: s => s.elevation_by_sport['Run'] || 0, format: v => `${formatElevation(v)} m` },
+      getValue: s => s.elevation_by_sport['Run'] || 0, format: v => `${formatElevationCompact(v)} m` },
     { id: 'skier', emoji: '⛷️', name: 'Collant Pipette', desc: 'Le plus de D+ en ski', type: 'normal',
-      getValue: s => s.elevation_by_sport['Ski'] || 0, format: v => `${formatElevation(v)} m` },
+      getValue: s => s.elevation_by_sport['Ski'] || 0, format: v => `${formatElevationCompact(v)} m` },
     { id: 'hiker', emoji: '🥾', name: 'Randonneur', desc: 'Le plus de D+ en rando', type: 'normal',
-      getValue: s => s.elevation_by_sport['Hike'] || 0, format: v => `${formatElevation(v)} m` }
+      getValue: s => s.elevation_by_sport['Hike'] || 0, format: v => `${formatElevationCompact(v)} m` }
   ];
 
   // Tooltip custom

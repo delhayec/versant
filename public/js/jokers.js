@@ -13,7 +13,7 @@
  * PAS de localStorage, PAS de cache complexe.
  */
 
-import { PARTICIPANTS, JOKER_TYPES, BONUS_TYPES, BONUS_IDS, BONUS_CHOICE_COUNT, getParticipantById } from './config.js';
+import { PARTICIPANTS, JOKER_TYPES, BONUS_TYPES, BONUS_IDS, BONUS_CHOICE_COUNT, getParticipantById, fetchWithTimeout } from './config.js';
 
 // ============================================
 // CONFIGURATION
@@ -42,14 +42,7 @@ let cacheTimestamp = null;
  */
 export async function loadJokersFromServer() {
   try {
-    // Ajouter un timestamp pour éviter le cache navigateur
-    const cacheBuster = Date.now();
-    const response = await fetch(`${API_BASE}/jokers/all?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache'
-      }
-    });
+    const response = await fetchWithTimeout(`${API_BASE}/jokers/all`);
     if (!response.ok) {
       console.warn('⚠️ Impossible de charger les jokers depuis le serveur');
       return jokerUsageCache;
@@ -569,11 +562,7 @@ function validateJokersCache() {
  */
 async function loadBonusesFromServer() {
   try {
-    const cacheBuster = Date.now();
-    const response = await fetch(`${API_BASE}/bonuses/all?_=${cacheBuster}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
+    const response = await fetchWithTimeout(`${API_BASE}/bonuses/all`);
 
     if (!response.ok) {
       console.warn('⚠️ Impossible de charger les bonus depuis le serveur');
