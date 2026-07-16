@@ -9,6 +9,13 @@
  */
 require('dotenv').config();
 
+// Fuseau horaire déterministe : tout le calcul de dates du backend (bornes de
+// round via getRoundDates, déclenchement de l'auto-freeze, saison) doit être en
+// heure de Paris, quel que soit le fuseau de l'hôte. Sans ça, sur un serveur en
+// UTC, une journée se termine à 01h Paris et la nouvelle saison ne repartait que
+// le lendemain matin. Overridable via TZ dans .env si besoin.
+process.env.TZ = process.env.TZ || 'Europe/Paris';
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -2120,36 +2127,6 @@ app.post('/api/admin/reset-frozen', async (req, res) => {
   }
 });
 
-// Admin: Figer un round avec des données pré-calculées du frontend
-// Cette route accepte les données exactes affichées sur la page principale
-app.post('/api/admin/freeze-round-with-data/:roundNumber', async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-
-  try {
-    const roundNumber = parseInt(req.params.roundNumber);
-    const { roundData, force } = req.body;
-
-    if (!roundData) {
-      return res.status(400).json({ error: 'roundData manquant dans le body' });
-    }
-
-    const result = await frozenResults.freezeRoundWithData(
-      roundNumber,
-      roundData,
-      { force: force === true }
-    );
-
-    if (result.success) {
-      res.json({ success: true, round: result.round, method: result.method });
-    } else {
-      res.status(400).json({ success: false, error: result.error, existing: result.existing });
-    }
-  } catch (error) {
-    console.error('Erreur freeze with data:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Admin: Importer un fichier frozen_results.json complet
 app.post('/api/admin/import-frozen-results', async (req, res) => {
   if (!checkAdmin(req, res)) return;
@@ -2197,25 +2174,51 @@ cron.schedule('0 14 * * *', () => { console.log('🕐 Sync 14h'); autoSyncAllLea
 cron.schedule('0 18 * * *', () => { console.log('🕐 Sync 18h'); autoSyncAllLeagues(); });
 cron.schedule('0 22 * * *', () => { console.log('🕐 Sync 22h'); autoSyncAllLeagues(); });
 
-// Auto-freeze des rounds terminés à 00h05 (après minuit)
-cron.schedule('5 0 * * *', async () => {
-  console.log('❄️ Auto-freeze des rounds terminés...');
+// Auto-freeze des rounds terminés, juste après minuit.
+// IMPORTANT : on SYNCHRONISE Strava d'abord, puis on fige. Sans ça, le freeze
+// utiliserait les activités du dernier sync (22h) et raterait les activités de
+// la dernière soirée du round → un round terminé se figerait avec des données
+// incomplètes (et un round figé ne se recalcule jamais). Le sync est attendu
+// (await) avant le freeze, donc la nouvelle saison démarre dès que les deux
+// sont finis (~00h15 + durée du sync).
+async function runAutoFreeze(reason, { sync } = { sync: true }) {
+  if (sync) {
+    try {
+      console.log(`🔄 [${reason}] Sync Strava avant auto-freeze...`);
+      await autoSyncAllLeagues();
+    } catch (e) {
+      // Best-effort : on tente quand même le freeze avec les données sur disque.
+      console.error(`⚠️ [${reason}] Sync avant freeze échoué, on fige avec les données existantes:`, e.message);
+    }
+  }
   try {
     const leagueId = 'versant-2026';
     const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
     const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    if (leagueAthletes.length === 0) {
+      console.log(`[${reason}] aucun athlète actif, skip auto-freeze`);
+      return [];
+    }
     const jokerUsage = await readJokerUsage();
-    
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activities, leagueAthletes, jokerUsage, CHALLENGE_CONFIG
     );
-    
-    console.log(`❄️ ${frozen.length} round(s) figé(s)`);
+    console.log(`❄️ [${reason}] ${frozen.length} round(s) figé(s)`);
+    return frozen;
   } catch (error) {
-    console.error('❌ Erreur auto-freeze:', error);
+    console.error(`❌ [${reason}] Erreur auto-freeze:`, error.message);
+    return [];
   }
+}
+
+// Sync + auto-freeze à 00h15 (heure de Paris, quel que soit le fuseau du
+// serveur) : la nouvelle saison repart dès la nuit, pas le lendemain matin.
+// 00h15 laisse ~15 min aux montres/apps pour téléverser les dernières
+// activités de la soirée avant le sync.
+cron.schedule('15 0 * * *', () => runAutoFreeze('cron 00h15', { sync: true }), {
+  timezone: 'Europe/Paris'
 });
 
 cron.schedule('0 20 * * *', async () => {
@@ -2234,39 +2237,16 @@ cron.schedule('30 */2 * * *', () => {
 // ============================================
 
 /**
- * Au démarrage : vérifier s'il y a des rounds en retard de freeze.
- * Couvre le cas où le serveur était down au moment du cron 00h05.
+ * Au démarrage : figer les rounds terminés en retard. Couvre le cas où le
+ * serveur était down au moment du cron 00h15. On ne resync PAS ici (sync:false)
+ * pour éviter un appel Strava à chaque redémarrage/déploiement : le prochain
+ * sync planifié rafraîchira les données. Le cron 00h15, lui, sync d'abord.
  */
 async function catchUpAutoFreezeOnStartup() {
-  try {
-    const leagueId = 'versant-2026';
-    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
-    const activities = await safeReadJSON(activitiesFile, []);
-    const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
-    const jokerUsage = await readJokerUsage();
-
-    if (leagueAthletes.length === 0) {
-      console.log('🚀 Catch-up auto-freeze: aucun athlète actif, skip');
-      return;
-    }
-
-    const frozen = await frozenResults.autoFreezeCompletedRounds(
-      activities, leagueAthletes, jokerUsage, CHALLENGE_CONFIG
-    );
-
-    if (frozen.length > 0) {
-      console.log(`🚀 Catch-up auto-freeze au démarrage : ${frozen.length} round(s) figé(s) en retard`);
-      frozen.forEach(r => {
-        console.log(`   ❄️ Round ${r.roundNumber} (saison ${r.seasonNumber})`);
-      });
-    } else {
-      console.log('🚀 Catch-up auto-freeze: tout est à jour');
-    }
-  } catch (error) {
-    console.error('⚠️ Erreur catch-up auto-freeze au démarrage:', error.message);
-    // Ne pas bloquer le démarrage du serveur si le catch-up échoue
-  }
+  const frozen = await runAutoFreeze('startup', { sync: false });
+  frozen.forEach(r => {
+    console.log(`   ❄️ Round ${r.roundNumber} (saison ${r.seasonNumber})`);
+  });
 }
 
 initializeServer().then(async () => {
@@ -2277,7 +2257,7 @@ initializeServer().then(async () => {
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Port: ${PORT}                             ║`);
     console.log('║  Syncs: 6h, 10h, 14h, 18h, 22h         ║');
-    console.log('║  Auto-freeze: 00h05 + au démarrage     ║');
+    console.log('║  Auto-freeze: sync+00h15 + démarrage   ║');
     console.log('║  Refresh tokens: toutes les 2h        ║');
     console.log('╚════════════════════════════════════════╝');
     console.log('');

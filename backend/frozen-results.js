@@ -6,12 +6,11 @@
  * Ce module stocke les résultats de chaque round de façon DÉFINITIVE.
  * Une fois un round terminé, ses résultats ne changent JAMAIS.
  *
- * IMPORTANT: Deux modes de fonctionnement:
- * 1. freezeRoundResults() - Recalcule les résultats (ancienne méthode)
- * 2. freezeRoundWithData() - Accepte les données pré-calculées du frontend (RECOMMANDÉ)
- *
- * Le mode 2 est recommandé car il garantit que les résultats figés correspondent
- * exactement à ce qui est affiché sur la page principale (avec jokers, etc.)
+ * Point d'entrée du gel : freezeRoundResults() — recalcule les résultats du
+ * round côté serveur (source de vérité), puis, s'il s'agit de la finale d'une
+ * saison, fige le classement du challenge des éliminés via
+ * freezeEliminatedChallengeForSeason(). Déclenché par le bouton admin et par
+ * l'auto-freeze quotidien (autoFreezeCompletedRounds).
  */
 
 const fs = require('fs').promises;
@@ -148,42 +147,6 @@ async function loadJokersUsedInRound(roundNumber) {
 }
 
 /**
- * Enrichit un tableau jokersUsed existant (ex: venant du frontend) avec `status` et
- * `effect_result` lus depuis jokers_usage.json. Ne casse rien si le fichier est absent.
- */
-async function enrichJokersUsed(jokersUsed, roundNumber) {
-  if (!Array.isArray(jokersUsed) || jokersUsed.length === 0) return jokersUsed || [];
-
-  let diskUsage = [];
-  try {
-    const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
-    const raw = await fs.readFile(JOKERS_FILE, 'utf8');
-    const data = JSON.parse(raw);
-    diskUsage = Array.isArray(data) ? data : (data && Array.isArray(data.usage) ? data.usage : []);
-  } catch {
-    // Pas de fichier : on retourne tel quel avec des défauts sûrs
-  }
-
-  return jokersUsed.map(j => {
-    // Chercher l'entrée correspondante sur disque
-    const match = diskUsage.find(d =>
-      Number(d.round_number) === Number(roundNumber) &&
-      String(d.athlete_id) === String(j.athleteId || j.athlete_id) &&
-      d.joker_id === (j.jokerId || j.joker_id)
-    );
-    return {
-      athleteId: j.athleteId != null ? String(j.athleteId) : (j.athlete_id != null ? String(j.athlete_id) : null),
-      athleteName: j.athleteName || j.athlete_name || null,
-      jokerId: j.jokerId || j.joker_id || null,
-      targetId: j.targetId != null ? String(j.targetId) : (j.target_athlete_id != null ? String(j.target_athlete_id) : null),
-      targetName: j.targetName || j.target_athlete_name || null,
-      status: j.status || match?.status || 'active',
-      effect_result: j.effect_result || match?.effect_result || null
-    };
-  });
-}
-
-/**
  * Calcule rescapeInfo pour un round : dernier survivant = dernier non-éliminé.
  * Ne s'applique PAS en finale de saison (tous éliminés sauf le gagnant).
  * `consecutive` est calculé en regardant les rounds précédents de la saison.
@@ -245,223 +208,6 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
     athleteName: rescape.name,
     consecutive,
     points: consecutive >= 2 ? 2 : 0
-  };
-}
-
-// ============================================
-// NOUVELLE MÉTHODE: FREEZE AVEC DONNÉES PRÉ-CALCULÉES
-// ============================================
-
-/**
- * Fige un round avec des données pré-calculées provenant du frontend
- * Cette méthode ne recalcule RIEN - elle sauvegarde exactement les données reçues
- *
- * @param {number} roundNumber - Numéro du round
- * @param {Object} roundData - Données du round calculées par le frontend
- * @param {Object} options - Options (force: true pour remplacer un round existant)
- * @returns {Object} Les données sauvegardées
- */
-async function freezeRoundWithData(roundNumber, roundData, options = {}) {
-  const data = await loadFrozenResults();
-  const roundKey = String(roundNumber);
-
-  // Vérifier si déjà figé (sauf si force=true)
-  if (data.rounds[roundKey]?.frozen && !options.force) {
-    console.log(`⚠️ Round ${roundNumber} déjà figé. Utilisez force=true pour remplacer.`);
-    return { success: false, error: 'already_frozen', existing: data.rounds[roundKey] };
-  }
-
-  // Valider les données minimales requises
-  if (!roundData.ranking || !Array.isArray(roundData.ranking)) {
-    return { success: false, error: 'missing_ranking' };
-  }
-  if (!roundData.eliminations || !Array.isArray(roundData.eliminations)) {
-    return { success: false, error: 'missing_eliminations' };
-  }
-
-  // Charger la règle spéciale pour ce round (pour traçabilité)
-  const specialRule = await getSpecialRuleForRound(roundNumber);
-
-  // Construire l'objet de résultat
-  const frozenRound = {
-    roundNumber: roundNumber,
-    seasonNumber: roundData.seasonNumber || 1,
-    roundInSeason: roundData.roundInSeason || roundNumber,
-    dates: roundData.dates || {
-      start: new Date().toISOString(),
-      end: new Date().toISOString()
-    },
-    frozen: true,
-    frozenAt: new Date().toISOString(),
-    frozenMethod: 'frontend_data', // Indique que les données viennent du frontend
-    specialRule: specialRule?.id || roundData.specialRule || null, // Règle spéciale appliquée
-    activeParticipants: roundData.activeParticipants || roundData.ranking.map(r => String(r.id)),
-    ranking: roundData.ranking.map(entry => ({
-      id: String(entry.id),
-      name: entry.name,
-      elevation: entry.elevation || entry.totalElevation || 0,
-      activitiesCount: entry.activitiesCount || 0,
-      originalElevation: entry.originalElevation || entry.elevation || 0,
-      position: entry.position,
-      mainPoints: entry.mainPoints || 0,
-      bonusPoints: entry.bonusPoints || 0,
-      eliminatedPosition: entry.eliminatedPosition,
-      hasShield: entry.hasShield || entry.jokerEffects?.hasShield || false,
-      jokerEffects: entry.jokerEffects || null
-    })),
-    eliminations: roundData.eliminations.map(elim => ({
-      id: String(elim.id),
-      name: elim.name,
-      elevation: elim.elevation || elim.totalElevation || 0,
-      reason: elim.reason || (elim.elevation === 0 ? 'zero_elevation' : 'last_position'),
-      position: elim.position,
-      zeroElimination: elim.zeroElimination || elim.elevation === 0
-    })),
-    jokersUsed: roundData.jokersUsed || [],
-    bonusesUsed: [],
-    rescapeInfo: null,
-    stats: roundData.stats || {
-      totalActivities: roundData.ranking.reduce((sum, r) => sum + (r.activitiesCount || 0), 0),
-      totalElevation: roundData.ranking.reduce((sum, r) => sum + (r.elevation || 0), 0),
-      eliminationsCount: roundData.eliminations.length
-    }
-  };
-
-  // Enrichissement jokersUsed: ajouter status + effect_result quand disponibles
-  frozenRound.jokersUsed = await enrichJokersUsed(frozenRound.jokersUsed, roundNumber);
-
-  // Enrichissement bonusesUsed: lire depuis bonuses.json (snapshot initial, re-snapshot après auto-apply)
-  frozenRound.bonusesUsed = await loadBonusesUsedInRound(roundNumber);
-
-  // Enrichissement rescapeInfo: dernier survivant + nombre de fois consécutives
-  // Utilise les rounds DÉJÀ figés pour compter les consécutifs
-  const totalParticipantsForRescape =
-    roundData.totalParticipants ||
-    (frozenRound.activeParticipants?.length || 0) + (frozenRound.eliminations?.length || 0);
-  // Fallback: si on n'a pas le total, on utilise activeParticipants + éliminations de tous les rounds passés
-  let totalParticipants = totalParticipantsForRescape;
-  if (!totalParticipants || totalParticipants < 2) {
-    // Essayer de récupérer depuis le 1er round figé
-    const firstRound = data.rounds[String(1)] || data.rounds[String(2)];
-    if (firstRound && Array.isArray(firstRound.activeParticipants)) {
-      totalParticipants = firstRound.activeParticipants.length;
-    }
-  }
-  if (totalParticipants && totalParticipants >= 2) {
-    frozenRound.rescapeInfo = computeRescapeInfo(
-      frozenRound,
-      data.rounds,
-      roundNumber,
-      totalParticipants,
-      2 // eliminationsPerRound par défaut (aligné avec shared-config.CHALLENGE_CONFIG)
-    );
-  }
-
-  // Sauvegarder
-  data.rounds[roundKey] = frozenRound;
-  await saveFrozenResults(data);
-
-  console.log(`❄️ Round ${roundNumber} figé (via frontend): ${frozenRound.eliminations.length} éliminé(s)`);
-
-  // Appliquer automatiquement les effets des bonus si la fonction est disponible
-  // (sauf si le round a la règle 'no_bonus' — dans ce cas, aucun bonus n'est appliqué)
-  let appliedBonuses = [];
-  const skipBonusApplication = frozenRound.specialRule === 'no_bonus';
-  if (!skipBonusApplication && applyBonusEffectsForRound && roundData.activities) {
-    try {
-      appliedBonuses = await applyBonusEffectsForRound(roundNumber, roundData.activities, {
-        yearStartDate: roundData.dates?.start || new Date().toISOString(),
-        roundDurationDays: 5
-      });
-      // Re-snapshot des bonus utilisés après application (effect_result peut avoir été ajouté)
-      const refreshedBonuses = await loadBonusesUsedInRound(roundNumber);
-      if (refreshedBonuses.length > 0) {
-        frozenRound.bonusesUsed = refreshedBonuses;
-        data.rounds[roundKey] = frozenRound;
-        await saveFrozenResults(data);
-      }
-    } catch (e) {
-      console.warn(`⚠️ Erreur application auto bonus round ${roundNumber}:`, e.message);
-    }
-  }
-
-  // Générer automatiquement les choix de bonus pour le meilleur éliminé.
-  // EXCEPTION saison team : pas de bonus éphémère pour les éliminés de la
-  // finale principale R4 (règle métier : "Les 6 finalistes (R4) entrent au
-  // R5 sans avoir reçu de bonus éphémère du R4"). On skip aussi pour le R5
-  // qui n'a aucune élimination de toute façon.
- let bonusChoiceGenerated = null;
-  const isNoBonusRound = frozenRound.specialRule === 'no_bonus';
-  const skipBonusGen = frozenRound.isFinalePrincipale === true
-    || frozenRound.teamFinalRound === true
-    || isNoBonusRound;
-  if (!skipBonusGen && frozenRound.eliminations && frozenRound.eliminations.length >= 2) {
-    try {
-      bonusChoiceGenerated = await generateBonusChoiceForBestEliminated(frozenRound.eliminations, roundNumber);
-    } catch (e) {
-      console.warn(`⚠️ Erreur génération choix bonus round ${roundNumber}:`, e.message);
-    }
-  }
-
-  // Phase 2 : si on vient de figer la FINALE d'une saison, figer automatiquement
-  // le classement final du challenge des éliminés pour cette saison.
-  // Détection :
-  //   - Saison standard : il ne reste qu'1 athlète actif après les éliminations.
-  //   - Saison team : on fige seulement quand teamFinalRound=true (= R5 / round
-  //     final éliminés). Le R4 (finale principale) ne déclenche PAS le freeze.
-  let eliminatedChallengeFrozen = null;
-  try {
-    const isTeamRound = frozenRound.seasonType === 'team' || isTeamSeason(frozenRound.seasonNumber);
-    let shouldFreezeSeason = false;
-
-    if (isTeamRound) {
-      // En saison team, le challenge éliminés se fige UNIQUEMENT à la fin du
-      // round final éliminés (R5). Tous les autres rounds team (incluant R4
-      // finale principale) ne déclenchent pas le freeze.
-      shouldFreezeSeason = frozenRound.teamFinalRound === true;
-    } else {
-      // Cas 1 : la saison se termine "naturellement" quand il reste ≤ 1 survivant
-      const activeAtStart = frozenRound.activeParticipants?.length || 0;
-      const eliminatedThisRound = frozenRound.eliminations?.length || 0;
-      const survivors = activeAtStart - eliminatedThisRound;
-      const naturalEnd = activeAtStart > 0 && survivors <= 1;
-
-      // Cas 2 : la saison est forcée en finale par la config admin (round_configs.json)
-      // Utile pour les finales à plusieurs joueurs sans élimination (ex: R31 saison 5).
-      let forcedFinale = false;
-      try {
-        const roundConfig = await roundConfigs.getRoundConfig(frozenRound.roundNumber);
-        forcedFinale = roundConfig?.type === 'finale';
-      } catch (e) {
-        console.warn(`⚠️ Erreur lecture config round ${frozenRound.roundNumber}:`, e.message);
-      }
-
-      shouldFreezeSeason = naturalEnd || forcedFinale;
-    }
-
-    if (shouldFreezeSeason) {
-      eliminatedChallengeFrozen = await freezeEliminatedChallengeForSeason(
-        frozenRound.seasonNumber,
-        { force: options.force === true }
-      );
-      if (eliminatedChallengeFrozen?.success) {
-        console.log(
-          `🏔️ Auto-freeze challenge éliminés saison ${frozenRound.seasonNumber} ` +
-          `(${eliminatedChallengeFrozen.ranking.length} athlètes)`
-        );
-      }
-    }
-  } catch (e) {
-    console.warn(`⚠️ Erreur auto-freeze challenge éliminés saison ${frozenRound.seasonNumber}:`, e.message);
-  }
-
-  return {
-    success: true,
-    round: frozenRound,
-    method: 'frontend_data',
-    appliedBonuses: appliedBonuses.length,
-    bonusChoiceGenerated,
-    eliminatedChallengeFrozen
   };
 }
 
@@ -1093,8 +839,8 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
 // ============================================
 
 /**
- * Calcule et fige les résultats d'un round terminé
- * ATTENTION: Cette méthode recalcule tout - préférer freezeRoundWithData()
+ * Calcule les résultats d'un round terminé (recalcul intégral côté serveur).
+ * C'est la source de vérité : appelée par freezeRoundResults().
  */
 async function calculateRoundResults(roundNumber, activities, athletes, jokerUsage, config, previousRounds) {
   // Détection robuste de la saison & du round-in-season à partir des rounds figés.
@@ -1746,15 +1492,20 @@ if (isTeamRound) {
  * Vérifie et fige automatiquement les rounds terminés
  */
 async function autoFreezeCompletedRounds(activities, athletes, jokerUsage, config) {
-  const now = new Date();
+  const now = Date.now();
   const data = await loadFrozenResults();
   const frozenRounds = [];
 
-  const yearStart = new Date(config.yearStartDate);
-  const daysSinceStart = Math.floor((now - yearStart) / (1000 * 60 * 60 * 24));
-  const currentRound = Math.floor(daysSinceStart / config.roundDurationDays) + 1;
-
-  for (let r = 1; r < currentRound; r++) {
+  // Un round est "terminé" dès que l'instant présent dépasse sa borne de fin
+  // (getRoundDates(r).end = 23:59:59.999 du dernier jour). On utilise EXACTEMENT
+  // la même borne que le rattachement des activités : le trigger de freeze est
+  // donc aligné sur la vraie fin du round, et non sur un floor-division ancré à
+  // minuit UTC (qui décalait le déclenchement d'une heure côté Europe/Paris et
+  // faisait attendre le lendemain matin).
+  const MAX_ROUNDS = 500; // garde-fou (≈ 73 rounds/an)
+  for (let r = 1; r <= MAX_ROUNDS; r++) {
+    const roundEnd = getRoundDates(r, config).end.getTime();
+    if (roundEnd >= now) break; // ce round n'est pas encore terminé → les suivants non plus
     if (!data.rounds[String(r)]?.frozen) {
       const result = await freezeRoundResults(r, activities, athletes, jokerUsage, config);
       frozenRounds.push(result);
@@ -2385,8 +2136,7 @@ module.exports = {
   getAllFrozenResults,
   getFrozenRoundResult,
   freezeRoundResults,
-  freezeRoundWithData,      // NOUVELLE: fige avec données du frontend
-  importFrozenResults,       // NOUVELLE: import de fichier JSON
+  importFrozenResults,       // import de fichier JSON
   autoFreezeCompletedRounds,
   calculateYearlyStandings,
   resetAllFrozenResults,
