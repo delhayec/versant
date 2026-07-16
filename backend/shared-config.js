@@ -57,8 +57,13 @@ const INITIAL_JOKER_STOCK = 2;
 // UTILITAIRES DE DATES
 // ============================================
 function getRoundDates(roundNumber, config = CHALLENGE_CONFIG) {
-  const yearStart = new Date(config.yearStartDate);
-  const start = new Date(yearStart);
+  // IMPORTANT : ancrer le début du round à MINUIT LOCAL (heure de Paris, cf.
+  // TZ=Europe/Paris côté serveur). `new Date('2026-02-02')` serait interprété en
+  // UTC → le round démarrerait à 01h/02h Paris et laisserait un trou de 00h00 à
+  // 01h00 où une activité (rattachée par son heure de FIN) ne tomberait dans
+  // aucun round. On parse donc les composantes Y/M/D en local.
+  const [y, m, d] = String(config.yearStartDate).split('-').map(Number);
+  const start = new Date(y, m - 1, d); // minuit local
   start.setDate(start.getDate() + (roundNumber - 1) * config.roundDurationDays);
   const end = new Date(start);
   end.setDate(end.getDate() + config.roundDurationDays - 1);

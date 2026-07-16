@@ -790,8 +790,17 @@ export function getSeasonDates(seasonNumber, frozen = null) {
   };
 }
 
+// Début du challenge à MINUIT LOCAL (fuseau du navigateur = Paris pour les
+// joueurs). `new Date('2026-02-02')` serait en UTC → décalage d'1h qui laisse un
+// trou 00h-01h entre deux rounds. On parse donc les composantes Y/M/D en local,
+// à l'identique du backend (shared-config.getRoundDates).
+function challengeStartLocalMidnight() {
+  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function getGlobalRoundNumber(date) {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
+  const start = challengeStartLocalMidnight();
   const days = Math.floor((date - start) / (1000 * 60 * 60 * 24));
   return Math.max(1, Math.floor(days / CHALLENGE_CONFIG.roundDurationDays) + 1);
 }
@@ -804,8 +813,7 @@ export function getRoundInSeason(date, frozen = null) {
 }
 
 export function getRoundDates(globalRoundNumber) {
-  const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const start = new Date(yearStart);
+  const start = challengeStartLocalMidnight();
   start.setDate(start.getDate() + (globalRoundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays);
   const end = new Date(start);
   end.setDate(end.getDate() + CHALLENGE_CONFIG.roundDurationDays - 1);

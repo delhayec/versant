@@ -17,6 +17,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const roundConfigs = require('./round-configs');
+const { getRoundDates } = require('./shared-config');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
@@ -586,13 +587,9 @@ async function applyBonusEffectsForRound(roundNumber, activities, config) {
   const bonuses = await safeReadJSON(BONUSES_FILE, []);
   const appliedBonuses = [];
 
-  // Calculer les dates du round
-  const yearStart = new Date(config.yearStartDate);
-  const roundStart = new Date(yearStart);
-  roundStart.setDate(roundStart.getDate() + (roundNumber - 1) * config.roundDurationDays);
-  const roundEnd = new Date(roundStart);
-  roundEnd.setDate(roundEnd.getDate() + config.roundDurationDays - 1);
-  roundEnd.setHours(23, 59, 59, 999);
+  // Calculer les dates du round via la source unique (minuit local, pas de trou
+  // 00h-01h). Évite une 2ᵉ implémentation divergente des bornes de round.
+  const { start: roundStart, end: roundEnd } = getRoundDates(roundNumber, config);
 
   // Filtrer les activités du round (sports valides, >20min)
   const validSports = ['Run', 'TrailRun', 'Ride', 'MountainBikeRide', 'GravelRide', 'Hike', 'Walk',
