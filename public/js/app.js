@@ -753,6 +753,7 @@ renderRanking(rankingContainer, {
         currentRoundNumber,
         rescapeId,
         ephemeralEffects,
+        roundActivities,
         specialRule: currentRule,
         specialRuleDetails: currentRuleDetails,
         // Nouveaux champs pour l'affichage du bandeau finale / no_bonus

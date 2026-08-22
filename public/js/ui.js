@@ -13,6 +13,7 @@ import {
 } from './config.js';
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
+import { filterByParticipant } from './standings-engine.js';
 
 // ============================================
 // UTILITAIRES DE FORMATAGE
@@ -48,6 +49,30 @@ export function formatDateRange(start, end) {
     return `${s.getDate()} - ${formatDate(e, { day: 'numeric', month: 'long', year: undefined })}`;
   }
   return `${formatDateShort(s)} - ${formatDateShort(e)}`;
+}
+
+function formatActivityDateTime(activity) {
+  const date = new Date(activity.start_date_local || activity.start_date);
+  const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return `${dateStr} · ${timeStr}`;
+}
+
+const ACTIVITY_SPORT_ICONS = {
+  'Run': '👟',
+  'TrailRun': '⛰️',
+  'Hike': '🥾',
+  'Walk': '🚶',
+  'Ride': '🚴',
+  'MountainBikeRide': '🚵',
+  'GravelRide': '🚴',
+  'BackcountrySki': '⛷️',
+  'NordicSki': '🎿',
+  'Snowshoe': '❄️'
+};
+
+function getActivitySportIcon(sportType) {
+  return ACTIVITY_SPORT_ICONS[sportType] || '👟';
 }
 
 // ============================================
@@ -250,8 +275,39 @@ export function renderActiveJokersSection(container, data) {
 // RENDU DU CLASSEMENT
 // ============================================
 
+function renderAthleteActivitiesPanel(athleteId, roundActivities) {
+  const activities = filterByParticipant(roundActivities || [], athleteId)
+    .slice()
+    .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date));
+
+  if (activities.length === 0) {
+    return `
+      <div class="athlete-activities-panel" id="athlete-activities-${athleteId}" style="display:none">
+        <p class="athlete-activities-empty">Aucune activité enregistrée sur ce round</p>
+      </div>
+    `;
+  }
+
+  const rows = activities.map(a => `
+    <div class="athlete-activity-row">
+      <span class="athlete-activity-sport" title="${a.sport_type || a.type || ''}">${getActivitySportIcon(a.sport_type || a.type)}</span>
+      <a class="athlete-activity-name" href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener noreferrer">
+        ${a.name || 'Sans nom'}
+      </a>
+      <span class="athlete-activity-elevation">${formatElevation(a.total_elevation_gain || 0)}</span>
+      <span class="athlete-activity-date">${formatActivityDateTime(a)}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="athlete-activities-panel" id="athlete-activities-${athleteId}" style="display:none">
+      <div class="athlete-activities-list">${rows}</div>
+    </div>
+  `;
+}
+
 export function renderRanking(container, data) {
- const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, currentRoundNumber, rescapeId, ephemeralEffects, specialRule, specialRuleDetails, isFinale, isNoBonus } = data;
+ const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, currentRoundNumber, rescapeId, ephemeralEffects, roundActivities, specialRule, specialRuleDetails, isFinale, isNoBonus } = data;
 
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
@@ -362,7 +418,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
       }
 
       html += `
-        <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
+        <div class="ranking-row ${rowClass} ${i === ranking.length - 1 ? 'last-row' : ''}" data-participant-id="${entry.participant.id}">
           <div class="position ${posClass}">
             ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
           </div>
@@ -374,7 +430,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               ${bonusIndicators}
             </div>
             <div class="athlete-details">
-              <span class="athlete-name">${entry.participant.name}</span>
+              <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent">🎫 Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
@@ -389,11 +445,12 @@ let html = specialBanner + specialRuleHtml + headerHtml;
           </div>
           <div class="elevation-secondary hide-mobile">${formatElevation(seasonElev)}</div>
         </div>
+        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities)}
       `;
     } else {
       // Mode standard
       html += `
-        <div class="ranking-row ${rowClass}" data-participant-id="${entry.participant.id}">
+        <div class="ranking-row ${rowClass} ${i === ranking.length - 1 ? 'last-row' : ''}" data-participant-id="${entry.participant.id}">
           <div class="position ${posClass}">
             ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
           </div>
@@ -405,7 +462,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               ${bonusIndicators}
             </div>
             <div class="athlete-details">
-              <span class="athlete-name">${entry.participant.name}</span>
+              <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">🎫 Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
@@ -420,12 +477,27 @@ let html = specialBanner + specialRuleHtml + headerHtml;
             ${renderJokerBadges(entry.participant.id, data.currentRoundNumber)}
           </div>
         </div>
+        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities)}
       `;
     }
   });
 
   container.innerHTML = html;
 }
+
+// Toggle du panneau d'activités d'un athlète dans le classement du round
+function toggleAthleteActivities(athleteId) {
+  const panel = document.getElementById(`athlete-activities-${athleteId}`);
+  const icon = document.getElementById(`athlete-activities-icon-${athleteId}`);
+  if (!panel) return;
+
+  const isVisible = panel.style.display !== 'none';
+  panel.style.display = isVisible ? 'none' : 'block';
+  if (icon) icon.textContent = isVisible ? '▾' : '▴';
+}
+
+// Exposé globalement pour l'attribut onclick généré dans le HTML du classement
+window.toggleAthleteActivities = toggleAthleteActivities;
 
 // ============================================
 // RENDU DES INDICATEURS DE BONUS SUR AVATAR
