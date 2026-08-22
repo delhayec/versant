@@ -1191,7 +1191,7 @@ body {
 /* Panneau des activités d'un athlète (dropdown au clic sur son nom) */
 .athlete-activities-panel {
   margin: 0 16px 10px;
-  padding: 12px 16px;
+  padding: 16px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -1212,6 +1212,11 @@ body {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
   flex-wrap: wrap;
+  transition: background 0.2s ease;
+}
+
+.athlete-activity-row:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .athlete-activity-sport {
