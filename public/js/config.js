@@ -841,15 +841,26 @@ export function isLastDayOfRound(date, globalRoundNumber) {
 
 // Overrides manuels des règles spéciales (chargé depuis le serveur)
 let specialRulesOverrides = {};
+// Config brute par round (nbEliminations, type, specialRule), même source que ci-dessus
+let roundConfigsRaw = {};
 
 /**
- * Charge les overrides de règles spéciales depuis le serveur
+ * Charge les overrides de règles spéciales depuis le serveur.
+ * Source: /api/round-configs (round_configs.json), la même config que
+ * l'admin sauvegarde depuis la page de configuration des rounds.
  */
 export async function loadSpecialRulesOverrides() {
   try {
-    const response = await fetchWithTimeout('/api/special-rules', 5000);
+    const response = await fetchWithTimeout('/api/round-configs', 5000);
     if (response.ok) {
-      specialRulesOverrides = await response.json();
+      const roundConfigs = await response.json();
+      roundConfigsRaw = roundConfigs;
+      specialRulesOverrides = {};
+      for (const [roundNumber, config] of Object.entries(roundConfigs)) {
+        if (config?.specialRule && config.specialRule !== 'standard') {
+          specialRulesOverrides[roundNumber] = config.specialRule;
+        }
+      }
     }
   } catch (e) {
     console.warn('⚠️ Impossible de charger les règles spéciales:', e);
@@ -861,6 +872,16 @@ export async function loadSpecialRulesOverrides() {
  */
 export function getSpecialRuleForRound(globalRoundNumber) {
   return specialRulesOverrides[String(globalRoundNumber)] || null;
+}
+
+/**
+ * Retourne le nombre d'éliminations configuré explicitement par l'admin pour ce
+ * round (prioritaire sur l'override d'une règle spéciale type Handicap), ou null
+ * si aucune config admin n'existe pour ce round.
+ */
+export function getEffectiveNbEliminations(globalRoundNumber) {
+  const config = roundConfigsRaw[String(globalRoundNumber)];
+  return config?.nbEliminations !== undefined ? config.nbEliminations : null;
 }
 
 export function generateRoundsSchedule() {

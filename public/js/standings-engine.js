@@ -43,7 +43,7 @@ import {
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
   getMainChallengePoints, getEliminatedChallengePoints,
   getLateRegistrations, wasRegisteredBeforeStart,
-  formBalancedTeams, getSpecialRuleForRound
+  formBalancedTeams, getSpecialRuleForRound, getEffectiveNbEliminations
 } from './config.js';
 
 import { applyJokerEffects } from './jokers.js';
@@ -988,7 +988,12 @@ if (frozenRound && frozenRound.frozen) {
       // Vérifier si ce round a une règle spéciale avec override d'éliminations
       const roundSpecialRule = getSpecialRuleForRound(globalRound);
       const roundRuleDetails = roundSpecialRule ? (ROUND_RULES[roundSpecialRule] || null) : null;
-      const roundElimCount = roundRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound;
+      // Le nombre d'éliminations configuré explicitement par l'admin (champ "Nb élim")
+      // est prioritaire sur l'override par défaut d'une règle spéciale (ex: Handicap = 4).
+      const adminNbEliminations = getEffectiveNbEliminations(globalRound);
+      const roundElimCount = adminNbEliminations !== null
+        ? adminNbEliminations
+        : (roundRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound);
 
       // Déterminer si c'est une finale
       const isCurrentRoundFinale = active.length <= roundElimCount + 1;
