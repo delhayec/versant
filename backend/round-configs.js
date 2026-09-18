@@ -17,6 +17,11 @@ const CONFIGS_FILE = path.join(DATA_DIR, 'round_configs.json');
 
 const VALID_TYPES = ['standard', 'finale', 'bonus_round', 'no_eliminations'];
 
+// Règles réellement implémentées côté calcul. Sans cette liste, une faute de
+// frappe dans l'admin produirait une règle sans aucun effet, silencieusement :
+// getSpecialRuleForRound() renverrait { id: 'handicpa' } sans paramètres.
+const VALID_SPECIAL_RULES = ['standard', 'handicap', 'no_bonus', 'pluie_qui_mouille'];
+
 async function loadRoundConfigs() {
   try {
     const content = await fs.readFile(CONFIGS_FILE, 'utf8');
@@ -47,6 +52,9 @@ async function saveRoundConfig(roundNumber, config) {
       validated.type = config.type;
     }
     if (typeof config.specialRule === 'string') {
+      if (!VALID_SPECIAL_RULES.includes(config.specialRule)) {
+        throw new Error('Règle spéciale inconnue: ' + config.specialRule);
+      }
       validated.specialRule = config.specialRule;
     }
     configs[key] = validated;
@@ -65,5 +73,6 @@ module.exports = {
   getRoundConfig,
   saveRoundConfig,
   deleteRoundConfig,
-  VALID_TYPES
+  VALID_TYPES,
+  VALID_SPECIAL_RULES
 };

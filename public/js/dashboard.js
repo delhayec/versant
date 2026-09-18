@@ -74,7 +74,8 @@ function getRoundSpecialRuleLabel(roundNumber) {
   if (!config?.specialRule || config.specialRule === 'standard') return null;
   const labels = {
     handicap: '⚖️ Handicap',
-    no_bonus: '🚫 Sans bonus (D+ pur)'
+    no_bonus: '🚫 Sans bonus (D+ pur)',
+    pluie_qui_mouille: '🌧️ La pluie qui mouille'
   };
   return labels[config.specialRule] || config.specialRule;
 }

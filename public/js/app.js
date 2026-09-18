@@ -20,6 +20,7 @@ import {
   getMainChallengePoints, getEliminatedChallengePoints,
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
+  getSeasonRosterSize,
   formBalancedTeams, loadSpecialRulesOverrides, getSpecialRuleForRound
 } from './config.js';
 
@@ -697,13 +698,15 @@ async function renderAll() {
         console.warn('⚠️ Aucune activité dans la période! Exemples de dates disponibles:', sampleDates);
       }
 
-      let ranking = calculateRanking(roundActivities, seasonData?.active || []);
-
-      ranking = applyJokerEffects(ranking, currentRoundNumber);
-
-      // Détecter la règle spéciale du round courant
+      // La règle du round est lue AVANT le calcul : 'pluie_qui_mouille' pondère
+      // chaque activité (×1,5 sous la pluie) avant la somme des D+, contrairement
+      // au handicap qui ajuste le total par athlète une fois celui-ci calculé.
       const currentRule = getSpecialRuleForRound(currentRoundNumber);
       const currentRuleDetails = currentRule ? (ROUND_RULES[currentRule] || null) : null;
+
+      let ranking = calculateRanking(roundActivities, seasonData?.active || [], currentRule);
+
+      ranking = applyJokerEffects(ranking, currentRoundNumber);
 
       // Appliquer le handicap si actif
       if (currentRule === 'handicap' && yearlyStandingsCache) {
@@ -1879,9 +1882,12 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
   const rescapeIdx = rankingWithEffects.length - roundEliminated.length - 1;
   const isFinale = roundInSeason === getRoundsPerSeason();
 
-  // Calculer les mainPoints pour les éliminés de ce round
+  // Calculer les mainPoints pour les éliminés de ce round.
+  // Dimensionner sur le roster de début de saison, pas sur PARTICIPANTS.length :
+  // un athlète entré en cours de saison décalerait sinon les positions.
+  const seasonRosterSize = getSeasonRosterSize(getSeasonNumber(getCurrentDate())) || PARTICIPANTS.length;
   const elimsBeforeThisRound = seasonData.eliminated.filter(e => e.eliminatedRound < roundInSeason).length;
-  const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+  const activeAtRoundStart = seasonRosterSize - elimsBeforeThisRound;
 
   // Générer le HTML du classement pour le dropdown
   const rankingHtml = rankingWithEffects.map((entry, idx) => {
@@ -1895,7 +1901,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
       const sameRoundElims = roundEliminated;
       const elimIdx = sameRoundElims.findIndex(e => e.id === entry.participant.id);
       const elimPosition = activeAtRoundStart - elimIdx;
-      mainPts = getMainChallengePoints(Math.max(1, Math.min(elimPosition, PARTICIPANTS.length)));
+      mainPts = getMainChallengePoints(Math.max(1, Math.min(elimPosition, seasonRosterSize)));
     } else if (isFinale && position <= 3) {
       mainPts = getMainChallengePoints(position);
     }

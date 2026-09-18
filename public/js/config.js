@@ -353,6 +353,54 @@ export const INITIAL_JOKERS = {
 };
 
 // ============================================
+// RÈGLE MÉTÉO — "LA PLUIE QUI MOUILLE"
+// ============================================
+// MIROIR de backend/shared-config.js (WEATHER_RULE / isRainyActivity /
+// getActivityElevation). Si vous modifiez ces valeurs, mettez à jour les deux.
+//
+// Le champ `weather` des activités est calculé côté serveur (backend/weather.js,
+// via Open-Meteo) puis servi tel quel par /api/activities/:leagueId. Le frontend
+// ne fait aucun appel météo : il ne fait que lire la mesure déjà stockée.
+//
+// Seuil en DURÉE et non en cumul : sur 173 activités réelles, le cumul maximum
+// sur une sortie entière est de 1,33 mm — un seuil en mm classique (2-5 mm) ne
+// se déclencherait jamais. "≥ 15 min de pluie" touche ~10 % des sorties.
+export const WEATHER_RULE = {
+  minRainMinutes: 15,
+  multiplier: 1.5
+};
+
+export function isRainyActivity(activity) {
+  const w = activity?.weather;
+  if (w?.status !== "ok") return false;
+  if ((w.rain_minutes || 0) < WEATHER_RULE.minRainMinutes) return false;
+
+  // Précipitation mixte (neige fondue) : il faut que la phase LIQUIDE domine.
+  // Sans ce garde-fou, une sortie à ski sous une neige modérée créditant
+  // 0,17 mm de pluie résiduelle déclencherait "la pluie qui mouille", ce qui
+  // n'est pas l'esprit de la règle. 1 cm de neige ≈ 1 mm d'équivalent en eau.
+  const snowWaterMm = (w.snowfall_cm || 0);
+  return (w.rain_mm || 0) > snowWaterMm;
+}
+
+/**
+ * D+ d'UNE activité, pondéré par la règle spéciale du round.
+ *
+ * Contrairement au handicap qui ajuste le D+ agrégé par athlète, cette règle
+ * pondère chaque activité AVANT la somme — d'où ce point d'accroche dédié.
+ *
+ * @param {object} activity
+ * @param {string|null} ruleId - id de la règle spéciale du round, ou null
+ */
+export function getActivityElevation(activity, ruleId = null) {
+  const elevation = activity?.total_elevation_gain || 0;
+  if (ruleId === "pluie_qui_mouille" && isRainyActivity(activity)) {
+    return elevation * WEATHER_RULE.multiplier;
+  }
+  return elevation;
+}
+
+// ============================================
 // RÈGLES SPÉCIALES DES ROUNDS
 // ============================================
 export const ROUND_RULES = {
@@ -378,6 +426,19 @@ export const ROUND_RULES = {
       bonusLastCount: 5,
       bonusLastPercent: 10,
       eliminationsOverride: 4
+    }
+  },
+  pluie_qui_mouille: {
+    id: "pluie_qui_mouille",
+    name: "La pluie qui mouille",
+    icon: "🌧️",
+    description: "D+ ×1,5 sur les activités sous la pluie",
+    fullDescription: "Toute activité pendant laquelle il a plu au moins 15 minutes voit son D+ multiplié par 1,5. La neige ne compte pas. Les activités sans GPS (indoor, home trainer, saisie manuelle) ne peuvent pas être créditées.",
+    isSpecial: true,
+    requiresWeather: true,
+    parameters: {
+      multiplier: WEATHER_RULE.multiplier,
+      minRainMinutes: WEATHER_RULE.minRainMinutes
     }
   },
   combinado: {
@@ -529,12 +590,16 @@ export async function loadParticipants() {
       const loadedParticipants = athletes.map(a => ({
         id: String(a.id),
         name: a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim(),
-        registeredAt: a.registered_at || a.registeredAt || null
+        registeredAt: a.registered_at || a.registeredAt || null,
+        // Exception d'entrée en jeu : round global à partir duquel il participe.
+        // null = règle globale (il attend la saison suivante).
+        activeFromRound: a.active_from_round ?? a.activeFromRound ?? null
       }));
 
       // Mettre à jour la liste globale
       PARTICIPANTS.length = 0;
       PARTICIPANTS.push(...loadedParticipants);
+      invalidateRosterCache();
 
     } else {
       console.warn('⚠️ Aucun participant dans athletes.json, tentative d\'extraction depuis les activités...');
@@ -583,6 +648,7 @@ async function loadParticipantsFromActivities() {
     if (participantsMap.size > 0) {
       PARTICIPANTS.length = 0;
       PARTICIPANTS.push(...participantsMap.values());
+      invalidateRosterCache();
     }
   } catch (error) {
     console.error('❌ Erreur extraction participants depuis activités:', error);
@@ -613,8 +679,74 @@ export const getParticipantById = (id) => PARTICIPANTS.find(p => p.id === String
 // ---------------------------------------------------------------------------
 let _frozenCache = null;
 
+// ---------------------------------------------------------------------------
+// APPARTENANCE D'UN PARTICIPANT À UN ROUND / UNE SAISON
+// ---------------------------------------------------------------------------
+//
+// Règle globale : un athlète inscrit en cours de jeu ATTEND la saison suivante.
+// Il est absent de la saison en cours — ni classé, ni éliminé, ni compté dans
+// son dimensionnement. La règle est évaluée paresseusement : on compare sa date
+// d'inscription au DÉBUT de la saison qui contient le round examiné.
+//
+// Exception : `activeFromRound` (round global) le fait entrer à un round précis,
+// y compris en milieu de saison. Posé à la main côté serveur
+// (scripts/set-athlete-entry.js), miroir de isAthleteInRound dans frozen-results.js.
+
+/**
+ * @param {number} globalRound - round examiné
+ * @param {number} seasonStartRound - premier round de la saison qui le contient
+ */
+export function isParticipantInRound(p, globalRound, seasonStartRound) {
+  if (p.activeFromRound != null) return Number(globalRound) >= Number(p.activeFromRound);
+  if (!p.registeredAt) return true; // participant historique
+  return new Date(p.registeredAt) < getRoundDates(seasonStartRound).start;
+}
+
+// Mémoïsation : getSeasonRosterSize(S) → getSeasonStartRound(S) → getRoundsForSeason(s<S)
+// → getSeasonRosterSize(s) … La récursion termine (S décroît strictement, cas de
+// base S=1 → round 1), mais son coût explose sans cache.
+const _rosterSizeCache = new Map();
+const _roundsForSeasonCache = new Map();
+
+// Le cache n'est valable que pour le cache figé courant. Un appelant qui passe
+// `frozen` explicitement passe presque toujours CE cache (app.js appelle
+// setFrozenCache avec le même objet) : on en profite, sinon on recalcule.
+const _cacheable = (frozen) => !frozen || frozen === _frozenCache;
+
+export function invalidateRosterCache() {
+  _rosterSizeCache.clear();
+  _roundsForSeasonCache.clear();
+}
+
+/**
+ * Taille de DIMENSIONNEMENT d'une saison = son roster au PREMIER round.
+ * C'est ce qui empêche un ajout en cours de saison de décaler la finale.
+ */
+export function getSeasonRosterSize(seasonNumber, frozen = null) {
+  const key = `${seasonNumber}`;
+  const cacheable = _cacheable(frozen);
+  if (cacheable && _rosterSizeCache.has(key)) return _rosterSizeCache.get(key);
+
+  const startRound = getSeasonStartRound(seasonNumber, frozen);
+  const size = PARTICIPANTS.filter(p => isParticipantInRound(p, startRound, startRound)).length;
+
+  if (cacheable) _rosterSizeCache.set(key, size);
+  return size;
+}
+
+/**
+ * Participants concernés par une saison : présents à au moins un de ses rounds
+ * (donc y compris une entrée en cours de saison via activeFromRound).
+ */
+export function getSeasonRoster(seasonNumber, frozen = null) {
+  const startRound = getSeasonStartRound(seasonNumber, frozen);
+  const endRound = startRound + getRoundsForSeason(seasonNumber, frozen) - 1;
+  return PARTICIPANTS.filter(p => isParticipantInRound(p, endRound, startRound));
+}
+
 export function setFrozenCache(cache) {
   _frozenCache = cache || null;
+  invalidateRosterCache();
 }
 
 export function getFrozenCache() {
@@ -650,10 +782,14 @@ function _getRealSeasonBounds(seasonNumber, frozen) {
   };
 }
 
-// Utiliser PARTICIPANTS.length dynamiquement (pas de variable statique)
-export function getRoundsPerSeason() {
-  const count = PARTICIPANTS.length || 13; // Fallback à 13 si pas encore chargé
-  return Math.ceil((count - 1) / CHALLENGE_CONFIG.eliminationsPerRound);
+/**
+ * Nombre de rounds de la saison en cours (ou de `seasonNumber` si fourni).
+ * Délègue à getRoundsForSeason pour bénéficier des bornes figées et du
+ * dimensionnement sur le roster de début de saison.
+ */
+export function getRoundsPerSeason(seasonNumber = null) {
+  const s = seasonNumber ?? getSeasonNumber(new Date());
+  return getRoundsForSeason(s);
 }
 
 /**
@@ -667,15 +803,28 @@ export function getRoundsPerSeason() {
  * @param {Object} [frozen] - Cache /api/frozen-results explicite (ou utilise _frozenCache)
  */
 export function getRoundsForSeason(seasonNumber, frozen = null) {
+  const key = `${seasonNumber}`;
+  const cacheable = _cacheable(frozen);
+  if (cacheable && _roundsForSeasonCache.has(key)) return _roundsForSeasonCache.get(key);
+
+  const value = _computeRoundsForSeason(seasonNumber, frozen);
+  if (cacheable) _roundsForSeasonCache.set(key, value);
+  return value;
+}
+
+function _computeRoundsForSeason(seasonNumber, frozen) {
   // 1. Si saison terminée dans le cache → vraie valeur
   const bounds = _getRealSeasonBounds(seasonNumber, frozen);
   if (bounds && bounds.isCompleted) {
     return bounds.roundsCount;
   }
 
-  // 2. Sinon calcul théorique (saison en cours ou pas de cache)
+  // 2. Sinon calcul théorique (saison en cours ou pas de cache).
+  // On dimensionne sur le roster du PREMIER round de la saison, pas sur
+  // PARTICIPANTS.length : un athlète ajouté en cours de saison ne doit pas
+  // décaler la finale ni changer la durée de la saison.
   const seasonType = getSeasonType(seasonNumber);
-  const count = PARTICIPANTS.length || 13;
+  const count = getSeasonRosterSize(seasonNumber, frozen) || 13;
 
   if (seasonType?.isTeamBased) {
     const teamSize = seasonType.teamSize || 3;

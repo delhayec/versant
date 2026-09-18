@@ -9,7 +9,8 @@
 import { 
   CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES, ROUND_RULES, PARTICIPANTS,
   getSeasonDates, getRoundDates, getRoundInSeason, getParticipantById,
-  getAthleteColor, getAthleteInitials, getRoundInfo
+  getAthleteColor, getAthleteInitials, getRoundInfo,
+  isRainyActivity, getActivityElevation, WEATHER_RULE
 } from './config.js';
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
@@ -275,7 +276,8 @@ export function renderActiveJokersSection(container, data) {
 // RENDU DU CLASSEMENT
 // ============================================
 
-function renderAthleteActivitiesPanel(athleteId, roundActivities) {
+function renderAthleteActivitiesPanel(athleteId, roundActivities, specialRule = null) {
+  const isRainRule = specialRule === 'pluie_qui_mouille';
   const activities = filterByParticipant(roundActivities || [], athleteId)
     .slice()
     .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date));
@@ -288,16 +290,32 @@ function renderAthleteActivitiesPanel(athleteId, roundActivities) {
     `;
   }
 
-  const rows = activities.map(a => `
+  const rows = activities.map(a => {
+    const raw = a.total_elevation_gain || 0;
+
+    // Sous la règle météo, on montre le D+ brut barré puis le D+ boosté, avec
+    // la mesure en infobulle — l'athlète doit pouvoir vérifier pourquoi il a
+    // (ou n'a pas) le bonus.
+    let elevationHtml = formatElevation(raw);
+    let rainBadge = '';
+    if (isRainRule && isRainyActivity(a)) {
+      const w = a.weather;
+      const boosted = Math.round(getActivityElevation(a, specialRule));
+      rainBadge = `<span class="athlete-activity-rain" title="${w.rain_minutes} min de pluie · ${w.rain_mm} mm">🌧️</span>`;
+      elevationHtml = `<span class="athlete-activity-elevation-raw">${formatElevation(raw)}</span> <span class="athlete-activity-elevation-boost">${formatElevation(boosted)}</span>`;
+    }
+
+    return `
     <div class="athlete-activity-row">
       <span class="athlete-activity-sport" title="${a.sport_type || a.type || ''}">${getActivitySportIcon(a.sport_type || a.type)}</span>
       <a class="athlete-activity-name" href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener noreferrer">
-        ${a.name || 'Sans nom'}
+        ${a.name || 'Sans nom'}${rainBadge}
       </a>
-      <span class="athlete-activity-elevation">${formatElevation(a.total_elevation_gain || 0)}</span>
+      <span class="athlete-activity-elevation">${elevationHtml}</span>
       <span class="athlete-activity-date">${formatActivityDateTime(a)}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   return `
     <div class="athlete-activities-panel" id="athlete-activities-${athleteId}" style="display:none">
@@ -324,6 +342,10 @@ export function renderRanking(container, data) {
   }
 
   const isHandicap = specialRule === 'handicap';
+  const isRainRule = specialRule === 'pluie_qui_mouille';
+  // Les deux règles qui ajustent le D+ partagent la même grille "brut → ajusté"
+  // (classe .ranking-header-handicap, déjà stylée) plutôt que d'en créer une 2e.
+  const isAdjustedMode = isHandicap || isRainRule;
   const isSpecial = specialRule && specialRuleDetails?.isSpecial;
 
   // Section règle spéciale active
@@ -361,13 +383,13 @@ export function renderRanking(container, data) {
 
   // En-têtes adaptatifs
   let headerHtml;
-  if (isHandicap) {
+  if (isAdjustedMode) {
     headerHtml = `
       <div class="ranking-header ranking-header-handicap">
         <div>Pos.</div>
         <div>Athlète</div>
         <div>D+ Brut</div>
-        <div class="hide-mobile-sm">Ajust.</div>
+        <div class="hide-mobile-sm">${isRainRule ? 'Pluie' : 'Ajust.'}</div>
         <div>D+ Final</div>
         <div class="hide-mobile">D+ Saison</div>
       </div>
@@ -402,19 +424,28 @@ let html = specialBanner + specialRuleHtml + headerHtml;
     // Générer les pilules pour les effets de bonus éphémères
     const ephemeralPills = renderEphemeralBonusPills(ephemeral);
 
-    if (isHandicap) {
-      // Mode Handicap : colonnes D+ Brut / Ajust. / D+ Final
+    if (isAdjustedMode) {
+      // Colonnes D+ Brut / Ajust. / D+ Final — partagées par handicap et météo
       const rawElev = entry.rawElevation ?? entry.totalElevation;
-      const adjPercent = entry.adjustmentPercent || 0;
       const finalElev = entry.totalElevation;
 
       let adjHtml;
-      if (adjPercent < 0) {
-        adjHtml = `<span class="handicap-malus">${adjPercent}%</span>`;
-      } else if (adjPercent > 0) {
-        adjHtml = `<span class="handicap-bonus">+${adjPercent}%</span>`;
+      if (isRainRule) {
+        // Colonne "Pluie" : le gain en mètres, plus parlant qu'un pourcentage
+        // puisque seules certaines sorties de l'athlète sont concernées.
+        const gain = entry.rainBonusElevation || 0;
+        adjHtml = gain > 0
+          ? `<span class="handicap-bonus" title="${entry.rainyActivities} activité(s) sous la pluie, D+ ×${WEATHER_RULE.multiplier}">🌧️ +${gain} m</span>`
+          : `<span class="handicap-none">—</span>`;
       } else {
-        adjHtml = `<span class="handicap-none">—</span>`;
+        const adjPercent = entry.adjustmentPercent || 0;
+        if (adjPercent < 0) {
+          adjHtml = `<span class="handicap-malus">${adjPercent}%</span>`;
+        } else if (adjPercent > 0) {
+          adjHtml = `<span class="handicap-bonus">+${adjPercent}%</span>`;
+        } else {
+          adjHtml = `<span class="handicap-none">—</span>`;
+        }
       }
 
       html += `
@@ -445,7 +476,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
           </div>
           <div class="elevation-secondary hide-mobile">${formatElevation(seasonElev)}</div>
         </div>
-        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities)}
+        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule)}
       `;
     } else {
       // Mode standard
@@ -477,7 +508,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
             ${renderJokerBadges(entry.participant.id, data.currentRoundNumber)}
           </div>
         </div>
-        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities)}
+        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule)}
       `;
     }
   });

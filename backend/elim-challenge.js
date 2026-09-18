@@ -237,34 +237,103 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber, bo
  * Appelé UNE seule fois par athlète par saison.
  * Gère : second_souffle, trap, duel, brouillard.
  *
- * @param {Date} [endDate] - Borne sup pour la recherche des activités post-élim
- *   (utilisé par second_souffle pour ne pas considérer des activités au-delà de la saison)
+ * PORTÉ DEPUIS : public/js/standings-engine.js::getSeasonalBonusEffectsForEliminatedAthlete()
+ * La signature et la sémantique doivent rester identiques à la version frontend.
+ *
+ * @param {Object} [frozenRoundsMap] - frozen_results.rounds, pour résoudre la saison
+ *   d'un bonus depuis son elimination_round et borner la recherche d'activités.
+ * @param {number} [seasonContext] - Saison pour laquelle on calcule. Si fourni, seuls
+ *   les bonus de CETTE saison sont appliqués.
  */
-function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, seasonBonusesCache, allActivities, endDate = null) {
+function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, seasonBonusesCache, allActivities, frozenRoundsMap = null, seasonContext = null) {
   const effects = { gained: 0, lost: 0, details: [] };
   const normalizedId = String(athleteId);
   const allAthleteBonus = getAllBonusesForAthlete(normalizedId, bonusesCache, seasonBonusesCache);
 
+  // Helper: déterminer à quelle saison appartient un bonus (depuis son elimination_round)
+  function getSeasonForBonus(bonus) {
+    // Priorité 1: champ explicite (posé à la clôture de saison)
+    if (bonus.season_number) return Number(bonus.season_number);
+    // Priorité 2: lookup dans frozenRoundsMap
+    if (frozenRoundsMap && bonus.elimination_round) {
+      const round = frozenRoundsMap[String(bonus.elimination_round)];
+      if (round?.seasonNumber) return Number(round.seasonNumber);
+    }
+    return null; // saison indéterminable
+  }
+
+  // Helper: déterminer la fin de la saison à laquelle appartient un round d'élimination
+  // (à partir des rounds figés s'ils sont disponibles, sinon null = pas de borne).
+  function getSeasonEndDateForElimRound(elimRound) {
+    if (!frozenRoundsMap) return null;
+    const elimRoundEntry = frozenRoundsMap[String(elimRound)];
+    if (!elimRoundEntry?.seasonNumber) return null;
+    const targetSeason = Number(elimRoundEntry.seasonNumber);
+
+    // Trouver le dernier round de cette saison
+    let lastRoundOfSeason = null;
+    for (const [k, r] of Object.entries(frozenRoundsMap)) {
+      if (r && Number(r.seasonNumber) === targetSeason) {
+        const rn = Number(k);
+        if (lastRoundOfSeason === null || rn > lastRoundOfSeason) {
+          lastRoundOfSeason = rn;
+        }
+      }
+    }
+    if (lastRoundOfSeason === null) return null;
+    const dates = getRoundDates(lastRoundOfSeason, CHALLENGE_CONFIG);
+    return dates?.end || null;
+  }
+
   for (const bonus of allAthleteBonus) {
+    // Filtrage par saison : si seasonContext est fourni, on ne traite que les bonus
+    // de cette saison. Sans ce filtre, un bonus saisonnier d'une saison close (ex:
+    // second_souffle de Baptiste saison 2) serait recalculé avec la fenêtre de la
+    // saison en cours et re-crédité à chaque saison suivante.
+    // Saison indéterminable (null) = donnée orpheline → on n'applique PAS : un bonus
+    // légitime a toujours un elimination_round figé, donc résolvable.
+    if (seasonContext != null) {
+      const bonusSeason = getSeasonForBonus(bonus);
+      if (bonusSeason !== Number(seasonContext)) continue;
+    }
+
     // Second Souffle — double la plus petite activité
     if (bonus.bonus_id === 'second_souffle' && (bonus.status === 'active' || bonus.status === 'chosen' || bonus.status === 'used')) {
       const alreadyAdded = effects.details.some(d => d.type === 'second_souffle');
-      if (!alreadyAdded) {
-        const elimRound = bonus.elimination_round;
-        if (elimRound) {
-          const elimActivities = getEliminatedActivities(normalizedId, elimRound, allActivities, endDate);
-          if (elimActivities.length > 0) {
-            const minActivity = elimActivities.reduce((min, a) =>
-              (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
-            );
-            const amount = Math.round(minActivity.total_elevation_gain || 0);
-            if (amount > 0) {
-              const actName = minActivity.name || 'activité';
-              effects.gained += amount;
-              effects.details.push({ type: 'second_souffle', amount, activityName: actName, icon: '🔥' });
-            }
-          }
+      if (alreadyAdded) continue;
+
+      // Si le bonus a déjà été figé au moment de la clôture de saison, on utilise
+      // le effect_result archivé (source de vérité), sans recalculer.
+      const result = bonus.effect_result;
+      if (result?.frozenAtSeasonClose) {
+        if (result.amount > 0) {
+          effects.gained += result.amount;
+          effects.details.push({
+            type: 'second_souffle',
+            amount: result.amount,
+            activityName: result.activityName || 'activité',
+            icon: '🔥'
+          });
         }
+        continue;
+      }
+
+      // Sinon, calcul live (saison en cours, pas encore figée)
+      const elimRound = bonus.elimination_round;
+      if (!elimRound) continue;
+
+      const seasonEndDate = getSeasonEndDateForElimRound(elimRound);
+      const elimActivities = getEliminatedActivities(normalizedId, elimRound, allActivities, seasonEndDate);
+      if (elimActivities.length === 0) continue;
+
+      const minActivity = elimActivities.reduce((min, a) =>
+        (a.total_elevation_gain || 0) < (min.total_elevation_gain || 0) ? a : min
+      );
+      const amount = Math.round(minActivity.total_elevation_gain || 0);
+      if (amount > 0) {
+        const actName = minActivity.name || 'activité';
+        effects.gained += amount;
+        effects.details.push({ type: 'second_souffle', amount, activityName: actName, icon: '🔥' });
       }
     }
 
@@ -401,10 +470,12 @@ function computeEliminatedChallengeRankingForSeason({
   for (const entry of ranking) {
     entry.bonusEffects = { gained: 0, lost: 0, details: [] };
 
-    // Saisonnier (1x) — borné à la fin de saison pour que second_souffle ne
-    // prenne en compte QUE les activités de la saison courante
+    // Saisonnier (1x) — filtré sur `seasonNumber` pour qu'un bonus d'une saison
+    // close ne soit pas re-appliqué ici, et borné à la fin de SA propre saison
+    // (dérivée de frozenRoundsMap) pour que second_souffle ne prenne en compte
+    // QUE les activités de cette saison.
     const seasonal = getSeasonalBonusEffectsForEliminatedAthlete(
-      entry.id, bonusesCache, seasonBonusesCache, activities, seasonDates.end
+      entry.id, bonusesCache, seasonBonusesCache, activities, frozenRoundsMap, seasonNumber
     );
     entry.bonusEffects.gained += seasonal.gained;
     entry.bonusEffects.lost += seasonal.lost;

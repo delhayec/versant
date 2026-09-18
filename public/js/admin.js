@@ -1055,7 +1055,8 @@ document.getElementById('resetPasswordBtn')?.addEventListener('click', async () 
 const RULE_LABELS = {
   standard: 'Standard',
   handicap: 'Handicap',
-  no_bonus: 'Sans bonus (D+ pur)'
+  no_bonus: 'Sans bonus (D+ pur)',
+  pluie_qui_mouille: 'La pluie qui mouille (D+ ×1,5 sous la pluie)'
 };
 
 // ============================================
@@ -1088,6 +1089,18 @@ async function loadSeasonVisualizer() {
     // Charger les special-rules pour la pré-config
     const rulesRes = await fetch(`${API_BASE}/special-rules`);
     const specialRules = await rulesRes.json();
+
+    // Couverture météo par round : sert à prévenir l'admin AVANT de figer un
+    // round sous la règle "pluie qui mouille" (une activité sans météo ne peut
+    // pas être créditée du bonus). Best-effort : l'absence de données ne doit
+    // pas empêcher l'affichage du visualisateur.
+    let weatherCoverage = {};
+    try {
+      const covRes = await fetch(`${API_BASE}/weather-coverage/versant-2026`);
+      if (covRes.ok) weatherCoverage = await covRes.json();
+    } catch (e) {
+      console.warn('⚠️ Couverture météo indisponible:', e.message);
+    }
 
     // Déterminer la saison courante et ses rounds
     const seasonInfo = computeCurrentSeasonInfo(frozenData, configs);
@@ -1187,6 +1200,21 @@ async function loadSeasonVisualizer() {
             ).join('')}
           </select>`;
 
+      // Indicateur météo, affiché seulement quand la règle pluie est retenue
+      let weatherHtml = '';
+      if (currentRule === 'pluie_qui_mouille') {
+        const cov = weatherCoverage[String(r)];
+        if (!cov) {
+          weatherHtml = '<div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px;">🌧️ aucune activité</div>';
+        } else {
+          const unusable = cov.total - cov.ok;
+          const warn = unusable > 0;
+          weatherHtml = `<div style="font-size: 11px; margin-top: 4px; color: ${warn ? '#fbbf24' : '#10b981'};" title="${cov.noGeo} sans GPS, ${cov.missing} météo non calculée, ${cov.error} en erreur">
+            🌧️ ${cov.rainy}/${cov.ok} sous la pluie${warn ? ` · ⚠️ ${unusable} sans météo` : ''}
+          </div>`;
+        }
+      }
+
       const actionsHtml = isFrozen
         ? '<span style="color: rgba(255,255,255,0.4); font-size: 11px;">verrouillé</span>'
         : `<button onclick="saveRoundConfigFromUI(${r})" style="padding: 6px 10px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;">💾</button>
@@ -1200,7 +1228,7 @@ async function loadSeasonVisualizer() {
           <td style="padding: 10px 8px; text-align: center; font-family: 'Space Mono', monospace;">${activesBeforeRound}</td>
           <td style="padding: 10px 8px; text-align: center;">${nbElimInput}</td>
           <td style="padding: 10px 8px;">${typeSelect}</td>
-          <td style="padding: 10px 8px;">${ruleSelect}</td>
+          <td style="padding: 10px 8px;">${ruleSelect}${weatherHtml}</td>
           <td style="padding: 10px 8px; text-align: center;">${actionsHtml}</td>
         </tr>
       `;

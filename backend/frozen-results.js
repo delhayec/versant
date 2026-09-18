@@ -20,6 +20,7 @@ const roundConfigs = require('./round-configs');
 // Import configuration partagée (source unique de vérité)
 const {
   VALID_SPORTS, isValidSport,
+  WEATHER_RULE, isRainyActivity, getActivityElevation,
   MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
   getMainPoints, getEliminatedPoints,
   BONUS_IDS,
@@ -62,6 +63,16 @@ const ROUND_RULES_BACKEND = {
     // et bonus saisonniers sur ce round, ET empêche la génération d'un nouveau bonus
     // éphémère pour le meilleur éliminé. Round au D+ pur.
     parameters: {}
+  },
+  pluie_qui_mouille: {
+    id: 'pluie_qui_mouille',
+    // Contrairement à handicap (qui ajuste le D+ agrégé par athlète), cette règle
+    // pondère CHAQUE ACTIVITÉ avant la somme — cf. getActivityElevation() dans
+    // shared-config.js. Les paramètres effectifs vivent dans WEATHER_RULE.
+    parameters: {
+      multiplier: WEATHER_RULE.multiplier,
+      minRainMinutes: WEATHER_RULE.minRainMinutes
+    }
   }
 };
 
@@ -77,6 +88,70 @@ async function getSpecialRuleForRound(roundNumber) {
     console.warn(`⚠️ Erreur lecture round_configs pour round ${roundNumber}:`, e.message);
   }
   return null;
+}
+
+
+// ============================================
+// APPARTENANCE D'UN ATHLÈTE À UN ROUND
+// ============================================
+//
+// Règle globale : un athlète inscrit en cours de jeu ATTEND la saison suivante.
+// Il n'est ni classé ni éliminé sur la saison en cours, il en est simplement
+// absent. La règle est évaluée paresseusement round par round (rien n'est
+// calculé à l'inscription) : on compare sa date d'inscription au DÉBUT de la
+// saison qui contient le round examiné.
+//
+// Exception : `active_from_round` (numéro de round global) le fait entrer à un
+// round précis, y compris en milieu de saison. Posé à la main via
+// scripts/set-athlete-entry.js.
+//
+// Athlètes historiques (sans registered_at) : toujours actifs.
+
+/**
+ * Round de début de la saison, lu dans les rounds DÉJÀ FIGÉS.
+ * Volontairement indépendant de toute formule `(s-1)*roundsPerSeason+1` : celle-ci
+ * se trompe dès qu'une règle spéciale a multiplié les éliminations. Et comme on ne
+ * lit que des données figées, aucune récursion n'est possible.
+ */
+function getSeasonStartRoundFromFrozen(seasonNumber, roundNumber, previousRounds) {
+  let startRound = roundNumber;
+  for (const key in previousRounds) {
+    const r = previousRounds[key];
+    if (r?.frozen && Number(r.seasonNumber) === Number(seasonNumber)) {
+      const rn = Number(r.roundNumber);
+      if (!isNaN(rn) && rn < startRound) startRound = rn;
+    }
+  }
+  return startRound;
+}
+
+/**
+ * L'athlète participe-t-il au round `roundNumber` ?
+ * @param {number} seasonStartRound - premier round de la saison contenant roundNumber
+ */
+function isAthleteInRound(athlete, roundNumber, seasonStartRound, config) {
+  if (athlete.active_from_round != null) {
+    return Number(roundNumber) >= Number(athlete.active_from_round);
+  }
+  if (!athlete.registered_at) return true; // athlète historique
+  return new Date(athlete.registered_at) < getRoundDates(seasonStartRound, config).start;
+}
+
+/**
+ * Roster de DIMENSIONNEMENT d'une saison = les athlètes présents à son PREMIER round.
+ * Sert à calculer roundsPerSeason, la position de la finale et le plafond de points.
+ * Le lire au premier round (et non « maintenant ») est ce qui empêche un ajout en
+ * cours de saison de décaler la finale.
+ */
+function getSeasonSizingRoster(athletes, seasonStartRound, config) {
+  return athletes.filter(a => isAthleteInRound(a, seasonStartRound, seasonStartRound, config));
+}
+
+/**
+ * Roster d'APPARTENANCE à un round donné.
+ */
+function getRoundRoster(athletes, roundNumber, seasonStartRound, config) {
+  return athletes.filter(a => isAthleteInRound(a, roundNumber, seasonStartRound, config));
 }
 
 
@@ -485,8 +560,11 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     return true;
   });
 
-  // Déterminer les actifs (non éliminés dans les rounds précédents de cette saison)
-  let activeIds = athletes.map(a => String(a.id));
+  // Déterminer les actifs (non éliminés dans les rounds précédents de cette saison).
+  // On part du roster du round : un athlète inscrit après coup n'apparaît pas
+  // rétroactivement dans les rounds antérieurs à son entrée.
+  const seasonStartRound = getSeasonStartRoundFromFrozen(seasonNumber, roundNumber, previousRounds);
+  let activeIds = getRoundRoster(athletes, roundNumber, seasonStartRound, config).map(a => String(a.id));
   for (let r = roundNumber - 1; r >= 1; r--) {
     const prev = previousRounds[String(r)];
     if (!prev?.frozen) continue;
@@ -866,12 +944,20 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   // CALCUL STANDARD (saisons individuelles)
   // ============================================
   const roundDates = getRoundDates(roundNumber, config);
-  const totalParticipants = athletes.length;
+
+  // Le dimensionnement de la saison (nombre de rounds, position de la finale,
+  // plafond de points) se lit sur le roster de son PREMIER round : un athlète
+  // ajouté en cours de saison ne doit pas décaler la finale.
+  const seasonStartRound = getSeasonStartRoundFromFrozen(seasonNumber, roundNumber, previousRounds);
+  const totalParticipants = getSeasonSizingRoster(athletes, seasonStartRound, config).length;
   const roundsPerSeason = Math.ceil((totalParticipants - 1) / config.eliminationsPerRound);
   const isFinale = roundInSeason === roundsPerSeason;
 
-  // Déterminer les participants actifs (non éliminés dans les rounds précédents de cette saison)
-  let activeParticipants = athletes.map(a => String(a.id));
+  // Déterminer les participants actifs (non éliminés dans les rounds précédents de cette saison).
+  // On part du roster du round : un athlète entré après coup n'apparaît pas
+  // rétroactivement dans les rounds antérieurs à son entrée (protège notamment
+  // l'auto-freeze de rattrapage au démarrage, qui fige des rounds déjà terminés).
+  let activeParticipants = getRoundRoster(athletes, roundNumber, seasonStartRound, config).map(a => String(a.id));
 
   // Trouver les éliminés des rounds précédents de CETTE saison.
   // On s'appuie sur seasonNumber détecté pour identifier les bornes de la saison
@@ -909,6 +995,13 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     return true;
   });
 
+  // Vérifier si ce round a une règle spéciale.
+  // Chargée AVANT la construction du classement, pour deux raisons :
+  //  - 'pluie_qui_mouille' pondère chaque activité AVANT la somme des D+ ;
+  //  - 'no_bonus' doit pouvoir désactiver jokers et bonus éphémères.
+  const specialRule = await getSpecialRuleForRound(roundNumber);
+  const isNoBonusRound = specialRule?.id === 'no_bonus';
+
   // Calculer le D+ de chaque participant actif
   const ranking = activeParticipants.map(participantId => {
     const pActivities = roundActivities.filter(a => {
@@ -916,10 +1009,12 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
       return athleteId === participantId;
     });
 
-    const elevation = pActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+    // D+ brut (sans règle) vs D+ pondéré par la règle spéciale du round
+    const rawElevation = pActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+    const elevation = pActivities.reduce((sum, a) => sum + getActivityElevation(a, specialRule?.id), 0);
     const athlete = athletes.find(a => String(a.id) === participantId);
 
-    return {
+    const entry = {
       id: participantId,
       name: athlete?.name || `Athlète ${participantId}`,
       elevation: Math.round(elevation),
@@ -927,12 +1022,29 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
       originalElevation: Math.round(elevation),
       bonusPoints: 0
     };
+
+    // Traçabilité de la règle météo, pour l'affichage et l'audit
+    if (specialRule?.id === 'pluie_qui_mouille') {
+      const rainy = pActivities.filter(isRainyActivity);
+      entry.rawElevation = Math.round(rawElevation);
+      entry.rainyActivities = rainy.length;
+      entry.rainBonusElevation = Math.round(elevation - rawElevation);
+      entry.rainMinutes = rainy.reduce((sum, a) => sum + (a.weather?.rain_minutes || 0), 0);
+      entry.weatherUnknown = pActivities.filter(a => a.weather?.status !== 'ok').length;
+    }
+
+    return entry;
   });
 
-  // Vérifier si ce round a une règle spéciale (chargée AVANT l'application des jokers/bonus
-  // pour permettre à la règle 'no_bonus' de désactiver leurs effets sur ce round)
-  const specialRule = await getSpecialRuleForRound(roundNumber);
-  const isNoBonusRound = specialRule?.id === 'no_bonus';
+  if (specialRule?.id === 'pluie_qui_mouille') {
+    const rainyCount = ranking.reduce((s, e) => s + (e.rainyActivities || 0), 0);
+    const unknown = ranking.reduce((s, e) => s + (e.weatherUnknown || 0), 0);
+    console.log(
+      `🌧️ Round ${roundNumber}: règle 'pluie qui mouille' (×${WEATHER_RULE.multiplier} ` +
+      `si ≥${WEATHER_RULE.minRainMinutes} min de pluie) — ${rainyCount} activité(s) ` +
+      `sous la pluie, ${unknown} sans météo exploitable`
+    );
+  }
 
   // Appliquer les effets des jokers actifs ce round (sauf si round no_bonus)
   const activeJokers = jokerUsage.filter(j =>
@@ -954,8 +1066,12 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
 
     // Calculer le classement général pour déterminer les rangs
     // On utilise les rounds précédents figés pour construire un classement partiel
+    // Roster du round (éliminés inclus, entrants futurs exclus) : un athlète pas
+    // encore entré ne doit pas gonfler totalInGeneral et décaler la bande des
+    // « 5 derniers » qui reçoit le bonus.
     const generalStandings = {};
-    athletes.forEach(a => { generalStandings[String(a.id)] = { points: 0 }; });
+    getRoundRoster(athletes, roundNumber, seasonStartRound, config)
+      .forEach(a => { generalStandings[String(a.id)] = { points: 0 }; });
     Object.values(previousRounds).forEach(r => {
       if (!r.frozen || !r.ranking) return;
       r.ranking.forEach(e => {
@@ -1150,14 +1266,15 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     }
   };
 
-  // Calculer rescapeInfo à partir du résultat construit
-  const totalParticipants2 = athletes.length;
-  if (totalParticipants2 >= 2) {
+  // Calculer rescapeInfo à partir du résultat construit.
+  // Même roster de dimensionnement que ci-dessus : computeRescapeInfo en dérive
+  // roundsPerSeason et la position de la finale.
+  if (totalParticipants >= 2) {
     result.rescapeInfo = computeRescapeInfo(
       result,
       previousRounds,
       roundNumber,
-      totalParticipants2,
+      totalParticipants,
       config.eliminationsPerRound || 2
     );
   }
@@ -1681,6 +1798,187 @@ function getSeasonDatesFromFrozen(frozenRoundsMap, seasonNumber) {
   return null;
 }
 
+// Bonus dont l'effet court sur toute la saison et se résout à sa clôture
+// (par opposition aux éphémères ciblés, consommés dans un round précis).
+const SEASONAL_BONUS_IDS = new Set(['second_souffle', 'trap', 'duel', 'brouillard']);
+
+/**
+ * Archive et purge les bonus d'une saison qu'on est en train de clôturer.
+ *
+ * Deux traitements, dans cet ordre :
+ *
+ *  1. ARCHIVAGE — les bonus saisonniers encore 'active'/'chosen' voient leur
+ *     effet figé (`effect_result.frozenAtSeasonClose`) à partir du ranking qui
+ *     vient d'être calculé, et passent en 'used'. C'est ce qui empêche leur
+ *     recalcul lors des saisons suivantes.
+ *  2. PURGE — règle : « si le bonus n'est pas choisi ou pas utilisé à la fin de
+ *     la saison, il disparaît ».
+ *       - Cas 1 : bonus 'available' (choisi mais jamais utilisé) → 'expired'.
+ *       - Cas 2 : pending_bonus_choices jamais validé → entrée supprimée.
+ *
+ * Les bonus restent physiquement dans bonuses.json (registre « déjà reçu »,
+ * cf. generateBonusChoiceForBestEliminated) : c'est leur statut + season_number
+ * qui les neutralise, et les lecteurs filtrent dessus.
+ *
+ * Écrit bonuses.json et pending_bonus_choices.json.
+ *
+ * @param {number} seasonNumber
+ * @param {Object} frozenRoundsMap - data.rounds, pour rattacher un bonus à la saison
+ * @param {Array} ranking - classement calculé de la saison (peut être sans bonusEffects)
+ * @param {Array} bonusesCache - contenu de bonuses.json
+ * @returns {Promise<{archivedBonuses: Array, purgeLog: Object}>}
+ */
+async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranking, bonusesCache) {
+  // Un bonus appartient à la saison N si son elimination_round tombe dans un
+  // round dont seasonNumber === N.
+  const elimRoundsBySeason = new Set();
+  for (const [k, r] of Object.entries(frozenRoundsMap || {})) {
+    if (r && Number(r.seasonNumber) === Number(seasonNumber)) {
+      elimRoundsBySeason.add(Number(k));
+    }
+  }
+
+  const updatedBonusesLive = [...(bonusesCache || [])];
+  const archivedBonuses = []; // pour seasonBonuses[N]
+  const purgeLog = { expiredBonuses: [], purgedPendingChoices: [] };
+  const rankingList = Array.isArray(ranking) ? ranking : [];
+
+  // ============================================================
+  // 1. ARCHIVAGE DES BONUS DE LA SAISON
+  // ============================================================
+  for (let i = 0; i < updatedBonusesLive.length; i++) {
+    const bonus = updatedBonusesLive[i];
+    const elimRound = Number(bonus.elimination_round);
+    if (!elimRoundsBySeason.has(elimRound)) continue; // pas de cette saison
+
+    // Pour les bonus saisonniers (second_souffle / trap / duel / brouillard) qui sont
+    // encore "active" ou "chosen" (pas encore résolus), on calcule leur effet final.
+    let nextEffectResult = bonus.effect_result;
+    let nextStatus = bonus.status;
+
+    if (SEASONAL_BONUS_IDS.has(bonus.bonus_id) &&
+        (bonus.status === 'active' || bonus.status === 'chosen')) {
+      // Retrouver l'entrée de ranking pour cet athlète pour récupérer le détail calculé
+      const entry = rankingList.find(e => String(e.id) === String(bonus.athlete_id));
+      const detail = entry?.bonusEffects?.details?.find(d => {
+        if (bonus.bonus_id === 'second_souffle') return d.type === 'second_souffle';
+        if (bonus.bonus_id === 'trap') return d.type === 'trap_gain';
+        if (bonus.bonus_id === 'duel') return d.type === 'duel';
+        if (bonus.bonus_id === 'brouillard') return d.type === 'brouillard';
+        return false;
+      });
+      if (detail) {
+        nextEffectResult = {
+          amount: detail.amount || 0,
+          activityName: detail.activityName || null,
+          appliedAt: new Date().toISOString(),
+          frozenAtSeasonClose: true
+        };
+      } else {
+        // Pas d'effet calculé (ex: l'athlète n'a pas eu d'activité dans la fenêtre,
+        // ou saison équipes dont le ranking ne porte pas de bonusEffects)
+        nextEffectResult = {
+          amount: 0,
+          activityName: null,
+          appliedAt: new Date().toISOString(),
+          frozenAtSeasonClose: true,
+          noEffect: true
+        };
+      }
+      nextStatus = 'used';
+    }
+
+    // Marquer le bonus à jour avec season_number et effet
+    updatedBonusesLive[i] = {
+      ...bonus,
+      status: nextStatus,
+      season_number: Number(seasonNumber),
+      effect_result: nextEffectResult,
+      effect_applied: true,
+      effect_applied_at: bonus.effect_applied_at || new Date().toISOString()
+    };
+
+    // Copie pour archive
+    archivedBonuses.push({ ...updatedBonusesLive[i] });
+  }
+
+  // ============================================================
+  // 2. PURGE DES BONUS NON UTILISÉS À LA FIN DE LA SAISON
+  // ============================================================
+
+  // Cas 1 : expirer les bonus 'available' (choisis mais non utilisés).
+  // Un saisonnier déjà passé en 'used' par l'archivage est ignoré ici, mais un
+  // saisonnier resté 'available' (jamais auto-activé) doit bien être expiré :
+  // le test porte donc sur le statut, pas sur l'appartenance à SEASONAL_BONUS_IDS.
+  for (let i = 0; i < updatedBonusesLive.length; i++) {
+    const b = updatedBonusesLive[i];
+    if (!elimRoundsBySeason.has(Number(b.elimination_round))) continue;
+    if (b.status === 'available') {
+      updatedBonusesLive[i] = {
+        ...b,
+        status: 'expired',
+        season_number: Number(seasonNumber),
+        effect_applied: false,
+        expired_at: new Date().toISOString(),
+        expired_reason: 'season_closed_unused'
+      };
+      purgeLog.expiredBonuses.push({
+        bonus_id: b.bonus_id,
+        athlete_id: b.athlete_id,
+        athlete_name: b.athlete_name,
+        elimination_round: b.elimination_round
+      });
+      // Important : ajouter aussi à l'archive de la saison
+      archivedBonuses.push({ ...updatedBonusesLive[i] });
+    }
+  }
+
+  // Cas 2 : purger les pending_bonus_choices non validés pour cette saison
+  try {
+    const PENDING_FILE = path.join(DATA_DIR, 'pending_bonus_choices.json');
+    const pendingRaw = await fs.readFile(PENDING_FILE, 'utf8').catch(() => '{}');
+    const pending = JSON.parse(pendingRaw || '{}');
+    let pendingChanged = false;
+
+    for (const [athleteId, p] of Object.entries(pending)) {
+      const elimRound = Number(p?.elimination_round);
+      if (elimRoundsBySeason.has(elimRound)) {
+        purgeLog.purgedPendingChoices.push({
+          athlete_id: athleteId,
+          athlete_name: p.athlete_name,
+          elimination_round: elimRound,
+          choices: p.choices
+        });
+        delete pending[athleteId];
+        pendingChanged = true;
+      }
+    }
+
+    if (pendingChanged) {
+      await fs.writeFile(PENDING_FILE, JSON.stringify(pending, null, 2), 'utf8');
+    }
+  } catch (e) {
+    console.warn(`⚠️ Impossible de purger pending_bonus_choices pendant freeze saison ${seasonNumber}:`, e.message);
+  }
+
+  if (purgeLog.expiredBonuses.length || purgeLog.purgedPendingChoices.length) {
+    console.log(
+      `🧹 Purge saison ${seasonNumber}: ` +
+      `${purgeLog.expiredBonuses.length} bonus expiré(s), ` +
+      `${purgeLog.purgedPendingChoices.length} pending choice(s) supprimé(s)`
+    );
+  }
+
+  // Sauvegarder bonuses.json (live) avec les nouveaux statuts
+  try {
+    await fs.writeFile(BONUSES_FILE, JSON.stringify(updatedBonusesLive, null, 2), 'utf8');
+  } catch (e) {
+    console.warn(`⚠️ Impossible d'écrire ${BONUSES_FILE} pendant freeze saison ${seasonNumber}:`, e.message);
+  }
+
+  return { archivedBonuses, purgeLog };
+}
+
 /**
  * Fige le classement final du challenge des éliminés pour une saison donnée
  * et l'enregistre dans frozen_results.eliminatedChallengeRankings[seasonNumber].
@@ -1844,17 +2142,28 @@ async function freezeTeamEliminatedChallengeForSeason(seasonNumber, options = {}
     });
   });
 
-  // Pas d'archive de bonus saisonniers pour l'instant (commit B/C)
-  // [TODO commit B : intégrer bonus saisonniers en team season]
+  // Archivage + purge des bonus de la saison, comme pour une saison standard.
+  // Le ranking team ne porte pas de bonusEffects calculés : les saisonniers
+  // encore actifs sont donc figés avec `noEffect: true`. L'essentiel est qu'ils
+  // reçoivent un season_number et un statut terminal, sans quoi ils resteraient
+  // 'active' indéfiniment et seraient réappliqués aux saisons suivantes.
+  const teamBonusesCache = await loadAllBonuses();
+  const { archivedBonuses, purgeLog } = await archiveAndPurgeSeasonBonuses(
+    seasonNumber, data.rounds || {}, ranking, teamBonusesCache
+  );
+
   data.eliminatedChallengeRankings[String(seasonNumber)] = {
     frozenAt: new Date().toISOString(),
     seasonNumber,
     seasonType: 'team',
     ranking,
     teams: eliminatedTeamsData,
-    bonusesCount: 0
+    bonusesCount: archivedBonuses.length,
+    purgeLog
   };
 
+  if (!data.seasonBonuses) data.seasonBonuses = {};
+  data.seasonBonuses[String(seasonNumber)] = archivedBonuses;
   data.lastUpdated = new Date().toISOString();
   await saveFrozenResults(data);
 
@@ -1866,8 +2175,8 @@ async function freezeTeamEliminatedChallengeForSeason(seasonNumber, options = {}
     seasonType: 'team',
     ranking,
     teams: eliminatedTeamsData,
-    archivedBonuses: 0,
-    purgeLog: { expiredBonuses: [], purgedPendingChoices: [] },
+    archivedBonuses: archivedBonuses.length,
+    purgeLog,
     frozenAt: data.eliminatedChallengeRankings[String(seasonNumber)].frozenAt
   };
 }
@@ -1936,162 +2245,11 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
     frozenRoundsMap: data.rounds || {}
   });
 
-  // ============================================================
-  // ARCHIVAGE DES BONUS DE LA SAISON
-  // ============================================================
-  // Identifier les bonus de cette saison qui doivent être figés/archivés.
-  // Critère : un bonus appartient à la saison N si son elimination_round
-  // tombe dans un round dont seasonNumber === N.
-  const elimRoundsBySeason = new Set();
-  for (const [k, r] of Object.entries(data.rounds || {})) {
-    if (r && Number(r.seasonNumber) === Number(seasonNumber)) {
-      elimRoundsBySeason.add(Number(k));
-    }
-  }
+  // Archiver (figer les effets saisonniers) puis purger les bonus non utilisés
+  const { archivedBonuses, purgeLog } = await archiveAndPurgeSeasonBonuses(
+    seasonNumber, data.rounds || {}, ranking, bonusesCache
+  );
 
-  const updatedBonusesLive = [...bonusesCache];
-  const archivedBonuses = []; // pour seasonBonuses[N]
-  const SEASONAL_BONUS_IDS = new Set(['second_souffle', 'trap', 'duel', 'brouillard']);
-
-  for (let i = 0; i < updatedBonusesLive.length; i++) {
-    const bonus = updatedBonusesLive[i];
-    const elimRound = Number(bonus.elimination_round);
-    if (!elimRoundsBySeason.has(elimRound)) continue; // pas de cette saison
-
-    // Pour les bonus saisonniers (second_souffle / trap / duel / brouillard) qui sont
-    // encore "active" ou "chosen" (pas encore résolus), on calcule leur effet final.
-    let nextEffectResult = bonus.effect_result;
-    let nextStatus = bonus.status;
-
-    if (SEASONAL_BONUS_IDS.has(bonus.bonus_id) &&
-        (bonus.status === 'active' || bonus.status === 'chosen')) {
-      // Retrouver l'entrée de ranking pour cet athlète pour récupérer le détail calculé
-      const entry = ranking.find(e => String(e.id) === String(bonus.athlete_id));
-      const detail = entry?.bonusEffects?.details?.find(d => {
-        if (bonus.bonus_id === 'second_souffle') return d.type === 'second_souffle';
-        if (bonus.bonus_id === 'trap') return d.type === 'trap_gain';
-        if (bonus.bonus_id === 'duel') return d.type === 'duel';
-        if (bonus.bonus_id === 'brouillard') return d.type === 'brouillard';
-        return false;
-      });
-      if (detail) {
-        nextEffectResult = {
-          amount: detail.amount || 0,
-          activityName: detail.activityName || null,
-          appliedAt: new Date().toISOString(),
-          frozenAtSeasonClose: true
-        };
-      } else {
-        // Pas d'effet calculé (ex: l'athlète n'a pas eu d'activité dans la fenêtre)
-        nextEffectResult = {
-          amount: 0,
-          activityName: null,
-          appliedAt: new Date().toISOString(),
-          frozenAtSeasonClose: true,
-          noEffect: true
-        };
-      }
-      nextStatus = 'used';
-    }
-
-    // Marquer le bonus à jour avec season_number et effet
-    updatedBonusesLive[i] = {
-      ...bonus,
-      status: nextStatus,
-      season_number: Number(seasonNumber),
-      effect_result: nextEffectResult,
-      effect_applied: true,
-      effect_applied_at: bonus.effect_applied_at || new Date().toISOString()
-    };
-
-    // Copie pour archive
-    archivedBonuses.push({ ...updatedBonusesLive[i] });
-  }
-
-  // ============================================================
-  // PURGE DES BONUS NON UTILISÉS À LA FIN DE LA SAISON
-  // ============================================================
-  // Règle : "Si le bonus n'est pas choisi ou n'est pas utilisé à la fin
-  // de la saison, il doit disparaître."
-  //
-  // Cas 1 : un bonus a été choisi (status 'available' = en attente d'usage)
-  //         mais n'a jamais été utilisé pendant la saison → on l'expire.
-  // Cas 2 : un athlète a un pending_bonus_choices (jamais validé) →
-  //         on supprime l'entrée pending.
-  // Note : les bonus saisonniers (second_souffle, trap, etc.) ont déjà
-  //        été traités au-dessus (status passé à 'used' avec leur effet
-  //        figé). Ici on traite juste les éphémères ciblés non utilisés.
-  const purgeLog = { expiredBonuses: [], purgedPendingChoices: [] };
-
-  // Cas 1 : expirer les bonus 'available' (choisis mais non utilisés)
-  for (let i = 0; i < updatedBonusesLive.length; i++) {
-    const b = updatedBonusesLive[i];
-    if (!elimRoundsBySeason.has(Number(b.elimination_round))) continue;
-    if (SEASONAL_BONUS_IDS.has(b.bonus_id)) continue; // déjà traités au-dessus
-    if (b.status === 'available') {
-      updatedBonusesLive[i] = {
-        ...b,
-        status: 'expired',
-        season_number: Number(seasonNumber),
-        effect_applied: false,
-        expired_at: new Date().toISOString(),
-        expired_reason: 'season_closed_unused'
-      };
-      purgeLog.expiredBonuses.push({
-        bonus_id: b.bonus_id,
-        athlete_id: b.athlete_id,
-        athlete_name: b.athlete_name,
-        elimination_round: b.elimination_round
-      });
-      // Important : ajouter aussi à l'archive de la saison
-      archivedBonuses.push({ ...updatedBonusesLive[i] });
-    }
-  }
-
-  // Cas 2 : purger les pending_bonus_choices non validés pour cette saison
-  try {
-    const PENDING_FILE = path.join(DATA_DIR, 'pending_bonus_choices.json');
-    const pendingRaw = await fs.readFile(PENDING_FILE, 'utf8').catch(() => '{}');
-    const pending = JSON.parse(pendingRaw || '{}');
-    let pendingChanged = false;
-
-    for (const [athleteId, p] of Object.entries(pending)) {
-      const elimRound = Number(p?.elimination_round);
-      if (elimRoundsBySeason.has(elimRound)) {
-        purgeLog.purgedPendingChoices.push({
-          athlete_id: athleteId,
-          athlete_name: p.athlete_name,
-          elimination_round: elimRound,
-          choices: p.choices
-        });
-        delete pending[athleteId];
-        pendingChanged = true;
-      }
-    }
-
-    if (pendingChanged) {
-      await fs.writeFile(PENDING_FILE, JSON.stringify(pending, null, 2), 'utf8');
-    }
-  } catch (e) {
-    console.warn(`⚠️ Impossible de purger pending_bonus_choices pendant freeze saison ${seasonNumber}:`, e.message);
-  }
-
-  if (purgeLog.expiredBonuses.length || purgeLog.purgedPendingChoices.length) {
-    console.log(
-      `🧹 Purge saison ${seasonNumber}: ` +
-      `${purgeLog.expiredBonuses.length} bonus expiré(s), ` +
-      `${purgeLog.purgedPendingChoices.length} pending choice(s) supprimé(s)`
-    );
-  }
-
-  // Sauvegarder bonuses.json (live) avec les nouveaux statuts
-  try {
-    await fs.writeFile(BONUSES_FILE, JSON.stringify(updatedBonusesLive, null, 2), 'utf8');
-  } catch (e) {
-    console.warn(`⚠️ Impossible d'écrire ${BONUSES_FILE} pendant freeze saison ${seasonNumber}:`, e.message);
-  }
-
-  // Stocker le ranking + archiver les bonus dans seasonBonuses[N]
   // Stocker le ranking + archiver les bonus dans seasonBonuses[N]
   data.eliminatedChallengeRankings[String(seasonNumber)] = {
     frozenAt: new Date().toISOString(),
@@ -2148,6 +2306,12 @@ module.exports = {
   getRoundDates,
   getSeasonNumber,
   getRoundInSeason,
+  // Appartenance d'un athlète à un round / une saison (règle « attente de la
+  // saison suivante » + exception active_from_round)
+  isAthleteInRound,
+  getSeasonStartRoundFromFrozen,
+  getSeasonSizingRoster,
+  getRoundRoster,
   // Accès brut pour persister des champs additionnels (yearlyStandingsSnapshot, etc.)
   loadFrozenResultsRaw: loadFrozenResults,
   saveFrozenResultsRaw: saveFrozenResults

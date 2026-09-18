@@ -243,8 +243,12 @@ async function handleSubmit() {
       localStorage.setItem('versant_athlete_id', result.athlete_id);
     }
     
-    // Afficher succès
-    showSuccess(result.message, result.active_from_season);
+    // Afficher succès. Le backend ne renvoie pas de `message` : on garde un
+    // texte par défaut plutôt que d'afficher « undefined ».
+    showSuccess(
+      result.message || 'Votre compte Versant est créé et votre Strava est connecté.',
+      result.active_from_season
+    );
 
   } catch (error) {
     console.error('Erreur d\'inscription:', error);
@@ -282,7 +286,8 @@ function showSuccess(message, seasonNumber) {
   if (seasonNumber > 1) {
     html += `
       <p style="margin-top: 16px; padding: 12px; background: rgba(249,115,22,0.1); border-radius: 8px; border: 1px solid rgba(249,115,22,0.3);">
-        ℹ️ La saison est déjà en cours. Vous rejoindrez la ligue à la <strong>Saison ${seasonNumber}</strong>
+        ℹ️ La saison est déjà en cours : vous entrerez en jeu à la <strong>Saison ${seasonNumber}</strong>.
+        D'ici là vos sorties sont enregistrées, mais elles ne comptent pas encore au classement.
       </p>
     `;
   }

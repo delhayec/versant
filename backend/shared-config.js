@@ -34,6 +34,55 @@ function isValidSport(type) {
 }
 
 // ============================================
+// RÈGLE MÉTÉO — "LA PLUIE QUI MOUILLE"
+// ============================================
+// Seuil de détection : une activité compte comme "sous la pluie" dès qu'il a plu
+// pendant au moins minRainMinutes sur sa durée (fenêtre start_date → +elapsed_time).
+//
+// Pourquoi une durée et pas un cumul en mm : sur 173 activités géolocalisées
+// réelles, le cumul MAXIMUM observé sur une sortie entière est de 1,33 mm. Un
+// seuil classique (2 ou 5 mm) ne se déclencherait jamais — mécanique, on sort
+// 45-90 min, pas toute la journée. Le critère "≥ 15 min" touche ~10 % des sorties.
+//
+// La neige est volontairement exclue : on lit `rain` (liquide) et non
+// `precipitation`, sinon toutes les randos à ski en poudreuse déclencheraient.
+const WEATHER_RULE = {
+  minRainMinutes: 15,
+  multiplier: 1.5
+};
+
+function isRainyActivity(activity) {
+  const w = activity?.weather;
+  if (w?.status !== 'ok') return false;
+  if ((w.rain_minutes || 0) < WEATHER_RULE.minRainMinutes) return false;
+
+  // Précipitation mixte (neige fondue) : il faut que la phase LIQUIDE domine.
+  // Sans ce garde-fou, une sortie à ski sous une neige modérée créditant
+  // 0,17 mm de pluie résiduelle déclencherait "la pluie qui mouille", ce qui
+  // n'est pas l'esprit de la règle. 1 cm de neige ≈ 1 mm d'équivalent en eau.
+  const snowWaterMm = (w.snowfall_cm || 0);
+  return (w.rain_mm || 0) > snowWaterMm;
+}
+
+/**
+ * D+ d'UNE activité, pondéré par la règle spéciale du round.
+ *
+ * Contrairement à `handicap` qui ajuste le D+ agrégé par athlète, cette règle
+ * pondère chaque activité AVANT la somme. C'est donc ici, et pas dans un
+ * équivalent de applyHandicapRule(), que le multiplicateur s'applique.
+ *
+ * @param {object} activity
+ * @param {string|null} ruleId - id de la règle spéciale du round, ou null
+ */
+function getActivityElevation(activity, ruleId = null) {
+  const elevation = activity?.total_elevation_gain || 0;
+  if (ruleId === 'pluie_qui_mouille' && isRainyActivity(activity)) {
+    return elevation * WEATHER_RULE.multiplier;
+  }
+  return elevation;
+}
+
+// ============================================
 // SYSTÈME DE POINTS
 // ============================================
 const MAIN_CHALLENGE_POINTS = {
@@ -183,6 +232,9 @@ module.exports = {
   getTeamEliminatedPoints,
   VALID_SPORTS,
   isValidSport,
+  WEATHER_RULE,
+  isRainyActivity,
+  getActivityElevation,
   MAIN_CHALLENGE_POINTS,
   ELIMINATED_CHALLENGE_POINTS,
   getMainPoints,

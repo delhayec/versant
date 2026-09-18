@@ -25,7 +25,7 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 
 // Import configuration partagée (source unique de vérité)
-const { CHALLENGE_CONFIG, VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK, isTeamSeason } = require('./shared-config');
+const { CHALLENGE_CONFIG, VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK, isTeamSeason, isRainyActivity } = require('./shared-config');
 
 // Import du module jokers
 const { createJokersRoutes } = require('./jokers-routes');
@@ -36,13 +36,27 @@ const { createBonusesRoutes } = require('./bonuses-routes');
 // Import du module frozen results
 const frozenResults = require('./frozen-results.js');
 
+// Module météo (règle spéciale "la pluie qui mouille")
+const weather = require('./weather');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+// Les modules ES importés depuis app.js (config.js, standings-engine.js, …) n'ont
+// pas de query string de cache-busting : seul le point d'entrée en a une. On force
+// donc la revalidation sur le JS/CSS. `no-cache` n'interdit pas le cache, il exige
+// juste de revalider → ETag → 304 quand rien n'a changé, donc aucun surcoût, mais
+// plus de joueur appliquant une règle de classement périmée après un déploiement.
+app.use(express.static(path.join(__dirname, '../public'), {
+  setHeaders: (res, filePath) => {
+    if (/\.(js|css|mjs)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // Configuration Strava (unique)
 const STRAVA_CONFIG = {
@@ -386,6 +400,69 @@ app.get('/api/round-configs', async (req, res) => {
   }
 });
 
+/**
+ * Numéro de round global contenant un instant donné.
+ * Même ancrage que getRoundDates (minuit LOCAL au jour de départ du challenge),
+ * sinon on décale d'une heure en été et une activité peut changer de round.
+ */
+function getRoundNumberForDate(timestamp) {
+  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate).split('-').map(Number);
+  const challengeStart = new Date(y, m - 1, d).getTime();
+  if (timestamp < challengeStart) return null;
+
+  // Estimation, puis recalage sur les vraies bornes : un passage heure d'été /
+  // heure d'hiver décale le compte de jours d'une heure, ce qui suffit à faire
+  // basculer une activité de fin de soirée dans le round voisin.
+  const dayMs = 24 * 3600 * 1000;
+  const elapsedDays = Math.floor((timestamp - challengeStart) / dayMs);
+  let round = Math.floor(elapsedDays / CHALLENGE_CONFIG.roundDurationDays) + 1;
+
+  for (let i = 0; i < 3; i++) {
+    const { start, end } = frozenResults.getRoundDates(round, CHALLENGE_CONFIG);
+    if (timestamp < start.getTime()) { round--; continue; }
+    if (timestamp > end.getTime()) { round++; continue; }
+    return round;
+  }
+  return round >= 1 ? round : null;
+}
+
+// GET /api/weather-coverage/:leagueId - Couverture météo par round
+// Permet à l'admin de savoir, AVANT de figer un round sous la règle
+// "pluie qui mouille", combien d'activités n'ont pas de météo exploitable
+// (typiquement : pas de coordonnées GPS).
+app.get('/api/weather-coverage/:leagueId', async (req, res) => {
+  try {
+    const activitiesFile = path.join(LEAGUES_DIR, `${req.params.leagueId}_activities.json`);
+    const activities = await safeReadJSON(activitiesFile, []);
+
+    const byRound = {};
+    for (const a of activities) {
+      if (a.excluded) continue;
+      if (!isValidSport(a.sport_type || a.type)) continue;
+
+      // Même rattachement que le calcul des rounds : heure de FIN de l'activité
+      const endTime = new Date(a.start_date).getTime() + (a.elapsed_time || 0) * 1000;
+      const round = getRoundNumberForDate(endTime);
+      if (!round) continue;
+
+      const slot = byRound[round] || (byRound[round] = { total: 0, ok: 0, noGeo: 0, error: 0, missing: 0, rainy: 0 });
+      slot.total++;
+      const status = a.weather?.status;
+      if (status === 'ok') {
+        slot.ok++;
+        if (isRainyActivity(a)) slot.rainy++;
+      } else if (status === 'no_geo') slot.noGeo++;
+      else if (status === 'error') slot.error++;
+      else slot.missing++;
+    }
+
+    res.json(byRound);
+  } catch (error) {
+    console.error('Erreur weather-coverage:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // POST /api/admin/round-configs/:roundNumber - Sauvegarder
 app.post('/api/admin/round-configs/:roundNumber', async (req, res) => {
   if (!checkAdmin(req, res)) return;
@@ -401,6 +478,11 @@ app.post('/api/admin/round-configs/:roundNumber', async (req, res) => {
     res.json({ success: true, config });
   } catch (error) {
     console.error('Erreur round-configs POST:', error);
+    // Erreur de validation (règle spéciale inconnue) : renvoyer le motif,
+    // sinon l'admin ne voit qu'un "Erreur serveur" opaque.
+    if (/inconnue/.test(error.message)) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -562,6 +644,39 @@ app.post('/api/admin/reset-password', async (req, res) => {
 // ============================================
 // ATHLETES ROUTES
 // ============================================
+
+/**
+ * Saison en cours et son premier round, déduits des rounds figés.
+ * Même heuristique que le frontend (config.js::getSeasonNumber) : si le
+ * challenge éliminés de la dernière saison figée existe, cette saison est
+ * terminée et on est dans la suivante.
+ */
+async function getCurrentSeasonContext() {
+  try {
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const rounds = Object.values(data?.rounds || {}).filter(r => r?.frozen);
+    if (rounds.length === 0) return { seasonNumber: 1, startRound: 1 };
+
+    const last = rounds.reduce((a, b) => (Number(b.roundNumber) > Number(a.roundNumber) ? b : a));
+    const lastSeason = Number(last.seasonNumber) || 1;
+    const lastSeasonDone = !!data?.eliminatedChallengeRankings?.[String(lastSeason)];
+    const seasonNumber = lastSeasonDone ? lastSeason + 1 : lastSeason;
+
+    const roundsOfSeason = rounds
+      .filter(r => Number(r.seasonNumber) === seasonNumber)
+      .map(r => Number(r.roundNumber))
+      .filter(n => !isNaN(n));
+    const startRound = roundsOfSeason.length
+      ? Math.min(...roundsOfSeason)
+      : Number(last.roundNumber) + 1;
+
+    return { seasonNumber, startRound };
+  } catch (e) {
+    console.warn('⚠️ getCurrentSeasonContext:', e.message);
+    return { seasonNumber: 1, startRound: 1 };
+  }
+}
+
 app.post('/api/athletes/register', async (req, res) => {
   try {
     const { athlete_id, name, email, password, strava_data, access_token, refresh_token, expires_at, league_id } = req.body;
@@ -600,7 +715,31 @@ app.post('/api/athletes/register', async (req, res) => {
     await safeWriteJSON(ATHLETES_FILE, athletes);
     const token = await createSession(normalizedId);
     console.log(`✅ Athlète inscrit: ${name}`);
-    res.json({ success: true, athlete_id: normalizedId, token });
+
+    // Règle globale : on n'écrit PAS active_from_round. Son absence signifie
+    // « entre à la saison suivante » (cf. isAthleteInRound dans frozen-results).
+    const { seasonNumber, startRound } = await getCurrentSeasonContext();
+
+    // Backfill de l'historique en tâche de fond : le cron ne balaie qu'une
+    // fenêtre glissante de 7 jours, un nouvel inscrit resterait sinon à 0 D+.
+    // On remonte au début de la saison en cours — il n'entre normalement qu'à la
+    // suivante, mais cela couvre le cas d'une entrée anticipée (active_from_round).
+    // Dates en AAAA-MM-JJ LOCAL : getRoundDates ancre à minuit local
+    // (Europe/Paris), toISOString() reculerait d'un jour.
+    const toLocalDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      .toISOString().split('T')[0];
+    const backfillStart = toLocalDay(frozenResults.getRoundDates(startRound, CHALLENGE_CONFIG).start);
+    const backfillEnd = toLocalDay(new Date());
+    syncLeague(league_id, backfillStart, backfillEnd, { athleteIds: [normalizedId] })
+      .then(r => console.log(`📥 Backfill ${name}: ${r.totalNew} activité(s) depuis ${backfillStart}`))
+      .catch(e => console.error(`⚠️ Backfill ${name} échoué:`, e.message));
+
+    res.json({
+      success: true,
+      athlete_id: normalizedId,
+      token,
+      active_from_season: seasonNumber + 1
+    });
   } catch (error) {
     res.status(500).json({ error: 'Erreur inscription' });
   }
@@ -611,7 +750,14 @@ app.get('/api/athletes/:leagueId', async (req, res) => {
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes
       .filter(a => a.league_id === req.params.leagueId && a.active)
-      .map(a => ({ id: a.id, name: a.name, email: a.email, registered_at: a.registered_at }));
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        registered_at: a.registered_at,
+        // Nécessaire au frontend pour appliquer la règle d'entrée en jeu
+        active_from_round: a.active_from_round ?? null
+      }));
     res.json(leagueAthletes);
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
@@ -980,15 +1126,55 @@ async function refreshAllTokens() {
 }
 
 // ============================================
+// ENRICHISSEMENT MÉTÉO
+// ============================================
+/**
+ * Renseigne le champ `weather` des activités d'une ligue (règle "pluie qui mouille").
+ *
+ * Appelé après chaque sync et après chaque webhook, pour que la vue live du
+ * classement dispose de la donnée sans que le frontend ait à taper une API météo.
+ * Les activités déjà verrouillées (météo consolidée) sont ignorées : voir
+ * weather.js pour la politique de verrouillage.
+ *
+ * Best-effort : une panne d'Open-Meteo ne doit jamais faire échouer un sync.
+ */
+async function enrichLeagueWeather(leagueId, options = {}) {
+  const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+  try {
+    const activities = await safeReadJSON(activitiesFile, []);
+    const stats = await weather.enrichActivities(activities, options);
+
+    if (stats.changed) {
+      await safeWriteJSON(activitiesFile, activities);
+      console.log(
+        `   🌦️ Météo: ${stats.processed} activité(s) traitée(s) — ` +
+        `${stats.ok} ok, ${stats.rainy} avec pluie, ${stats.noGeo} sans GPS, ${stats.errors} erreur(s)`
+      );
+    }
+    return stats;
+  } catch (error) {
+    console.error(`⚠️ Enrichissement météo ${leagueId} échoué:`, error.message);
+    return null;
+  }
+}
+
+// ============================================
 // SYNC MANUAL - AVEC MISE À JOUR DES ACTIVITÉS
 // ============================================
 async function syncLeague(leagueId, startDate, endDate, options = {}) {
-  const { updateExisting = true } = options; // Par défaut, on met à jour les existantes
+  // athleteIds : restreint le sync à ces athlètes (backfill d'un nouvel inscrit).
+  const { updateExisting = true, athleteIds = null } = options;
 
   console.log(`🔄 Sync ${leagueId}: ${startDate} → ${endDate} (update=${updateExisting})`);
 
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
-  const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+  let leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+
+  if (athleteIds) {
+    const wanted = new Set(athleteIds.map(normalizeId));
+    leagueAthletes = leagueAthletes.filter(a => wanted.has(normalizeId(a.id)));
+    console.log(`   🎯 Restreint à ${leagueAthletes.length} athlète(s)`);
+  }
 
   const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
   let activities = await safeReadJSON(activitiesFile, []);
@@ -1019,7 +1205,14 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
           continue;
         }
         accessToken = result.access_token;
-        athletes[i].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
+        // Écrire dans le tableau COMPLET par identité, pas par l'index de la
+        // liste filtrée : les deux ne coïncident que si tous les athlètes du
+        // fichier sont actifs et dans cette ligue. Sinon on écrasait les tokens
+        // d'un autre joueur.
+        const realIndex = athletes.findIndex(a => normalizeId(a.id) === athleteId);
+        if (realIndex >= 0) {
+          athletes[realIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
+        }
       }
 
       const afterTs = Math.floor(new Date(startDate).getTime() / 1000);
@@ -1104,6 +1297,10 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   await safeWriteJSON(activitiesFile, activities);
 
   console.log(`   ✅ Total: ${totalNew} nouvelles, ${totalUpdated} mises à jour`);
+
+  // Météo des activités nouvelles ou pas encore consolidées
+  await enrichLeagueWeather(leagueId);
+
   return { success: true, totalNew, totalUpdated, errors };
 }
 
@@ -1338,6 +1535,9 @@ async function processOneWebhook(event) {
     });
 
     await safeWriteJSON(activitiesFile, activities);
+
+    // Météo de la nouvelle activité (best-effort, ne bloque pas le webhook)
+    await enrichLeagueWeather(leagueId);
 
     console.log(`   ✅ Ajouté: ${stravaActivity.name} (+${stravaActivity.total_elevation_gain}m)`);
     await logWebhook(event, 'success', { name: stravaActivity.name, elevation: stravaActivity.total_elevation_gain });
@@ -2010,14 +2210,17 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
     const leagueId = req.body.leagueId || 'versant-2026';
 
     const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
-    const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await readJokerUsage();
 
+    // Consolider la météo avant de figer (round gelé = définitif)
+    await enrichLeagueWeather(leagueId);
+    const activitiesForFreeze = await safeReadJSON(activitiesFile, []);
+
     const result = await frozenResults.freezeRoundResults(
       roundNumber,
-      activities,
+      activitiesForFreeze,
       leagueAthletes,
       jokerUsage,
       CHALLENGE_CONFIG
@@ -2038,13 +2241,16 @@ app.post('/api/admin/auto-freeze', async (req, res) => {
     const leagueId = req.body.leagueId || 'versant-2026';
 
     const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
-    const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await readJokerUsage();
 
+    // Consolider la météo avant de figer (round gelé = définitif)
+    await enrichLeagueWeather(leagueId);
+    const activitiesForFreeze = await safeReadJSON(activitiesFile, []);
+
     const frozen = await frozenResults.autoFreezeCompletedRounds(
-      activities,
+      activitiesForFreeze,
       leagueAthletes,
       jokerUsage,
       CHALLENGE_CONFIG
@@ -2194,7 +2400,6 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
   try {
     const leagueId = 'versant-2026';
     const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
-    const activities = await safeReadJSON(activitiesFile, []);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     if (leagueAthletes.length === 0) {
@@ -2202,8 +2407,14 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
       return [];
     }
     const jokerUsage = await readJokerUsage();
+
+    // Consolider la météo AVANT de figer : un round gelé ne change plus jamais,
+    // il doit donc l'être sur la donnée météo la plus à jour possible.
+    await enrichLeagueWeather(leagueId);
+    const activitiesForFreeze = await safeReadJSON(activitiesFile, []);
+
     const frozen = await frozenResults.autoFreezeCompletedRounds(
-      activities, leagueAthletes, jokerUsage, CHALLENGE_CONFIG
+      activitiesForFreeze, leagueAthletes, jokerUsage, CHALLENGE_CONFIG
     );
     console.log(`❄️ [${reason}] ${frozen.length} round(s) figé(s)`);
     return frozen;
@@ -2237,13 +2448,42 @@ cron.schedule('30 */2 * * *', () => {
 // ============================================
 
 /**
+ * Y a-t-il au moins un round terminé qui n'est pas encore figé ?
+ * Même borne de fin que l'auto-freeze (getRoundDates(r).end).
+ */
+async function hasPendingRoundToFreeze() {
+  try {
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const now = Date.now();
+    for (let r = 1; r <= 500; r++) {
+      const end = frozenResults.getRoundDates(r, CHALLENGE_CONFIG).end.getTime();
+      if (end >= now) return false; // round pas terminé → les suivants non plus
+      if (!data?.rounds?.[String(r)]?.frozen) return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('⚠️ hasPendingRoundToFreeze:', e.message);
+    return false;
+  }
+}
+
+/**
  * Au démarrage : figer les rounds terminés en retard. Couvre le cas où le
- * serveur était down au moment du cron 00h15. On ne resync PAS ici (sync:false)
- * pour éviter un appel Strava à chaque redémarrage/déploiement : le prochain
- * sync planifié rafraîchira les données. Le cron 00h15, lui, sync d'abord.
+ * serveur était down au moment du cron 00h15.
+ *
+ * On ne resync que s'il y a RÉELLEMENT quelque chose à figer : figer sur des
+ * données Strava périmées grave un résultat faux pour toujours. L'intention
+ * d'origine (ne pas taper Strava à chaque redémarrage/déploiement) est préservée,
+ * puisque le cas courant est « rien à figer » → aucun appel.
  */
 async function catchUpAutoFreezeOnStartup() {
-  const frozen = await runAutoFreeze('startup', { sync: false });
+  const pending = await hasPendingRoundToFreeze();
+  if (!pending) {
+    console.log('[startup] aucun round en retard, pas de freeze');
+    return;
+  }
+  console.log('[startup] round(s) terminé(s) non figé(s) → sync avant freeze');
+  const frozen = await runAutoFreeze('startup', { sync: true });
   frozen.forEach(r => {
     console.log(`   ❄️ Round ${r.roundNumber} (saison ${r.seasonNumber})`);
   });

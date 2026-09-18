@@ -42,8 +42,10 @@ import {
   getRoundInSeason, isFinaleRound,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
   getMainChallengePoints, getEliminatedChallengePoints,
-  getLateRegistrations, wasRegisteredBeforeStart,
-  formBalancedTeams, getSpecialRuleForRound, getEffectiveNbEliminations
+  wasRegisteredBeforeStart,
+  isParticipantInRound, getSeasonRoster, getSeasonRosterSize,
+  formBalancedTeams, getSpecialRuleForRound, getEffectiveNbEliminations,
+  getActivityElevation, isRainyActivity
 } from './config.js';
 
 import { applyJokerEffects } from './jokers.js';
@@ -243,7 +245,7 @@ export function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCa
       const round = frozenRoundsMap[String(bonus.elimination_round)];
       if (round?.seasonNumber) return Number(round.seasonNumber);
     }
-    return null; // inconnu → on ne filtre pas
+    return null; // saison indéterminable
   }
 
   // Helper: déterminer la fin de la saison à laquelle appartient un round d'élimination
@@ -273,9 +275,12 @@ export function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCa
     // Filtrage par saison : si seasonContext est fourni, on ne traite que les bonus
     // de cette saison. Cela évite qu'un bonus saisonnier (ex: second_souffle de Baptiste
     // saison 2) soit appliqué dans le ranking d'une autre saison (saison 3 en cours).
+    // Saison indéterminable (null) = donnée orpheline → on n'applique PAS : un bonus
+    // légitime est toujours créé au gel de son round d'élimination, donc sa saison
+    // est résolvable via season_number ou frozenRoundsMap.
     if (seasonContext != null) {
       const bonusSeason = getSeasonForBonus(bonus);
-      if (bonusSeason != null && bonusSeason !== Number(seasonContext)) continue;
+      if (bonusSeason !== Number(seasonContext)) continue;
     }
 
     // Second Souffle — double la plus petite activité
@@ -562,9 +567,15 @@ export function filterByParticipant(activities, participantId) {
  * Calcule les statistiques cumulées d'une liste d'activités.
  * PORTÉ DEPUIS : app.js::calculateStats()
  */
-export function calculateStats(activities) {
+export function calculateStats(activities, ruleId = null) {
+  // `elevation` est le D+ pondéré par la règle spéciale du round (×1,5 sur les
+  // activités sous la pluie pour 'pluie_qui_mouille'). `rawElevation` garde le
+  // D+ brut, pour pouvoir afficher "brut → ajusté".
+  // ruleId = null (défaut) ⇒ comportement inchangé pour tous les autres appelants.
   return {
-    elevation: activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0),
+    elevation: activities.reduce((sum, a) => sum + getActivityElevation(a, ruleId), 0),
+    rawElevation: activities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0),
+    rainyCount: ruleId ? activities.filter(isRainyActivity).length : 0,
     distance: activities.reduce((sum, a) => sum + (a.distance || 0), 0),
     activities: activities.length,
     movingTime: activities.reduce((sum, a) => sum + (a.moving_time || 0), 0)
@@ -575,20 +586,36 @@ export function calculateStats(activities) {
  * Calcule le classement des participants actifs pour un ensemble d'activités.
  * PORTÉ DEPUIS : app.js::calculateRanking()
  */
-export function calculateRanking(activities, activeParticipants) {
+export function calculateRanking(activities, activeParticipants, ruleId = null) {
   const participantsList = activeParticipants.length > 0 ? activeParticipants : PARTICIPANTS;
+  const isRainRule = ruleId === 'pluie_qui_mouille';
 
   return participantsList
     .map(participant => {
       const pActivities = filterByParticipant(activities, participant.id);
-      const stats = calculateStats(pActivities);
-      return {
+      const stats = calculateStats(pActivities, ruleId);
+      const entry = {
         participant,
-        totalElevation: stats.elevation,
+        // Arrondi seulement sous la règle météo : elle seule introduit des
+        // décimales (×1,5). Hors règle, on garde la somme brute telle quelle
+        // pour ne rien changer au comportement existant.
+        totalElevation: isRainRule ? Math.round(stats.elevation) : stats.elevation,
         totalDistance: stats.distance,
         activityCount: stats.activities,
         activities: pActivities
       };
+
+      // Traçabilité de la règle météo, pour l'affichage "brut → ajusté"
+      if (isRainRule) {
+        entry.rawElevation = Math.round(stats.rawElevation);
+        entry.rainyActivities = stats.rainyCount;
+        entry.rainBonusElevation = Math.round(stats.elevation - stats.rawElevation);
+        entry.adjustmentLabel = stats.rainyCount > 0
+          ? `${stats.rainyCount} sortie${stats.rainyCount > 1 ? 's' : ''} sous la pluie`
+          : null;
+      }
+
+      return entry;
     })
     .sort((a, b) => b.totalElevation - a.totalElevation)
     .map((entry, index) => ({ ...entry, position: index + 1 }));
@@ -747,12 +774,59 @@ export function applyHandicapRule(ranking, yearlyStandings) {
  * Simulation pour les saisons en mode ÉQUIPE.
  * PORTÉ DEPUIS : app.js::simulateTeamSeasonEliminations()
  */
+/**
+ * Le participant apparaît-il dans le classement d'au moins un round figé de
+ * cette saison ? Sert à ne pas sacrer vainqueur un joueur qui n'y a pas joué.
+ */
+function appearsInFrozenSeason(participantId, seasonNumber, frozenResultsCache) {
+  const rounds = frozenResultsCache?.rounds;
+  if (!rounds) return true; // pas de données figées → on ne peut rien invalider
+  const id = String(participantId);
+  let seasonHasFrozenRounds = false;
+
+  for (const key in rounds) {
+    const r = rounds[key];
+    if (!r?.frozen || Number(r.seasonNumber) !== Number(seasonNumber)) continue;
+    seasonHasFrozenRounds = true;
+    if (Array.isArray(r.ranking) && r.ranking.some(e => String(e.id) === id)) return true;
+    if (Array.isArray(r.activeParticipants) && r.activeParticipants.some(x => String(x) === id)) return true;
+  }
+
+  // Si la saison n'a AUCUN round figé (simulation live, freeze en retard), on
+  // n'a rien pour invalider le vainqueur : on le laisse passer. Ne rien exiger
+  // ici éviterait de faire disparaître un vrai champion.
+  return !seasonHasFrozenRounds;
+}
+
+/**
+ * Ajoute aux actifs les participants dont l'entrée en jeu est fixée à ce round
+ * exact (exception `activeFromRound`). Sans effet dans le cas nominal, où
+ * personne n'entre en cours de saison.
+ *
+ * @returns {Array} la liste des actifs (nouvelle instance si elle a changé)
+ */
+function addEntrantsForRound(active, eliminated, globalRound) {
+  const entrants = PARTICIPANTS.filter(p =>
+    p.activeFromRound != null &&
+    Number(p.activeFromRound) === Number(globalRound) &&
+    !active.some(a => String(a.id) === String(p.id)) &&
+    !eliminated.some(e => String(e.id) === String(p.id))
+  );
+  return entrants.length ? [...active, ...entrants] : active;
+}
+
 export function simulateTeamSeasonEliminations(activities, seasonNumber, currentDate, yearlyStandingsCache, frozenResultsCache) {
   const seasonDates = getSeasonDates(seasonNumber);
   const seasonStartRound = getSeasonStartRound(seasonNumber);
   const maxRounds = getRoundsForSeason(seasonNumber);
 
-  let active = [...PARTICIPANTS];
+  // Roster du PREMIER round de la saison : un athlète inscrit après le début de
+  // la saison en est absent (il attend la saison suivante). C'est ce qui empêche
+  // un athlète ajouté après coup de se retrouver « dernier survivant » de la
+  // finale équipes — laquelle élimine TOUT le monde — et d'être sacré vainqueur.
+  let active = PARTICIPANTS.filter(p =>
+    isParticipantInRound(p, seasonStartRound, seasonStartRound)
+  );
   const eliminated = [];
   const roundResults = [];
 
@@ -760,12 +834,17 @@ export function simulateTeamSeasonEliminations(activities, seasonNumber, current
   const yearlyStandings = yearlyStandingsCache || [];
   const pointsMap = {};
   yearlyStandings.forEach(e => { pointsMap[e.participant.id] = e.totalPoints || 0; });
-  PARTICIPANTS.forEach(p => { if (!(p.id in pointsMap)) pointsMap[p.id] = 0; });
+  active.forEach(p => { if (!(p.id in pointsMap)) pointsMap[p.id] = 0; });
 
   for (let roundInSeason = 1; roundInSeason <= maxRounds; roundInSeason++) {
+    const globalRound = seasonStartRound + roundInSeason - 1;
+
+    // Entrée en cours de saison (exception activeFromRound), sans protection.
+    active = addEntrantsForRound(active, eliminated, globalRound);
+    active.forEach(p => { if (!(p.id in pointsMap)) pointsMap[p.id] = 0; });
+
     if (active.length <= 1) break;
 
-    const globalRound = seasonStartRound + roundInSeason - 1;
     const roundDates = getRoundDates(globalRound);
 
     // Round pas encore commencé
@@ -873,9 +952,18 @@ export function simulateTeamSeasonEliminations(activities, seasonNumber, current
     }
 
     if (active.length <= 3) {
+      // Garde-fou : ne sacrer « dernier survivant » qu'un joueur qui apparaît
+      // vraiment dans un round figé de la saison. Sans cela, un participant
+      // absent de tout l'historique occupe le vide laissé par la finale équipes
+      // (qui élimine tout le monde) et hérite des 24 points du vainqueur.
+      const lastSurvivor = active.length === 1 ? active[0] : null;
+      const winner = lastSurvivor && appearsInFrozenSeason(lastSurvivor.id, seasonNumber, frozenResultsCache)
+        ? lastSurvivor
+        : null;
+
       return {
         seasonComplete: active.length <= 1,
-        winner: active.length === 1 ? active[0] : null,
+        winner,
         active,
         eliminated,
         roundResults,
@@ -909,25 +997,32 @@ export function simulateSeasonEliminations(activities, seasonNumber, currentDate
 
   const seasonDates = getSeasonDates(seasonNumber);
 
-  // TOUS les participants (éligibles + tardifs) pour le calcul du nombre de rounds
-  let active = [...PARTICIPANTS];
-  const eliminated = [];
-  const roundResults = [];
-
-  // Inscriptions tardives = éliminées d'office au Round 1 (comptent dans le quota)
-  const lateRegistrations = getLateRegistrations();
-
   // Calculer le nombre de rounds pour cette saison
   const maxRoundsPerSeason = getRoundsForSeason(seasonNumber);
   const seasonStartRoundGlobal = getSeasonStartRound(seasonNumber);
 
+  // Roster du PREMIER round de la saison. Un athlète inscrit en cours de jeu
+  // attend la saison suivante : il n'est pas ici. Une exception (activeFromRound)
+  // le fera entrer plus bas, au round exact de son entrée.
+  let active = PARTICIPANTS.filter(p =>
+    isParticipantInRound(p, seasonStartRoundGlobal, seasonStartRoundGlobal)
+  );
+  const eliminated = [];
+  const roundResults = [];
+
   for (let roundInSeason = 1; roundInSeason <= maxRoundsPerSeason; roundInSeason++) {
+    const globalRound = seasonStartRoundGlobal + roundInSeason - 1;
+
+    // Entrée en cours de saison (exception activeFromRound) : l'athlète rejoint
+    // les actifs au round exact de son entrée, sans protection — il peut être
+    // éliminé dès ce round.
+    active = addEntrantsForRound(active, eliminated, globalRound);
+
     // VÉRIFICATION: Si plus qu'un seul joueur actif, la saison est finie
     if (active.length <= 1) {
       break;
     }
 
-    const globalRound = seasonStartRoundGlobal + roundInSeason - 1;
     const roundDates = getRoundDates(globalRound);
 
     // Round pas encore commencé
@@ -975,7 +1070,9 @@ if (frozenRound && frozenRound.frozen) {
     } else {
       // CALCULER LES RÉSULTATS (round non figé - RÈGLES SIMPLES)
       const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
-      const ranking = calculateRanking(roundActivities, active);
+      // La règle du round doit être connue ici aussi : 'pluie_qui_mouille' change
+      // l'ORDRE du classement, donc qui est éliminé — pas seulement combien.
+      const ranking = calculateRanking(roundActivities, active, getSpecialRuleForRound(globalRound));
 
       // Appliquer les effets des jokers
       const rankingWithEffects = applyJokerEffects(ranking, globalRound);
@@ -1027,18 +1124,13 @@ if (frozenRound && frozenRound.frozen) {
         // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap)
         const eliminationsNeeded = roundElimCount;
 
-        // Round 1: Les inscriptions tardives sont éliminées en PREMIER (comptent dans le quota)
-        if (roundInSeason === 1 && lateRegistrations.length > 0) {
-          lateRegistrations.forEach(p => {
-            if (toEliminate.length < eliminationsNeeded && active.find(a => a.id === p.id)) {
-              toEliminate.push({
-                ...p,
-                zeroElimination: false,
-                lateRegistration: true
-              });
-            }
-          });
-        }
+        // NOTE : l'ancienne règle « les inscriptions tardives sont éliminées
+        // d'office au round 1 » a été retirée. Elle se déclenchait sur
+        // `roundInSeason === 1`, donc au premier round de CHAQUE saison et à
+        // perpétuité, jamais bornée à la saison d'inscription. L'attente de la
+        // saison suivante est désormais gérée en amont par le roster
+        // (isParticipantInRound) : un inscrit tardif est simplement absent de la
+        // saison en cours, sans consommer de place d'élimination.
 
         // Compléter avec les derniers du classement
         for (let i = eligibleForElimination.length - 1; i >= 0 && toEliminate.length < eliminationsNeeded; i--) {
@@ -1073,9 +1165,14 @@ if (frozenRound && frozenRound.frozen) {
 
     // Vérifier si la saison est terminée (un seul joueur restant)
     if (active.length <= 1) {
+      // Même garde-fou que la saison équipes : le dernier survivant doit avoir
+      // réellement joué la saison (présent dans un round figé).
+      const lastSurvivor = active[0] || null;
       return {
         seasonComplete: true,
-        winner: active[0] || null,
+        winner: lastSurvivor && appearsInFrozenSeason(lastSurvivor.id, seasonNumber, frozenResultsCache)
+          ? lastSurvivor
+          : null,
         active,
         eliminated,
         roundResults,
@@ -1260,8 +1357,18 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
     // Calculer les points rescapé de cette saison
     const rescapeData = calculateRescapePointsForSeason(s, frozenResultsCache);
 
-// Calcul des points pour TOUS les participants
+    // Roster de la saison : un athlète inscrit après son début n'en fait pas
+    // partie (il attend la saison suivante) et ne doit donc recevoir AUCUN point
+    // pour elle, ni voir son compteur de saisons jouées incrémenté.
+    const seasonRosterIds = new Set(
+      getSeasonRoster(s, frozenResultsCache).map(p => String(p.id))
+    );
+    const seasonRosterSize = getSeasonRosterSize(s, frozenResultsCache) || PARTICIPANTS.length;
+
+// Calcul des points pour les participants de CETTE saison
     PARTICIPANTS.forEach(p => {
+      if (!seasonRosterIds.has(String(p.id))) return;
+
       const elim = sData.eliminated.find(e => e.id === p.id);
       let mainPts = 0, elimPts = 0;
       if (elim) {
@@ -1290,12 +1397,12 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
       position = elim.frozenPosition;
     } else {
       const elimsBeforeThisRound = countEliminationsBeforeRound(sData.eliminated, elim.eliminatedRound);
-      const activeAtRoundStart = PARTICIPANTS.length - elimsBeforeThisRound;
+      const activeAtRoundStart = seasonRosterSize - elimsBeforeThisRound;
       const sameRoundElims = sData.eliminated.filter(e => e.eliminatedRound === elim.eliminatedRound);
       const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
       position = activeAtRoundStart - indexInRound;
     }
-    mainPts = getMainChallengePoints(Math.max(1, Math.min(position, PARTICIPANTS.length)));
+    mainPts = getMainChallengePoints(Math.max(1, Math.min(position, seasonRosterSize)));
   }
   elimPts = elimPointsMap[p.id] || 0;
 } else if (sData.winner?.id === p.id) {
