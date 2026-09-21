@@ -1308,7 +1308,13 @@ app.post('/api/sync/:leagueId', async (req, res) => {
   try {
     const start = req.body.startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const end = req.body.endDate || new Date().toISOString().split('T')[0];
-    const result = await syncLeague(req.params.leagueId, start, end);
+    // athleteIds (optionnel) : ne resynchroniser que ces athlètes. Permet de
+    // rattraper un nouvel inscrit sans toucher aux activités des autres.
+    // updateExisting: false pour n'AJOUTER que les activités manquantes.
+    const result = await syncLeague(req.params.leagueId, start, end, {
+      athleteIds: Array.isArray(req.body.athleteIds) ? req.body.athleteIds : null,
+      updateExisting: req.body.updateExisting !== false
+    });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Erreur sync' });

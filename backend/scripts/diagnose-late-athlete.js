@@ -108,13 +108,18 @@ async function diagnose(athlete, data) {
   }
 
   const problems = [];
+  let earliestAppearance = null;
 
-  // 1. Rounds figés ANTÉRIEURS à son entrée où il apparaît
+  // 1. Rounds figés ANTÉRIEURS à son entrée où il apparaît.
+  // Deux lectures possibles d'une telle présence :
+  //   - contamination (freeze rétroactif l'ayant aspiré dans un round passé) ;
+  //   - registered_at postérieur à sa vraie participation (compte recréé) — dans
+  //     ce cas c'est registered_at qui ment, et il FAUT poser active_from_round
+  //     sinon il perd ses points historiques.
   for (const key of Object.keys(rounds).sort((a, b) => Number(a) - Number(b))) {
     const r = rounds[key];
     if (!r?.frozen) continue;
     const rn = Number(r.roundNumber ?? key);
-    if (entryRound != null && rn >= entryRound) continue;
 
     const hits = [];
     if (idIn(r.activeParticipants, id)) hits.push('activeParticipants');
@@ -122,28 +127,45 @@ async function diagnose(athlete, data) {
     if (idIn(r.eliminations, id)) hits.push('eliminations');
     if (Array.isArray(r.teams) && r.teams.some(t => idIn(t.members, id))) hits.push('teams');
 
+    if (hits.length && earliestAppearance === null) earliestAppearance = rn;
+    if (entryRound != null && rn >= entryRound) continue;
+
     if (hits.length) {
       problems.push(`Round ${rn} (saison ${r.seasonNumber}) figé le ${r.frozenAt || '?'} → présent dans : ${hits.join(', ')}`);
     }
   }
 
-  // 2. Challenges éliminés figés
+  // Incohérence majeure : il joue dans les rounds figés AVANT son entrée calculée.
+  // Ses points de ces saisons seront ignorés par le classement général.
+  if (earliestAppearance !== null && entryRound != null && earliestAppearance < entryRound) {
+    problems.push(
+      `⇒ INCOHÉRENCE : il apparaît dès le round ${earliestAppearance} mais son entrée calculée est le round ${entryRound}. ` +
+      `Ses points des saisons antérieures seront IGNORÉS au classement général. ` +
+      `Correction : node scripts/set-athlete-entry.js ${id} ${earliestAppearance}`
+    );
+  }
+
+  // 2. Challenges éliminés de saisons TERMINÉES AVANT son entrée en jeu.
+  // Une présence dans une saison qu'il a réellement jouée est normale — on ne
+  // signale que les saisons antérieures à son entrée.
   const elimRankings = data?.eliminatedChallengeRankings || {};
   for (const season of Object.keys(elimRankings)) {
     const ranking = elimRankings[season]?.ranking || elimRankings[season];
     if (!Array.isArray(ranking)) continue;
+
+    // Dernier round figé de cette saison : si elle s'est terminée avant son
+    // entrée, il n'avait rien à y faire.
+    const roundsOfSeason = Object.values(rounds)
+      .filter(r => r?.frozen && Number(r.seasonNumber) === Number(season))
+      .map(r => Number(r.roundNumber))
+      .filter(n => !isNaN(n));
+    if (roundsOfSeason.length === 0) continue;
+    const lastRoundOfSeason = Math.max(...roundsOfSeason);
+    if (entryRound == null || lastRoundOfSeason >= entryRound) continue;
+
     const entry = ranking.find(e => String(e.participant?.id ?? e.id) === id);
     if (entry) {
-      problems.push(`Challenge éliminés saison ${season} → présent avec ${entry.points ?? '?'} pt(s)`);
-    }
-  }
-
-  // 3. Snapshot du classement annuel (poussé par le navigateur)
-  const snapshot = data?.yearlyStandingsSnapshot?.standings;
-  if (Array.isArray(snapshot)) {
-    const entry = snapshot.find(e => String(e.participant?.id ?? e.id) === id);
-    if (entry && (entry.totalPoints || 0) !== 0) {
-      problems.push(`Snapshot classement annuel → ${entry.totalPoints} pt(s), ${entry.wins || 0} victoire(s) (sera écrasé au prochain chargement de la page)`);
+      problems.push(`Challenge éliminés saison ${season} (terminée au R${lastRoundOfSeason}, avant son entrée) → présent avec ${entry.points ?? '?'} pt(s)`);
     }
   }
 

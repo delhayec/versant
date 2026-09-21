@@ -24,7 +24,7 @@ const {
   MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
   getMainPoints, getEliminatedPoints,
   BONUS_IDS,
-  getRoundDates, getSeasonNumber, getRoundInSeason,
+  getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
   isTeamSeason, getSeasonType, getTeamEliminatedPoints
 } = require('./shared-config');
 
@@ -243,7 +243,7 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
     return null;
   }
 
-  const roundsPerSeason = Math.ceil((totalParticipants - 1) / eliminationsPerRound);
+  const roundsPerSeason = getSeasonRoundCount(totalParticipants, eliminationsPerRound);
   const seasonNumber = roundData.seasonNumber || Math.ceil(roundNumber / roundsPerSeason);
   const roundInSeason = roundData.roundInSeason || (((roundNumber - 1) % roundsPerSeason) + 1);
   const isFinale = roundInSeason === roundsPerSeason;
@@ -950,7 +950,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   // ajouté en cours de saison ne doit pas décaler la finale.
   const seasonStartRound = getSeasonStartRoundFromFrozen(seasonNumber, roundNumber, previousRounds);
   const totalParticipants = getSeasonSizingRoster(athletes, seasonStartRound, config).length;
-  const roundsPerSeason = Math.ceil((totalParticipants - 1) / config.eliminationsPerRound);
+  const roundsPerSeason = getSeasonRoundCount(totalParticipants, config.eliminationsPerRound, config.finalistsCount);
   const isFinale = roundInSeason === roundsPerSeason;
 
   // Déterminer les participants actifs (non éliminés dans les rounds précédents de cette saison).

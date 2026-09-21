@@ -1092,8 +1092,17 @@ if (frozenRound && frozenRound.frozen) {
         ? adminNbEliminations
         : (roundRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound);
 
-      // Déterminer si c'est une finale
-      const isCurrentRoundFinale = active.length <= roundElimCount + 1;
+      // Déterminer si c'est une finale.
+      // Critère principal : le round théorique de finale de la saison — IDENTIQUE
+      // au backend (frozen-results.js `isFinale = roundInSeason === roundsPerSeason`),
+      // pour que l'aperçu et le figement officiel s'accordent. Avec la règle des
+      // 4 finalistes, ce round est précisément celui où il en reste 4.
+      // Filet de sécurité : si des éliminations multiples (handicap, nbEliminations
+      // forcé) ont vidé la saison plus vite que prévu. Volontairement laissé à son
+      // seuil d'origine pour ne pas élargir la fenêtre de divergence avec le backend.
+      const isCurrentRoundFinale =
+        roundInSeason === maxRoundsPerSeason ||
+        active.length <= roundElimCount + 1;
 
       // Joueurs éligibles (sans bouclier)
       const eligibleForElimination = rankingWithEffects.filter(e => !e.jokerEffects?.hasShield);

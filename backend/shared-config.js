@@ -16,7 +16,11 @@ const CHALLENGE_CONFIG = {
   yearStartDate: '2026-02-02',
   yearEndDate: '2026-12-31',
   roundDurationDays: 5,
-  eliminationsPerRound: 2
+  eliminationsPerRound: 2,
+  // Nombre de finalistes qui s'affrontent au dernier round d'une saison.
+  // On élimine jusqu'à n'en garder que finalistsCount, puis un round de finale
+  // les départage (tous éliminés sauf le premier).
+  finalistsCount: 4
 };
 
 // ============================================
@@ -120,13 +124,33 @@ function getRoundDates(roundNumber, config = CHALLENGE_CONFIG) {
   return { start, end };
 }
 
+/**
+ * Nombre de rounds d'une saison individuelle — SOURCE UNIQUE de la formule.
+ * Miroir exact de public/js/config.js::getSeasonRoundCount.
+ *
+ * On élimine `eliminationsPerRound` joueurs par round jusqu'à n'en garder que
+ * `finalistsCount`, puis un round de finale les départage. D'où le « + 1 ».
+ *
+ * Exemple avec 16 joueurs, 2 éliminations/round, 4 finalistes :
+ *   ceil((16-4)/2) + 1 = 6 + 1 = 7 rounds
+ *   R1 16→14, R2 →12, R3 →10, R4 →8, R5 →6, R6 →4, R7 finale 4→1
+ */
+function getSeasonRoundCount(
+  totalParticipants,
+  eliminationsPerRound = CHALLENGE_CONFIG.eliminationsPerRound,
+  finalistsCount = CHALLENGE_CONFIG.finalistsCount
+) {
+  const toEliminate = Math.max(0, totalParticipants - finalistsCount);
+  return Math.ceil(toEliminate / eliminationsPerRound) + 1;
+}
+
 function getSeasonNumber(roundNumber, totalParticipants, eliminationsPerRound = CHALLENGE_CONFIG.eliminationsPerRound) {
-  const roundsPerSeason = Math.ceil((totalParticipants - 1) / eliminationsPerRound);
+  const roundsPerSeason = getSeasonRoundCount(totalParticipants, eliminationsPerRound);
   return Math.ceil(roundNumber / roundsPerSeason);
 }
 
 function getRoundInSeason(roundNumber, totalParticipants, eliminationsPerRound = CHALLENGE_CONFIG.eliminationsPerRound) {
-  const roundsPerSeason = Math.ceil((totalParticipants - 1) / eliminationsPerRound);
+  const roundsPerSeason = getSeasonRoundCount(totalParticipants, eliminationsPerRound);
   return ((roundNumber - 1) % roundsPerSeason) + 1;
 }
 
@@ -243,6 +267,7 @@ module.exports = {
   INITIAL_JOKER_STOCK,
   BONUS_IDS,
   getRoundDates,
+  getSeasonRoundCount,
   getSeasonNumber,
   getRoundInSeason
 };
