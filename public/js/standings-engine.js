@@ -45,7 +45,8 @@ import {
   wasRegisteredBeforeStart,
   isParticipantInRound, getSeasonRoster, getSeasonRosterSize,
   formBalancedTeams, getSpecialRuleForRound, getEffectiveNbEliminations,
-  getActivityElevation, isRainyActivity
+  getActivityElevation, isRainyActivity,
+  getGaugeObjectivePerPlayer, getGaugeTier
 } from './config.js';
 
 import { applyJokerEffects } from './jokers.js';
@@ -494,6 +495,45 @@ export function calculateRescapePointsForSeason(seasonNumber, frozenResultsCache
   }
 
   return result;
+}
+
+/**
+ * Points de la jauge de D+ collective pour une saison, lus dans les rounds figés
+ * (rounds[n].elevationGauge, calculé par le backend au figement).
+ * Comme les points rescapé, ils comptent dès le figement du round.
+ *
+ * @returns {Object} { [athleteId]: totalPoints }
+ */
+export function calculateGaugePointsForSeason(seasonNumber, frozenResultsCache) {
+  const result = {};
+  if (!frozenResultsCache?.rounds) return result;
+  for (const round of Object.values(frozenResultsCache.rounds)) {
+    if (!round?.frozen || Number(round.seasonNumber) !== Number(seasonNumber)) continue;
+    const gauge = round.elevationGauge;
+    if (!gauge?.points || !Array.isArray(gauge.beneficiaries)) continue;
+    for (const id of gauge.beneficiaries) {
+      result[String(id)] = (result[String(id)] || 0) + gauge.points;
+    }
+  }
+  return result;
+}
+
+/**
+ * Jauge de D+ en direct pour le round en cours (même règle que le backend).
+ *
+ * @param {Array} roundActivities - activités valides du round (filterByPeriod)
+ * @param {Array} activeParticipants - joueurs du principal ({ id } ou id)
+ * @returns {Object} { total, nbPlayers, objectivePerPlayer, objective, ratio, tier }
+ */
+export function computeLiveElevationGauge(roundActivities, activeParticipants) {
+  const activeIds = new Set((activeParticipants || []).map(p => String(p?.id ?? p)));
+  const total = Math.round(roundActivities
+    .filter(a => activeIds.has(String(a.athlete?.id || a.athlete_id)))
+    .reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0));
+  const objectivePerPlayer = getGaugeObjectivePerPlayer(activeIds.size);
+  const objective = objectivePerPlayer * activeIds.size;
+  const ratio = objective > 0 ? total / objective : 0;
+  return { total, nbPlayers: activeIds.size, objectivePerPlayer, objective, ratio, tier: getGaugeTier(ratio) };
 }
 
 /**
@@ -1330,6 +1370,7 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
       totalMainPoints: 0,
       totalEliminatedPoints: 0,
       totalRescapePoints: 0,
+      totalGaugePoints: 0,
       totalPoints: 0,
       wins: 0,
       seasonsPlayed: 0,
@@ -1365,6 +1406,7 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
 
     // Calculer les points rescapé de cette saison
     const rescapeData = calculateRescapePointsForSeason(s, frozenResultsCache);
+    const gaugeData = calculateGaugePointsForSeason(s, frozenResultsCache);
 
     // Roster de la saison : un athlète inscrit après son début n'en fait pas
     // partie (il attend la saison suivante) et ne doit donc recevoir AUCUN point
@@ -1439,6 +1481,7 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
 
 // Points rescapé
       const rescapePts = rescapeData[p.id]?.totalPoints || 0;
+      const gaugePts = gaugeData[p.id] || 0;
       // Détecter si un vainqueur explicite existe dans les rounds figés de cette saison
       // (permet de compter S5 comme "terminée" même quand sData.seasonComplete est false)
       let seasonHasExplicitWinner = false;
@@ -1458,14 +1501,16 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
         totals[p.id].totalMainPoints += mainPts;
         totals[p.id].totalEliminatedPoints += elimPts;
         totals[p.id].totalRescapePoints += rescapePts;
-        totals[p.id].totalPoints += mainPts + elimPts + rescapePts;
+        totals[p.id].totalGaugePoints += gaugePts;
+        totals[p.id].totalPoints += mainPts + elimPts + rescapePts + gaugePts;
         if (seasonEffectivelyComplete) {
           totals[p.id].seasonsPlayed++;
         }
       } else {
-        // Saison en cours : ajouter les points rescapé même pour les joueurs encore actifs
+        // Saison en cours : ajouter les points rescapé et jauge même pour les joueurs encore actifs
         totals[p.id].totalRescapePoints += rescapePts;
-        totals[p.id].totalPoints += rescapePts;
+        totals[p.id].totalGaugePoints += gaugePts;
+        totals[p.id].totalPoints += rescapePts + gaugePts;
       }
     });
   }
@@ -1567,7 +1612,7 @@ export function calculatePointsForSeason(seasonNumber, activities, currentDate, 
   const pointsMap = {};
 
   PARTICIPANTS.forEach(p => {
-    pointsMap[p.id] = { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
+    pointsMap[p.id] = { mainPoints: 0, elimPoints: 0, rescapePoints: 0, gaugePoints: 0, total: 0 };
   });
 
   if (!frozenResultsCache?.rounds || seasonNumber < 1) return pointsMap;
@@ -1615,9 +1660,15 @@ export function calculatePointsForSeason(seasonNumber, activities, currentDate, 
     pointsMap[id].rescapePoints = rescapeData[id]?.totalPoints || 0;
   }
 
+  // Points de la jauge de D+
+  const gaugeData = calculateGaugePointsForSeason(seasonNumber, frozenResultsCache);
+  for (const id in pointsMap) {
+    pointsMap[id].gaugePoints = gaugeData[id] || 0;
+  }
+
   // Calculer le total
   for (const id in pointsMap) {
-    pointsMap[id].total = pointsMap[id].mainPoints + pointsMap[id].elimPoints + pointsMap[id].rescapePoints;
+    pointsMap[id].total = pointsMap[id].mainPoints + pointsMap[id].elimPoints + pointsMap[id].rescapePoints + pointsMap[id].gaugePoints;
   }
 
   return pointsMap;

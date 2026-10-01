@@ -1943,6 +1943,7 @@ app.post('/api/standings/snapshot', async (req, res) => {
       totalMainPoints: s.totalMainPoints || 0,
       totalEliminatedPoints: s.totalEliminatedPoints || 0,
       totalRescapePoints: s.totalRescapePoints || 0,
+      totalGaugePoints: s.totalGaugePoints || 0,
       totalPoints: s.totalPoints || 0,
       wins: s.wins || 0,
       seasonsPlayed: s.seasonsPlayed || 0

@@ -120,6 +120,44 @@ export const getMainChallengePoints = (pos) => MAIN_CHALLENGE_POINTS[pos] ?? MAI
 export const getEliminatedChallengePoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? ELIMINATED_CHALLENGE_POINTS.default ?? 0;
 
 // ============================================
+// JAUGE DE D+ COLLECTIVE
+// ============================================
+// À chaque round, le D+ RÉEL cumulé des joueurs du challenge principal remplit
+// une jauge dont l'objectif dépend du nombre de joueurs en lice.
+// ⚠️ Garder synchronisé avec backend/shared-config.js (ELEVATION_GAUGE) :
+// le backend fige le résultat (frozen_results.rounds[n].elevationGauge).
+export const ELEVATION_GAUGE = {
+  startRound: 50,
+  objectivePerPlayer: [
+    { minPlayers: 14, objective: 1100 },
+    { minPlayers: 11, objective: 1300 },
+    { minPlayers: 9, objective: 1500 },
+    { minPlayers: 7, objective: 1750 },
+    { minPlayers: 5, objective: 2100 },
+    { minPlayers: 3, objective: 2700 },
+    { minPlayers: 0, objective: 3000 }
+  ],
+  tiers: [
+    { id: 'critical_success', minRatio: 1.50, points: 2, beneficiary: 'main', label: 'Réussite critique', icon: '🚀' },
+    { id: 'success', minRatio: 1.30, points: 1, beneficiary: 'main', label: 'Réussite', icon: '⛰️' },
+    { id: 'neutral', minRatio: 0.75, points: 0, beneficiary: null, label: 'Neutre', icon: '⚖️' },
+    { id: 'failure', minRatio: 0.55, points: 1, beneficiary: 'eliminated', label: 'Échec', icon: '🥀' },
+    { id: 'critical_failure', minRatio: 0, points: 2, beneficiary: 'eliminated', label: 'Échec critique', icon: '💀' }
+  ]
+};
+
+export function getGaugeObjectivePerPlayer(nbPlayers) {
+  const row = ELEVATION_GAUGE.objectivePerPlayer.find(r => nbPlayers >= r.minPlayers);
+  return row ? row.objective : 0;
+}
+
+export function getGaugeTier(ratio) {
+  return ELEVATION_GAUGE.tiers.find(t => ratio >= t.minRatio) || ELEVATION_GAUGE.tiers[ELEVATION_GAUGE.tiers.length - 1];
+}
+
+export const getGaugeTierById = (id) => ELEVATION_GAUGE.tiers.find(t => t.id === id) || null;
+
+// ============================================
 // BARÈME — CHALLENGE ÉLIMINÉS SAISON TEAM
 // ============================================
 // teamRank: 1 = meilleure équipe d'éliminés (D+ cumulé le plus élevé)

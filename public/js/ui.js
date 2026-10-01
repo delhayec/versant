@@ -10,7 +10,8 @@ import {
   CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES, ROUND_RULES, PARTICIPANTS,
   getSeasonDates, getRoundDates, getRoundInSeason, getParticipantById,
   getAthleteColor, getAthleteInitials, getRoundInfo,
-  isRainyActivity, getActivityElevation, WEATHER_RULE
+  isRainyActivity, getActivityElevation, WEATHER_RULE,
+  ELEVATION_GAUGE, getGaugeTier, getGaugeTierById
 } from './config.js';
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
@@ -1269,4 +1270,129 @@ export function showTargetSelectionModal(options = {}) {
   });
   
   return modal;
+}
+
+// ============================================
+// JAUGE DE D+ COLLECTIVE
+// ============================================
+
+// Échelle de la barre : 0 → GAUGE_SCALE_MAX × objectif (au-delà, barre pleine)
+const GAUGE_SCALE_MAX = 1.75;
+
+function describeGaugeEffect(tier, nbBeneficiaries = null) {
+  if (!tier.points) return 'aucun point';
+  const who = tier.beneficiary === 'main'
+    ? (nbBeneficiaries != null ? `aux ${nbBeneficiaries} joueurs du principal` : 'à tous les joueurs du principal')
+    : (nbBeneficiaries != null ? `aux ${nbBeneficiaries} éliminés actifs` : 'aux éliminés actifs du round');
+  return `+${tier.points} pt${tier.points > 1 ? 's' : ''} ${who}`;
+}
+
+function renderGaugeInfoPopover() {
+  const tiers = [...ELEVATION_GAUGE.tiers].reverse(); // du pire au meilleur
+  const tierRows = tiers.map((t, i) => {
+    const next = tiers[i + 1];
+    const range = next
+      ? `${Math.round(t.minRatio * 100)}–${Math.round(next.minRatio * 100)} %`
+      : `≥ ${Math.round(t.minRatio * 100)} %`;
+    const label = i === 0 ? `< ${Math.round(next.minRatio * 100)} %` : range;
+    return `<tr><td>${t.icon} ${t.label}</td><td>${label}</td><td>${describeGaugeEffect(t)}</td></tr>`;
+  }).join('');
+
+  const rows = ELEVATION_GAUGE.objectivePerPlayer;
+  const objectiveRows = rows.map((r, i) => {
+    const upper = i > 0 ? rows[i - 1].minPlayers - 1 : null;
+    const label = i === 0 ? `≥ ${r.minPlayers}`
+      : r.minPlayers === 0 ? `≤ ${upper}`
+      : (upper === r.minPlayers ? `${r.minPlayers}` : `${r.minPlayers}–${upper}`);
+    return `<tr><td>${label}</td><td>${formatElevation(r.objective)}</td></tr>`;
+  }).join('');
+
+  return `
+    <span class="gauge-info" tabindex="0" role="button" aria-label="Comment marche la jauge ?">ⓘ
+      <span class="gauge-info-pop" role="tooltip">
+        <strong>Comment ça marche ?</strong>
+        <span class="gauge-info-text">Le D+ réel (avant handicap, jokers et bonus) de tous les joueurs du principal remplit la jauge. Objectif = D+ moyen visé × nombre de joueurs en lice au début du round.</span>
+        <table class="gauge-info-table">
+          <thead><tr><th>Joueurs</th><th>D+ moyen visé</th></tr></thead>
+          <tbody>${objectiveRows}</tbody>
+        </table>
+        <table class="gauge-info-table">
+          <thead><tr><th>Palier</th><th>Jauge</th><th>Effet</th></tr></thead>
+          <tbody>${tierRows}</tbody>
+        </table>
+        <span class="gauge-info-text gauge-info-geek">🤓 Pour les geeks : le D+ moyen par joueur suit environ <code>5 700 × n<sup>-0,6</sup></code> (n = joueurs en lice), soit un objectif total ≈ <code>5 700 × n<sup>0,4</sup></code>. Courbe ajustée sur les rounds 1 à 48 de 2026 (le D+ moyen monte en fin de saison car il ne reste que les plus forts), puis arrondie dans le tableau. Seuils calibrés pour ~60 % de rounds neutres.</span>
+      </span>
+    </span>`;
+}
+
+/**
+ * Barre de progression de la jauge de D+ du round en cours.
+ * @param {Object} data.gauge - résultat de computeLiveElevationGauge()
+ * @param {number} data.roundNumber - round global en cours
+ * @param {number} [data.elapsedFraction] - part du round écoulée (0→1), pour la projection
+ */
+export function renderElevationGauge(container, { gauge, roundNumber, elapsedFraction = null }) {
+  if (!container) return;
+  if (!gauge || gauge.nbPlayers === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const isLive = roundNumber >= ELEVATION_GAUGE.startRound;
+  const pct = r => Math.min(100, (r / GAUGE_SCALE_MAX) * 100);
+  const fillPct = pct(gauge.ratio);
+
+  // Zones colorées des paliers (du pire au meilleur)
+  const tiers = [...ELEVATION_GAUGE.tiers].reverse();
+  const zones = tiers.map((t, i) => {
+    const from = pct(t.minRatio);
+    const to = tiers[i + 1] ? pct(tiers[i + 1].minRatio) : 100;
+    return `<span class="gauge-zone tier-${t.id}" style="left:${from}%;width:${to - from}%"></span>`;
+  }).join('');
+  const ticks = tiers.slice(1).map(t =>
+    `<span class="gauge-tick" style="left:${pct(t.minRatio)}%">${Math.round(t.minRatio * 100)}%</span>`
+  ).join('');
+
+  // Projection linéaire à la fin du round (indicative, masquée en tout début de round)
+  let projectionHtml = '';
+  if (elapsedFraction != null && elapsedFraction >= 0.1 && elapsedFraction < 1) {
+    const projectedRatio = gauge.ratio / elapsedFraction;
+    const projectedTier = getGaugeTier(projectedRatio);
+    projectionHtml = ` · à ce rythme : ~${Math.round(projectedRatio * 100)} % (${projectedTier.icon} ${projectedTier.label})`;
+  }
+
+  const tier = gauge.tier;
+  const status = isLive
+    ? `Si le round s'arrêtait maintenant : <strong>${tier.icon} ${tier.label}</strong> · ${describeGaugeEffect(tier)}`
+    : `Aperçu : la jauge rapporte des points à partir du round ${ELEVATION_GAUGE.startRound}. Actuellement : ${tier.icon} ${tier.label}`;
+
+  container.innerHTML = `
+    <div class="elevation-gauge tier-${tier.id}${isLive ? '' : ' is-preview'}">
+      <div class="gauge-header">
+        <span class="gauge-title">Jauge collective de D+ ${renderGaugeInfoPopover()}</span>
+        <span class="gauge-values">${formatElevation(gauge.total)} / ${formatElevation(gauge.objective)} · <strong>${Math.round(gauge.ratio * 100)} %</strong></span>
+      </div>
+      <div class="gauge-track" role="progressbar" aria-valuemin="0" aria-valuemax="${Math.round(GAUGE_SCALE_MAX * 100)}" aria-valuenow="${Math.round(gauge.ratio * 100)}">
+        ${zones}
+        <span class="gauge-fill" style="width:${fillPct}%"></span>
+        <span class="gauge-target" style="left:${pct(1)}%" title="Objectif"></span>
+      </div>
+      <div class="gauge-ticks">${ticks}</div>
+      <div class="gauge-status">${status}</div>
+      <div class="gauge-sub">${gauge.nbPlayers} joueurs en lice · objectif ${formatElevation(gauge.objectivePerPlayer)} de D+ moyen${projectionHtml}</div>
+    </div>`;
+}
+
+/**
+ * Ligne de résumé de la jauge pour l'historique d'un round figé.
+ * @param {Object|null} gauge - frozenRound.elevationGauge
+ */
+export function renderElevationGaugeHistory(gauge) {
+  if (!gauge) return '';
+  const tier = getGaugeTierById(gauge.tier);
+  if (!tier) return '';
+  const effect = tier.points
+    ? (gauge.beneficiaries?.length ? describeGaugeEffect(tier, gauge.beneficiaries.length) : 'aucun éliminé actif, pas de points')
+    : 'aucun point';
+  return `<div class="history-gauge tier-${tier.id}">${tier.icon} Jauge D+ : ${formatElevation(gauge.total, false)} / ${formatElevation(gauge.objective)} (${Math.round(gauge.ratio * 100)} %) — <strong>${tier.label}</strong> · ${effect}</div>`;
 }

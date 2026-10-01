@@ -6151,3 +6151,196 @@ body {
 .sim-tm-effects .sim-effect {
   font-size: 0.78rem;
 }
+/* ============================================
+   JAUGE COLLECTIVE DE D+
+   ============================================ */
+.elevation-gauge {
+  --gauge-crit-fail: #ef4444;
+  --gauge-fail: #f97316;
+  --gauge-neutral: rgba(255, 255, 255, 0.35);
+  --gauge-success: #10b981;
+  --gauge-crit-success: #22d3ee;
+  position: relative;
+  margin: 0 0 20px;
+  padding: 14px 16px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.gauge-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+
+.gauge-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.gauge-values {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.gauge-track {
+  position: relative;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.gauge-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  opacity: 0.18;
+}
+
+.gauge-zone.tier-critical_failure { background: var(--gauge-crit-fail); }
+.gauge-zone.tier-failure { background: var(--gauge-fail); }
+.gauge-zone.tier-neutral { background: var(--gauge-neutral); }
+.gauge-zone.tier-success { background: var(--gauge-success); }
+.gauge-zone.tier-critical_success { background: var(--gauge-crit-success); }
+
+.gauge-fill {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 4px;
+  background: var(--gauge-neutral);
+  transition: width 0.6s var(--ease-out-expo);
+}
+
+.elevation-gauge.tier-critical_failure .gauge-fill { background: var(--gauge-crit-fail); }
+.elevation-gauge.tier-failure .gauge-fill { background: var(--gauge-fail); }
+.elevation-gauge.tier-neutral .gauge-fill { background: rgba(255, 255, 255, 0.7); }
+.elevation-gauge.tier-success .gauge-fill { background: var(--gauge-success); }
+.elevation-gauge.tier-critical_success .gauge-fill { background: var(--gauge-crit-success); }
+
+.gauge-target {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-primary);
+}
+
+.gauge-ticks {
+  position: relative;
+  height: 16px;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.gauge-tick {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.gauge-status {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.gauge-status strong { color: var(--text-primary); }
+
+.gauge-sub {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.elevation-gauge.is-preview { opacity: 0.85; border-style: dashed; }
+
+/* Infobulle (survol sur desktop, tap sur mobile via :focus) */
+/* L'infobulle est ancrée à la carte (pas à l'icône) pour ne jamais déborder sur mobile */
+.gauge-info {
+  display: inline-block;
+  margin-left: 4px;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--accent-secondary);
+  cursor: help;
+  outline: none;
+}
+
+.gauge-info-pop {
+  display: none;
+  position: absolute;
+  z-index: 50;
+  top: 40px;
+  left: 12px;
+  right: 12px;
+  max-width: 420px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.gauge-info:hover .gauge-info-pop,
+.gauge-info:focus .gauge-info-pop,
+.gauge-info:focus-within .gauge-info-pop {
+  display: block;
+}
+
+.gauge-info-pop strong { display: block; margin-bottom: 4px; color: var(--text-primary); }
+.gauge-info-text { display: block; margin: 6px 0; }
+.gauge-info-geek { color: var(--text-muted); }
+.gauge-info-geek code { font-family: var(--font-mono); color: var(--accent-secondary); }
+
+.gauge-info-table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.gauge-info-table th,
+.gauge-info-table td {
+  padding: 3px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.gauge-info-table th { color: var(--text-primary); font-weight: 600; }
+
+/* Points jauge dans le classement général */
+.pts-text-gauge {
+  color: #22d3ee;
+  font-weight: 600;
+}
+
+.season-pts-detail .pts-text-gauge { font-size: 0.85rem; }
+
+/* Résumé de la jauge dans l'historique */
+.history-gauge {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.history-gauge.tier-critical_failure strong { color: #ef4444; }
+.history-gauge.tier-failure strong { color: #f97316; }
+.history-gauge.tier-success strong { color: #10b981; }
+.history-gauge.tier-critical_success strong { color: #22d3ee; }

@@ -34,7 +34,8 @@ import {
   formatElevation, formatPosition,
   renderCombinedBanner, renderRanking,
   renderJokersGuide, renderArsenal, showNotification,
-  showContextMenu, hideContextMenu, showTargetSelectionModal
+  showContextMenu, hideContextMenu, showTargetSelectionModal,
+  renderElevationGauge, renderElevationGaugeHistory
 } from './ui.js';
 
 import { getCurrentDate, setSimulatedDate, initDemoMode } from './demo.js';
@@ -52,6 +53,7 @@ import {
   getRescapeFromPreviousRound,
   calculateRescapePointsForSeason,
   getRescapeInfoForRound,
+  computeLiveElevationGauge,
   // Activity helpers
   getActivityEndTime,
   filterByPeriod,
@@ -766,6 +768,21 @@ renderRanking(rankingContainer, {
       } // fin else mode standard
     }
 
+    // Jauge collective de D+ du round en cours
+    const gaugeContainer = document.getElementById('elevationGaugeContainer');
+    if (gaugeContainer) {
+      const gaugeDates = getRoundDates(currentRoundNumber);
+      const gaugeEnd = today < new Date(gaugeDates.end) ? today : gaugeDates.end;
+      renderElevationGauge(gaugeContainer, {
+        gauge: computeLiveElevationGauge(
+          filterByPeriod(allActivities, gaugeDates.start, gaugeEnd),
+          seasonData?.active || []
+        ),
+        roundNumber: currentRoundNumber,
+        elapsedFraction: (gaugeEnd - new Date(gaugeDates.start)) / (new Date(gaugeDates.end) - new Date(gaugeDates.start))
+      });
+    }
+
     // Câbler le bouton simulateur (idempotent : on remplace le handler)
         const simBtn = document.getElementById('simulatorBtn');
         if (simBtn) {
@@ -1324,13 +1341,14 @@ function renderFinalStandings(container) {
   const enrichedStandings = standings.map(e => {
     const id = String(e.participant.id);
     const frozen = frozenPoints[id] || { mainPoints: 0, elimPoints: 0, bonusPoints: 0, wins: 0 };
-    const prevSeason = previousSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
-    const currSeason = currentSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, total: 0 };
+    const prevSeason = previousSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, gaugePoints: 0, total: 0 };
+    const currSeason = currentSeasonPoints[id] || { mainPoints: 0, elimPoints: 0, rescapePoints: 0, gaugePoints: 0, total: 0 };
 
     // Utiliser les points figés s'ils sont supérieurs (plus fiables)
     const mainPts = Math.max(e.totalMainPoints || 0, frozen.mainPoints);
     const elimPts = e.totalEliminatedPoints || 0;
     const rescapePts = e.totalRescapePoints || 0;
+    const gaugePts = e.totalGaugePoints || 0;
     const bonusPts = frozen.bonusPoints || 0;
     const wins = Math.max(e.wins || 0, frozen.wins);
 
@@ -1339,13 +1357,15 @@ function renderFinalStandings(container) {
       totalMainPoints: mainPts,
       totalEliminatedPoints: elimPts,
       totalRescapePoints: rescapePts,
+      totalGaugePoints: gaugePts,
       bonusPoints: bonusPts,
-      totalPoints: mainPts + elimPts + rescapePts + bonusPts,
+      totalPoints: mainPts + elimPts + rescapePts + gaugePts + bonusPts,
       wins: wins,
       previousSeasonTotal: prevSeason.total,
       currentSeasonMain: currSeason.mainPoints,
       currentSeasonElim: currSeason.elimPoints,
       currentSeasonRescape: currSeason.rescapePoints,
+      currentSeasonGauge: currSeason.gaugePoints,
       currentSeasonTotal: currSeason.total
     };
   });
@@ -1385,6 +1405,9 @@ function renderFinalStandings(container) {
     if (e.currentSeasonRescape > 0) {
       currentSeasonParts.push(`<span class="pts-text-rescape">+${e.currentSeasonRescape}</span>`);
     }
+    if (e.currentSeasonGauge > 0) {
+      currentSeasonParts.push(`<span class="pts-text-gauge" title="Jauge collective de D+">+${e.currentSeasonGauge}</span>`);
+    }
     if (e.currentSeasonElim > 0) {
       currentSeasonParts.push(`<span class="pts-text-elim">+${e.currentSeasonElim}</span>`);
     }
@@ -1396,6 +1419,7 @@ function renderFinalStandings(container) {
     const hoverParts = [];
     if (e.totalMainPoints > 0) hoverParts.push(`Principal: ${e.totalMainPoints}`);
     if (e.totalRescapePoints > 0) hoverParts.push(`Rescapé: +${e.totalRescapePoints}`);
+    if (e.totalGaugePoints > 0) hoverParts.push(`Jauge D+: +${e.totalGaugePoints}`);
     if (e.totalEliminatedPoints > 0) hoverParts.push(`Éliminé: +${e.totalEliminatedPoints}`);
     if (e.bonusPoints > 0) hoverParts.push(`Bonus: +${e.bonusPoints}`);
     const hoverTitle = hoverParts.length > 1 ? hoverParts.join(' \u00B7 ') : '';
@@ -2224,6 +2248,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
       <span class="eliminated-name">${eliminatedTeamLabel}</span>
       <span class="eliminated-gap">(${eliminations.map(e => e.name).join(', ')})</span>
     </div>
+    ${renderElevationGaugeHistory(frozenRound.elevationGauge)}
     <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
       <div class="history-ranking-title">📊 Classement des équipes</div>
       <div class="history-ranking-list">
@@ -2448,7 +2473,8 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
         }
       }).join(', ')}
     </div>`}
-    ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité</div>` : ''}`;
+    ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité</div>` : ''}
+    ${renderElevationGaugeHistory(frozenRound.elevationGauge)}`;
 
   // Afficher les jokers utilisés
   if (jokersUsed.length > 0) {
@@ -3636,6 +3662,14 @@ function computeSeasonRecap(seasonNumber, frozen) {
   for (const r of seasonRounds) {
     if (r.rescapeInfo?.points) {
       addPts(r.rescapeInfo.athleteId, r.rescapeInfo.athleteName, r.rescapeInfo.points);
+    }
+  }
+  // Points jauge de D+ collective
+  for (const r of seasonRounds) {
+    const g = r.elevationGauge;
+    if (!g?.points) continue;
+    for (const id of (g.beneficiaries || [])) {
+      addPts(id, getParticipantById(id)?.name || id, g.points);
     }
   }
   // Points marquage réussi (+1 par marquage où targetEliminated)

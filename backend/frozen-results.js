@@ -23,6 +23,7 @@ const {
   WEATHER_RULE, isRainyActivity, getActivityElevation,
   MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
   getMainPoints, getEliminatedPoints,
+  ELEVATION_GAUGE, getGaugeObjectivePerPlayer, getGaugeTier,
   BONUS_IDS,
   getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
   isTeamSeason, getSeasonType, getTeamEliminatedPoints
@@ -527,6 +528,66 @@ function gatherTeamSeasonHistory(seasonNumber, previousRounds) {
   return { eliminatedTeams, usedAnimalIds };
 }
 
+// ============================================
+// JAUGE DE D+ COLLECTIVE
+// ============================================
+
+/**
+ * Calcule la jauge de D+ d'un round (cf. ELEVATION_GAUGE dans shared-config).
+ *
+ * - Remplissage : D+ RÉEL (total_elevation_gain, sans règle ni joker/bonus) des
+ *   joueurs du challenge principal au début du round.
+ * - Objectif : D+ moyen visé par joueur (selon le nb de joueurs en lice) × nb joueurs.
+ * - Bénéficiaires : tous les joueurs du principal (réussite) OU les éliminés de la
+ *   saison ayant au moins une activité valide pendant le round (échec).
+ *
+ * @param {string[]} activeIds - joueurs du principal au début du round
+ * @param {Array} roundActivities - activités valides du round (déjà filtrées)
+ * @returns {Object|null} null si le round est antérieur à ELEVATION_GAUGE.startRound
+ */
+function computeElevationGauge(roundNumber, seasonNumber, activeIds, roundActivities, previousRounds) {
+  if (roundNumber < ELEVATION_GAUGE.startRound || activeIds.length === 0) return null;
+
+  const activeSet = new Set(activeIds.map(String));
+  const athleteOf = a => String(a.athlete?.id || a.athlete_id);
+
+  const total = Math.round(roundActivities
+    .filter(a => activeSet.has(athleteOf(a)))
+    .reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0));
+  const objectivePerPlayer = getGaugeObjectivePerPlayer(activeIds.length);
+  const objective = objectivePerPlayer * activeIds.length;
+  const ratio = objective > 0 ? total / objective : 0;
+  const tier = getGaugeTier(ratio);
+
+  let beneficiaries = [];
+  if (tier.beneficiary === 'main') {
+    beneficiaries = [...activeSet];
+  } else if (tier.beneficiary === 'eliminated') {
+    // Éliminés des rounds précédents de CETTE saison, actifs pendant le round
+    const eliminatedIds = new Set();
+    for (let r = roundNumber - 1; r >= 1; r--) {
+      const prev = previousRounds[String(r)];
+      if (!prev?.frozen) continue;
+      if (Number(prev.seasonNumber) !== Number(seasonNumber)) break;
+      (prev.eliminations || []).forEach(e => eliminatedIds.add(String(e.id)));
+    }
+    const athletesWithActivity = new Set(roundActivities.map(athleteOf));
+    beneficiaries = [...eliminatedIds].filter(id => !activeSet.has(id) && athletesWithActivity.has(id));
+  }
+
+  return {
+    total,
+    nbPlayers: activeIds.length,
+    objectivePerPlayer,
+    objective,
+    ratio: Math.round(ratio * 1000) / 1000,
+    tier: tier.id,
+    points: tier.points,
+    beneficiary: tier.beneficiary,
+    beneficiaries
+  };
+}
+
 /**
  * Calcule un round de saison team (saison 4 par défaut).
  * Modes :
@@ -902,6 +963,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     jokersUsed: activeJokers,
     bonusesUsed: [],  // les bonus utilisés sont logés dans bonuses.json (pas dupliqués ici)
     rescapeInfo: null, // pas de rescapé en saison team
+    elevationGauge: computeElevationGauge(roundNumber, seasonNumber, activeIds, roundActivities, previousRounds),
     stats: {
       totalActivities: roundActivities.length,
       totalElevation: teamsWithElevation.reduce((s, t) => s + t.totalElevation, 0),
@@ -1259,6 +1321,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     jokersUsed: jokersUsedEnriched,
     bonusesUsed,
     rescapeInfo: null,
+    elevationGauge: computeElevationGauge(roundNumber, seasonNumber, activeParticipants, roundActivities, previousRounds),
     stats: {
       totalActivities: roundActivities.length,
       totalElevation: ranking.reduce((sum, e) => sum + e.elevation, 0),
@@ -2291,6 +2354,7 @@ async function unfreezeEliminatedChallengeForSeason(seasonNumber) {
 }
 
 module.exports = {
+  computeElevationGauge,
   getAllFrozenResults,
   getFrozenRoundResult,
   freezeRoundResults,

@@ -101,6 +101,46 @@ const getMainPoints = (pos) => MAIN_CHALLENGE_POINTS[pos] ?? 0;
 const getEliminatedPoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? 0;
 
 // ============================================
+// JAUGE DE D+ COLLECTIVE
+// ============================================
+// À chaque round, le D+ RÉEL cumulé des joueurs du challenge principal remplit
+// une jauge dont l'objectif dépend du nombre de joueurs en lice (le D+ moyen
+// grimpe mécaniquement au fil de la saison, seuls les plus forts restant).
+// Barème calibré sur les rounds 1→48 de 2026 (~60 % de rounds neutres).
+// ⚠️ Garder synchronisé avec public/js/config.js (ELEVATION_GAUGE).
+const ELEVATION_GAUGE = {
+  startRound: 50,
+  // Objectif de D+ MOYEN par joueur, selon le nombre de joueurs en lice
+  // (arrondi de la courbe 5 700 × n^-0,6 ajustée sur l'historique)
+  objectivePerPlayer: [
+    { minPlayers: 14, objective: 1100 },
+    { minPlayers: 11, objective: 1300 },
+    { minPlayers: 9, objective: 1500 },
+    { minPlayers: 7, objective: 1750 },
+    { minPlayers: 5, objective: 2100 },
+    { minPlayers: 3, objective: 2700 },
+    { minPlayers: 0, objective: 3000 }
+  ],
+  // Paliers en % de l'objectif (minRatio inclus), du plus haut au plus bas
+  tiers: [
+    { id: 'critical_success', minRatio: 1.50, points: 2, beneficiary: 'main' },
+    { id: 'success', minRatio: 1.30, points: 1, beneficiary: 'main' },
+    { id: 'neutral', minRatio: 0.75, points: 0, beneficiary: null },
+    { id: 'failure', minRatio: 0.55, points: 1, beneficiary: 'eliminated' },
+    { id: 'critical_failure', minRatio: 0, points: 2, beneficiary: 'eliminated' }
+  ]
+};
+
+function getGaugeObjectivePerPlayer(nbPlayers) {
+  const row = ELEVATION_GAUGE.objectivePerPlayer.find(r => nbPlayers >= r.minPlayers);
+  return row ? row.objective : 0;
+}
+
+function getGaugeTier(ratio) {
+  return ELEVATION_GAUGE.tiers.find(t => ratio >= t.minRatio) || ELEVATION_GAUGE.tiers[ELEVATION_GAUGE.tiers.length - 1];
+}
+
+// ============================================
 // JOKERS
 // ============================================
 const JOKER_IDS = ['voleur', 'multiplicateur', 'bouclier', 'sabotage'];
@@ -263,6 +303,9 @@ module.exports = {
   ELIMINATED_CHALLENGE_POINTS,
   getMainPoints,
   getEliminatedPoints,
+  ELEVATION_GAUGE,
+  getGaugeObjectivePerPlayer,
+  getGaugeTier,
   JOKER_IDS,
   INITIAL_JOKER_STOCK,
   BONUS_IDS,
