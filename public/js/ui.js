@@ -1295,7 +1295,7 @@ function renderGaugeInfoPopover() {
       ? `${Math.round(t.minRatio * 100)}–${Math.round(next.minRatio * 100)} %`
       : `≥ ${Math.round(t.minRatio * 100)} %`;
     const label = i === 0 ? `< ${Math.round(next.minRatio * 100)} %` : range;
-    return `<tr><td>${t.icon} ${t.label}</td><td>${label}</td><td>${describeGaugeEffect(t)}</td></tr>`;
+    return `<tr><td>${t.label}</td><td>${label}</td><td>${describeGaugeEffect(t)}</td></tr>`;
   }).join('');
 
   const rows = ELEVATION_GAUGE.objectivePerPlayer;
@@ -1311,7 +1311,7 @@ function renderGaugeInfoPopover() {
     <span class="gauge-info" tabindex="0" role="button" aria-label="Comment marche la jauge ?">ⓘ
       <span class="gauge-info-pop" role="tooltip">
         <strong>Comment ça marche ?</strong>
-        <span class="gauge-info-text">Le D+ réel (avant handicap, jokers et bonus) de tous les joueurs du principal remplit la jauge. Objectif = D+ moyen visé × nombre de joueurs en lice au début du round.</span>
+        <span class="gauge-info-text">Le D+ réel (avant handicap, jokers et bonus) de tous les joueurs du principal remplit la jauge. Objectif du round = D+ moyen visé (tableau ci-dessous) × nombre de joueurs en lice au début du round.</span>
         <table class="gauge-info-table">
           <thead><tr><th>Joueurs</th><th>D+ moyen visé</th></tr></thead>
           <tbody>${objectiveRows}</tbody>
@@ -1320,7 +1320,7 @@ function renderGaugeInfoPopover() {
           <thead><tr><th>Palier</th><th>Jauge</th><th>Effet</th></tr></thead>
           <tbody>${tierRows}</tbody>
         </table>
-        <span class="gauge-info-text gauge-info-geek">🤓 Pour les geeks : le D+ moyen par joueur suit environ <code>5 700 × n<sup>-0,6</sup></code> (n = joueurs en lice), soit un objectif total ≈ <code>5 700 × n<sup>0,4</sup></code>. Courbe ajustée sur les rounds 1 à 48 de 2026 (le D+ moyen monte en fin de saison car il ne reste que les plus forts), puis arrondie dans le tableau. Seuils calibrés pour ~60 % de rounds neutres.</span>
+        <span class="gauge-info-text gauge-info-geek">Pour les geeks : le D+ moyen visé est l'arrondi de <code>5 700 × n<sup>-0,6</sup></code>, avec n = nombre de joueurs en lice.</span>
       </span>
     </span>`;
 }
@@ -1358,13 +1358,13 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
   if (elapsedFraction != null && elapsedFraction >= 0.1 && elapsedFraction < 1) {
     const projectedRatio = gauge.ratio / elapsedFraction;
     const projectedTier = getGaugeTier(projectedRatio);
-    projectionHtml = ` · à ce rythme : ~${Math.round(projectedRatio * 100)} % (${projectedTier.icon} ${projectedTier.label})`;
+    projectionHtml = ` · à ce rythme : ~${Math.round(projectedRatio * 100)} % (${projectedTier.label})`;
   }
 
   const tier = gauge.tier;
   const status = isLive
-    ? `Si le round s'arrêtait maintenant : <strong>${tier.icon} ${tier.label}</strong> · ${describeGaugeEffect(tier)}`
-    : `Aperçu : la jauge rapporte des points à partir du round ${ELEVATION_GAUGE.startRound}. Actuellement : ${tier.icon} ${tier.label}`;
+    ? `Si le round s'arrêtait maintenant : <strong>${tier.label}</strong> · ${describeGaugeEffect(tier)}`
+    : `Aperçu : la jauge rapporte des points à partir du round ${ELEVATION_GAUGE.startRound}. Actuellement : ${tier.label}`;
 
   container.innerHTML = `
     <div class="elevation-gauge tier-${tier.id}${isLive ? '' : ' is-preview'}">
@@ -1394,5 +1394,5 @@ export function renderElevationGaugeHistory(gauge) {
   const effect = tier.points
     ? (gauge.beneficiaries?.length ? describeGaugeEffect(tier, gauge.beneficiaries.length) : 'aucun éliminé actif, pas de points')
     : 'aucun point';
-  return `<div class="history-gauge tier-${tier.id}">${tier.icon} Jauge D+ : ${formatElevation(gauge.total, false)} / ${formatElevation(gauge.objective)} (${Math.round(gauge.ratio * 100)} %) — <strong>${tier.label}</strong> · ${effect}</div>`;
+  return `<div class="history-gauge tier-${tier.id}">Jauge D+ : ${formatElevation(gauge.total, false)} / ${formatElevation(gauge.objective)} (${Math.round(gauge.ratio * 100)} %) — <strong>${tier.label}</strong> · ${effect}</div>`;
 }

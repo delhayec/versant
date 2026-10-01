@@ -138,11 +138,11 @@ export const ELEVATION_GAUGE = {
     { minPlayers: 0, objective: 3000 }
   ],
   tiers: [
-    { id: 'critical_success', minRatio: 1.50, points: 2, beneficiary: 'main', label: 'Réussite critique', icon: '🚀' },
-    { id: 'success', minRatio: 1.30, points: 1, beneficiary: 'main', label: 'Réussite', icon: '⛰️' },
-    { id: 'neutral', minRatio: 0.75, points: 0, beneficiary: null, label: 'Neutre', icon: '⚖️' },
-    { id: 'failure', minRatio: 0.55, points: 1, beneficiary: 'eliminated', label: 'Échec', icon: '🥀' },
-    { id: 'critical_failure', minRatio: 0, points: 2, beneficiary: 'eliminated', label: 'Échec critique', icon: '💀' }
+    { id: 'critical_success', minRatio: 1.50, points: 2, beneficiary: 'main', label: 'Réussite critique' },
+    { id: 'success', minRatio: 1.30, points: 1, beneficiary: 'main', label: 'Réussite' },
+    { id: 'neutral', minRatio: 0.75, points: 0, beneficiary: null, label: 'Neutre' },
+    { id: 'failure', minRatio: 0.55, points: 1, beneficiary: 'eliminated', label: 'Échec' },
+    { id: 'critical_failure', minRatio: 0, points: 2, beneficiary: 'eliminated', label: 'Échec critique' }
   ]
 };
 

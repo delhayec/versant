@@ -6161,6 +6161,7 @@ body {
   --gauge-success: #10b981;
   --gauge-crit-success: #22d3ee;
   position: relative;
+  z-index: 20; /* l'infobulle passe au-dessus du classement qui suit */
   margin: 0 0 20px;
   padding: 14px 16px 12px;
   background: var(--bg-card);
@@ -6264,7 +6265,7 @@ body {
   color: var(--text-muted);
 }
 
-.elevation-gauge.is-preview { opacity: 0.85; border-style: dashed; }
+.elevation-gauge.is-preview { border-style: dashed; }
 
 /* Infobulle (survol sur desktop, tap sur mobile via :focus) */
 /* L'infobulle est ancrée à la carte (pas à l'icône) pour ne jamais déborder sur mobile */
@@ -6288,7 +6289,7 @@ body {
   right: 12px;
   max-width: 420px;
   padding: 12px;
-  background: var(--bg-secondary);
+  background: #12121a; /* opaque : le site ne doit pas transparaître */
   border: 1px solid var(--border-accent);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
