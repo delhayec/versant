@@ -25,7 +25,9 @@
 
 const axios = require('axios');
 
-const OPEN_METEO_URL = 'https://historical-forecast-api.open-meteo.com/v1/forecast';
+// OPEN_METEO_URL permet de couper l'accès réseau dans le bac à sable du harnais.
+// À ne pas définir en prod.
+const OPEN_METEO_URL = process.env.OPEN_METEO_URL || 'https://historical-forecast-api.open-meteo.com/v1/forecast';
 
 // Politesse réseau — même motif que scripts/backfill-polyline.js
 const REQUEST_TIMEOUT_MS = 20000;

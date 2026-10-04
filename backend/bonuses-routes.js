@@ -19,7 +19,7 @@ const path = require('path');
 const roundConfigs = require('./round-configs');
 const { getRoundDates } = require('./shared-config');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { DATA_DIR } = require('./data-dir');
 const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 

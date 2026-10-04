@@ -42,7 +42,7 @@ try {
 const elimChallenge = require('./elim-challenge');
 
 // Configuration
-const DATA_DIR = path.join(__dirname, 'data');
+const { DATA_DIR } = require('./data-dir');
 const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
 const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
 
@@ -727,7 +727,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
   try {
     const path = require('path');
     const fs = require('fs').promises;
-    const SEASON_TEAMS_FILE = path.join(__dirname, 'data', 'season_teams.json');
+    const SEASON_TEAMS_FILE = path.join(DATA_DIR, 'season_teams.json');
     const raw = await fs.readFile(SEASON_TEAMS_FILE, 'utf8').catch(() => null);
     if (raw) {
       const stored = JSON.parse(raw);

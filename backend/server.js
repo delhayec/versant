@@ -21,8 +21,13 @@ const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
-const cron = require('node-cron');
 const crypto = require('crypto');
+
+// VERSANT_DISABLE_JOBS=1 : ni tâches planifiées, ni rattrapage du gel au
+// démarrage. Sert à faire tourner une copie du serveur sur un jeu de données de
+// test (bac à sable du harnais de non-régression). À ne pas définir en prod.
+const JOBS_DISABLED = process.env.VERSANT_DISABLE_JOBS === '1';
+const cron = JOBS_DISABLED ? { schedule: () => null } : require('node-cron');
 
 // Import configuration partagée (source unique de vérité)
 const { CHALLENGE_CONFIG, VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK, isTeamSeason, isRainyActivity } = require('./shared-config');
@@ -64,10 +69,14 @@ const STRAVA_CONFIG = {
   clientSecret: process.env.STRAVA_CLIENT_SECRET
 };
 
+// Racine des appels à l'API Strava. STRAVA_API_BASE permet de pointer un faux
+// Strava dans le bac à sable du harnais. À ne pas définir en prod.
+const STRAVA_BASE_URL = process.env.STRAVA_API_BASE || 'https://www.strava.com';
+
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const STRAVA_VERIFY_TOKEN = process.env.STRAVA_VERIFY_TOKEN || 'VERSANT2026';
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { DATA_DIR } = require('./data-dir');
 const LEAGUES_DIR = path.join(DATA_DIR, 'leagues');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
@@ -556,7 +565,7 @@ app.post('/api/auth/strava/exchange', async (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Code manquant' });
 
-    const response = await axios.post('https://www.strava.com/oauth/token', {
+    const response = await axios.post(`${STRAVA_BASE_URL}/oauth/token`, {
       client_id: STRAVA_CONFIG.clientId,
       client_secret: STRAVA_CONFIG.clientSecret,
       code,
@@ -1072,7 +1081,7 @@ async function refreshStravaToken(athlete) {
     try {
       console.log(`   🔄 ${athlete.name}: refresh (${attempt}/3)...`);
 
-      const response = await axios.post('https://www.strava.com/oauth/token', {
+      const response = await axios.post(`${STRAVA_BASE_URL}/oauth/token`, {
         client_id: STRAVA_CONFIG.clientId,
         client_secret: STRAVA_CONFIG.clientSecret,
         refresh_token: refreshToken,
@@ -1218,7 +1227,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
       const afterTs = Math.floor(new Date(startDate).getTime() / 1000);
       const beforeTs = Math.floor(new Date(endDate).getTime() / 1000) + 86400;
 
-      const response = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
+      const response = await axios.get(`${STRAVA_BASE_URL}/api/v3/athlete/activities`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         params: { after: afterTs, before: beforeTs, per_page: 200 },
         timeout: 20000
@@ -1459,7 +1468,7 @@ async function processOneWebhook(event) {
         if (attempt > 1) await sleep(3000);
 
         const response = await axios.get(
-          `https://www.strava.com/api/v3/activities/${objectId}`,
+          `${STRAVA_BASE_URL}/api/v3/activities/${objectId}`,
           { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
         );
 
@@ -1595,7 +1604,7 @@ async function processOneWebhook(event) {
     try {
       console.log(`   🌐 Fetch update...`);
       const response = await axios.get(
-        `https://www.strava.com/api/v3/activities/${objectId}`,
+        `${STRAVA_BASE_URL}/api/v3/activities/${objectId}`,
         { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
       );
 
@@ -1771,7 +1780,7 @@ app.post('/api/admin/webhooks/clear', async (req, res) => {
 app.get('/api/admin/strava/status', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const response = await axios.get('https://www.strava.com/api/v3/push_subscriptions', {
+    const response = await axios.get(`${STRAVA_BASE_URL}/api/v3/push_subscriptions`, {
       params: { client_id: STRAVA_CONFIG.clientId, client_secret: STRAVA_CONFIG.clientSecret }
     });
     res.json({ active: response.data.length > 0, subscriptions: response.data });
@@ -1783,7 +1792,7 @@ app.get('/api/admin/strava/status', async (req, res) => {
 app.post('/api/admin/strava/subscribe', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const check = await axios.get('https://www.strava.com/api/v3/push_subscriptions', {
+    const check = await axios.get(`${STRAVA_BASE_URL}/api/v3/push_subscriptions`, {
       params: { client_id: STRAVA_CONFIG.clientId, client_secret: STRAVA_CONFIG.clientSecret }
     });
 
@@ -1791,7 +1800,7 @@ app.post('/api/admin/strava/subscribe', async (req, res) => {
       return res.json({ message: 'Déjà abonné', subscription: check.data[0] });
     }
 
-    const response = await axios.post('https://www.strava.com/api/v3/push_subscriptions', {
+    const response = await axios.post(`${STRAVA_BASE_URL}/api/v3/push_subscriptions`, {
       client_id: STRAVA_CONFIG.clientId,
       client_secret: STRAVA_CONFIG.clientSecret,
       callback_url: 'https://versant-app.fr/api/webhook/strava',
@@ -2507,12 +2516,16 @@ initializeServer().then(async () => {
     console.log('║  Auto-freeze: sync+00h15 + démarrage   ║');
     console.log('║  Refresh tokens: toutes les 2h        ║');
     console.log('╚════════════════════════════════════════╝');
+    if (JOBS_DISABLED) console.log('⏸️  VERSANT_DISABLE_JOBS=1 : tâches planifiées et rattrapage du gel désactivés');
+    if (process.env.VERSANT_DATA_DIR) console.log(`📁 Données : ${DATA_DIR}`);
     console.log('');
   });
 
   // Catch-up auto-freeze au démarrage (différé de quelques secondes pour
   // laisser le serveur se stabiliser avant de toucher aux fichiers).
-  setTimeout(() => {
-    catchUpAutoFreezeOnStartup();
-  }, 5000);
+  if (!JOBS_DISABLED) {
+    setTimeout(() => {
+      catchUpAutoFreezeOnStartup();
+    }, 5000);
+  }
 });

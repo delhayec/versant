@@ -12,7 +12,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { DATA_DIR } = require('./data-dir');
 const CONFIGS_FILE = path.join(DATA_DIR, 'round_configs.json');
 
 const VALID_TYPES = ['standard', 'finale', 'bonus_round', 'no_eliminations'];
