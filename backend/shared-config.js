@@ -280,9 +280,12 @@ function getTeamEliminatedPoints(teamRank, posInTeam) {
 // ============================================
 // BONUS ÉPHÉMÈRES (IDs pour tirage au sort)
 // ============================================
+// kamikaze et malediction ne sont pas tirés : bonuses-routes.js refuse de les
+// attribuer, et aucun gel ne calcule leur effet. Leur définition reste dans
+// public/js/config.js (BONUS_TYPES) pour l'affichage.
 const BONUS_IDS = [
   'embuscade', 'ravitaillement', 'duel', 'brouillard',
-  'marquage', 'trap', 'second_souffle', 'kamikaze', 'malediction'
+  'marquage', 'trap', 'second_souffle'
 ];
 
 module.exports = {
