@@ -76,6 +76,13 @@ const STRAVA_BASE_URL = process.env.STRAVA_API_BASE || 'https://www.strava.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const STRAVA_VERIFY_TOKEN = process.env.STRAVA_VERIFY_TOKEN || 'VERSANT2026';
 
+// Identifiant de notre abonnement aux webhooks Strava (visible dans l'admin,
+// « Statut Strava »). Défini : tout événement d'un autre abonnement est ignoré.
+// Absent : contrôle inactif, les autres vérifications du webhook s'appliquent.
+const STRAVA_SUBSCRIPTION_ID = process.env.STRAVA_SUBSCRIPTION_ID
+  ? String(process.env.STRAVA_SUBSCRIPTION_ID).trim()
+  : null;
+
 const { DATA_DIR } = require('./data-dir');
 const LEAGUES_DIR = path.join(DATA_DIR, 'leagues');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
@@ -1402,13 +1409,62 @@ async function processWebhookQueue() {
   processingQueue = false;
 }
 
+/**
+ * L'activité existe-t-elle encore sur Strava ? Interrogé avec le token de son
+ * propriétaire, rafraîchi si besoin.
+ * @returns {Promise<'exists'|'gone'|'unknown'>} 'gone' = Strava répond 404 ;
+ *   'unknown' = pas de token, rafraîchissement impossible, autre erreur.
+ */
+async function checkActivityOnStrava(athletes, athleteIndex, objectId) {
+  const athlete = athletes[athleteIndex];
+  let accessToken = athlete.tokens?.access_token;
+  if (!accessToken) return 'unknown';
+
+  const now = Date.now() / 1000;
+  if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
+    const result = await refreshStravaToken(athlete);
+    if (!result.success) return 'unknown';
+    accessToken = result.access_token;
+    athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
+    await safeWriteJSON(ATHLETES_FILE, athletes);
+  }
+
+  try {
+    await axios.get(
+      `${STRAVA_BASE_URL}/api/v3/activities/${objectId}`,
+      { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
+    );
+    return 'exists';
+  } catch (error) {
+    return error.response?.status === 404 ? 'gone' : 'unknown';
+  }
+}
+
+function activityOwnerId(activity) {
+  return normalizeId(activity.athlete_id ?? activity.athlete?.id);
+}
+
 async function processOneWebhook(event) {
   const ownerId = normalizeId(event.owner_id);
   const objectId = event.object_id;
 
   console.log(`   📋 Traitement: owner=${ownerId} object=${objectId}`);
 
+  // Événement d'un autre abonnement que le nôtre : forgé ou périmé
+  if (STRAVA_SUBSCRIPTION_ID && String(event.subscription_id) !== STRAVA_SUBSCRIPTION_ID) {
+    console.log(`   → Ignoré (abonnement ${event.subscription_id} inconnu)`);
+    await logWebhook(event, 'ignored', { reason: 'unknown_subscription' });
+    return;
+  }
+
   if (event.object_type !== 'activity') {
+    // L'athlète a retiré l'accès de Versant dans ses réglages Strava :
+    // journalisé ici, traité avec la gestion du quota d'athlètes.
+    if (event.object_type === 'athlete' && event.updates?.authorized === 'false') {
+      console.log(`   → Accès Strava retiré par l'athlète ${ownerId}`);
+      await logWebhook(event, 'deauthorized', {});
+      return;
+    }
     console.log(`   → Ignoré (type: ${event.object_type})`);
     await logWebhook(event, 'ignored', { reason: 'not_activity' });
     return;
@@ -1494,6 +1550,13 @@ async function processOneWebhook(event) {
       return;
     }
 
+    // L'activité renvoyée par Strava doit appartenir à l'émetteur de l'événement
+    if (stravaActivity.athlete?.id != null && normalizeId(stravaActivity.athlete.id) !== ownerId) {
+      console.log(`   → Ignoré (activité d'un autre athlète)`);
+      await logWebhook(event, 'ignored', { reason: 'owner_mismatch' });
+      return;
+    }
+
     // Utilise VALID_SPORTS importé de shared-config
     const actType = stravaActivity.sport_type || stravaActivity.type;
 
@@ -1558,6 +1621,31 @@ async function processOneWebhook(event) {
     await logWebhook(event, 'success', { name: stravaActivity.name, elevation: stravaActivity.total_elevation_gain });
 
   } else if (event.aspect_type === 'delete') {
+    // Une activité n'est retirée que si elle appartient à l'émetteur de
+    // l'événement et que Strava confirme qu'elle n'existe plus : un événement
+    // forgé ne peut rien supprimer.
+    const target = (await safeReadJSON(activitiesFile, [])).find(a => a.id === objectId);
+    if (!target) return;
+
+    if (activityOwnerId(target) !== ownerId) {
+      console.log(`   → Ignoré (activité d'un autre athlète)`);
+      await logWebhook(event, 'ignored', { reason: 'owner_mismatch' });
+      return;
+    }
+
+    const onStrava = await checkActivityOnStrava(athletes, athleteIndex, objectId);
+    if (onStrava === 'exists') {
+      console.log(`   → Ignoré (activité toujours présente sur Strava)`);
+      await logWebhook(event, 'ignored', { reason: 'still_on_strava' });
+      return;
+    }
+    if (onStrava !== 'gone') {
+      console.log(`   ❌ Suppression non vérifiable auprès de Strava`);
+      await logWebhook(event, 'failed', { reason: 'delete_unverified' });
+      await saveFailedWebhook(event, 'delete_unverified');
+      return;
+    }
+
     let activities = await safeReadJSON(activitiesFile, []);
     const before = activities.length;
     activities = activities.filter(a => a.id !== objectId);
@@ -1575,6 +1663,12 @@ async function processOneWebhook(event) {
     if (existingIndex < 0) {
       console.log(`   → Activité ${objectId} non trouvée localement, ignorée`);
       await logWebhook(event, 'ignored', { reason: 'activity_not_found' });
+      return;
+    }
+
+    if (activityOwnerId(activities[existingIndex]) !== ownerId) {
+      console.log(`   → Ignoré (activité d'un autre athlète)`);
+      await logWebhook(event, 'ignored', { reason: 'owner_mismatch' });
       return;
     }
 
