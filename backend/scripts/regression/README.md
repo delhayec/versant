@@ -67,8 +67,9 @@ Il passe ensuite des **sondes de sécurité** : des requêtes qu'un attaquant po
 | `snapshot-legitime` | Le classement réellement envoyé par un navigateur (fixture) est-il accepté ? |
 | `snapshot-falsifie` | Un classement inventé est-il enregistré ? |
 | `connexion` | Connexion acceptée ou refusée, et format du hash stocké ensuite |
+| `connexion-apres-migration` | Seconde connexion, puis connexion d'un compte dont l'ancien hash SHA-256 a été supprimé |
 | `synchro-sans-authentification` | Une synchro Strava peut-elle être lancée sans mot de passe admin ? |
-| `admin-mot-de-passe-par-defaut` | Serveur relancé sans `ADMIN_PASSWORD` : `admin123` est-il accepté ? |
+| `admin-mot-de-passe-par-defaut` | Serveur relancé sans `ADMIN_PASSWORD` : `admin123`, un mot de passe `null` ou l'absence de mot de passe ouvrent-ils une route admin ? |
 
 Les réponses de plus de 256 Ko sont réduites à leur empreinte. Les champs qui dépendent de l'instant (`lastModified`, `timestamp`) et les jetons de session sont neutralisés.
 

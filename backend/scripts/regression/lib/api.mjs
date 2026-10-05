@@ -76,7 +76,15 @@ export async function runApi({ repoRoot, fixtureDir }) {
     try {
       probes['admin-mot-de-passe-par-defaut'] = {
         avecAdmin123: (await call(bare.base, '/api/admin/jokers', { 'x-admin-password': 'admin123' }, { summary: true })).status,
-        sansMotDePasse: (await call(bare.base, '/api/admin/jokers', {}, { summary: true })).status
+        sansMotDePasse: (await call(bare.base, '/api/admin/jokers', {}, { summary: true })).status,
+        // Connexion admin avec un mot de passe null (JSON) : null === null ?
+        connexionAdminMotDePasseNull: (await call(bare.base, '/api/admin/login', {}, {
+          method: 'POST', body: { password: null }, summary: true
+        })).status,
+        // Route qui compare à process.env.ADMIN_PASSWORD : undefined === undefined ?
+        archivageBonusSaisonSansMotDePasse: (await call(bare.base, '/api/admin/season-bonuses/99', {}, {
+          method: 'POST', body: { bonuses: [] }, summary: true
+        })).status
       };
     } finally {
       await bare.stop();
@@ -300,6 +308,23 @@ async function runProbes(base, leagueId, plan, sandbox) {
     bonMotDePasse: { status: ok.status, jetonRecu: typeof ok.body?.token === 'string', athlete: ok.body?.athlete ?? null },
     mauvaisMotDePasse: ko.status,
     champsDuCompte: Object.keys(stored || {}).filter(k => /pass|scrypt/i.test(k)).sort()
+  };
+
+  // Après la migration : seconde connexion, puis compte réduit au seul hash
+  // écrit par le serveur (l'ancien hash supprimé, l'état final visé).
+  // Le compte est restauré ensuite.
+  const athletesPath = join(sandbox, 'athletes.json');
+  const savedAthletes = readFileSync(athletesPath, 'utf8');
+  const again = await call(base, '/api/auth/login', {}, { method: 'POST', body: { email, password } });
+  const accounts = JSON.parse(readFileSync(athletesPath, 'utf8'));
+  delete accounts.find(a => String(a.id) === plan.owner).password_hash;
+  writeFileSync(athletesPath, JSON.stringify(accounts, null, 2));
+  const withoutLegacyOk = await call(base, '/api/auth/login', {}, { method: 'POST', body: { email, password } });
+  const withoutLegacyKo = await call(base, '/api/auth/login', {}, { method: 'POST', body: { email, password: 'mauvais' } });
+  writeFileSync(athletesPath, savedAthletes);
+  probes['connexion-apres-migration'] = {
+    secondeConnexion: again.status,
+    sansAncienHash: { bonMotDePasse: withoutLegacyOk.status, mauvaisMotDePasse: withoutLegacyKo.status }
   };
 
   // Synchro Strava déclenchée sans authentification
