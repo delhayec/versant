@@ -764,12 +764,12 @@ app.post('/api/athletes/register', async (req, res) => {
 app.get('/api/athletes/:leagueId', async (req, res) => {
   try {
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    // Route publique : pas d'e-mail (la page admin a sa propre route)
     const leagueAthletes = athletes
       .filter(a => a.league_id === req.params.leagueId && a.active)
       .map(a => ({
         id: a.id,
         name: a.name,
-        email: a.email,
         registered_at: a.registered_at,
         // Nécessaire au frontend pour appliquer la règle d'entrée en jeu
         active_from_round: a.active_from_round ?? null
@@ -1948,11 +1948,39 @@ app.get('/api/admin/diagnostic', async (req, res) => {
   });
 });
 
+// Export sans secrets : ni hash de mot de passe, ni tokens Strava, ni jeton de
+// réinitialisation. La sauvegarde complète des données se fait côté serveur.
+const ATHLETE_SECRET_FIELDS = ['password_hash', 'password_scrypt', 'tokens', 'reset_token', 'reset_expires'];
+
 app.get('/api/admin/athletes/download', async (req, res) => {
   if (!checkAdmin(req, res)) return;
-  const data = await fs.readFile(ATHLETES_FILE, 'utf8');
+  const athletes = await safeReadJSON(ATHLETES_FILE, []);
+  const exported = athletes.map(a =>
+    Object.fromEntries(Object.entries(a).filter(([key]) => !ATHLETE_SECRET_FIELDS.includes(key)))
+  );
   res.setHeader('Content-Disposition', 'attachment; filename=athletes.json');
-  res.send(data);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(exported, null, 2));
+});
+
+// Liste admin des athlètes d'une ligue, avec les e-mails. Déclarée APRÈS
+// /download : sinon « download » serait pris pour un identifiant de ligue.
+app.get('/api/admin/athletes/:leagueId', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    res.json(athletes
+      .filter(a => a.league_id === req.params.leagueId && a.active)
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        registered_at: a.registered_at,
+        active_from_round: a.active_from_round ?? null
+      })));
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 app.get('/api/admin/activities/:leagueId/download', async (req, res) => {

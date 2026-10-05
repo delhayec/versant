@@ -37,7 +37,9 @@ function showLogin() {
 // Charger les athlètes pour le dropdown reset password
 async function loadAthletesForReset() {
   try {
-    const response = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
+    const response = await fetch(`${API_BASE}/admin/athletes/${LEAGUE_ID}`, {
+      headers: { 'X-Admin-Password': adminPassword }
+    });
     if (!response.ok) throw new Error('Erreur chargement');
 
     const athletes = await response.json();
@@ -134,8 +136,10 @@ document.getElementById('logoutBtn').addEventListener('click', (e) => {
 // ============================================
 async function loadDashboardData() {
   try {
-    // Charger les athlètes
-    const athletesRes = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
+    // Charger les athlètes (route admin : elle seule fournit les e-mails)
+    const athletesRes = await fetch(`${API_BASE}/admin/athletes/${LEAGUE_ID}`, {
+      headers: { 'X-Admin-Password': adminPassword }
+    });
     const athletes = await athletesRes.json();
 
     // Créer le cache des athlètes (id -> objet complet)
