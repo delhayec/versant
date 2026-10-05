@@ -93,15 +93,20 @@ export async function runApi({ repoRoot, fixtureDir }) {
 /** Activités et athlètes utilisés par les sondes, choisis de façon stable dans la fixture. */
 function preparePlan(fixture) {
   const activities = fixture.json(fixture.activitiesFile);
-  const owner = String(activities[activities.length - 1].athlete_id ?? activities[activities.length - 1].athlete?.id);
-  const ofOwner = activities.filter(a => String(a.athlete_id ?? a.athlete?.id) === owner);
-  const other = [...activities].reverse().find(a => String(a.athlete_id ?? a.athlete?.id) !== owner);
+  const ownerOf = a => String(a.athlete_id ?? a.athlete?.id);
+  const owner = ownerOf(activities[activities.length - 1]);
+  const ofOwner = activities.filter(a => ownerOf(a) === owner);
+  const others = [...activities].reverse().filter(a => ownerOf(a) !== owner);
   return {
     owner,                                              // athlète muni d'un faux token Strava
     fakeDelete: ofOwner[ofOwner.length - 1].id,         // existe encore sur Strava
     realDelete: ofOwner[ofOwner.length - 2].id,         // supprimée sur Strava
-    otherOwnerActivity: other.id,                       // appartient à un autre athlète
-    deletedOnStrava: new Set([ofOwner[ofOwner.length - 2].id, other.id].map(String))
+    fakeDeleteGoodSub: ofOwner[ofOwner.length - 3].id,  // existe encore sur Strava
+    otherOwnerActivity: others[0].id,                   // appartient à un autre athlète
+    otherOwnerUpdate: others[1].id,                     // appartient à un autre athlète
+    foreignAthlete: ownerOf(others[0]),
+    foreignNewActivity: 99999999901,                    // inconnue en local, appartient à un autre athlète sur Strava
+    deletedOnStrava: new Set([ofOwner[ofOwner.length - 2].id, others[0].id].map(String))
   };
 }
 
@@ -233,6 +238,35 @@ async function runProbes(base, leagueId, plan, sandbox) {
   await deleteProbe('strava-suppression-forgee', plan.fakeDelete, 999999);
   await deleteProbe('strava-suppression-reelle', plan.realDelete, SUBSCRIPTION_ID);
   await deleteProbe('strava-suppression-autre-athlete', plan.otherOwnerActivity, SUBSCRIPTION_ID);
+  // Bon abonnement, mais l'activité existe toujours sur Strava : seule la
+  // vérification auprès de Strava peut la protéger.
+  await deleteProbe('strava-suppression-forgee-bon-abonnement', plan.fakeDeleteGoodSub, SUBSCRIPTION_ID);
+
+  // Webhook Strava : mise à jour et création visant l'activité d'un autre athlète
+  const webhookProbe = async (aspectType, objectId) => {
+    const posted = await call(base, '/api/webhook/strava', {}, {
+      method: 'POST',
+      body: {
+        object_type: 'activity',
+        aspect_type: aspectType,
+        owner_id: Number(plan.owner),
+        object_id: Number(objectId),
+        subscription_id: SUBSCRIPTION_ID,
+        updates: aspectType === 'update' ? { title: 'Sonde harnais' } : {},
+        event_time: 1790000000
+      }
+    });
+    const logEntry = await waitForWebhookLog(base, admin, objectId);
+    const activities = (await call(base, `/api/activities/${leagueId}`, {}, { raw: true })).body;
+    const local = Array.isArray(activities) ? activities.find(a => String(a.id) === String(objectId)) : null;
+    return {
+      reponse: posted.status,
+      journal: logEntry ? { status: logEntry.status, details: logEntry.details ?? null } : '(aucune entrée)',
+      proprietaireEnLocal: local ? String(local.athlete_id ?? local.athlete?.id) : '(absente)'
+    };
+  };
+  probes['strava-mise-a-jour-autre-athlete'] = await webhookProbe('update', plan.otherOwnerUpdate);
+  probes['strava-creation-activite-d-un-autre'] = await webhookProbe('create', plan.foreignNewActivity);
 
   // Snapshot de classement falsifié
   const snapshot = await call(base, '/api/standings/snapshot', {}, {
@@ -371,9 +405,23 @@ async function startFakeStrava(plan) {
     };
     const activity = /^\/api\/v3\/activities\/(\d+)$/.exec(url.pathname);
     if (req.method === 'GET' && activity) {
-      return plan.deletedOnStrava.has(activity[1])
-        ? send(404, { message: 'Record Not Found' })
-        : send(200, { id: Number(activity[1]), name: 'Activité toujours sur Strava' });
+      if (plan.deletedOnStrava.has(activity[1])) return send(404, { message: 'Record Not Found' });
+      if (activity[1] === String(plan.foreignNewActivity)) {
+        return send(200, {
+          id: plan.foreignNewActivity,
+          athlete: { id: Number(plan.foreignAthlete) },
+          name: 'Activité d\'un autre athlète',
+          type: 'Run',
+          sport_type: 'Run',
+          distance: 10000,
+          moving_time: 3600,
+          elapsed_time: 3600,
+          total_elevation_gain: 123,
+          start_date: '2026-10-03T08:00:00Z',
+          start_date_local: '2026-10-03T10:00:00Z'
+        });
+      }
+      return send(200, { id: Number(activity[1]), name: 'Activité toujours sur Strava' });
     }
     if (req.method === 'GET' && url.pathname === '/api/v3/athlete/activities') return send(200, []);
     if (req.method === 'GET' && url.pathname === '/api/v3/push_subscriptions') {

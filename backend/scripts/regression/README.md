@@ -61,6 +61,9 @@ Il passe ensuite des **sondes de sécurité** : des requêtes qu'un attaquant po
 | `strava-suppression-forgee` | Suppression avec un mauvais `subscription_id`, pour une activité qui existe encore sur Strava |
 | `strava-suppression-reelle` | Suppression légitime : l'activité n'existe plus sur Strava |
 | `strava-suppression-autre-athlete` | Suppression de l'activité d'un autre athlète que l'émetteur |
+| `strava-suppression-forgee-bon-abonnement` | Suppression avec le bon `subscription_id`, pour une activité qui existe encore sur Strava |
+| `strava-mise-a-jour-autre-athlete` | Mise à jour visant l'activité d'un autre athlète : à qui appartient-elle ensuite ? |
+| `strava-creation-activite-d-un-autre` | Création d'une activité que Strava attribue à un autre athlète |
 | `snapshot-falsifie` | Un classement inventé est-il enregistré ? |
 | `connexion` | Connexion acceptée ou refusée, et format du hash stocké ensuite |
 | `synchro-sans-authentification` | Une synchro Strava peut-elle être lancée sans mot de passe admin ? |
