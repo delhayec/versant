@@ -38,15 +38,35 @@ Les effets de bord sur `bonuses.json` et `pending_bonus_choices.json` sont aussi
 Le vrai `backend/server.js` est démarré sur une copie de la fixture, en mode bac à sable (livrable L01) :
 - `VERSANT_DATA_DIR` pointe sur la copie ;
 - `VERSANT_DISABLE_JOBS=1` coupe les tâches planifiées et le rattrapage du gel ;
-- `STRAVA_API_BASE` et `OPEN_METEO_URL` pointent une adresse injoignable.
+- `STRAVA_API_BASE` pointe un **faux Strava local** ;
+- `OPEN_METEO_URL` pointe une adresse injoignable.
 
-Le harnais interroge en GET :
+Le serveur est lancé depuis le dossier du bac à sable : le `.env` du développeur n'est pas lu.
+
+La copie reçoit des identifiants **factices**, puisque la fixture n'en contient aucun :
+- un e-mail et un mot de passe connus par athlète (`harnais-<id>`) ;
+- un faux token Strava pour l'athlète de la dernière activité.
+
+Le harnais interroge d'abord en GET :
 - toutes les routes publiques ;
 - les routes joueur, avec une session créée pour chaque athlète ;
 - les routes admin en lecture ;
 - quelques accès qui doivent être refusés.
 
-Les réponses de plus de 256 Ko sont réduites à leur empreinte. Les champs qui dépendent de l'instant (`lastModified`, `timestamp`) sont neutralisés.
+Il passe ensuite des **sondes de sécurité** : des requêtes qu'un attaquant pourrait envoyer. Chacune rapporte ce que le serveur accepte ou refuse.
+
+| Sonde | Ce qui est observé |
+|---|---|
+| `webhook-github` | La route de déploiement répond-elle ? La ref envoyée ne contient jamais « master ». |
+| `strava-suppression-forgee` | Suppression avec un mauvais `subscription_id`, pour une activité qui existe encore sur Strava |
+| `strava-suppression-reelle` | Suppression légitime : l'activité n'existe plus sur Strava |
+| `strava-suppression-autre-athlete` | Suppression de l'activité d'un autre athlète que l'émetteur |
+| `snapshot-falsifie` | Un classement inventé est-il enregistré ? |
+| `connexion` | Connexion acceptée ou refusée, et format du hash stocké ensuite |
+| `synchro-sans-authentification` | Une synchro Strava peut-elle être lancée sans mot de passe admin ? |
+| `admin-mot-de-passe-par-defaut` | Serveur relancé sans `ADMIN_PASSWORD` : `admin123` est-il accepté ? |
+
+Les réponses de plus de 256 Ko sont réduites à leur empreinte. Les champs qui dépendent de l'instant (`lastModified`, `timestamp`) et les jetons de session sont neutralisés.
 
 La partie C exige `npm install` dans `backend/`. Sur un code antérieur à L01, elle est sautée : démarrer le serveur sans `VERSANT_DISABLE_JOBS` lancerait le rattrapage du gel et la synchro Strava.
 
@@ -139,7 +159,8 @@ Elles sont rangées hors du dépôt, dans `../versant-regression/refs/` :
 |---|---|---|---|
 | `reference-d6bce5b.json` | `d6bce5b` | A, B | État d'origine, avant toute modification |
 | `reference-d6bce5b-fixbonus.json` | `d6bce5b` + retrait de kamikaze et malédiction du tirage | A, B | Seul écart avec l'origine : les choix tirés au gel du R49 |
-| `reference-L01.json` | précédent + L01 | A, B, C | **Référence des livrables suivants** |
+| `reference-L01.json` | précédent + L01 | A, B, C | Première référence avec l'API |
+| `reference-sondes.json` | précédent + sondes de sécurité | A, B, C | **Référence du lot sécurité** (L11 à L15) : les sondes y constatent les failles |
 
 ## Procédure du chantier multi-ligues
 
