@@ -1321,6 +1321,9 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
 }
 
 app.post('/api/sync/:leagueId', async (req, res) => {
+  // Réservé à l'admin : une synchro interroge Strava pour chaque athlète et
+  // consomme le quota d'appels de l'application.
+  if (!checkAdmin(req, res)) return;
   try {
     const start = req.body.startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const end = req.body.endDate || new Date().toISOString().split('T')[0];
@@ -2032,11 +2035,34 @@ app.get('/api/frozen-results', async (req, res) => {
  *
  * Le snapshot est silencieusement ignoré si vide ou malformé.
  */
+const SNAPSHOT_NUMERIC_FIELDS = [
+  'totalMainPoints', 'totalEliminatedPoints', 'totalRescapePoints',
+  'totalGaugePoints', 'totalPoints', 'wins', 'seasonsPlayed'
+];
+
 app.post('/api/standings/snapshot', async (req, res) => {
   try {
     const { standings } = req.body;
     if (!Array.isArray(standings) || standings.length === 0) {
       return res.status(400).json({ error: 'standings array required' });
+    }
+
+    // Route publique (chaque navigateur l'appelle) : on n'accepte que des
+    // joueurs actifs de la ligue, une fois chacun, avec des compteurs positifs.
+    // Un classement inventé fausserait l'équilibrage des saisons « équipes ».
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const allowedIds = new Set(
+      athletes.filter(a => a.league_id === CHALLENGE_CONFIG.leagueId && a.active).map(a => normalizeId(a.id))
+    );
+    const seenIds = new Set();
+    const invalid = standings.some(s => {
+      const id = normalizeId(s?.participant?.id ?? s?.id);
+      if (!id || !allowedIds.has(id) || seenIds.has(id)) return true;
+      seenIds.add(id);
+      return SNAPSHOT_NUMERIC_FIELDS.some(f => s[f] !== undefined && !(Number.isFinite(s[f]) && s[f] >= 0));
+    });
+    if (invalid) {
+      return res.status(400).json({ error: 'snapshot invalide' });
     }
 
     // Normaliser : ne stocker que les champs utiles (anti-bloat)

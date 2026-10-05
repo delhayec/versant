@@ -2,7 +2,10 @@
 
 /**
  * Script de synchronisation manuelle des activités
- * Usage: node sync-activities.js [leagueId] [startDate] [endDate]
+ * Usage: ADMIN_PASSWORD=… node sync-activities.js [leagueId] [startDate] [endDate]
+ *
+ * La route de synchro est réservée à l'admin : le mot de passe est lu dans
+ * la variable d'environnement ADMIN_PASSWORD.
  */
 
 const axios = require('axios');
@@ -19,7 +22,8 @@ async function syncActivities(leagueId, startDate, endDate) {
       {
         startDate,
         endDate
-      }
+      },
+      { headers: { 'X-Admin-Password': process.env.ADMIN_PASSWORD || '' } }
     );
     
     const { activities_count, athletes_count, errors } = response.data;
