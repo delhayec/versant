@@ -73,7 +73,8 @@ const STRAVA_CONFIG = {
 // Strava dans le bac à sable du harnais. À ne pas définir en prod.
 const STRAVA_BASE_URL = process.env.STRAVA_API_BASE || 'https://www.strava.com';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+// Pas de valeur par défaut : sans ADMIN_PASSWORD, les routes admin refusent tout.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || null;
 const STRAVA_VERIFY_TOKEN = process.env.STRAVA_VERIFY_TOKEN || 'VERSANT2026';
 
 // Identifiant de notre abonnement aux webhooks Strava (visible dans l'admin,
@@ -100,12 +101,52 @@ function normalizeId(id) {
   return String(id).trim();
 }
 
+// Mots de passe des joueurs : deux formats pendant la transition.
+// - password_hash : SHA-256 sans sel, l'ancien format. Le code d'avant ne
+//   connaît que lui : il reste écrit tant qu'un retour arrière est possible.
+// - password_scrypt : scrypt salé, « scrypt$N$r$p$sel$hash » (base64).
+// Tant que password_hash existe, c'est lui qui fait foi : un retour au code
+// d'avant a pu le changer (réinitialisation) sans mettre à jour password_scrypt.
+// Une fois password_hash supprimé des comptes migrés (cf. diagnostic admin),
+// seul password_scrypt est vérifié.
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-function verifyPassword(password, hash) {
-  return hashPassword(password) === hash;
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
+const SCRYPT_KEYLEN = 64;
+
+function scrypt(password, salt, keylen, params) {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, keylen, params, (err, key) => (err ? reject(err) : resolve(key)));
+  });
+}
+
+async function hashPasswordScrypt(password) {
+  const salt = crypto.randomBytes(16);
+  const hash = await scrypt(password, salt, SCRYPT_KEYLEN, SCRYPT_PARAMS);
+  const { N, r, p } = SCRYPT_PARAMS;
+  return `scrypt$${N}$${r}$${p}$${salt.toString('base64')}$${hash.toString('base64')}`;
+}
+
+async function verifyScrypt(password, record) {
+  const [scheme, N, r, p, saltB64, hashB64] = String(record).split('$');
+  if (scheme !== 'scrypt' || !saltB64 || !hashB64) return false;
+  const expected = Buffer.from(hashB64, 'base64');
+  if (expected.length === 0) return false;
+  const actual = await scrypt(password, Buffer.from(saltB64, 'base64'), expected.length, { N: Number(N), r: Number(r), p: Number(p) });
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+/** Vérifie le mot de passe d'un compte, quel que soit le format de son hash. */
+async function verifyPassword(password, account) {
+  if (account.password_hash) {
+    const actual = Buffer.from(hashPassword(password), 'hex');
+    const expected = Buffer.from(String(account.password_hash), 'hex');
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+  }
+  if (account.password_scrypt) return verifyScrypt(password, account.password_scrypt);
+  return false;
 }
 
 function generateToken() {
@@ -348,7 +389,7 @@ async function requireAuth(req, res, next) {
 }
 
 function checkAdmin(req, res) {
-  if (req.headers['x-admin-password'] !== ADMIN_PASSWORD) {
+  if (!ADMIN_PASSWORD || req.headers['x-admin-password'] !== ADMIN_PASSWORD) {
     res.status(401).json({ error: 'Non autorisé' });
     return false;
   }
@@ -537,12 +578,8 @@ app.get('/api/season-bonuses/:seasonNumber', async (req, res) => {
 
 // POST admin - archiver les bonus d'une saison dans frozen_results
 app.post('/api/admin/season-bonuses/:seasonNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
   try {
-    const password = req.headers['x-admin-password'];
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: 'Non autorisé' });
-    }
-
     const seasonNumber = parseInt(req.params.seasonNumber);
     const { bonuses } = req.body;
     if (!bonuses || !Array.isArray(bonuses)) {
@@ -585,6 +622,28 @@ app.post('/api/auth/strava/exchange', async (req, res) => {
   }
 });
 
+/**
+ * Après une connexion réussie : ajoute le hash scrypt d'un compte qui n'en a
+ * pas encore, ou le remplace s'il est périmé. Un échec n'empêche pas la
+ * connexion : la migration sera retentée à la suivante.
+ */
+async function ensureScryptHash(account, password) {
+  try {
+    if (account.password_scrypt && await verifyScrypt(password, account.password_scrypt)) return;
+    const record = await hashPasswordScrypt(password);
+    await safeModifyJSON(ATHLETES_FILE, athletes => {
+      // Fichier illisible : surtout ne pas réécrire une liste vide.
+      if (!Array.isArray(athletes)) throw new Error('athletes.json illisible');
+      const current = athletes.find(a => a.email?.toLowerCase() === account.email.toLowerCase());
+      // Mot de passe changé entre-temps : on ne touche à rien.
+      if (current && current.password_hash === account.password_hash) current.password_scrypt = record;
+      return athletes;
+    }, null);
+  } catch (error) {
+    console.warn(`⚠️ Migration du mot de passe de ${account.name} : ${error.message}`);
+  }
+}
+
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -593,9 +652,11 @@ app.post('/api/auth/login', async (req, res) => {
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const athlete = athletes.find(a => a.email?.toLowerCase() === email.toLowerCase());
 
-    if (!athlete || !verifyPassword(password, athlete.password_hash)) {
+    if (!athlete || !(await verifyPassword(password, athlete))) {
       return res.status(401).json({ error: 'Identifiants incorrects' });
     }
+
+    await ensureScryptHash(athlete, password);
 
     const token = await createSession(athlete.id);
     res.json({ success: true, token, athlete: { id: athlete.id, name: athlete.name, email: athlete.email, league_id: athlete.league_id } });
@@ -628,6 +689,9 @@ app.post('/api/admin/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
     }
 
+    // Calculé avant la lecture du fichier (cf. inscription)
+    const passwordScrypt = await hashPasswordScrypt(newPassword);
+
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const idx = athletes.findIndex(a => normalizeId(a.id) === normalizeId(athleteId));
 
@@ -635,8 +699,9 @@ app.post('/api/admin/reset-password', async (req, res) => {
       return res.status(404).json({ error: 'Athlète non trouvé' });
     }
 
-    // Hasher le nouveau mot de passe
+    // Hasher le nouveau mot de passe (les deux formats, cf. hashPassword)
     athletes[idx].password_hash = hashPassword(newPassword);
+    athletes[idx].password_scrypt = passwordScrypt;
 
     // Supprimer les tokens de reset éventuels
     delete athletes[idx].reset_token;
@@ -705,6 +770,10 @@ app.post('/api/athletes/register', async (req, res) => {
       return res.status(400).json({ error: 'Mot de passe trop court' });
     }
 
+    // Calculé avant la lecture du fichier : scrypt prend quelques dizaines de
+    // millisecondes, on n'élargit pas l'intervalle entre lecture et écriture.
+    const passwordScrypt = await hashPasswordScrypt(password);
+
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const normalizedId = normalizeId(athlete_id);
 
@@ -721,6 +790,7 @@ app.post('/api/athletes/register', async (req, res) => {
       name,
       email,
       password_hash: hashPassword(password),
+      password_scrypt: passwordScrypt,
       league_id,
       strava_profile: strava_data,
       registered_at: new Date().toISOString(),
@@ -1841,7 +1911,7 @@ async function retryFailedWebhooks() {
 // ADMIN ROUTES
 // ============================================
 app.post('/api/admin/login', (req, res) => {
-  if (req.body.password === ADMIN_PASSWORD) {
+  if (ADMIN_PASSWORD && req.body.password === ADMIN_PASSWORD) {
     res.json({ success: true, token: generateToken() });
   } else {
     res.status(401).json({ error: 'Mot de passe incorrect' });
@@ -1933,7 +2003,11 @@ app.get('/api/admin/diagnostic', async (req, res) => {
     athletes: {
       total: athletes.length,
       withToken: athletes.filter(a => a.tokens?.access_token).length,
-      expired: athletes.filter(a => a.tokens?.expires_at && a.tokens.expires_at < now).length
+      expired: athletes.filter(a => a.tokens?.expires_at && a.tokens.expires_at < now).length,
+      // Migration des mots de passe (cf. hashPassword) : comptes encore sans hash
+      // scrypt, à reconnecter ou réinitialiser avant de supprimer l'ancien hash.
+      passwordScrypt: athletes.filter(a => a.password_scrypt).length,
+      passwordLegacyOnly: athletes.filter(a => a.password_hash && !a.password_scrypt).length
     },
     webhooks: {
       last24h: recentLogs.length,
@@ -2651,6 +2725,7 @@ initializeServer().then(async () => {
     console.log('║  Auto-freeze: sync+00h15 + démarrage   ║');
     console.log('║  Refresh tokens: toutes les 2h        ║');
     console.log('╚════════════════════════════════════════╝');
+    if (!ADMIN_PASSWORD) console.warn('⚠️  ADMIN_PASSWORD non défini : toutes les routes admin sont refusées');
     if (JOBS_DISABLED) console.log('⏸️  VERSANT_DISABLE_JOBS=1 : tâches planifiées et rattrapage du gel désactivés');
     if (process.env.VERSANT_DATA_DIR) console.log(`📁 Données : ${DATA_DIR}`);
     console.log('');
