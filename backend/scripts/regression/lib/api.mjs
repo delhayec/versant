@@ -106,7 +106,9 @@ function preparePlan(fixture) {
     otherOwnerUpdate: others[1].id,                     // appartient à un autre athlète
     foreignAthlete: ownerOf(others[0]),
     foreignNewActivity: 99999999901,                    // inconnue en local, appartient à un autre athlète sur Strava
-    deletedOnStrava: new Set([ofOwner[ofOwner.length - 2].id, others[0].id].map(String))
+    deletedOnStrava: new Set([ofOwner[ofOwner.length - 2].id, others[0].id].map(String)),
+    // Snapshot réellement envoyé par un navigateur (présent dans la fixture)
+    legitSnapshot: fixture.json('frozen_results.json').yearlyStandingsSnapshot?.standings || []
   };
 }
 
@@ -267,6 +269,15 @@ async function runProbes(base, leagueId, plan, sandbox) {
   };
   probes['strava-mise-a-jour-autre-athlete'] = await webhookProbe('update', plan.otherOwnerUpdate);
   probes['strava-creation-activite-d-un-autre'] = await webhookProbe('create', plan.foreignNewActivity);
+
+  // Snapshot légitime : il doit toujours être accepté
+  probes['snapshot-legitime'] = {
+    reponse: (await call(base, '/api/standings/snapshot', {}, {
+      method: 'POST',
+      body: { standings: plan.legitSnapshot },
+      summary: true
+    })).status
+  };
 
   // Snapshot de classement falsifié
   const snapshot = await call(base, '/api/standings/snapshot', {}, {
