@@ -2375,19 +2375,6 @@ app.post('/api/admin/import-frozen-results', async (req, res) => {
 });
 
 // ============================================
-// GITHUB WEBHOOK
-// ============================================
-app.post('/api/webhook/github', (req, res) => {
-  const { exec } = require('child_process');
-  if (req.headers['x-github-event'] === 'push' && req.body.ref?.includes('master')) {
-    res.json({ message: 'Deploying...' });
-    exec(`cd ${path.join(__dirname, '..')} && git pull && cd backend && npm install && pm2 restart versant-api`);
-  } else {
-    res.json({ message: 'Ignored' });
-  }
-});
-
-// ============================================
 // CRON - Ajout auto-freeze
 // ============================================
 cron.schedule('0 6 * * *', () => { console.log('🕐 Sync 6h'); autoSyncAllLeagues(); });
