@@ -799,9 +799,12 @@ app.get('/api/jokers/my', requireAuth, async (req, res) => {
 
     // Calculer le stock restant
     const stock = {};
+    // Les admin_refund ajoutent +1 au stock (même formule que l'admin)
     JOKER_IDS.forEach(jokerId => {
-      const usedCount = myUsage.filter(j => j.joker_id === jokerId).length;
-      stock[jokerId] = Math.max(0, INITIAL_JOKER_STOCK - usedCount);
+      const entries = myUsage.filter(j => j.joker_id === jokerId);
+      const refunds = entries.filter(j => j.status === 'admin_refund').length;
+      const usedCount = entries.length - refunds;
+      stock[jokerId] = Math.max(0, Math.min(5, INITIAL_JOKER_STOCK - usedCount + refunds));
     });
 
     res.json({ stock, used: myUsage });
@@ -927,16 +930,17 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
       console.warn('⚠️ Impossible de vérifier le statut éliminé:', e.message);
     }
 
-    // Pré-calculer le nombre d'usages dans frozen results pour cet athlète et ce joker
-    let frozenUsageCount = 0;
+    // Pré-calculer les rounds figés où cet athlète a utilisé ce joker
+    // (dédoublonnés plus bas contre jokers_usage.json, comme readJokerUsageWithFrozen)
+    const frozenUsageRounds = [];
     try {
       const frozenData = await frozenResults.getAllFrozenResults();
       if (frozenData?.rounds) {
         for (const [roundKey, roundData] of Object.entries(frozenData.rounds)) {
           const jokersUsed = roundData.jokersUsed || [];
-          frozenUsageCount += jokersUsed.filter(j =>
-            String(j.athleteId) === normalizeId(req.athleteId) && j.jokerId === joker_id
-          ).length;
+          jokersUsed
+            .filter(j => String(j.athleteId) === normalizeId(req.athleteId) && j.jokerId === joker_id)
+            .forEach(() => frozenUsageRounds.push(parseInt(roundKey)));
         }
       }
     } catch (e) {}
@@ -948,10 +952,15 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
     await safeModifyJSON(JOKERS_FILE, (rawData) => {
       const jokerUsage = normalizeJokerUsage(rawData);
       const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
-      const fileUsedCount = myUsage.filter(j => j.joker_id === joker_id).length;
-      const totalUsedCount = fileUsedCount + frozenUsageCount;
+      const fileEntries = myUsage.filter(j => j.joker_id === joker_id);
+      const refunds = fileEntries.filter(j => j.status === 'admin_refund').length;
+      const frozenUsageCount = frozenUsageRounds.filter(
+        r => !fileEntries.some(j => j.round_number === r)
+      ).length;
+      const totalUsedCount = (fileEntries.length - refunds) + frozenUsageCount;
 
-      if (totalUsedCount >= INITIAL_JOKER_STOCK) {
+      // Les admin_refund ajoutent +1 au stock (même formule que l'admin)
+      if (Math.min(5, INITIAL_JOKER_STOCK - totalUsedCount + refunds) <= 0) {
         error = 'Plus de joker disponible';
         return jokerUsage; // Pas de modification
       }

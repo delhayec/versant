@@ -11,6 +11,7 @@ import {
   getRoundDates,
   getGlobalRoundNumber,
   getSeasonNumber, isTeamSeason,
+  getRoundInSeason, getRoundsPerSeason,
   getAthleteColor, getAthleteInitials,
   fetchWithTimeout
 } from './config.js';
@@ -256,11 +257,14 @@ function getJokerStock(participantId) {
   const pid = String(participantId);
   const stock = {};
 
+  // Même formule que l'admin et jokers.js : les admin_refund ajoutent +1
   Object.keys(JOKER_TYPES).forEach(jokerId => {
-    const usedCount = jokerUsageCache.filter(
+    const entries = jokerUsageCache.filter(
       u => String(u.athlete_id) === pid && u.joker_id === jokerId
-    ).length;
-    stock[jokerId] = Math.max(0, INITIAL_JOKER_STOCK - usedCount);
+    );
+    const refunds = entries.filter(u => u.status === 'admin_refund').length;
+    const usedCount = entries.length - refunds;
+    stock[jokerId] = Math.max(0, Math.min(5, INITIAL_JOKER_STOCK - usedCount + refunds));
   });
 
   return stock;
@@ -1148,6 +1152,8 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
   const currentRound = getCurrentRound();
   const dayInRound = getDayInRound();
   const canActivateNow = joker.canActivateNow && dayInRound <= (joker.maxDayForImmediateUse || 3);
+  const roundInSeason = getRoundInSeason(new Date());
+  const roundsPerSeason = getRoundsPerSeason();
 
   const modal = document.createElement('div');
   modal.className = 'joker-selection-modal';
