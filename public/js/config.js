@@ -10,23 +10,25 @@
  * - Sports acceptés
  * - Système de points
  * - Utilitaires de date
- * 
+ *
  * Détection automatique: demo.html → 2025, sinon → 2026
  */
 
 // ============================================
 // DÉTECTION DU MODE (DEMO vs PRODUCTION)
 // ============================================
-const IS_DEMO = typeof window !== 'undefined' && window.location.pathname.includes('demo');
+const IS_DEMO =
+  typeof window !== "undefined" && window.location.pathname.includes("demo");
 const CURRENT_YEAR = IS_DEMO ? 2025 : 2026;
-
 
 // ============================================
 // CONFIGURATION PRINCIPALE DE LA LIGUE
 // ============================================
 
 // Date de début différente selon l'année : 2025 = 1er janvier (démo), 2026 = 1er février 02-01
-const CHALLENGE_START_DATE = IS_DEMO ? `${CURRENT_YEAR}-01-01` : `${CURRENT_YEAR}-02-02`;
+const CHALLENGE_START_DATE = IS_DEMO
+  ? `${CURRENT_YEAR}-01-01`
+  : `${CURRENT_YEAR}-02-02`;
 
 export const CHALLENGE_CONFIG = {
   name: "Versant",
@@ -48,7 +50,7 @@ export const CHALLENGE_CONFIG = {
   specialRuleFrequency: 4,
   dataYear: CURRENT_YEAR,
   dateLocale: "fr-FR",
-  isDemo: IS_DEMO
+  isDemo: IS_DEMO,
 };
 
 // ============================================
@@ -60,19 +62,20 @@ export const SEASON_TYPES = {
     name: "Standard",
     description: "Individuel - D+ cumulé",
     metric: "elevation",
-    isTeamBased: false
+    isTeamBased: false,
   },
   distance: {
     id: "distance",
     name: "Distance",
     description: "Individuel - Distance cumulée",
     metric: "distance",
-    isTeamBased: false
+    isTeamBased: false,
   },
   team: {
     id: "team",
     name: "Équipes",
-    description: "Par équipes de 3 – D+ cumulé – toute l'équipe dernière est éliminée",
+    description:
+      "Par équipes de 3 – D+ cumulé – toute l'équipe dernière est éliminée",
     metric: "elevation",
     isTeamBased: true,
     teamSize: 3,
@@ -80,16 +83,24 @@ export const SEASON_TYPES = {
     reshuffleEachRound: true,
     balancingMethod: "points", // Équilibrage sur les points du classement général
     candidateCount: 16, // Nombre de partitions candidates parmi lesquelles tirer au sort
-    extraEliminatedFinalRound: true // Round supplémentaire pour le challenge éliminés
-  }
+    extraEliminatedFinalRound: true, // Round supplémentaire pour le challenge éliminés
+  },
 };
 
 // Planning des types de saisons sur l'année
 export const SEASON_PLANNING = {
-  1: "standard", 2: "standard", 3: "standard",
-  4: "team", 5: "standard", 6: "standard",
-  7: "standard", 8: "standard", 9: "standard",
-  10: "standard", 11: "standard", 12: "standard"
+  1: "standard",
+  2: "standard",
+  3: "standard",
+  4: "team",
+  5: "standard",
+  6: "standard",
+  7: "standard",
+  8: "standard",
+  9: "standard",
+  10: "standard",
+  11: "standard",
+  12: "standard",
 };
 
 export function getSeasonType(seasonNumber) {
@@ -109,15 +120,38 @@ export function isTeamSeason(seasonNumber) {
 // SYSTÈME DE POINTS
 // ============================================
 export const MAIN_CHALLENGE_POINTS = {
-  1: 24, 2: 21, 3: 18, 4: 15, 5: 12, 6: 10, 7: 8, 8: 6, 9: 5, 10: 4, 11: 3, 12: 2, 13: 1, default: 0
+  1: 24,
+  2: 21,
+  3: 18,
+  4: 15,
+  5: 12,
+  6: 10,
+  7: 8,
+  8: 6,
+  9: 5,
+  10: 4,
+  11: 3,
+  12: 2,
+  13: 1,
+  default: 0,
 };
 
 export const ELIMINATED_CHALLENGE_POINTS = {
-  1: 10, 2: 8, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1, default: 0
+  1: 10,
+  2: 8,
+  3: 6,
+  4: 5,
+  5: 4,
+  6: 3,
+  7: 2,
+  8: 1,
+  default: 0,
 };
 
-export const getMainChallengePoints = (pos) => MAIN_CHALLENGE_POINTS[pos] ?? MAIN_CHALLENGE_POINTS.default ?? 0;
-export const getEliminatedChallengePoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? ELIMINATED_CHALLENGE_POINTS.default ?? 0;
+export const getMainChallengePoints = (pos) =>
+  MAIN_CHALLENGE_POINTS[pos] ?? MAIN_CHALLENGE_POINTS.default ?? 0;
+export const getEliminatedChallengePoints = (pos) =>
+  ELIMINATED_CHALLENGE_POINTS[pos] ?? ELIMINATED_CHALLENGE_POINTS.default ?? 0;
 
 // ============================================
 // JAUGE DE D+ COLLECTIVE
@@ -127,7 +161,7 @@ export const getEliminatedChallengePoints = (pos) => ELIMINATED_CHALLENGE_POINTS
 // ⚠️ Garder synchronisé avec backend/shared-config.js (ELEVATION_GAUGE) :
 // le backend fige le résultat (frozen_results.rounds[n].elevationGauge).
 export const ELEVATION_GAUGE = {
-  startRound: 50,
+  startRound: 52,
   objectivePerPlayer: [
     { minPlayers: 14, objective: 1100 },
     { minPlayers: 11, objective: 1300 },
@@ -135,27 +169,63 @@ export const ELEVATION_GAUGE = {
     { minPlayers: 7, objective: 1750 },
     { minPlayers: 5, objective: 2100 },
     { minPlayers: 3, objective: 2700 },
-    { minPlayers: 0, objective: 3000 }
+    { minPlayers: 0, objective: 3000 },
   ],
   tiers: [
-    { id: 'critical_success', minRatio: 1.50, points: 2, beneficiary: 'main', label: 'Réussite critique' },
-    { id: 'success', minRatio: 1.30, points: 1, beneficiary: 'main', label: 'Réussite' },
-    { id: 'neutral', minRatio: 0.75, points: 0, beneficiary: null, label: 'Neutre' },
-    { id: 'failure', minRatio: 0.55, points: 1, beneficiary: 'eliminated', label: 'Échec' },
-    { id: 'critical_failure', minRatio: 0, points: 2, beneficiary: 'eliminated', label: 'Échec critique' }
-  ]
+    {
+      id: "critical_success",
+      minRatio: 1.5,
+      points: 2,
+      beneficiary: "main",
+      label: "Réussite critique",
+    },
+    {
+      id: "success",
+      minRatio: 1.3,
+      points: 1,
+      beneficiary: "main",
+      label: "Réussite",
+    },
+    {
+      id: "neutral",
+      minRatio: 0.75,
+      points: 0,
+      beneficiary: null,
+      label: "Neutre",
+    },
+    {
+      id: "failure",
+      minRatio: 0.55,
+      points: 1,
+      beneficiary: "eliminated",
+      label: "Échec",
+    },
+    {
+      id: "critical_failure",
+      minRatio: 0,
+      points: 2,
+      beneficiary: "eliminated",
+      label: "Échec critique",
+    },
+  ],
 };
 
 export function getGaugeObjectivePerPlayer(nbPlayers) {
-  const row = ELEVATION_GAUGE.objectivePerPlayer.find(r => nbPlayers >= r.minPlayers);
+  const row = ELEVATION_GAUGE.objectivePerPlayer.find(
+    (r) => nbPlayers >= r.minPlayers,
+  );
   return row ? row.objective : 0;
 }
 
 export function getGaugeTier(ratio) {
-  return ELEVATION_GAUGE.tiers.find(t => ratio >= t.minRatio) || ELEVATION_GAUGE.tiers[ELEVATION_GAUGE.tiers.length - 1];
+  return (
+    ELEVATION_GAUGE.tiers.find((t) => ratio >= t.minRatio) ||
+    ELEVATION_GAUGE.tiers[ELEVATION_GAUGE.tiers.length - 1]
+  );
 }
 
-export const getGaugeTierById = (id) => ELEVATION_GAUGE.tiers.find(t => t.id === id) || null;
+export const getGaugeTierById = (id) =>
+  ELEVATION_GAUGE.tiers.find((t) => t.id === id) || null;
 
 // ============================================
 // BARÈME — CHALLENGE ÉLIMINÉS SAISON TEAM
@@ -165,8 +235,8 @@ export const getGaugeTierById = (id) => ELEVATION_GAUGE.tiers.find(t => t.id ===
 // Au-delà de 3 équipes / 3 joueurs : 0 pts.
 export const TEAM_ELIMINATED_POINTS = {
   1: { 1: 12, 2: 11, 3: 10 },
-  2: { 1:  8, 2:  7, 3:  6 },
-  3: { 1:  4, 2:  3, 3:  2 }
+  2: { 1: 8, 2: 7, 3: 6 },
+  3: { 1: 4, 2: 3, 3: 2 },
 };
 
 export const getTeamEliminatedPoints = (teamRank, posInTeam) =>
@@ -176,16 +246,17 @@ export const getTeamEliminatedPoints = (teamRank, posInTeam) =>
 // JOKERS (BONUS) - Définition complète
 // ============================================
 export const JOKER_TYPES = {
-   voleur: {
+  voleur: {
     id: "voleur",
     name: "Voleur",
     icon: "🦹",
     description: "Vole l'activité avec le plus de D+ d'un adversaire",
-    effect: "Choisissez un adversaire. Vous lui volez son activité avec le plus de D+.",
+    effect:
+      "Choisissez un adversaire. Vous lui volez son activité avec le plus de D+.",
     usableInFinal: true,
     requiresTarget: true,
     canActivateNow: true,
-    maxDayForImmediateUse: 3
+    maxDayForImmediateUse: 3,
   },
   multiplicateur: {
     id: "multiplicateur",
@@ -196,7 +267,7 @@ export const JOKER_TYPES = {
     usableInFinal: true,
     requiresTarget: false,
     canActivateNow: true,
-    maxDayForImmediateUse: 3
+    maxDayForImmediateUse: 3,
   },
   bouclier: {
     id: "bouclier",
@@ -207,7 +278,7 @@ export const JOKER_TYPES = {
     usableInFinal: false,
     requiresTarget: false,
     canActivateNow: true,
-    maxDayForImmediateUse: 3
+    maxDayForImmediateUse: 3,
   },
   sabotage: {
     id: "sabotage",
@@ -218,8 +289,8 @@ export const JOKER_TYPES = {
     usableInFinal: true,
     requiresTarget: true,
     canActivateNow: true,
-    maxDayForImmediateUse: 3
-  }
+    maxDayForImmediateUse: 3,
+  },
 };
 
 // ============================================
@@ -235,149 +306,167 @@ export const BONUS_TYPES = {
     name: "Embuscade",
     icon: "🏹",
     description: "Vole une activité aléatoire d'un joueur actif",
-    effect: "Choisis un joueur actif. Une de ses activités (+20min) est tirée au sort : son D+ lui est retiré et t'est transféré dans le challenge des éliminés.",
-    timing: "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
+    effect:
+      "Choisis un joueur actif. Une de ses activités (+20min) est tirée au sort : son D+ lui est retiré et t'est transféré dans le challenge des éliminés.",
+    timing:
+      "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
     category: "offensif",
     requiresTarget: true,
     targetType: "active",
     activation: {
       timing: "3_premiers_jours",
-      effect: "fin_round"
+      effect: "fin_round",
     },
     parameters: {
-      minActivityDuration: 20
-    }
+      minActivityDuration: 20,
+    },
   },
   ravitaillement: {
     id: "ravitaillement",
     name: "Ravitaillement",
     icon: "🎒",
     description: "Donne une de tes activités aléatoire à un joueur actif",
-    effect: "Choisis un joueur actif. Une de tes activités (+20min) est tirée au sort : son D+ lui est ajouté en bonus. Tu conserves aussi ce D+ dans ton total.",
-    timing: "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
+    effect:
+      "Choisis un joueur actif. Une de tes activités (+20min) est tirée au sort : son D+ lui est ajouté en bonus. Tu conserves aussi ce D+ dans ton total.",
+    timing:
+      "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
     category: "soutien",
     requiresTarget: true,
     targetType: "active",
     activation: {
       timing: "3_premiers_jours",
-      effect: "fin_round"
+      effect: "fin_round",
     },
     parameters: {
-      minActivityDuration: 20
-    }
+      minActivityDuration: 20,
+    },
   },
   duel: {
     id: "duel",
     name: "Duel",
     icon: "⚔️",
     description: "Défie ton co-éliminé pour un point bonus",
-    effect: "Tu défies automatiquement l'autre joueur éliminé en même temps que toi. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point au classement général. Égalité = aucun point.",
-    timing: "⏰ Activation : automatique dès le choix · ⚡ Effet : fin de saison",
+    effect:
+      "Tu défies automatiquement l'autre joueur éliminé en même temps que toi. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point au classement général. Égalité = aucun point.",
+    timing:
+      "⏰ Activation : automatique dès le choix · ⚡ Effet : fin de saison",
     category: "competitif",
     requiresTarget: false,
     targetType: "co_eliminated",
     activation: {
       timing: "automatique",
-      effect: "fin_saison"
-    }
+      effect: "fin_saison",
+    },
   },
   brouillard: {
     id: "brouillard",
     name: "Brouillard",
     icon: "🌫️",
     description: "Cache ton D+ jusqu'à la fin de la saison",
-    effect: "Tu te caches ! Ton D+ est masqué : tu apparais dernier du classement des éliminés pour tous. Seul toi vois ton vrai D+ dans ton dashboard. Révélation à la fin de la saison.",
-    timing: "⏰ Activation : dans les 48h après élimination · ⚡ Effet : fin de saison",
+    effect:
+      "Tu te caches ! Ton D+ est masqué : tu apparais dernier du classement des éliminés pour tous. Seul toi vois ton vrai D+ dans ton dashboard. Révélation à la fin de la saison.",
+    timing:
+      "⏰ Activation : dans les 48h après élimination · ⚡ Effet : fin de saison",
     category: "defensif",
     requiresTarget: false,
     targetType: "self",
     activation: {
       timing: "48h_apres_elimination",
-      effect: "fin_saison"
-    }
+      effect: "fin_saison",
+    },
   },
   marquage: {
     id: "marquage",
     name: "Marquage",
     icon: "🎯",
     description: "Parie sur l'élimination d'un joueur actif",
-    effect: "Le 1er jour d'un round, marque un joueur actif. S'il termine dans les 2 dernières places (éliminé) à la fin du round, tu gagnes +1 point au classement général. Sinon, le bonus est perdu.",
-    timing: "⏰ Activation : jour 1 du round uniquement · ⚡ Effet : fin du round",
+    effect:
+      "Le 1er jour d'un round, marque un joueur actif. S'il termine dans les 2 dernières places (éliminé) à la fin du round, tu gagnes +1 point au classement général. Sinon, le bonus est perdu.",
+    timing:
+      "⏰ Activation : jour 1 du round uniquement · ⚡ Effet : fin du round",
     category: "pari",
     requiresTarget: true,
     targetType: "active",
     activation: {
       timing: "jour_1",
-      effect: "fin_round"
-    }
+      effect: "fin_round",
+    },
   },
   trap: {
     id: "trap",
     name: "It's a TRAP !",
     icon: "🪤",
     description: "Piège le prochain dernier éliminé",
-    effect: "Piège passif qui reste actif. Quand un joueur est éliminé en dernière position, tu récupères le D+ de sa dernière activité du round (copie, pas vol). Le piège se désactive après déclenchement.",
-    timing: "⏰ Activation : automatique dès réception · ⚡ Effet : au prochain éliminé dernier",
+    effect:
+      "Piège passif qui reste actif. Quand un joueur est éliminé en dernière position, tu récupères le D+ de sa dernière activité du round (copie, pas vol). Le piège se désactive après déclenchement.",
+    timing:
+      "⏰ Activation : automatique dès réception · ⚡ Effet : au prochain éliminé dernier",
     category: "piege",
     requiresTarget: false,
     targetType: "passive",
     activation: {
       timing: "automatique",
-      effect: "debut_round_suivant"
-    }
+      effect: "debut_round_suivant",
+    },
   },
   second_souffle: {
     id: "second_souffle",
     name: "Second Souffle",
     icon: "🔥",
     description: "Double ta plus petite activité de la saison",
-    effect: "Récompense la régularité ! À la fin de la saison, ton activité avec le D+ le plus faible (depuis ton élimination) compte double dans ton total.",
-    timing: "⏰ Activation : automatique dès réception · ⚡ Effet : fin de saison",
+    effect:
+      "Récompense la régularité ! À la fin de la saison, ton activité avec le D+ le plus faible (depuis ton élimination) compte double dans ton total.",
+    timing:
+      "⏰ Activation : automatique dès réception · ⚡ Effet : fin de saison",
     category: "boost",
     requiresTarget: false,
     targetType: "self",
     activation: {
       timing: "automatique",
-      effect: "fin_saison"
-    }
+      effect: "fin_saison",
+    },
   },
   kamikaze: {
     id: "kamikaze",
     name: "Kamikaze",
     icon: "💣",
     description: "Tu te sacrifies pour entraîner un adversaire dans ta chute",
-    effect: "Tu perds 25% de ton D+ du round, mais ta cible (joueur actif de ton choix) perd aussi 25% de son D+ du round. Sacrifice mutuel !",
-    timing: "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
+    effect:
+      "Tu perds 25% de ton D+ du round, mais ta cible (joueur actif de ton choix) perd aussi 25% de son D+ du round. Sacrifice mutuel !",
+    timing:
+      "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
     category: "offensif",
     requiresTarget: true,
     targetType: "active",
     activation: {
       timing: "3_premiers_jours",
-      effect: "fin_round"
+      effect: "fin_round",
     },
     parameters: {
-      percentageLost: 25 // pourcentage de D+ perdu
-    }
+      percentageLost: 25, // pourcentage de D+ perdu
+    },
   },
   malediction: {
     id: "malediction",
     name: "Malédiction",
     icon: "🪬",
     description: "Tu maudis l'un des responsables de ton élimination",
-    effect: "Tu maudis un joueur parmi les 3 juste au-dessus de toi lors de ton élimination. À chaque fin de round, 10% de son D+ lui est volé et ajouté à ton total. L'effet cesse quand il est éliminé.",
-    timing: "⏰ Activation : automatique dès le choix · ⚡ Effet : chaque fin de round",
+    effect:
+      "Tu maudis un joueur parmi les 3 juste au-dessus de toi lors de ton élimination. À chaque fin de round, 10% de son D+ lui est volé et ajouté à ton total. L'effet cesse quand il est éliminé.",
+    timing:
+      "⏰ Activation : automatique dès le choix · ⚡ Effet : chaque fin de round",
     category: "offensif",
     requiresTarget: true,
     targetType: "eliminator", // les 3 joueurs au-dessus lors de l'élimination
     activation: {
       timing: "automatique",
-      effect: "chaque_fin_round"
+      effect: "chaque_fin_round",
     },
     parameters: {
       percentageStolen: 10, // pourcentage de D+ volé par round
-      maxTargets: 3 // nombre de cibles possibles (3 au-dessus)
-    }
-  }
+      maxTargets: 3, // nombre de cibles possibles (3 au-dessus)
+    },
+  },
 };
 
 // Liste des IDs de bonus pour le tirage au sort
@@ -392,7 +481,7 @@ export const INITIAL_JOKERS = {
   voleur: 2,
   multiplicateur: 2,
   bouclier: 2,
-  sabotage: 2
+  sabotage: 2,
 };
 
 // ============================================
@@ -410,7 +499,7 @@ export const INITIAL_JOKERS = {
 // se déclencherait jamais. "≥ 15 min de pluie" touche ~10 % des sorties.
 export const WEATHER_RULE = {
   minRainMinutes: 15,
-  multiplier: 1.5
+  multiplier: 1.5,
 };
 
 export function isRainyActivity(activity) {
@@ -422,7 +511,7 @@ export function isRainyActivity(activity) {
   // Sans ce garde-fou, une sortie à ski sous une neige modérée créditant
   // 0,17 mm de pluie résiduelle déclencherait "la pluie qui mouille", ce qui
   // n'est pas l'esprit de la règle. 1 cm de neige ≈ 1 mm d'équivalent en eau.
-  const snowWaterMm = (w.snowfall_cm || 0);
+  const snowWaterMm = w.snowfall_cm || 0;
   return (w.rain_mm || 0) > snowWaterMm;
 }
 
@@ -454,35 +543,48 @@ export const ROUND_RULES = {
     description: "Classique",
     fullDescription: "Round classique : D+ cumulé.",
     isSpecial: false,
-    requiresStream: false
+    requiresStream: false,
   },
   handicap: {
     id: "handicap",
     name: "Handicap",
     icon: "⚖️",
     description: "Top 10 malus, 5 derniers bonus, 4 éliminés",
-    fullDescription: "Top 10 du classement général avec malus dégressif (1ᵉʳ : -50%, 2ᵉ : -40%, …, 10ᵉ : -5%). Les 5 derniers bénéficient de +10%. ⚠️ 4 éliminés au lieu de 2 !",
+    fullDescription:
+      "Top 10 du classement général avec malus dégressif (1ᵉʳ : -50%, 2ᵉ : -40%, …, 10ᵉ : -5%). Les 5 derniers bénéficient de +10%. ⚠️ 4 éliminés au lieu de 2 !",
     isSpecial: true,
     notInFirstSeason: true,
     parameters: {
-      malusPerPosition: { 1: 50, 2: 40, 3: 35, 4: 30, 5: 25, 6: 20, 7: 15, 8: 10, 9: 7, 10: 5 },
+      malusPerPosition: {
+        1: 50,
+        2: 40,
+        3: 35,
+        4: 30,
+        5: 25,
+        6: 20,
+        7: 15,
+        8: 10,
+        9: 7,
+        10: 5,
+      },
       bonusLastCount: 5,
       bonusLastPercent: 10,
-      eliminationsOverride: 4
-    }
+      eliminationsOverride: 4,
+    },
   },
   pluie_qui_mouille: {
     id: "pluie_qui_mouille",
     name: "La pluie qui mouille",
     icon: "🌧️",
     description: "D+ ×1,5 sur les activités sous la pluie",
-    fullDescription: "Toute activité pendant laquelle il a plu au moins 15 minutes voit son D+ multiplié par 1,5. La neige ne compte pas. Les activités sans GPS (indoor, home trainer, saisie manuelle) ne peuvent pas être créditées.",
+    fullDescription:
+      "Toute activité pendant laquelle il a plu au moins 15 minutes voit son D+ multiplié par 1,5. La neige ne compte pas. Les activités sans GPS (indoor, home trainer, saisie manuelle) ne peuvent pas être créditées.",
     isSpecial: true,
     requiresWeather: true,
     parameters: {
       multiplier: WEATHER_RULE.multiplier,
-      minRainMinutes: WEATHER_RULE.minRainMinutes
-    }
+      minRainMinutes: WEATHER_RULE.minRainMinutes,
+    },
   },
   combinado: {
     id: "combinado",
@@ -491,7 +593,7 @@ export const ROUND_RULES = {
     description: "D+ doublé si 2 sports différents/jour",
     fullDescription: "Métrique ×2 les jours avec 2 sports différents.",
     isSpecial: true,
-    parameters: { multiplier: 2 }
+    parameters: { multiplier: 2 },
   },
   pentes_raides: {
     id: "pentes_raides",
@@ -501,7 +603,7 @@ export const ROUND_RULES = {
     fullDescription: "Seul le dénivelé sur segments avec pente >15%.",
     isSpecial: true,
     requiresStream: true,
-    parameters: { minGradient: 15 }
+    parameters: { minGradient: 15 },
   },
   hors_bitume: {
     id: "hors_bitume",
@@ -510,7 +612,7 @@ export const ROUND_RULES = {
     description: "Seul le D+ hors route compte",
     fullDescription: "Seul le dénivelé hors routes goudronnées.",
     isSpecial: true,
-    requiresStream: true
+    requiresStream: true,
   },
   double_weekend: {
     id: "double_weekend",
@@ -519,8 +621,8 @@ export const ROUND_RULES = {
     description: "D+ doublé samedi et dimanche",
     fullDescription: "Le D+ des samedis et dimanches est doublé.",
     isSpecial: true,
-    parameters: { multiplier: 2 }
-  }
+    parameters: { multiplier: 2 },
+  },
 };
 
 // ============================================
@@ -528,21 +630,43 @@ export const ROUND_RULES = {
 // ============================================
 export const SPORT_SETTINGS = {
   validSports: {
-    'Run': 'Run', 'TrailRun': 'Run',
-    'Ride': 'Bike', 'MountainBikeRide': 'Bike', 'GravelRide': 'Bike',
-    'Hike': 'Hike', 'Walk': 'Hike', 'Snowshoe': 'Hike',
-    'BackcountrySki': 'Ski', 'NordicSki': 'Ski'
+    Run: "Run",
+    TrailRun: "Run",
+    Ride: "Bike",
+    MountainBikeRide: "Bike",
+    GravelRide: "Bike",
+    Hike: "Hike",
+    Walk: "Hike",
+    Snowshoe: "Hike",
+    BackcountrySki: "Ski",
+    NordicSki: "Ski",
   },
-  excludedSports: ['AlpineSki', 'Snowboard', 'EBikeRide', 'EMountainBikeRide', 'VirtualRide', 'VirtualRun', 'Swim', 'Yoga', 'WeightTraining'],
-  sportColors: { 'Run': '#f97316', 'Bike': '#eab308', 'Hike': '#10b981', 'Ski': '#22d3ee' },
-  sportIcons: { 'Run': '🏃', 'Bike': '🚴', 'Hike': '🥾', 'Ski': '⛷️' }
+  excludedSports: [
+    "AlpineSki",
+    "Snowboard",
+    "EBikeRide",
+    "EMountainBikeRide",
+    "VirtualRide",
+    "VirtualRun",
+    "Swim",
+    "Yoga",
+    "WeightTraining",
+  ],
+  sportColors: {
+    Run: "#f97316",
+    Bike: "#eab308",
+    Hike: "#10b981",
+    Ski: "#22d3ee",
+  },
+  sportIcons: { Run: "🏃", Bike: "🚴", Hike: "🥾", Ski: "⛷️" },
 };
 
 export const isValidSport = (type) => type in SPORT_SETTINGS.validSports;
-export const getSportCategory = (type) => SPORT_SETTINGS.validSports[type] || null;
+export const getSportCategory = (type) =>
+  SPORT_SETTINGS.validSports[type] || null;
 export const getSportIcon = (type) => {
   const category = getSportCategory(type);
-  return SPORT_SETTINGS.sportIcons[category] || '🏋️';
+  return SPORT_SETTINGS.sportIcons[category] || "🏋️";
 };
 
 // ============================================
@@ -566,7 +690,7 @@ const PARTICIPANTS_2025 = [
   { id: "19523416", name: "Morguy D" },
   { id: "110979265", name: "Pef B" },
   { id: "84388438", name: "Remi S" },
-  { id: "25332977", name: "Thomas G" }
+  { id: "25332977", name: "Thomas G" },
 ];
 
 // Participants 2026 (tableau mutable, chargé depuis l'API)
@@ -588,23 +712,23 @@ export async function fetchWithTimeout(url, timeout = 10000) {
 
   // Ajouter cache-buster pour éviter le cache mobile
   const cacheBuster = Date.now();
-  const separator = url.includes('?') ? '&' : '?';
+  const separator = url.includes("?") ? "&" : "?";
   const urlWithCacheBuster = `${url}${separator}_=${cacheBuster}`;
 
   try {
     const response = await fetch(urlWithCacheBuster, {
       signal: controller.signal,
-      cache: 'no-store',
+      cache: "no-store",
       headers: {
-        'Cache-Control': 'no-cache'
-      }
+        "Cache-Control": "no-cache",
+      },
     });
     clearTimeout(timeoutId);
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error(`Timeout après ${timeout/1000}s`);
+    if (error.name === "AbortError") {
+      throw new Error(`Timeout après ${timeout / 1000}s`);
     }
     throw error;
   }
@@ -616,10 +740,12 @@ export async function loadParticipants() {
   }
 
   try {
-
     // Utiliser le même endpoint que l'admin : /api/athletes/versant-2026
     // Timeout de 8 secondes pour éviter blocage sur mobile
-    const response = await fetchWithTimeout(`/api/athletes/${CHALLENGE_CONFIG.leagueId}`, 8000);
+    const response = await fetchWithTimeout(
+      `/api/athletes/${CHALLENGE_CONFIG.leagueId}`,
+      8000,
+    );
 
     if (!response.ok) {
       throw new Error(`Erreur API: ${response.status}`);
@@ -630,28 +756,29 @@ export async function loadParticipants() {
     if (athletes && athletes.length > 0) {
       // Transformer le format API en format PARTICIPANTS
       // Inclure registered_at pour gérer les inscriptions tardives
-      const loadedParticipants = athletes.map(a => ({
+      const loadedParticipants = athletes.map((a) => ({
         id: String(a.id),
-        name: a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim(),
+        name: a.name || `${a.firstname || ""} ${a.lastname || ""}`.trim(),
         registeredAt: a.registered_at || a.registeredAt || null,
         // Exception d'entrée en jeu : round global à partir duquel il participe.
         // null = règle globale (il attend la saison suivante).
-        activeFromRound: a.active_from_round ?? a.activeFromRound ?? null
+        activeFromRound: a.active_from_round ?? a.activeFromRound ?? null,
       }));
 
       // Mettre à jour la liste globale
       PARTICIPANTS.length = 0;
       PARTICIPANTS.push(...loadedParticipants);
       invalidateRosterCache();
-
     } else {
-      console.warn('⚠️ Aucun participant dans athletes.json, tentative d\'extraction depuis les activités...');
+      console.warn(
+        "⚠️ Aucun participant dans athletes.json, tentative d'extraction depuis les activités...",
+      );
       await loadParticipantsFromActivities();
     }
 
     return PARTICIPANTS;
   } catch (error) {
-    console.error('❌ Erreur chargement participants:', error);
+    console.error("❌ Erreur chargement participants:", error);
     // Tenter de charger depuis les activités en cas d'erreur
     await loadParticipantsFromActivities();
     return PARTICIPANTS;
@@ -664,7 +791,10 @@ export async function loadParticipants() {
  */
 async function loadParticipantsFromActivities() {
   try {
-    const response = await fetchWithTimeout(`/api/activities/${CHALLENGE_CONFIG.leagueId}`, 10000);
+    const response = await fetchWithTimeout(
+      `/api/activities/${CHALLENGE_CONFIG.leagueId}`,
+      10000,
+    );
     if (!response.ok) return;
 
     const activities = await response.json();
@@ -677,14 +807,15 @@ async function loadParticipantsFromActivities() {
       const athleteId = String(activity.athlete?.id || activity.athlete_id);
       if (!athleteId || participantsMap.has(athleteId)) continue;
 
-      const name = activity.athlete_name ||
-                   (activity.athlete?.firstname && activity.athlete?.lastname
-                     ? `${activity.athlete.firstname} ${activity.athlete.lastname.charAt(0)}.`
-                     : `Athlète ${athleteId}`);
+      const name =
+        activity.athlete_name ||
+        (activity.athlete?.firstname && activity.athlete?.lastname
+          ? `${activity.athlete.firstname} ${activity.athlete.lastname.charAt(0)}.`
+          : `Athlète ${athleteId}`);
 
       participantsMap.set(athleteId, {
         id: athleteId,
-        name: name
+        name: name,
       });
     }
 
@@ -694,11 +825,12 @@ async function loadParticipantsFromActivities() {
       invalidateRosterCache();
     }
   } catch (error) {
-    console.error('❌ Erreur extraction participants depuis activités:', error);
+    console.error("❌ Erreur extraction participants depuis activités:", error);
   }
 }
 
-export const getParticipantById = (id) => PARTICIPANTS.find(p => p.id === String(id));
+export const getParticipantById = (id) =>
+  PARTICIPANTS.find((p) => p.id === String(id));
 
 // ============================================
 // UTILITAIRES DE DATE
@@ -740,7 +872,8 @@ let _frozenCache = null;
  * @param {number} seasonStartRound - premier round de la saison qui le contient
  */
 export function isParticipantInRound(p, globalRound, seasonStartRound) {
-  if (p.activeFromRound != null) return Number(globalRound) >= Number(p.activeFromRound);
+  if (p.activeFromRound != null)
+    return Number(globalRound) >= Number(p.activeFromRound);
   if (!p.registeredAt) return true; // participant historique
   return new Date(p.registeredAt) < getRoundDates(seasonStartRound).start;
 }
@@ -771,7 +904,9 @@ export function getSeasonRosterSize(seasonNumber, frozen = null) {
   if (cacheable && _rosterSizeCache.has(key)) return _rosterSizeCache.get(key);
 
   const startRound = getSeasonStartRound(seasonNumber, frozen);
-  const size = PARTICIPANTS.filter(p => isParticipantInRound(p, startRound, startRound)).length;
+  const size = PARTICIPANTS.filter((p) =>
+    isParticipantInRound(p, startRound, startRound),
+  ).length;
 
   if (cacheable) _rosterSizeCache.set(key, size);
   return size;
@@ -784,7 +919,9 @@ export function getSeasonRosterSize(seasonNumber, frozen = null) {
 export function getSeasonRoster(seasonNumber, frozen = null) {
   const startRound = getSeasonStartRound(seasonNumber, frozen);
   const endRound = startRound + getRoundsForSeason(seasonNumber, frozen) - 1;
-  return PARTICIPANTS.filter(p => isParticipantInRound(p, endRound, startRound));
+  return PARTICIPANTS.filter((p) =>
+    isParticipantInRound(p, endRound, startRound),
+  );
 }
 
 export function setFrozenCache(cache) {
@@ -807,21 +944,24 @@ function _getRealSeasonBounds(seasonNumber, frozen) {
   if (!data?.rounds) return null;
 
   const frozenRoundsOfSeason = Object.values(data.rounds)
-    .filter(r => r && Number(r.seasonNumber) === Number(seasonNumber) && r.frozen)
-    .map(r => Number(r.roundNumber))
+    .filter(
+      (r) => r && Number(r.seasonNumber) === Number(seasonNumber) && r.frozen,
+    )
+    .map((r) => Number(r.roundNumber))
     .sort((a, b) => a - b);
 
   if (frozenRoundsOfSeason.length === 0) return null;
 
   const startRound = frozenRoundsOfSeason[0];
   const lastFrozen = frozenRoundsOfSeason[frozenRoundsOfSeason.length - 1];
-  const isCompleted = !!data.eliminatedChallengeRankings?.[String(seasonNumber)];
+  const isCompleted =
+    !!data.eliminatedChallengeRankings?.[String(seasonNumber)];
 
   return {
     startRound,
     endRound: isCompleted ? lastFrozen : null, // null pour saison en cours
     roundsCount: isCompleted ? frozenRoundsOfSeason.length : null,
-    isCompleted
+    isCompleted,
   };
 }
 
@@ -848,7 +988,8 @@ export function getRoundsPerSeason(seasonNumber = null) {
 export function getRoundsForSeason(seasonNumber, frozen = null) {
   const key = `${seasonNumber}`;
   const cacheable = _cacheable(frozen);
-  if (cacheable && _roundsForSeasonCache.has(key)) return _roundsForSeasonCache.get(key);
+  if (cacheable && _roundsForSeasonCache.has(key))
+    return _roundsForSeasonCache.get(key);
 
   const value = _computeRoundsForSeason(seasonNumber, frozen);
   if (cacheable) _roundsForSeasonCache.set(key, value);
@@ -894,7 +1035,7 @@ function _computeRoundsForSeason(seasonNumber, frozen) {
 export function getSeasonRoundCount(
   totalParticipants,
   eliminationsPerRound = CHALLENGE_CONFIG.eliminationsPerRound,
-  finalistsCount = CHALLENGE_CONFIG.finalistsCount
+  finalistsCount = CHALLENGE_CONFIG.finalistsCount,
 ) {
   const toEliminate = Math.max(0, totalParticipants - finalistsCount);
   return Math.ceil(toEliminate / eliminationsPerRound) + 1;
@@ -963,8 +1104,8 @@ export function getSeasonNumber(date, frozenData = null) {
   // 1. DÉTECTION ROBUSTE : on prend la dernière saison figée + 1.
   if (data?.eliminatedChallengeRankings) {
     const frozenSeasonNumbers = Object.keys(data.eliminatedChallengeRankings)
-      .map(k => Number(k))
-      .filter(n => !isNaN(n))
+      .map((k) => Number(k))
+      .filter((n) => !isNaN(n))
       .sort((a, b) => b - a);
     if (frozenSeasonNumbers.length > 0) {
       return frozenSeasonNumbers[0] + 1;
@@ -977,7 +1118,8 @@ export function getSeasonNumber(date, frozenData = null) {
   let accumulated = 0;
   let s = 1;
   while (s <= 20) {
-    const seasonDays = getRoundsForSeason(s, data) * CHALLENGE_CONFIG.roundDurationDays;
+    const seasonDays =
+      getRoundsForSeason(s, data) * CHALLENGE_CONFIG.roundDurationDays;
     if (accumulated + seasonDays > days) return s;
     accumulated += seasonDays;
     s++;
@@ -988,7 +1130,9 @@ export function getSeasonNumber(date, frozenData = null) {
 export function getSeasonDates(seasonNumber, frozen = null) {
   const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
   const startDay = getSeasonStartDay(seasonNumber, frozen);
-  const duration = getRoundsForSeason(seasonNumber, frozen) * CHALLENGE_CONFIG.roundDurationDays;
+  const duration =
+    getRoundsForSeason(seasonNumber, frozen) *
+    CHALLENGE_CONFIG.roundDurationDays;
 
   const start = new Date(yearStart);
   start.setDate(start.getDate() + startDay);
@@ -998,7 +1142,7 @@ export function getSeasonDates(seasonNumber, frozen = null) {
   const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate);
   return {
     start,
-    end: end > yearEnd ? yearEnd : end
+    end: end > yearEnd ? yearEnd : end,
   };
 }
 
@@ -1007,7 +1151,9 @@ export function getSeasonDates(seasonNumber, frozen = null) {
 // trou 00h-01h entre deux rounds. On parse donc les composantes Y/M/D en local,
 // à l'identique du backend (shared-config.getRoundDates).
 function challengeStartLocalMidnight() {
-  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate).split('-').map(Number);
+  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate)
+    .split("-")
+    .map(Number);
   return new Date(y, m - 1, d);
 }
 
@@ -1026,7 +1172,10 @@ export function getRoundInSeason(date, frozen = null) {
 
 export function getRoundDates(globalRoundNumber) {
   const start = challengeStartLocalMidnight();
-  start.setDate(start.getDate() + (globalRoundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays);
+  start.setDate(
+    start.getDate() +
+      (globalRoundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays,
+  );
   const end = new Date(start);
   end.setDate(end.getDate() + CHALLENGE_CONFIG.roundDurationDays - 1);
   end.setHours(23, 59, 59, 999);
@@ -1063,19 +1212,19 @@ let roundConfigsRaw = {};
  */
 export async function loadSpecialRulesOverrides() {
   try {
-    const response = await fetchWithTimeout('/api/round-configs', 5000);
+    const response = await fetchWithTimeout("/api/round-configs", 5000);
     if (response.ok) {
       const roundConfigs = await response.json();
       roundConfigsRaw = roundConfigs;
       specialRulesOverrides = {};
       for (const [roundNumber, config] of Object.entries(roundConfigs)) {
-        if (config?.specialRule && config.specialRule !== 'standard') {
+        if (config?.specialRule && config.specialRule !== "standard") {
           specialRulesOverrides[roundNumber] = config.specialRule;
         }
       }
     }
   } catch (e) {
-    console.warn('⚠️ Impossible de charger les règles spéciales:', e);
+    console.warn("⚠️ Impossible de charger les règles spéciales:", e);
   }
 }
 
@@ -1107,7 +1256,7 @@ export function generateRoundsSchedule() {
 
     for (let r = 1; r <= roundsThisSeason; r++) {
       // La règle est "standard" par défaut, les overrides sont appliqués dynamiquement via getSpecialRuleForRound()
-      let rule = 'standard';
+      let rule = "standard";
 
       // Appliquer l'override si défini manuellement par l'admin
       const override = specialRulesOverrides[String(globalRound)];
@@ -1118,10 +1267,10 @@ export function generateRoundsSchedule() {
       schedule.push({
         number: globalRound,
         season: s,
-        seasonType: seasonType?.id || 'standard',
+        seasonType: seasonType?.id || "standard",
         roundInSeason: r,
         rule,
-        dates: getRoundDates(globalRound)
+        dates: getRoundDates(globalRound),
       });
       globalRound++;
     }
@@ -1147,7 +1296,12 @@ export function getRoundInfo(globalRoundNumber) {
 // sur les pages qui forment des équipes (index, demo, stats, dashboard). Le
 // backend consomme le même fichier via require, garantissant des équipes
 // identiques pour un même seed. Ne PAS réintroduire d'implémentation ici.
-export const formBalancedTeams = (athletes, pointsMap, seed = 0, teamSize = 3) =>
+export const formBalancedTeams = (
+  athletes,
+  pointsMap,
+  seed = 0,
+  teamSize = 3,
+) =>
   window.TeamFormation.formBalancedTeams(athletes, pointsMap, seed, teamSize);
 
 /**
@@ -1156,12 +1310,12 @@ export const formBalancedTeams = (athletes, pointsMap, seed = 0, teamSize = 3) =
  * y compris sur les pages qui n'incluent pas team-formation.js.
  */
 export const TEAM_COLORS = [
-  { bg: 'rgba(249, 115, 22, 0.15)', border: '#f97316', name: 'Orange' },
-  { bg: 'rgba(34, 211, 238, 0.15)', border: '#22d3ee', name: 'Cyan' },
-  { bg: 'rgba(168, 85, 247, 0.15)', border: '#a855f7', name: 'Violet' },
-  { bg: 'rgba(16, 185, 129, 0.15)', border: '#10b981', name: 'Vert' },
-  { bg: 'rgba(244, 63, 94, 0.15)', border: '#f43f5e', name: 'Rose' },
-  { bg: 'rgba(234, 179, 8, 0.15)', border: '#eab308', name: 'Or' }
+  { bg: "rgba(249, 115, 22, 0.15)", border: "#f97316", name: "Orange" },
+  { bg: "rgba(34, 211, 238, 0.15)", border: "#22d3ee", name: "Cyan" },
+  { bg: "rgba(168, 85, 247, 0.15)", border: "#a855f7", name: "Violet" },
+  { bg: "rgba(16, 185, 129, 0.15)", border: "#10b981", name: "Vert" },
+  { bg: "rgba(244, 63, 94, 0.15)", border: "#f43f5e", name: "Rose" },
+  { bg: "rgba(234, 179, 8, 0.15)", border: "#eab308", name: "Or" },
 ];
 
 // ============================================
@@ -1178,10 +1332,10 @@ export function wasRegisteredBeforeStart(participant) {
     // Si pas de date d'inscription, on considère qu'il était là au début
     return true;
   }
-  
+
   const registrationDate = new Date(participant.registeredAt);
   const challengeStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-  
+
   return registrationDate < challengeStart;
 }
 
@@ -1190,7 +1344,7 @@ export function wasRegisteredBeforeStart(participant) {
  * (ceux inscrits AVANT le début du challenge)
  */
 export function getEligibleParticipants() {
-  return PARTICIPANTS.filter(p => wasRegisteredBeforeStart(p));
+  return PARTICIPANTS.filter((p) => wasRegisteredBeforeStart(p));
 }
 
 /**
@@ -1198,22 +1352,42 @@ export function getEligibleParticipants() {
  * (directement dans le challenge des éliminés)
  */
 export function getLateRegistrations() {
-  return PARTICIPANTS.filter(p => !wasRegisteredBeforeStart(p));
+  return PARTICIPANTS.filter((p) => !wasRegisteredBeforeStart(p));
 }
 
 // ============================================
 // COULEURS ET VISUELS DES ATHLÈTES
 // ============================================
-export const ATHLETE_COLORS = ['#f97316', '#22d3ee', '#a855f7', '#10b981', '#f43f5e', '#eab308', '#3b82f6', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
+export const ATHLETE_COLORS = [
+  "#f97316",
+  "#22d3ee",
+  "#a855f7",
+  "#10b981",
+  "#f43f5e",
+  "#eab308",
+  "#3b82f6",
+  "#ec4899",
+  "#14b8a6",
+  "#f59e0b",
+  "#8b5cf6",
+  "#06b6d4",
+  "#84cc16",
+];
 
 const colorMap = {};
 export function getAthleteColor(id) {
-  return colorMap[id] || (colorMap[id] = ATHLETE_COLORS[Object.keys(colorMap).length % ATHLETE_COLORS.length]);
+  return (
+    colorMap[id] ||
+    (colorMap[id] =
+      ATHLETE_COLORS[Object.keys(colorMap).length % ATHLETE_COLORS.length])
+  );
 }
 
 export function getAthleteInitials(id) {
   const p = getParticipantById(id);
-  if (!p) return '?';
-  const n = p.name.split(' ');
-  return n.length >= 2 ? n[0][0] + n[1][0] : p.name.substring(0, 2).toUpperCase();
+  if (!p) return "?";
+  const n = p.name.split(" ");
+  return n.length >= 2
+    ? n[0][0] + n[1][0]
+    : p.name.substring(0, 2).toUpperCase();
 }
