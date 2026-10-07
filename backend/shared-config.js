@@ -109,7 +109,7 @@ const getEliminatedPoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? 0;
 // Barème calibré sur les rounds 1→48 de 2026 (~60 % de rounds neutres).
 // ⚠️ Garder synchronisé avec public/js/config.js (ELEVATION_GAUGE).
 const ELEVATION_GAUGE = {
-  startRound: 50,
+  startRound: 52,
   // Objectif de D+ MOYEN par joueur, selon le nombre de joueurs en lice
   // (arrondi de la courbe 5 700 × n^-0,6 ajustée sur l'historique)
   objectivePerPlayer: [
