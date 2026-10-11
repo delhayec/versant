@@ -339,6 +339,21 @@ function checkAdmin(req, res) {
   return true;
 }
 
+// Admin: Télécharger jokers_usage.json (format tableau, importable directement).
+// Déclaré AVANT le router jokers : sa route /admin/jokers/:leagueId capturerait
+// sinon « download » comme identifiant de ligue.
+app.get('/api/admin/jokers/download', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = await fs.readFile(JOKERS_FILE, 'utf8');
+    res.setHeader('Content-Disposition', 'attachment; filename=jokers_usage.json');
+    res.setHeader('Content-Type', 'application/json');
+    res.send(data);
+  } catch {
+    res.status(404).json({ error: 'Fichier non trouvé' });
+  }
+});
+
 // Monter le router jokers
 const jokersRouter = createJokersRoutes({
   ATHLETES_FILE,
@@ -500,6 +515,22 @@ app.delete('/api/admin/round-configs/:roundNumber', async (req, res) => {
   } catch (error) {
     console.error('Erreur round-configs DELETE:', error);
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/admin/season-plan - Plan de la saison en cours (visualisateur admin)
+// Calculé par le moteur de gel : rounds figés tels quels, suivants projetés.
+app.get('/api/admin/season-plan', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const leagueId = req.query.leagueId || 'versant-2026';
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const plan = await frozenResults.getSeasonPlan(leagueAthletes, CHALLENGE_CONFIG);
+    res.json(plan);
+  } catch (error) {
+    console.error('Erreur season-plan:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1026,19 +1057,6 @@ app.get('/api/admin/jokers', async (req, res) => {
   }
 });
 
-// Admin: Télécharger jokers_usage.json (format tableau, importable directement)
-app.get('/api/admin/jokers/download', async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  try {
-    const data = await fs.readFile(JOKERS_FILE, 'utf8');
-    res.setHeader('Content-Disposition', 'attachment; filename=jokers_usage.json');
-    res.setHeader('Content-Type', 'application/json');
-    res.send(data);
-  } catch {
-    res.status(404).json({ error: 'Fichier non trouvé' });
-  }
-});
-
 // ============================================
 // ACTIVITIES ROUTES
 // ============================================
@@ -1314,6 +1332,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
 }
 
 app.post('/api/sync/:leagueId', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
   try {
     const start = req.body.startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const end = req.body.endDate || new Date().toISOString().split('T')[0];
@@ -1969,6 +1988,32 @@ app.post('/api/standings/snapshot', async (req, res) => {
     res.json({ success: true, count: compact.length });
   } catch (error) {
     console.error('Erreur standings snapshot:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Admin: Export du classement annuel. Les points sont calculés par le moteur
+// frontend (standings-engine) et poussés dans yearlyStandingsSnapshot à chaque
+// affichage du classement : on exporte ce snapshot plutôt que de recalculer.
+app.get('/api/admin/ranking/:leagueId/export', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const snapshot = data?.yearlyStandingsSnapshot;
+    if (!snapshot?.standings?.length) {
+      return res.status(404).json({ error: 'Aucun classement disponible (ouvrez la page principale pour le générer)' });
+    }
+    const date = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=classement-${req.params.leagueId}-${date}.json`);
+    res.send(JSON.stringify({
+      league_id: req.params.leagueId,
+      generated_at: new Date().toISOString(),
+      snapshot_updated_at: snapshot.updatedAt,
+      ranking: snapshot.standings
+    }, null, 2));
+  } catch (error) {
+    console.error('Erreur export classement:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

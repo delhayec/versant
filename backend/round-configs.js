@@ -51,6 +51,11 @@ async function saveRoundConfig(roundNumber, config) {
     if (typeof config.type === 'string' && VALID_TYPES.includes(config.type)) {
       validated.type = config.type;
     }
+    // Le moteur (backend et frontend) ne lit que nbEliminations : un round
+    // « sans élimination » doit donc le porter explicitement à 0.
+    if (validated.type === 'no_eliminations') {
+      validated.nbEliminations = 0;
+    }
     if (typeof config.specialRule === 'string') {
       if (!VALID_SPECIAL_RULES.includes(config.specialRule)) {
         throw new Error('Règle spéciale inconnue: ' + config.specialRule);

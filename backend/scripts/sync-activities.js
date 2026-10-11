@@ -6,6 +6,7 @@
  */
 
 const axios = require('axios');
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const API_BASE = process.env.API_BASE || 'http://localhost:3000/api';
 
@@ -19,7 +20,9 @@ async function syncActivities(leagueId, startDate, endDate) {
       {
         startDate,
         endDate
-      }
+      },
+      // Route réservée à l'admin
+      { headers: { 'X-Admin-Password': process.env.ADMIN_PASSWORD || '' } }
     );
     
     const { activities_count, athletes_count, errors } = response.data;

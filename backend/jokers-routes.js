@@ -314,10 +314,54 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
       const leagueAthleteIds = new Set(leagueAthletes.map(a => String(a.id)));
       const remaining = jokerUsage.filter(u => !leagueAthleteIds.has(String(u.athlete_id)));
 
-      await fs.writeFile(JOKERS_FILE, JSON.stringify(remaining, null, 2));
-      console.log(`🃏 Admin: Reset jokers pour ${leagueAthletes.length} athlètes (${jokerUsage.length - remaining.length} usages supprimés)`);
+      // Les usages figés (frozen_results.json) ne peuvent pas être supprimés et
+      // continuent de décompter le stock : on les compense par des admin_refund
+      // pour que chacun reparte réellement au stock initial.
+      // Lus directement (et non via readMergedJokerUsage, qui écarte les usages
+      // figés déjà présents dans jokers_usage.json — entrées qu'on vient de retirer).
+      let frozenUses = [];
+      try {
+        const frozenData = JSON.parse(await fs.readFile(FROZEN_FILE, 'utf8'));
+        // Dédoublonnés par athlète + joker + round, comme dans readMergedJokerUsage
+        const seen = new Set();
+        for (const [roundKey, roundData] of Object.entries(frozenData?.rounds || {})) {
+          for (const j of roundData?.jokersUsed || []) {
+            const key = `${j.athleteId}|${j.jokerId}|${roundKey}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            frozenUses.push(j);
+          }
+        }
+      } catch (e) {
+        // frozen_results.json absent : rien à compenser
+      }
+      const now = new Date().toISOString();
+      let refundsAdded = 0;
+      for (const frozenUse of frozenUses) {
+        const athleteId = String(frozenUse.athleteId);
+        if (!leagueAthleteIds.has(athleteId) || !JOKER_CONFIG[frozenUse.jokerId]) continue;
+        remaining.push({
+          id: `admin-refund-${athleteId}-${frozenUse.jokerId}-${Date.now()}-${refundsAdded}`,
+          athlete_id: athleteId,
+          athlete_name: frozenUse.athleteName || 'Inconnu',
+          joker_id: frozenUse.jokerId,
+          joker_name: JOKER_CONFIG[frozenUse.jokerId].name,
+          target_athlete_id: null,
+          target_athlete_name: null,
+          round_number: 0,
+          used_at: now,
+          status: 'admin_refund',
+          resolved: true,
+          result: 'Remboursement admin (reset général)'
+        });
+        refundsAdded++;
+      }
 
-      res.json({ success: true, count: leagueAthletes.length, usagesRemoved: jokerUsage.length - remaining.length });
+      await fs.writeFile(JOKERS_FILE, JSON.stringify(remaining, null, 2));
+      const usagesRemoved = jokerUsage.filter(u => leagueAthleteIds.has(String(u.athlete_id))).length;
+      console.log(`🃏 Admin: Reset jokers pour ${leagueAthletes.length} athlètes (${usagesRemoved} entrées supprimées, ${refundsAdded} usages figés compensés)`);
+
+      res.json({ success: true, count: leagueAthletes.length, usagesRemoved, refundsAdded });
     } catch (error) {
       console.error('Erreur reset jokers:', error);
       res.status(500).json({ error: 'Erreur serveur' });

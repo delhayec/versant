@@ -26,7 +26,7 @@ const {
   ELEVATION_GAUGE, getGaugeObjectivePerPlayer, getGaugeTier,
   BONUS_IDS,
   getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
-  isTeamSeason, getSeasonType, getTeamEliminatedPoints
+  isTeamSeason, getSeasonType, getTeamEliminatedPoints, getRoundsForTeamSeason
 } = require('./shared-config');
 
 // Import de la fonction d'application des bonus
@@ -1219,6 +1219,10 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     } else {
       toEliminate = eligibleForElimination.slice(1);
     }
+  } else if (eliminationsForThisRound <= 0) {
+    // Round sans élimination (config admin nbEliminations: 0 ou type
+    // no_eliminations). Garde-fou : slice(-0) renverrait TOUT le classement.
+    toEliminate = [];
   } else if (useNewRules && zeroElevationPlayers.length >= 2 && zeroElevationPlayers.length >= eliminationsForThisRound) {
     // Si le nombre de joueurs à 0 D+ dépasse le nombre d'éliminations prévues → tous éliminés
     toEliminate = zeroElevationPlayers;
@@ -2353,8 +2357,128 @@ async function unfreezeEliminatedChallengeForSeason(seasonNumber) {
   return false;
 }
 
+// ============================================
+// PLAN DE LA SAISON EN COURS (visualisateur admin)
+// ============================================
+
+/**
+ * Plan de la saison en cours, construit avec les MÊMES primitives que le gel
+ * (detectSeasonContext, roster de dimensionnement, getSeasonRoundCount, config
+ * admin du round, override des règles spéciales). Les rounds figés sont lus tels
+ * quels ; les suivants sont projetés jusqu'à la finale.
+ *
+ * La projection est un minimum : la règle « ≥2 joueurs à 0 D+ → tous éliminés »
+ * peut éliminer davantage, ce qui n'est connu qu'au gel.
+ */
+async function getSeasonPlan(athletes, config, now = new Date()) {
+  const data = await loadFrozenResults();
+  const rounds = data.rounds || {};
+  const configs = await roundConfigs.loadRoundConfigs();
+
+  const frozenNumbers = Object.keys(rounds)
+    .filter(k => rounds[k]?.frozen)
+    .map(Number)
+    .filter(n => !isNaN(n));
+  const nextRound = (frozenNumbers.length ? Math.max(...frozenNumbers) : 0) + 1;
+
+  // Saison du prochain round à figer = saison en cours (une saison close par
+  // une finale fait démarrer la suivante dès le round d'après).
+  const { seasonNumber } = detectSeasonContext(nextRound, rounds);
+  const startRound = getSeasonStartRoundFromFrozen(seasonNumber, nextRound, rounds);
+  const teamSeason = isTeamSeason(seasonNumber);
+  const teamSize = getSeasonType(seasonNumber)?.teamSize || 3;
+
+  const totalParticipants = getSeasonSizingRoster(athletes, startRound, config).length;
+  const roundsPerSeason = teamSeason
+    ? getRoundsForTeamSeason(totalParticipants, teamSize)
+    : getSeasonRoundCount(totalParticipants, config.eliminationsPerRound, config.finalistsCount);
+
+  const plan = [];
+  let eliminatedSoFar = 0;
+
+  for (let r = startRound; r < startRound + 40; r++) {
+    const roundInSeason = r - startRound + 1;
+    const { start, end } = getRoundDates(r, config);
+    const cfg = configs[String(r)] || null;
+    const frozenRound = rounds[String(r)];
+    const isFrozen = !!frozenRound?.frozen && Number(frozenRound.seasonNumber) === Number(seasonNumber);
+
+    let status;
+    if (isFrozen) status = 'frozen';
+    else if (now > end) status = 'pending_freeze';
+    else if (now >= start) status = 'ongoing';
+    else status = 'upcoming';
+
+    let entry;
+    if (isFrozen) {
+      const activeAtStart = frozenRound.activeParticipants?.length ?? frozenRound.ranking?.length ?? 0;
+      const eliminations = frozenRound.eliminations?.length || 0;
+      eliminatedSoFar += eliminations;
+      entry = {
+        roundNumber: r, roundInSeason, start, end, status,
+        activeAtStart, eliminations,
+        isFinale: !!frozenRound.isFinalePrincipale,
+        eliminationSource: 'frozen',
+        specialRule: frozenRound.specialRule?.id || frozenRound.specialRule || null,
+        seasonEnds: (activeAtStart - eliminations) <= 1
+          || frozenRound.teamFinalRound === true
+          || frozenRound.configForcedFinale === true
+      };
+    } else {
+      const activeAtStart = Math.max(0, getRoundRoster(athletes, r, startRound, config).length - eliminatedSoFar);
+      const ruleOverride = ROUND_RULES_BACKEND[cfg?.specialRule]?.parameters?.eliminationsOverride;
+      const isFinale = cfg?.type === 'finale' || roundInSeason === roundsPerSeason;
+
+      let eliminations, eliminationSource;
+      if (teamSeason) {
+        eliminations = isFinale ? activeAtStart : Math.min(teamSize, activeAtStart);
+        eliminationSource = 'team';
+      } else if (isFinale) {
+        eliminations = cfg?.nbEliminations === 0 ? 0 : Math.max(0, activeAtStart - 1);
+        eliminationSource = 'finale';
+      } else if (cfg?.nbEliminations !== undefined) {
+        eliminations = cfg.nbEliminations;
+        eliminationSource = 'admin';
+      } else if (ruleOverride !== undefined) {
+        eliminations = ruleOverride;
+        eliminationSource = 'rule';
+      } else {
+        eliminations = config.eliminationsPerRound;
+        eliminationSource = 'default';
+      }
+      eliminations = Math.min(eliminations, activeAtStart);
+      eliminatedSoFar += eliminations;
+
+      entry = {
+        roundNumber: r, roundInSeason, start, end, status,
+        activeAtStart, eliminations, isFinale, eliminationSource,
+        specialRule: cfg?.specialRule || null,
+        seasonEnds: isFinale || (activeAtStart - eliminations) <= 1
+      };
+    }
+
+    entry.config = cfg;
+    plan.push(entry);
+    if (entry.seasonEnds) break;
+  }
+
+  return {
+    seasonNumber,
+    seasonType: teamSeason ? 'team' : 'standard',
+    startRound,
+    endRound: plan.length ? plan[plan.length - 1].roundNumber : startRound,
+    nextRound,
+    totalParticipants,
+    roundsPerSeason,
+    finalistsCount: config.finalistsCount,
+    eliminationsPerRound: config.eliminationsPerRound,
+    rounds: plan
+  };
+}
+
 module.exports = {
   computeElevationGauge,
+  getSeasonPlan,
   getAllFrozenResults,
   getFrozenRoundResult,
   freezeRoundResults,

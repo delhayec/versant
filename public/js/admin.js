@@ -2,7 +2,73 @@ const API_BASE = '/api';
 const LEAGUE_ID = 'versant-2026';
 let adminPassword = null;
 let allActivities = [];
-let athletesCache = {}; // Cache pour résoudre les noms d'athlètes
+let athletesCache = {}; // id -> athlète, pour résoudre les noms
+
+// ============================================
+// UTILITAIRES
+// ============================================
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleDateString('fr-FR') : '-';
+}
+
+/**
+ * fetch vers l'API avec le mot de passe admin. Un 401 signifie que le mot de
+ * passe stocké n'est plus valide : on renvoie vers l'écran de connexion.
+ */
+async function adminFetch(path, options = {}) {
+  const headers = { 'X-Admin-Password': adminPassword, ...(options.headers || {}) };
+  if (options.body && typeof options.body !== 'string') {
+    headers['Content-Type'] = 'application/json';
+    options = { ...options, body: JSON.stringify(options.body) };
+  }
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (response.status === 401) {
+    logout();
+    throw new Error('Session admin expirée, reconnectez-vous');
+  }
+  return response;
+}
+
+/** Comme adminFetch, mais renvoie le JSON et lève l'erreur renvoyée par le serveur. */
+async function adminJson(path, options) {
+  const response = await adminFetch(path, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Erreur ${response.status}`);
+  return data;
+}
+
+async function downloadFrom(path, filename) {
+  const response = await adminFetch(path);
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Erreur téléchargement');
+  }
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function addLog(message) {
+  const container = document.getElementById('logsContainer');
+  if (container.dataset.empty !== 'false') {
+    container.innerHTML = '';
+    container.dataset.empty = 'false';
+  }
+  const time = new Date().toLocaleTimeString('fr-FR');
+  const entry = document.createElement('div');
+  entry.innerHTML = `<span class="muted">[${time}]</span> ${escapeHtml(message)}`;
+  container.insertBefore(entry, container.firstChild);
+}
 
 // ============================================
 // AUTHENTIFICATION
@@ -11,22 +77,15 @@ function checkAuth() {
   const stored = localStorage.getItem('versant_admin_password');
   if (stored) {
     try {
-      // Essayer de d\u00e9coder en base64 (nouveau format)
       adminPassword = atob(stored);
     } catch (e) {
-      // Si \u00e7a plante, c'est l'ancien format (clair) - on migre
+      // Ancien format (en clair) : migration
       adminPassword = stored;
       localStorage.setItem('versant_admin_password', btoa(stored));
     }
-  } else {
-    adminPassword = null;
   }
-
-  if (adminPassword) {
-    showDashboard();
-  } else {
-    showLogin();
-  }
+  if (adminPassword) showDashboard();
+  else showLogin();
 }
 
 function showLogin() {
@@ -34,69 +93,28 @@ function showLogin() {
   document.getElementById('adminDashboard').style.display = 'none';
 }
 
-// Charger les athlètes pour le dropdown reset password
-async function loadAthletesForReset() {
-  try {
-    const response = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
-    if (!response.ok) throw new Error('Erreur chargement');
-
-    const athletes = await response.json();
-    const select = document.getElementById('resetPasswordAthlete');
-
-    if (!select) return;
-
-    select.innerHTML = '<option value="">-- Choisir un athlète --</option>';
-    athletes.forEach(athlete => {
-      const option = document.createElement('option');
-      option.value = athlete.id;
-      option.textContent = `${athlete.name} (${athlete.email || 'pas d\'email'})`;
-      select.appendChild(option);
-    });
-
-    console.log(`✅ ${athletes.length} athlètes chargés pour reset password`);
-  } catch (error) {
-    console.error('Erreur chargement athlètes pour reset:', error);
-  }
-}
-
 function showDashboard() {
   document.getElementById('loginSection').style.display = 'none';
   document.getElementById('adminDashboard').style.display = 'block';
+
+  const today = new Date();
+  const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
+  document.getElementById('syncEndDate').value = today.toISOString().split('T')[0];
+  document.getElementById('syncStartDate').value = weekAgo.toISOString().split('T')[0];
+
   loadDashboardData();
-  checkWebhookStatus(); // Vérifier le statut du webhook
-  loadAthletesForReset(); // Charger la liste pour le reset password
 }
 
-// Fonction pour vérifier le statut du webhook
-async function checkWebhookStatus() {
-  const status = document.getElementById('webhookStatus');
-  status.innerHTML = `Statut: <span style="color: #fbbf24;">⏳ Vérification...</span>`;
-
-  try {
-    const response = await fetch(`${API_BASE}/admin/strava/subscribe/status`, {
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      if (data.active) {
-        status.innerHTML = `Statut: <span style="color: #10b981;">✅ Actif</span> (ID: ${data.subscription?.id || 'N/A'})`;
-        addLog(`📡 Webhook Strava actif (ID: ${data.subscription?.id})`);
-      } else {
-        status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Inactif</span> - Cliquez sur Activer`;
-      }
-    } else {
-      status.innerHTML = `Statut: <span style="color: #fbbf24;">⚠️ Erreur vérification</span>`;
-    }
-  } catch (error) {
-    status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Erreur réseau</span>`;
-  }
+function logout() {
+  localStorage.removeItem('versant_admin_password');
+  adminPassword = null;
+  showLogin();
 }
 
 document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const password = document.getElementById('adminPassword').value;
+  const errorBox = document.getElementById('loginError');
 
   try {
     const response = await fetch(`${API_BASE}/admin/login`, {
@@ -104,314 +122,266 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
     });
+    if (!response.ok) throw new Error('Mot de passe incorrect');
 
-    if (!response.ok) {
-      throw new Error('Mot de passe incorrect');
-    }
-
-adminPassword = password;
-    // Stocker en base64 (obfuscation, pas s\u00e9curit\u00e9 forte) pour \u00e9viter
-    // l'affichage en clair dans le devtools localStorage.
+    adminPassword = password;
+    // base64 = simple obfuscation dans le localStorage, pas une protection
     localStorage.setItem('versant_admin_password', btoa(password));
+    errorBox.style.display = 'none';
     showDashboard();
     addLog('✅ Connexion admin réussie');
-
   } catch (error) {
-    document.getElementById('loginError').textContent = error.message;
-    document.getElementById('loginError').style.display = 'block';
+    errorBox.textContent = error.message;
+    errorBox.style.display = 'block';
   }
 });
 
 document.getElementById('logoutBtn').addEventListener('click', (e) => {
   e.preventDefault();
-  localStorage.removeItem('versant_admin_password');
-  adminPassword = null;
-  showLogin();
+  logout();
 });
 
 // ============================================
-// CHARGEMENT DES DONNÉES
+// CHARGEMENT GLOBAL
 // ============================================
 async function loadDashboardData() {
   try {
-    // Charger les athlètes
-    const athletesRes = await fetch(`${API_BASE}/athletes/${LEAGUE_ID}`);
+    const [athletesRes, activitiesRes] = await Promise.all([
+      fetch(`${API_BASE}/athletes/${LEAGUE_ID}`),
+      fetch(`${API_BASE}/activities/${LEAGUE_ID}`)
+    ]);
     const athletes = await athletesRes.json();
-
-    // Créer le cache des athlètes (id -> objet complet)
-    athletesCache = {};
-    athletes.forEach(a => {
-      athletesCache[a.id] = a;
-    });
-
-    // Charger les activités
-    const activitiesRes = await fetch(`${API_BASE}/activities/${LEAGUE_ID}`);
     allActivities = await activitiesRes.json();
 
-    // Compter les exclues
-    const excludedCount = allActivities.filter(a => a.excluded).length;
+    athletesCache = {};
+    athletes.forEach(a => { athletesCache[String(a.id)] = a; });
 
-    // Mettre à jour les stats
     document.getElementById('statAthletes').textContent = athletes.length;
     document.getElementById('statActivities').textContent = allActivities.length;
-    document.getElementById('statExcluded').textContent = excludedCount;
+    updateExcludedCount();
 
-    // Afficher les listes
     renderAthletesList(athletes);
+    renderResetPasswordOptions(athletes);
     renderActivitiesList();
 
-    // Charger les données des jokers
-    loadJokersData();
-
-    // Charger le statut des résultats figés
-    loadFrozenStatus();
-
-    // Définir les dates par défaut pour la sync
-    const today = new Date();
-    const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
-    document.getElementById('syncEndDate').value = today.toISOString().split('T')[0];
-    document.getElementById('syncStartDate').value = weekAgo.toISOString().split('T')[0];
-
-    addLog(`📊 Données chargées: ${athletes.length} athlètes, ${allActivities.length} activités (${excludedCount} exclues)`);
-
+    addLog(`📊 ${athletes.length} athlètes, ${allActivities.length} activités`);
   } catch (error) {
     console.error('Erreur chargement:', error);
-    addLog(`❌ Erreur: ${error.message}`);
+    addLog(`❌ Erreur chargement: ${error.message}`);
   }
+
+  loadSeasonVisualizer();
+  loadFrozenStatus();
+  loadJokersData();
 }
 
-// Fonction pour obtenir le nom d'un athlète (pour les activités)
-function getAthleteName(activity) {
-  // Priorité: athlete_name dans l'activité, sinon chercher dans le cache
-  if (activity.athlete_name) return activity.athlete_name;
-  if (activity.athlete_id && athletesCache[activity.athlete_id]) {
-    const a = athletesCache[activity.athlete_id];
-    return a.name || `${a.firstname || ''} ${a.lastname || ''}`.trim() || `#${activity.athlete_id}`;
-  }
-  return 'Inconnu';
-}
-
-// Fonction pour obtenir le nom court d'un athlète par ID (pour les jokers)
-function getAthleteShortName(id) {
-  if (athletesCache[id]) {
-    const a = athletesCache[id];
-    if (a.firstname && a.lastname) {
-      return `${a.firstname} ${a.lastname.charAt(0)}.`;
-    }
-    return a.name || `#${id}`;
-  }
-  return `#${id}`;
-}
-
-function renderAthletesList(athletes) {
-  const container = document.getElementById('athletesList');
-
-  if (athletes.length === 0) {
-    container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun athlète inscrit</p>';
-    return;
-  }
-
-  container.innerHTML = `
-    <table style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-          <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Nom</th>
-          <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Email</th>
-          <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">ID Strava</th>
-          <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Inscrit le</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${athletes.map(a => `
-          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <td style="padding: 12px 8px; font-weight: 500;">${a.name}</td>
-            <td style="padding: 12px 8px; color: rgba(255,255,255,0.7);">${a.email || '-'}</td>
-            <td style="padding: 12px 8px; font-family: 'Space Mono', monospace; font-size: 13px;">${a.id}</td>
-            <td style="padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">${new Date(a.registered_at).toLocaleDateString('fr-FR')}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
+function updateExcludedCount() {
+  document.getElementById('statExcluded').textContent = allActivities.filter(a => a.excluded).length;
 }
 
 // ============================================
-// GESTION DES ACTIVITÉS
+// SAISON EN COURS
 // ============================================
-function renderActivitiesList() {
-  const container = document.getElementById('activitiesList');
-  const search = document.getElementById('activitySearch').value.toLowerCase();
-  const filter = document.getElementById('activityFilter').value;
+const RULE_LABELS = {
+  standard: 'Standard',
+  handicap: 'Handicap',
+  no_bonus: 'Sans bonus (D+ pur)',
+  pluie_qui_mouille: 'La pluie qui mouille (D+ ×1,5 sous la pluie)'
+};
 
-  let filtered = allActivities;
+const ROUND_TYPE_LABELS = {
+  standard: 'Standard',
+  finale: 'Finale',
+  no_eliminations: 'Sans élimination'
+};
 
-  // Filtrer par recherche
-  if (search) {
-    filtered = filtered.filter(a =>
-      a.name?.toLowerCase().includes(search) ||
-      a.athlete_name?.toLowerCase().includes(search)
-    );
-  }
+const STATUS_LABELS = {
+  frozen: '<span class="ok">❄️ Figé</span>',
+  pending_freeze: '<span class="err">⚠️ Terminé, à figer</span>',
+  ongoing: '<span class="warn">⏳ En cours</span>',
+  upcoming: '<span class="muted">📅 À venir</span>'
+};
 
-  // Filtrer par statut
-  if (filter === 'active') {
-    filtered = filtered.filter(a => !a.excluded);
-  } else if (filter === 'excluded') {
-    filtered = filtered.filter(a => a.excluded);
-  }
+const ELIM_SOURCE_LABELS = {
+  default: 'défaut',
+  rule: 'règle spéciale',
+  admin: 'config admin',
+  finale: 'finale',
+  team: 'équipe',
+  frozen: ''
+};
 
-  // Trier par date (plus récent en premier)
-  filtered.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
-
-  if (filtered.length === 0) {
-    container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucune activité trouvée</p>';
-    return;
-  }
-
-  container.innerHTML = `
-    <table style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-          <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Date</th>
-          <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Athlète</th>
-          <th style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Activité</th>
-          <th style="text-align: right; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Distance</th>
-          <th style="text-align: right; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">D+</th>
-          <th style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Statut</th>
-          <th style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.6); font-size: 13px;">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${filtered.slice(0, 100).map(a => `
-          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${a.excluded ? 'opacity: 0.5;' : ''}">
-            <td style="padding: 12px 8px; font-size: 13px;">${new Date(a.start_date).toLocaleDateString('fr-FR')}</td>
-            <td style="padding: 12px 8px; font-weight: 500;">${getAthleteName(a)}</td>
-            <td style="padding: 12px 8px; color: rgba(255,255,255,0.8);">
-              <a href="https://www.strava.com/activities/${a.id}" target="_blank" style="color: #22d3ee; text-decoration: none;">
-                ${a.name || 'Sans nom'}
-              </a>
-            </td>
-            <td style="padding: 12px 8px; text-align: right; font-family: 'Space Mono', monospace;">${(a.distance / 1000).toFixed(2)} km</td>
-            <td style="padding: 12px 8px; text-align: right; font-family: 'Space Mono', monospace;">+${Math.round(a.total_elevation_gain)} m</td>
-            <td style="padding: 12px 8px; text-align: center;">
-              ${a.excluded
-                ? '<span style="color: #ef4444; font-size: 12px;">❌ Exclue</span>'
-                : '<span style="color: #10b981; font-size: 12px;">✅ Active</span>'}
-            </td>
-            <td style="padding: 12px 8px; text-align: center;">
-              <button onclick="toggleActivityExclusion(${a.id}, ${!a.excluded})" style="padding: 6px 12px; background: ${a.excluded ? '#10b981' : '#ef4444'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                ${a.excluded ? '↩️ Réintégrer' : '🚫 Exclure'}
-              </button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-    ${filtered.length > 100 ? `<p style="color: rgba(255,255,255,0.5); padding: 12px; text-align: center;">Affichage limité à 100 activités sur ${filtered.length}</p>` : ''}
-  `;
+function renderOptions(labels, current) {
+  const entries = Object.entries(labels);
+  // Valeur héritée inconnue de la liste (ex: ancien type bonus_round) : on la montre
+  if (current && !labels[current]) entries.push([current, current]);
+  return entries.map(([value, label]) =>
+    `<option value="${value}" ${current === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
+  ).join('');
 }
 
-async function toggleActivityExclusion(activityId, exclude) {
+function renderWeatherCoverage(coverage) {
+  if (!coverage) return '<div class="hint">🌧️ aucune activité</div>';
+  const unusable = coverage.total - coverage.ok;
+  const title = `${coverage.noGeo} sans GPS, ${coverage.missing} météo non calculée, ${coverage.error} en erreur`;
+  return `<div class="hint ${unusable > 0 ? 'warn' : 'ok'}" title="${title}">
+    🌧️ ${coverage.rainy}/${coverage.ok} sous la pluie${unusable > 0 ? ` · ⚠️ ${unusable} sans météo` : ''}
+  </div>`;
+}
+
+async function loadSeasonVisualizer() {
+  const container = document.getElementById('seasonVisualizerContent');
+  container.innerHTML = '<p class="muted">Chargement...</p>';
+
   try {
-    const response = await fetch(`${API_BASE}/admin/activities/${LEAGUE_ID}/${activityId}/exclude`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({ exclude })
-    });
+    const plan = await adminJson(`/admin/season-plan?leagueId=${LEAGUE_ID}`);
 
-    if (!response.ok) {
-      throw new Error('Erreur lors de la modification');
+    // Couverture météo : best-effort, sert à vérifier la règle « pluie qui mouille »
+    // avant que le round ne soit figé.
+    let weatherCoverage = {};
+    try {
+      const covRes = await fetch(`${API_BASE}/weather-coverage/${LEAGUE_ID}`);
+      if (covRes.ok) weatherCoverage = await covRes.json();
+    } catch (e) {
+      console.warn('Couverture météo indisponible:', e.message);
     }
 
-    const data = await response.json();
-
-    // Mettre à jour localement
-    const activity = allActivities.find(a => a.id === activityId);
-    if (activity) {
-      activity.excluded = exclude;
-      activity.excluded_at = exclude ? new Date().toISOString() : null;
-      activity.excluded_reason = exclude ? 'Exclu par admin' : null;
-    }
-
-    renderActivitiesList();
-
-    // Mettre à jour le compteur
-    const excludedCount = allActivities.filter(a => a.excluded).length;
-    document.getElementById('statExcluded').textContent = excludedCount;
-
-    addLog(`${exclude ? '🚫' : '↩️'} Activité ${activityId}: ${exclude ? 'exclue' : 'réintégrée'}`);
-
+    container.innerHTML = renderSeasonPlan(plan, weatherCoverage);
   } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
+    console.error('Erreur visualisateur saison:', error);
+    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
+    addLog(`❌ Erreur visualisateur: ${error.message}`);
+  }
+}
+
+function renderSeasonPlan(plan, weatherCoverage) {
+  const finale = plan.rounds.find(r => r.isFinale);
+  const pending = plan.rounds.filter(r => r.status === 'pending_freeze');
+  const isTeam = plan.seasonType === 'team';
+
+  let alerts = '';
+  if (pending.length) {
+    alerts += `<div class="alert">⚠️ ${pending.map(r => 'R' + r.roundNumber).join(', ')} terminé(s) mais pas encore figé(s) — gel auto à 00h15, ou bouton « Figer les rounds terminés ».</div>`;
+  }
+  if (!isTeam && finale && finale.status !== 'frozen' && finale.activeAtStart !== plan.finalistsCount) {
+    alerts += `<div class="alert">ℹ️ Avec la config actuelle, la finale R${finale.roundNumber} se jouerait à ${finale.activeAtStart} au lieu de ${plan.finalistsCount}.</div>`;
+  }
+  if (!finale) {
+    const last = plan.rounds[plan.rounds.length - 1];
+    alerts += `<div class="alert">ℹ️ La saison se termine en R${last.roundNumber} faute de joueurs, sans round de finale.</div>`;
+  }
+
+  const rows = plan.rounds.map(r => {
+    const editable = r.status !== 'frozen';
+    const cfg = r.config || {};
+    const dates = `${formatDate(r.start)} → ${formatDate(r.end)}`;
+    const rowClass = r.status === 'frozen' ? 'is-frozen' : (r.status === 'ongoing' ? 'is-current' : '');
+
+    let elimCell;
+    if (!editable) {
+      elimCell = `<span>${r.eliminations}</span>`;
+    } else if (isTeam) {
+      elimCell = `<span title="Une équipe éliminée par round">${r.eliminations}</span>`;
+    } else {
+      const placeholder = `${r.eliminations}`;
+      elimCell = `<input type="number" id="config-nbElim-${r.roundNumber}" min="0" max="30"
+          value="${cfg.nbEliminations ?? ''}" placeholder="${placeholder}" style="width: 64px; text-align: center;"
+          title="Vide = ${ELIM_SOURCE_LABELS[r.eliminationSource] || 'défaut'} (${placeholder})">
+        <div class="hint">${escapeHtml(ELIM_SOURCE_LABELS[r.eliminationSource] || '')}</div>`;
+    }
+
+    const currentType = cfg.type || 'standard';
+    const typeCell = editable
+      ? `<select id="config-type-${r.roundNumber}">${renderOptions(ROUND_TYPE_LABELS, currentType)}</select>
+         ${r.isFinale && currentType !== 'finale' ? '<div class="hint info">finale (calculée)</div>' : ''}`
+      : (r.isFinale ? '🏆 Finale' : 'Standard');
+
+    const currentRule = cfg.specialRule || 'standard';
+    const ruleCell = editable
+      ? `<select id="config-rule-${r.roundNumber}">${renderOptions(RULE_LABELS, currentRule)}</select>`
+      : escapeHtml(RULE_LABELS[r.specialRule] || r.specialRule || '—');
+    const weather = currentRule === 'pluie_qui_mouille' || r.specialRule === 'pluie_qui_mouille'
+      ? renderWeatherCoverage(weatherCoverage[String(r.roundNumber)])
+      : '';
+
+    const actions = editable
+      ? `<button class="btn btn-primary btn-sm" onclick="saveRoundConfigFromUI(${r.roundNumber})" title="Enregistrer">💾</button>
+         ${r.config ? `<button class="btn btn-danger btn-sm" onclick="deleteRoundConfigFromUI(${r.roundNumber})" title="Revenir au comportement par défaut">✕</button>` : ''}`
+      : '<span class="hint">verrouillé</span>';
+
+    return `
+      <tr class="${rowClass}">
+        <td><strong>R${r.roundNumber}</strong> <span class="hint">(${r.roundInSeason})</span></td>
+        <td style="font-size: 12px;">${dates}</td>
+        <td class="center">${STATUS_LABELS[r.status] || '—'}</td>
+        <td class="center num">${r.activeAtStart}</td>
+        <td class="center">${elimCell}</td>
+        <td>${typeCell}</td>
+        <td>${ruleCell}${weather}</td>
+        <td class="center" style="white-space: nowrap;">${actions}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div class="season-summary">
+      <div>Saison <strong>${plan.seasonNumber}</strong>${isTeam ? ' <span class="tag">équipes</span>' : ''}</div>
+      <div>Rounds <strong>R${plan.startRound} → R${plan.endRound}</strong></div>
+      <div>Joueurs au départ <strong>${plan.totalParticipants}</strong></div>
+      ${isTeam ? '' : `<div>Finalistes visés <strong>${plan.finalistsCount}</strong></div>`}
+      <div>Élim. par défaut <strong>${plan.eliminationsPerRound}</strong></div>
+    </div>
+    ${alerts}
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Round</th><th>Dates</th><th class="center">Statut</th><th class="center">Actifs<br>début</th>
+          <th class="center">Nb élim</th><th>Type</th><th>Règle spéciale</th><th class="center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p class="hint">Projection minimale : au-delà du R7, si ≥2 joueurs finissent à 0 D+, ils sont tous éliminés.</p>`;
+}
+
+async function saveRoundConfigFromUI(roundNumber) {
+  const rawElim = document.getElementById(`config-nbElim-${roundNumber}`)?.value ?? '';
+  const type = document.getElementById(`config-type-${roundNumber}`)?.value || 'standard';
+  const specialRule = document.getElementById(`config-rule-${roundNumber}`)?.value || 'standard';
+
+  const body = { type, specialRule };
+  if (rawElim !== '') {
+    const nbElim = parseInt(rawElim, 10);
+    if (isNaN(nbElim) || nbElim < 0) {
+      alert('Nombre d\'éliminations invalide');
+      return;
+    }
+    body.nbEliminations = nbElim;
+  }
+
+  try {
+    await adminJson(`/admin/round-configs/${roundNumber}`, { method: 'POST', body });
+    addLog(`💾 Config R${roundNumber} : type=${type}, règle=${specialRule}, élim=${body.nbEliminations ?? 'défaut'}`);
+    loadSeasonVisualizer();
+  } catch (error) {
+    addLog(`❌ Erreur sauvegarde config: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 }
 
-// Event listeners pour les filtres
-document.getElementById('activitySearch').addEventListener('input', renderActivitiesList);
-document.getElementById('activityFilter').addEventListener('change', renderActivitiesList);
-document.getElementById('refreshActivitiesBtn').addEventListener('click', loadDashboardData);
-
-// ============================================
-// WEBHOOK STRAVA
-// ============================================
-document.getElementById('enableWebhookBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('enableWebhookBtn');
-  const status = document.getElementById('webhookStatus');
-
-  btn.disabled = true;
-  btn.textContent = 'Activation...';
-
+async function deleteRoundConfigFromUI(roundNumber) {
+  if (!confirm(`Supprimer la config personnalisée du R${roundNumber} ?`)) return;
   try {
-    const response = await fetch(`${API_BASE}/admin/strava/subscribe`, {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      status.innerHTML = `Statut: <span style="color: #10b981;">✅ Actif</span> (ID: ${data.subscription?.id || 'existant'})`;
-      addLog(`✅ Webhook Strava: ${data.message}`);
-    } else {
-      status.innerHTML = `Statut: <span style="color: #ef4444;">❌ ${data.error}</span>`;
-      addLog(`❌ Webhook erreur: ${JSON.stringify(data.details || data.error)}`);
-    }
+    await adminJson(`/admin/round-configs/${roundNumber}`, { method: 'DELETE' });
+    addLog(`🗑️ Config R${roundNumber} supprimée`);
+    loadSeasonVisualizer();
   } catch (error) {
-    status.innerHTML = `Statut: <span style="color: #ef4444;">❌ Erreur réseau</span>`;
-    addLog(`❌ Erreur: ${error.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✅ Activer';
+    addLog(`❌ Erreur suppression config: ${error.message}`);
   }
-});
+}
 
-document.getElementById('disableWebhookBtn').addEventListener('click', async () => {
-  if (!confirm('Désactiver le webhook ? Vous ne recevrez plus les activités en temps réel.')) return;
-
-  const btn = document.getElementById('disableWebhookBtn');
-  const status = document.getElementById('webhookStatus');
-
-  btn.disabled = true;
-
-  try {
-    const response = await fetch(`${API_BASE}/admin/strava/subscribe`, {
-      method: 'DELETE',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    const data = await response.json();
-    status.innerHTML = `Statut: <span style="color: #fbbf24;">⚠️ Désactivé</span>`;
-    addLog(`🗑️ Webhook désactivé`);
-  } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
-  } finally {
-    btn.disabled = false;
-  }
-});
+window.saveRoundConfigFromUI = saveRoundConfigFromUI;
+window.deleteRoundConfigFromUI = deleteRoundConfigFromUI;
+document.getElementById('refreshSeasonVisualizerBtn').addEventListener('click', loadSeasonVisualizer);
 
 // ============================================
 // SYNCHRONISATION
@@ -424,360 +394,30 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
 
   btn.disabled = true;
   btn.textContent = 'Synchronisation...';
-  result.innerHTML = '<span style="color: #fbbf24;">⏳ En cours...</span>';
+  result.innerHTML = '<span class="warn">⏳ En cours...</span>';
 
   try {
-    const response = await fetch(`${API_BASE}/sync/${LEAGUE_ID}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({ startDate, endDate })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) throw new Error(data.error);
-
-    // Afficher nouvelles + mises à jour
+    const data = await adminJson(`/sync/${LEAGUE_ID}`, { method: 'POST', body: { startDate, endDate } });
     const newCount = data.totalNew || 0;
     const updatedCount = data.totalUpdated || 0;
+    const errorCount = data.errors?.length || 0;
 
-    let message = '';
-    if (newCount > 0 && updatedCount > 0) {
-      message = `✅ ${newCount} nouvelle(s) + ${updatedCount} mise(s) à jour`;
-    } else if (newCount > 0) {
-      message = `✅ ${newCount} nouvelle(s) activité(s)`;
-    } else if (updatedCount > 0) {
-      message = `🔄 ${updatedCount} activité(s) mise(s) à jour`;
-    } else {
-      message = `✓ Aucune modification`;
-    }
+    let message = newCount || updatedCount
+      ? `✅ ${newCount} nouvelle(s), ${updatedCount} mise(s) à jour`
+      : '✓ Aucune modification';
+    if (errorCount) message += ` · ⚠️ ${errorCount} erreur(s)`;
 
-    result.innerHTML = `<span style="color: #10b981;">${message}</span>`;
-    addLog(`🔄 Sync: ${newCount} nouvelles, ${updatedCount} MAJ`);
-
+    result.innerHTML = `<span class="${errorCount ? 'warn' : 'ok'}">${message}</span>`;
+    addLog(`🔄 Sync: ${newCount} nouvelles, ${updatedCount} MAJ, ${errorCount} erreurs`);
     loadDashboardData();
-
   } catch (error) {
-    result.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
+    result.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
     addLog(`❌ Sync erreur: ${error.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Lancer la synchronisation';
   }
 });
-
-// ============================================
-// EXPORT CLASSEMENT
-// ============================================
-document.getElementById('exportRankingBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('exportRankingBtn');
-  btn.disabled = true;
-  btn.textContent = 'Génération...';
-
-  try {
-    const response = await fetch(`${API_BASE}/admin/ranking/${LEAGUE_ID}/export`, {
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) throw new Error('Erreur export');
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `classement-${LEAGUE_ID}-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-
-    addLog(`📥 Classement exporté`);
-
-  } catch (error) {
-    addLog(`❌ Erreur export: ${error.message}`);
-    alert('Erreur: ' + error.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '📥 Télécharger le classement (JSON)';
-  }
-});
-
-// ============================================
-// TÉLÉCHARGEMENTS
-// ============================================
-document.querySelectorAll('.download-btn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const fileType = btn.dataset.file;
-
-    try {
-      let url, filename;
-
-      if (fileType === 'athletes') {
-        url = `${API_BASE}/admin/athletes/download`;
-        filename = 'athletes.json';
-      } else if (fileType === 'activities') {
-        url = `${API_BASE}/admin/activities/${LEAGUE_ID}/download`;
-        filename = `${LEAGUE_ID}_activities.json`;
-      } else if (fileType === 'jokers') {
-        url = `${API_BASE}/admin/jokers/download`;
-        filename = 'jokers_usage.json';
-      } else if (fileType === 'frozen') {
-        url = `${API_BASE}/frozen-results`;
-        filename = 'frozen_results.json';
-      }
-
-      const response = await fetch(url, {
-        headers: { 'X-Admin-Password': adminPassword }
-      });
-
-      if (!response.ok) throw new Error('Erreur téléchargement');
-
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      a.click();
-      window.URL.revokeObjectURL(downloadUrl);
-
-      addLog(`📥 ${filename} téléchargé`);
-
-    } catch (error) {
-      addLog(`❌ Erreur: ${error.message}`);
-    }
-  });
-});
-
-// ============================================
-// LOGS
-// ============================================
-function addLog(message) {
-  const container = document.getElementById('logsContainer');
-  const time = new Date().toLocaleTimeString('fr-FR');
-  const logEntry = document.createElement('div');
-  logEntry.style.marginBottom = '8px';
-  logEntry.innerHTML = `<span style="color: rgba(255,255,255,0.4);">[${time}]</span> ${message}`;
-
-  if (container.children.length === 1 && container.children[0].textContent.includes('En attente')) {
-    container.innerHTML = '';
-  }
-
-  container.insertBefore(logEntry, container.firstChild);
-}
-
-// ============================================
-// GESTION DES JOKERS
-// ============================================
-let jokersData = {};
-
-async function loadJokersData() {
-  const container = document.getElementById('jokersManagement');
-  try {
-    const response = await fetch(`${API_BASE}/admin/jokers/${LEAGUE_ID}`, {
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) throw new Error('Erreur chargement jokers');
-
-    jokersData = await response.json();
-    renderJokersManagement();
-    addLog('🃏 Données jokers chargées');
-  } catch (error) {
-    container.innerHTML = `<p style="color: #ef4444;">❌ ${error.message}</p>`;
-    addLog(`❌ Erreur jokers: ${error.message}`);
-  }
-}
-
-function renderJokersManagement() {
-  // Utiliser le nouveau conteneur si disponible, sinon l'ancien
-  const container = document.getElementById('jokersManagementTable') || document.getElementById('jokersManagement');
-  const { athletes, usage } = jokersData;
-
-  if (!athletes || athletes.length === 0) {
-    container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun athlète trouvé</p>';
-    return;
-  }
-
-  const jokerTypes = [
-    { id: 'voleur', icon: '🦹', label: 'Voleur' },
-    { id: 'multiplicateur', icon: '✖️', label: '×1.5' },
-    { id: 'bouclier', icon: '🛡️', label: 'Bouclier' },
-    { id: 'sabotage', icon: '💣', label: 'Sabotage' }
-  ];
-
-  let html = `
-    <table style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-          <th style="text-align: left; padding: 12px; color: rgba(255,255,255,0.6);">Athlète</th>
-          ${jokerTypes.map(j => `<th style="text-align: center; padding: 12px; color: rgba(255,255,255,0.6);">${j.icon} ${j.label}</th>`).join('')}
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  athletes.forEach(athlete => {
-    const stock = athlete.jokerStock || { voleur: 2, multiplicateur: 2, bouclier: 2, sabotage: 2 };
-    const athleteName = athlete.name || `${athlete.firstname || ''} ${athlete.lastname || ''}`.trim();
-
-    html += `
-      <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" data-athlete-id="${athlete.id}">
-        <td style="padding: 12px;">
-          <div style="font-weight: 600;">${athleteName}</div>
-          <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4);">ID: ${athlete.id}</div>
-        </td>
-        ${jokerTypes.map(j => `
-          <td style="text-align: center; padding: 8px;">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-              <button onclick="adjustJoker('${athlete.id}', '${j.id}', -1)"
-                      style="width: 28px; height: 28px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; line-height: 1;">
-                −
-              </button>
-              <span id="joker-${athlete.id}-${j.id}"
-                    style="min-width: 24px; font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 600; color: ${(stock[j.id] || 0) > 0 ? '#22d3ee' : '#ef4444'};">
-                ${stock[j.id] || 0}
-              </span>
-              <button onclick="adjustJoker('${athlete.id}', '${j.id}', 1)"
-                      style="width: 28px; height: 28px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; line-height: 1;">
-                +
-              </button>
-            </div>
-          </td>
-        `).join('')}
-      </tr>
-    `;
-  });
-
-  html += '</tbody></table>';
-  container.innerHTML = html;
-}
-
-function getJokerIcon(type) {
-  const icons = { voleur: '🦹', multiplicateur: '✖️', bouclier: '🛡️', sabotage: '💣' };
-  return icons[type] || '🃏';
-}
-
-function getJokerTargetName(id) {
-  if (athletesCache[id]) {
-    const a = athletesCache[id];
-    if (a.firstname && a.lastname) {
-      return `${a.firstname} ${a.lastname.charAt(0)}.`;
-    }
-    return a.name || `#${id}`;
-  }
-  return `#${id}`;
-}
-
-async function saveAthleteJokers(athleteId) {
-  const row = document.querySelector(`tr[data-athlete-id="${athleteId}"]`);
-  const inputs = row.querySelectorAll('.joker-input');
-
-  const jokerStock = {};
-  inputs.forEach(input => {
-    jokerStock[input.dataset.type] = parseInt(input.value) || 0;
-  });
-
-  try {
-    const response = await fetch(`${API_BASE}/admin/jokers/${athleteId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({ jokerStock })
-    });
-
-    if (!response.ok) throw new Error('Erreur sauvegarde');
-
-    addLog(`✅ Jokers mis à jour pour athlète ${athleteId}`);
-
-    // Flash vert pour confirmer
-    row.style.background = 'rgba(16,185,129,0.1)';
-    setTimeout(() => { row.style.background = ''; }, 1000);
-
-  } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
-    alert('Erreur: ' + error.message);
-  }
-}
-
-// Ajuster un joker avec boutons +/-
-async function adjustJoker(athleteId, jokerType, delta) {
-  const spanId = `joker-${athleteId}-${jokerType}`;
-  const span = document.getElementById(spanId);
-  if (!span) return;
-
-  const currentValue = parseInt(span.textContent) || 0;
-  const newValue = Math.max(0, Math.min(5, currentValue + delta));
-
-  if (newValue === currentValue) return;
-
-  // Mise à jour visuelle immédiate
-  span.textContent = newValue;
-  span.style.color = newValue > 0 ? '#22d3ee' : '#ef4444';
-
-  // Récupérer tous les jokers actuels de cet athlète
-  const jokerStock = {
-    voleur: parseInt(document.getElementById(`joker-${athleteId}-voleur`)?.textContent) || 0,
-    multiplicateur: parseInt(document.getElementById(`joker-${athleteId}-multiplicateur`)?.textContent) || 0,
-    bouclier: parseInt(document.getElementById(`joker-${athleteId}-bouclier`)?.textContent) || 0,
-    sabotage: parseInt(document.getElementById(`joker-${athleteId}-sabotage`)?.textContent) || 0
-  };
-
-  try {
-    const response = await fetch(`${API_BASE}/admin/jokers/${athleteId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({ jokerStock })
-    });
-
-    if (!response.ok) throw new Error('Erreur sauvegarde');
-
-    addLog(`🃏 ${jokerType} ${delta > 0 ? '+1' : '-1'} pour athlète ${athleteId} (total: ${newValue})`);
-
-    // Flash de confirmation
-    span.style.transform = 'scale(1.3)';
-    setTimeout(() => { span.style.transform = ''; }, 200);
-
-  } catch (error) {
-    // Annuler le changement visuel
-    span.textContent = currentValue;
-    span.style.color = currentValue > 0 ? '#22d3ee' : '#ef4444';
-    addLog(`❌ Erreur: ${error.message}`);
-  }
-}
-
-async function resetAllJokers() {
-  if (!confirm('⚠️ Réinitialiser TOUS les jokers à 2 de chaque pour tous les athlètes ?\n\nCette action est irréversible.')) {
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE}/admin/jokers/reset/${LEAGUE_ID}`, {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) throw new Error('Erreur reset');
-
-    const data = await response.json();
-    addLog(`🔄 ${data.count || 'Tous les'} athlètes réinitialisés (2 jokers de chaque)`);
-    loadJokersData();
-
-  } catch (error) {
-    addLog(`❌ Erreur reset: ${error.message}`);
-    alert('Erreur: ' + error.message);
-  }
-}
-
-// Event listeners jokers
-document.getElementById('refreshJokersBtn')?.addEventListener('click', loadJokersData);
-document.getElementById('resetJokersBtn')?.addEventListener('click', resetAllJokers);
-document.getElementById('resetAllJokersBtn')?.addEventListener('click', resetAllJokers);
 
 // ============================================
 // RÉSULTATS FIGÉS
@@ -787,583 +427,428 @@ async function loadFrozenStatus() {
   try {
     const response = await fetch(`${API_BASE}/frozen-results`);
     const data = await response.json();
+    const rounds = Object.keys(data.rounds || {})
+      .filter(k => data.rounds[k]?.frozen)
+      .map(Number)
+      .sort((a, b) => a - b);
 
-    const frozenRounds = Object.keys(data.rounds || {}).length;
-    const roundsList = Object.keys(data.rounds || {}).sort((a, b) => parseInt(a) - parseInt(b)).join(', ');
-
-    if (frozenRounds > 0) {
-      statusDiv.innerHTML = `
-        <div style="color: #22d3ee;">❄️ ${frozenRounds} round(s) figé(s)</div>
-        <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">Rounds: ${roundsList}</div>
-      `;
-    } else {
-      statusDiv.innerHTML = `<span style="color: #fbbf24;">⚠️ Aucun round figé</span>`;
-    }
-
-    addLog(`❄️ ${frozenRounds} round(s) figé(s)`);
+    document.getElementById('statFrozen').textContent = rounds.length;
+    statusDiv.innerHTML = rounds.length
+      ? `<div class="info">❄️ ${rounds.length} round(s) figé(s), dernier : R${rounds[rounds.length - 1]}</div>
+         ${data.lastUpdated ? `<div class="hint">Mis à jour le ${new Date(data.lastUpdated).toLocaleString('fr-FR')}</div>` : ''}`
+      : '<span class="warn">⚠️ Aucun round figé</span>';
   } catch (error) {
-    statusDiv.innerHTML = `<span style="color: #ef4444;">❌ Erreur chargement</span>`;
+    statusDiv.innerHTML = '<span class="err">❌ Erreur chargement</span>';
   }
 }
 
-async function autoFreezeRounds() {
+function refreshAfterFreezeChange() {
+  loadFrozenStatus();
+  loadSeasonVisualizer();
+  loadJokersData();
+}
+
+function getRoundInput() {
+  const roundNumber = parseInt(document.getElementById('freezeRoundNumber').value, 10);
+  if (!roundNumber || roundNumber < 1) {
+    alert('Veuillez entrer un numéro de round valide');
+    return null;
+  }
+  return roundNumber;
+}
+
+document.getElementById('autoFreezeBtn').addEventListener('click', async () => {
   const btn = document.getElementById('autoFreezeBtn');
+  const label = btn.textContent;
   btn.disabled = true;
   btn.textContent = '⏳ Figement en cours...';
 
   try {
-    const response = await fetch(`${API_BASE}/admin/auto-freeze`, {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) throw new Error('Erreur auto-freeze');
-
-    const data = await response.json();
-    addLog(`❄️ Auto-freeze: ${data.frozenCount || 0} round(s) figé(s)`);
-
-    if (data.frozenCount > 0) {
-      alert(`✅ ${data.frozenCount} round(s) figé(s) avec succès !`);
-    } else {
-      alert('ℹ️ Aucun nouveau round à figer.');
-    }
-
-    loadFrozenStatus();
+    const data = await adminJson('/admin/auto-freeze', { method: 'POST', body: { leagueId: LEAGUE_ID } });
+    const count = data.frozenCount || 0;
+    addLog(`❄️ Auto-freeze: ${count} round(s) figé(s)`);
+    alert(count ? `✅ ${count} round(s) figé(s)` : 'ℹ️ Aucun round terminé à figer.');
+    refreshAfterFreezeChange();
   } catch (error) {
     addLog(`❌ Erreur auto-freeze: ${error.message}`);
     alert('Erreur: ' + error.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '❄️ Auto-figer tous les rounds terminés';
+    btn.textContent = label;
   }
-}
+});
 
-async function freezeRound() {
-  const roundNumber = parseInt(document.getElementById('freezeRoundNumber').value);
-  if (!roundNumber || roundNumber < 1) {
-    alert('Veuillez entrer un numéro de round valide');
-    return;
-  }
+document.getElementById('freezeRoundBtn').addEventListener('click', async () => {
+  const roundNumber = getRoundInput();
+  if (!roundNumber) return;
+  if (!confirm(`Figer le round ${roundNumber} avec les données actuelles ?`)) return;
 
   try {
-    const response = await fetch(`${API_BASE}/admin/freeze-round/${roundNumber}`, {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Erreur');
-    }
-
-    const data = await response.json();
-    addLog(`❄️ Round ${roundNumber} figé: ${data.eliminations?.length || 0} éliminé(s)`);
-    alert(`✅ Round ${roundNumber} figé avec succès !`);
-    loadFrozenStatus();
+    const data = await adminJson(`/admin/freeze-round/${roundNumber}`, { method: 'POST', body: { leagueId: LEAGUE_ID } });
+    addLog(`❄️ Round ${roundNumber} figé: ${data.round?.eliminations?.length || 0} éliminé(s)`);
+    alert(`✅ Round ${roundNumber} figé`);
+    refreshAfterFreezeChange();
   } catch (error) {
     addLog(`❌ Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
-}
+});
 
-async function unfreezeRound() {
-  const roundNumber = parseInt(document.getElementById('freezeRoundNumber').value);
-  if (!roundNumber || roundNumber < 1) {
-    alert('Veuillez entrer un numéro de round valide');
-    return;
-  }
-
-  if (!confirm(`⚠️ Défiger le round ${roundNumber} ?\n\nCela permettra de recalculer ses résultats.`)) {
-    return;
-  }
+document.getElementById('unfreezeRoundBtn').addEventListener('click', async () => {
+  const roundNumber = getRoundInput();
+  if (!roundNumber) return;
+  if (!confirm(`⚠️ Défiger le round ${roundNumber} ?\n\nIl sera recalculé au prochain gel.`)) return;
 
   try {
-    const response = await fetch(`${API_BASE}/admin/unfreeze-round/${roundNumber}`, {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) throw new Error('Erreur unfreeze');
-
+    const data = await adminJson(`/admin/unfreeze-round/${roundNumber}`, { method: 'POST' });
+    if (!data.success) throw new Error(`Le round ${roundNumber} n'était pas figé`);
     addLog(`🔓 Round ${roundNumber} défigé`);
     alert(`✅ Round ${roundNumber} défigé`);
-    loadFrozenStatus();
+    refreshAfterFreezeChange();
   } catch (error) {
     addLog(`❌ Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
-}
+});
 
-async function resetAllFrozen() {
-  if (!confirm('⚠️ ATTENTION !\n\nRéinitialiser TOUS les résultats figés ?\n\nCette action est IRRÉVERSIBLE et supprimera l\'historique de tous les rounds.')) {
-    return;
-  }
-
-  if (!confirm('🚨 DERNIÈRE CONFIRMATION\n\nÊtes-vous VRAIMENT sûr ? Tous les résultats seront perdus.')) {
-    return;
-  }
+document.getElementById('resetFrozenBtn').addEventListener('click', async () => {
+  if (!confirm('⚠️ Réinitialiser TOUS les résultats figés ?\n\nCette action est IRRÉVERSIBLE.')) return;
+  if (!confirm('🚨 DERNIÈRE CONFIRMATION\n\nTous les résultats seront perdus. Continuer ?')) return;
 
   try {
-    const response = await fetch(`${API_BASE}/admin/reset-frozen`, {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) throw new Error('Erreur reset');
-
-    addLog(`🗑️ Tous les résultats figés supprimés`);
+    await adminJson('/admin/reset-frozen', { method: 'POST' });
+    addLog('🗑️ Tous les résultats figés supprimés');
     alert('✅ Tous les résultats ont été réinitialisés');
-    loadFrozenStatus();
+    refreshAfterFreezeChange();
   } catch (error) {
     addLog(`❌ Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
-}
+});
 
-// ============================================
-// IMPORT FROZEN RESULTS (NOUVEAU)
-// ============================================
-
-document.getElementById('importFrozenBtn')?.addEventListener('click', () => {
+document.getElementById('importFrozenBtn').addEventListener('click', () => {
   document.getElementById('importFrozenFile').click();
 });
 
-document.getElementById('importFrozenFile')?.addEventListener('change', async (e) => {
+document.getElementById('importFrozenFile').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
   try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-
-    // Valider le format
+    const data = JSON.parse(await file.text());
     if (!data.rounds || typeof data.rounds !== 'object') {
-      alert('❌ Format invalide: le fichier doit contenir un objet "rounds"');
-      return;
+      throw new Error('Format invalide : le fichier doit contenir un objet "rounds"');
     }
 
     const roundCount = Object.keys(data.rounds).length;
     const mode = document.getElementById('importMode').value;
-    const modeText = mode === 'merge' ? 'fusionner avec' : 'remplacer';
+    const effect = mode === 'replace' ? 'ÉCRASER toutes les données existantes' : 'ajouter les rounds manquants';
+    if (!confirm(`📥 Importer ${roundCount} round(s) ?\n\nCette action va ${effect}.`)) return;
 
-    if (!confirm(`📥 Importer ${roundCount} round(s) ?\n\nMode: ${modeText} les données existantes\n\nCette action va ${mode === 'replace' ? 'ÉCRASER toutes les données existantes' : 'ajouter les rounds manquants'}.`)) {
-      return;
-    }
-
-    addLog(`📥 Import de ${roundCount} rounds en mode "${mode}"...`);
-
-    const response = await fetch(`${API_BASE}/admin/import-frozen-results`, {
+    const result = await adminJson('/admin/import-frozen-results', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({
-        data: data,
-        merge: mode === 'merge'
-      })
+      body: { data, merge: mode === 'merge' }
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Erreur import');
-    }
-
-    const result = await response.json();
-
-    addLog(`✅ Import réussi: ${result.imported} round(s) importé(s), ${result.skipped} ignoré(s)`);
-    alert(`✅ Import réussi !\n\n• ${result.imported} round(s) importé(s)\n• ${result.skipped} round(s) ignoré(s) (déjà existants)\n• Total: ${result.totalRounds} round(s)`);
-
-    loadFrozenStatus();
-
+    addLog(`✅ Import: ${result.imported} importé(s), ${result.skipped} ignoré(s)`);
+    alert(`✅ Import réussi\n\n• ${result.imported} round(s) importé(s)\n• ${result.skipped} ignoré(s) (déjà existants)\n• Total : ${result.totalRounds} round(s)`);
+    refreshAfterFreezeChange();
   } catch (error) {
     addLog(`❌ Erreur import: ${error.message}`);
     alert('❌ Erreur: ' + error.message);
+  } finally {
+    e.target.value = '';
   }
-
-  // Reset le input file
-  e.target.value = '';
 });
 
-// Event listeners frozen
-document.getElementById('autoFreezeBtn')?.addEventListener('click', autoFreezeRounds);
-document.getElementById('freezeRoundBtn')?.addEventListener('click', freezeRound);
-document.getElementById('unfreezeRoundBtn')?.addEventListener('click', unfreezeRound);
-document.getElementById('resetFrozenBtn')?.addEventListener('click', resetAllFrozen);
+// ============================================
+// TÉLÉCHARGEMENTS
+// ============================================
+const DOWNLOADS = {
+  ranking: () => [`/admin/ranking/${LEAGUE_ID}/export`, `classement-${LEAGUE_ID}-${new Date().toISOString().split('T')[0]}.json`],
+  athletes: () => ['/admin/athletes/download', 'athletes.json'],
+  activities: () => [`/admin/activities/${LEAGUE_ID}/download`, `${LEAGUE_ID}_activities.json`],
+  jokers: () => ['/admin/jokers/download', 'jokers_usage.json'],
+  frozen: () => ['/frozen-results', 'frozen_results.json']
+};
+
+document.querySelectorAll('.download-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const [path, filename] = DOWNLOADS[btn.dataset.file]();
+    try {
+      await downloadFrom(path, filename);
+      addLog(`📥 ${filename} téléchargé`);
+    } catch (error) {
+      addLog(`❌ ${filename}: ${error.message}`);
+      alert('Erreur: ' + error.message);
+    }
+  });
+});
 
 // ============================================
 // RESET MOT DE PASSE
 // ============================================
+function renderResetPasswordOptions(athletes) {
+  const select = document.getElementById('resetPasswordAthlete');
+  const sorted = [...athletes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  select.innerHTML = '<option value="">-- Choisir un athlète --</option>' + sorted.map(a =>
+    `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} (${escapeHtml(a.email || 'pas d\'email')})</option>`
+  ).join('');
+}
 
-document.getElementById('resetPasswordBtn')?.addEventListener('click', async () => {
-  const athleteId = document.getElementById('resetPasswordAthlete').value;
+document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+  const select = document.getElementById('resetPasswordAthlete');
+  const athleteId = select.value;
   const newPassword = document.getElementById('resetPasswordNew').value;
   const resultDiv = document.getElementById('resetPasswordResult');
 
   if (!athleteId) {
-    resultDiv.innerHTML = '<span style="color: #ef4444;">❌ Veuillez sélectionner un athlète</span>';
+    resultDiv.innerHTML = '<span class="err">❌ Veuillez sélectionner un athlète</span>';
     return;
   }
-
   if (!newPassword || newPassword.length < 6) {
-    resultDiv.innerHTML = '<span style="color: #ef4444;">❌ Le mot de passe doit contenir au moins 6 caractères</span>';
+    resultDiv.innerHTML = '<span class="err">❌ Le mot de passe doit contenir au moins 6 caractères</span>';
     return;
   }
 
-  const athleteName = document.getElementById('resetPasswordAthlete').selectedOptions[0].textContent;
-
-  if (!confirm(`⚠️ Réinitialiser le mot de passe de ${athleteName} ?\n\nNouveau mot de passe: ${newPassword}`)) {
-    return;
-  }
+  const athleteName = athletesCache[athleteId]?.name || athleteId;
+  if (!confirm(`⚠️ Réinitialiser le mot de passe de ${athleteName} ?\n\nNouveau mot de passe : ${newPassword}`)) return;
 
   try {
-    const response = await fetch(`${API_BASE}/admin/reset-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({
-        athleteId: athleteId,
-        newPassword: newPassword
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Erreur serveur');
-    }
-
-    const data = await response.json();
-    resultDiv.innerHTML = `<span style="color: #10b981;">✅ ${data.message}</span>`;
+    const data = await adminJson('/admin/reset-password', { method: 'POST', body: { athleteId, newPassword } });
+    resultDiv.innerHTML = `<span class="ok">✅ ${escapeHtml(data.message)}</span>`;
     addLog(`🔑 Mot de passe réinitialisé pour ${athleteName}`);
-
-    // Clear le formulaire
     document.getElementById('resetPasswordNew').value = '';
-    document.getElementById('resetPasswordAthlete').value = '';
-
+    select.value = '';
   } catch (error) {
-    resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
+    resultDiv.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
     addLog(`❌ Erreur reset password: ${error.message}`);
   }
 });
 
 // ============================================
-// GESTION DES RÈGLES SPÉCIALES
+// ATHLÈTES
 // ============================================
-
-const RULE_LABELS = {
-  standard: 'Standard',
-  handicap: 'Handicap',
-  no_bonus: 'Sans bonus (D+ pur)',
-  pluie_qui_mouille: 'La pluie qui mouille (D+ ×1,5 sous la pluie)'
-};
-
-// ============================================
-// VISUALISATEUR DE SAISON
-// ============================================
-
-const ROUND_TYPE_LABELS = {
-  standard: 'Standard',
-  finale: 'Finale',
-  bonus_round: 'Round bonus',
-  no_eliminations: 'Sans élimination'
-};
-
-
-async function loadSeasonVisualizer() {
-  const container = document.getElementById('seasonVisualizerContent');
-  if (!container) return;
-
-  try {
-    container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Chargement...</p>';
-
-    // Charger les configs de rounds
-    const configsRes = await fetch(`${API_BASE}/round-configs`);
-    const configs = await configsRes.json();
-
-    // Charger les frozen_results pour connaître l'état des rounds
-    const frozenRes = await fetch(`${API_BASE}/frozen-results`);
-    const frozenData = await frozenRes.json();
-
-    // Charger les special-rules pour la pré-config
-    const rulesRes = await fetch(`${API_BASE}/special-rules`);
-    const specialRules = await rulesRes.json();
-
-    // Couverture météo par round : sert à prévenir l'admin AVANT de figer un
-    // round sous la règle "pluie qui mouille" (une activité sans météo ne peut
-    // pas être créditée du bonus). Best-effort : l'absence de données ne doit
-    // pas empêcher l'affichage du visualisateur.
-    let weatherCoverage = {};
-    try {
-      const covRes = await fetch(`${API_BASE}/weather-coverage/versant-2026`);
-      if (covRes.ok) weatherCoverage = await covRes.json();
-    } catch (e) {
-      console.warn('⚠️ Couverture météo indisponible:', e.message);
-    }
-
-    // Déterminer la saison courante et ses rounds
-    const seasonInfo = computeCurrentSeasonInfo(frozenData, configs);
-    if (!seasonInfo) {
-      container.innerHTML = '<p style="color: #ef4444;">Impossible de déterminer la saison en cours</p>';
-      return;
-    }
-
-    const { seasonNumber, startRound, endRound } = seasonInfo;
-
-    // Construire le tableau
-    let html = `
-      <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin-bottom: 12px;">
-        Saison ${seasonNumber} — Rounds R${startRound} à R${endRound}
-      </p>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-        <thead>
-          <tr style="border-bottom: 2px solid rgba(255,255,255,0.15);">
-            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Round</th>
-            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Dates</th>
-            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Statut</th>
-            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Actifs<br>début</th>
-            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Nb élim</th>
-            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Type</th>
-            <th style="text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6);">Règle spéciale</th>
-            <th style="text-align: center; padding: 10px 8px; color: rgba(255,255,255,0.6);">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    let activesBeforeRound = 15;
-
-    for (let r = startRound; r <= endRound; r++) {
-      const frozenRound = frozenData.rounds?.[String(r)];
-      const config = configs[String(r)] || {};
-      const isFrozen = !!frozenRound?.frozen;
-      const elimCount = isFrozen ? (frozenRound.eliminations?.length || 0) : null;
-
-      const today = new Date();
-    // Si le round est figé, on prend les dates figées.
-      // Sinon on les calcule via getRoundDates() pour afficher les rounds à venir.
-      let roundStart = null, roundEnd = null;
-      if (frozenRound?.dates?.start) {
-        roundStart = new Date(frozenRound.dates.start);
-        roundEnd = new Date(frozenRound.dates.end);
-      } else if (typeof getRoundDates === 'function') {
-        try {
-          const computed = getRoundDates(r);
-          if (computed?.start) {
-            roundStart = new Date(computed.start);
-            roundEnd = new Date(computed.end);
-          }
-        } catch (e) {
-          console.warn(`Impossible de calculer les dates pour R${r}:`, e.message);
-        }
-      }
-
-      const isOngoing = roundStart && roundEnd && today >= roundStart && today <= roundEnd;
-      const isToCome = roundStart && today < roundStart;
-
-      let statusHtml;
-      if (isFrozen) {
-        statusHtml = '<span style="color: #10b981;">❄️ Figé</span>';
-      } else if (isOngoing) {
-        statusHtml = '<span style="color: #fbbf24;">⏳ En cours</span>';
-      } else if (isToCome) {
-        statusHtml = '<span style="color: rgba(255,255,255,0.5);">📅 À venir</span>';
-      } else {
-        statusHtml = '<span style="color: rgba(255,255,255,0.5);">—</span>';
-      }
-
-      const datesHtml = roundStart && roundEnd
-        ? `${roundStart.toLocaleDateString('fr-FR')} → ${roundEnd.toLocaleDateString('fr-FR')}`
-        : '—';
-
-      // Champs éditables uniquement si pas figé
-      const nbElimInput = isFrozen
-        ? `<span style="color: rgba(255,255,255,0.7);">${elimCount}</span>`
-        : `<input type="number" id="config-nbElim-${r}" min="0" max="15" value="${config.nbEliminations ?? 2}" style="width: 60px; padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; text-align: center;">`;
-
-      const currentType = config.type || 'standard';
-      const typeSelect = isFrozen
-        ? `<span style="color: rgba(255,255,255,0.7);">${ROUND_TYPE_LABELS[frozenRound.isFinalePrincipale ? 'finale' : 'standard'] || 'standard'}</span>`
-        : `<select id="config-type-${r}" style="padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white;">
-            ${Object.entries(ROUND_TYPE_LABELS).map(([val, label]) =>
-              `<option value="${val}" ${currentType === val ? 'selected' : ''}>${label}</option>`
-            ).join('')}
-          </select>`;
-
-      const currentRule = config.specialRule || specialRules[String(r)] || 'standard';
-      const ruleSelect = isFrozen
-        ? '—'
-        : `<select id="config-rule-${r}" style="padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white;">
-            ${Object.entries(RULE_LABELS).map(([val, label]) =>
-              `<option value="${val}" ${currentRule === val ? 'selected' : ''}>${label}</option>`
-            ).join('')}
-          </select>`;
-
-      // Indicateur météo, affiché seulement quand la règle pluie est retenue
-      let weatherHtml = '';
-      if (currentRule === 'pluie_qui_mouille') {
-        const cov = weatherCoverage[String(r)];
-        if (!cov) {
-          weatherHtml = '<div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px;">🌧️ aucune activité</div>';
-        } else {
-          const unusable = cov.total - cov.ok;
-          const warn = unusable > 0;
-          weatherHtml = `<div style="font-size: 11px; margin-top: 4px; color: ${warn ? '#fbbf24' : '#10b981'};" title="${cov.noGeo} sans GPS, ${cov.missing} météo non calculée, ${cov.error} en erreur">
-            🌧️ ${cov.rainy}/${cov.ok} sous la pluie${warn ? ` · ⚠️ ${unusable} sans météo` : ''}
-          </div>`;
-        }
-      }
-
-      const actionsHtml = isFrozen
-        ? '<span style="color: rgba(255,255,255,0.4); font-size: 11px;">verrouillé</span>'
-        : `<button onclick="saveRoundConfigFromUI(${r})" style="padding: 6px 10px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;">💾</button>
-           ${configs[String(r)] ? `<button onclick="deleteRoundConfigFromUI(${r})" style="margin-left: 4px; padding: 6px 10px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; font-size: 12px; cursor: pointer;">✕</button>` : ''}`;
-
-      html += `
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${isFrozen ? 'opacity: 0.7;' : ''}">
-          <td style="padding: 10px 8px; font-weight: 600;">R${r}</td>
-          <td style="padding: 10px 8px; font-size: 12px;">${datesHtml}</td>
-          <td style="padding: 10px 8px; text-align: center;">${statusHtml}</td>
-          <td style="padding: 10px 8px; text-align: center; font-family: 'Space Mono', monospace;">${activesBeforeRound}</td>
-          <td style="padding: 10px 8px; text-align: center;">${nbElimInput}</td>
-          <td style="padding: 10px 8px;">${typeSelect}</td>
-          <td style="padding: 10px 8px;">${ruleSelect}${weatherHtml}</td>
-          <td style="padding: 10px 8px; text-align: center;">${actionsHtml}</td>
-        </tr>
-      `;
-
-      // Mettre à jour le nombre d'actifs pour le round suivant
-      if (isFrozen) {
-        activesBeforeRound -= elimCount;
-      } else {
-        const projectedElim = config.nbEliminations ?? 2;
-        activesBeforeRound -= projectedElim;
-      }
-    }
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-
-  } catch (error) {
-    console.error('Erreur loadSeasonVisualizer:', error);
-    container.innerHTML = `<p style="color: #ef4444;">❌ ${error.message}</p>`;
-    addLog(`❌ Erreur visualisateur: ${error.message}`);
-  }
-}
-
-function computeCurrentSeasonInfo(frozenData, configs = {}) {
-  if (!frozenData?.rounds) return null;
-
-  const rounds = Object.entries(frozenData.rounds)
-    .map(([key, r]) => ({ roundNumber: parseInt(key), ...r }))
-    .filter(r => r.frozen)
-    .sort((a, b) => a.roundNumber - b.roundNumber);
-
-  if (rounds.length === 0) return null;
-
-  const lastRound = rounds[rounds.length - 1];
-  const currentSeasonNumber = lastRound.seasonNumber || 1;
-
-  // Trouver le premier round de cette saison
-  const seasonRounds = rounds.filter(r => (r.seasonNumber || 1) === currentSeasonNumber);
-  const startRound = seasonRounds[0].roundNumber;
-
-  // Déterminer endRound :
-  // 1. Si un round est configuré comme 'finale' (via round_configs.json), c'est lui qui ferme la saison
-  // 2. Sinon, on extrapole "7 rounds par défaut" depuis startRound
-  let endRound = null;
-  for (let r = startRound; r <= startRound + 15; r++) {
-    if (configs[String(r)]?.type === 'finale') {
-      endRound = r;
-      break;
-    }
-  }
-  if (endRound === null) {
-    endRound = startRound + 6; // Fallback : estimation 7 rounds
-  }
-
-  return {
-    seasonNumber: currentSeasonNumber,
-    startRound,
-    endRound
-  };
-}
-
-async function saveRoundConfigFromUI(roundNumber) {
-  const nbElim = parseInt(document.getElementById(`config-nbElim-${roundNumber}`)?.value);
-  const type = document.getElementById(`config-type-${roundNumber}`)?.value;
-  const specialRule = document.getElementById(`config-rule-${roundNumber}`)?.value;
-
-  if (isNaN(nbElim) || nbElim < 0) {
-    alert('Nombre d\'éliminations invalide');
+function renderAthletesList(athletes) {
+  const container = document.getElementById('athletesList');
+  if (athletes.length === 0) {
+    container.innerHTML = '<p class="muted">Aucun athlète inscrit</p>';
     return;
   }
 
+  const sorted = [...athletes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  container.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>Nom</th><th>Email</th><th>ID Strava</th><th>Inscrit le</th><th>Entrée en jeu</th></tr></thead>
+      <tbody>
+        ${sorted.map(a => `
+          <tr>
+            <td style="font-weight: 500;">${escapeHtml(a.name)}</td>
+            <td class="muted">${escapeHtml(a.email || '-')}</td>
+            <td style="font-family: 'Space Mono', monospace;">${escapeHtml(a.id)}</td>
+            <td class="muted">${formatDate(a.registered_at)}</td>
+            <td>${a.active_from_round ? `R${a.active_from_round}` : '<span class="muted">saison suivant l\'inscription</span>'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ============================================
+// ACTIVITÉS
+// ============================================
+function getAthleteName(activity) {
+  if (activity.athlete_name) return activity.athlete_name;
+  const a = athletesCache[String(activity.athlete_id)];
+  return a?.name || `#${activity.athlete_id}`;
+}
+
+function renderActivitiesList() {
+  const container = document.getElementById('activitiesList');
+  const search = document.getElementById('activitySearch').value.toLowerCase();
+  const filter = document.getElementById('activityFilter').value;
+
+  let filtered = allActivities;
+  if (search) {
+    filtered = filtered.filter(a =>
+      (a.name || '').toLowerCase().includes(search) ||
+      getAthleteName(a).toLowerCase().includes(search)
+    );
+  }
+  if (filter === 'active') filtered = filtered.filter(a => !a.excluded);
+  else if (filter === 'excluded') filtered = filtered.filter(a => a.excluded);
+
+  filtered = [...filtered].sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="muted">Aucune activité trouvée</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Date</th><th>Athlète</th><th>Activité</th><th class="num">Distance</th><th class="num">D+</th>
+          <th class="center">Statut</th><th class="center">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.slice(0, 100).map(a => `
+          <tr style="${a.excluded ? 'opacity: 0.5;' : ''}">
+            <td>${formatDate(a.start_date)}</td>
+            <td style="font-weight: 500;">${escapeHtml(getAthleteName(a))}</td>
+            <td><a href="https://www.strava.com/activities/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" style="color: #22d3ee; text-decoration: none;">${escapeHtml(a.name || 'Sans nom')}</a>
+              <span class="hint">${escapeHtml(a.sport_type || a.type || '')}</span></td>
+            <td class="num">${((a.distance || 0) / 1000).toFixed(2)} km</td>
+            <td class="num">+${Math.round(a.total_elevation_gain || 0)} m</td>
+            <td class="center">${a.excluded ? '<span class="err">❌ Exclue</span>' : '<span class="ok">✅ Active</span>'}</td>
+            <td class="center">
+              <button class="btn btn-sm ${a.excluded ? 'btn-success' : 'btn-danger'}"
+                onclick="toggleActivityExclusion('${escapeHtml(a.id)}', ${!a.excluded})">
+                ${a.excluded ? '↩️ Réintégrer' : '🚫 Exclure'}
+              </button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    ${filtered.length > 100 ? `<p class="hint" style="text-align: center;">Affichage limité à 100 activités sur ${filtered.length}</p>` : ''}`;
+}
+
+async function toggleActivityExclusion(activityId, exclude) {
   try {
-    const response = await fetch(`${API_BASE}/admin/round-configs/${roundNumber}`, {
+    const data = await adminJson(`/admin/activities/${LEAGUE_ID}/${activityId}/exclude`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword
-      },
-      body: JSON.stringify({
-        nbEliminations: nbElim,
-        type: type || 'standard',
-        specialRule: specialRule || 'standard'
-      })
+      body: { exclude }
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Erreur sauvegarde');
-    }
+    const index = allActivities.findIndex(a => String(a.id) === String(activityId));
+    if (index >= 0) allActivities[index] = data.activity || { ...allActivities[index], excluded: exclude };
 
-    addLog(`💾 Config R${roundNumber} sauvegardée (nbElim=${nbElim}, type=${type})`);
-    loadSeasonVisualizer();
+    renderActivitiesList();
+    updateExcludedCount();
+    addLog(`${exclude ? '🚫' : '↩️'} Activité ${activityId}: ${exclude ? 'exclue' : 'réintégrée'}`);
   } catch (error) {
-    addLog(`❌ Erreur sauvegarde config: ${error.message}`);
+    addLog(`❌ Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 }
 
-async function deleteRoundConfigFromUI(roundNumber) {
-  if (!confirm(`Supprimer la config personnalisée du R${roundNumber} ?`)) return;
+window.toggleActivityExclusion = toggleActivityExclusion;
+document.getElementById('activitySearch').addEventListener('input', renderActivitiesList);
+document.getElementById('activityFilter').addEventListener('change', renderActivitiesList);
+document.getElementById('refreshActivitiesBtn').addEventListener('click', loadDashboardData);
 
+// ============================================
+// JOKERS
+// ============================================
+const JOKER_DISPLAY = {
+  voleur: { icon: '🦹', label: 'Voleur' },
+  multiplicateur: { icon: '✖️', label: '×1.5' },
+  bouclier: { icon: '🛡️', label: 'Bouclier' },
+  sabotage: { icon: '💣', label: 'Sabotage' }
+};
+const JOKER_MAX_STOCK = 5; // même plafond que le backend
+let jokerIds = Object.keys(JOKER_DISPLAY);
+
+async function loadJokersData() {
+  const container = document.getElementById('jokersManagementTable');
   try {
-    const response = await fetch(`${API_BASE}/admin/round-configs/${roundNumber}`, {
-      method: 'DELETE',
-      headers: { 'X-Admin-Password': adminPassword }
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Erreur suppression');
-    }
-
-    addLog(`🗑️ Config R${roundNumber} supprimée`);
-    loadSeasonVisualizer();
+    const data = await adminJson(`/admin/jokers/${LEAGUE_ID}`);
+    // La liste des jokers vient du backend (JOKER_CONFIG)
+    if (data.config) jokerIds = Object.keys(data.config);
+    renderJokersManagement(data.athletes || []);
   } catch (error) {
-    addLog(`❌ Erreur suppression: ${error.message}`);
+    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
+    addLog(`❌ Erreur jokers: ${error.message}`);
   }
 }
 
-// Expose pour onclick inline
-window.saveRoundConfigFromUI = saveRoundConfigFromUI;
-window.deleteRoundConfigFromUI = deleteRoundConfigFromUI;
+function renderJokersManagement(athletes) {
+  const container = document.getElementById('jokersManagementTable');
+  if (athletes.length === 0) {
+    container.innerHTML = '<p class="muted">Aucun athlète trouvé</p>';
+    return;
+  }
 
-// Bouton refresh
-document.getElementById('refreshSeasonVisualizerBtn')?.addEventListener('click', loadSeasonVisualizer);
+  const sorted = [...athletes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  container.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Athlète</th>
+          ${jokerIds.map(id => {
+            const d = JOKER_DISPLAY[id] || { icon: '🃏', label: id };
+            return `<th class="center">${d.icon} ${escapeHtml(d.label)}</th>`;
+          }).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(athlete => `
+          <tr>
+            <td>
+              <div style="font-weight: 600;">${escapeHtml(athlete.name || `${athlete.firstname} ${athlete.lastname}`)}</div>
+              <div class="hint" style="margin: 0;">ID: ${escapeHtml(athlete.id)}</div>
+            </td>
+            ${jokerIds.map(id => {
+              const value = athlete.jokerStock?.[id] ?? 0;
+              return `
+                <td class="center">
+                  <div class="joker-cell">
+                    <button class="minus" onclick="adjustJoker('${escapeHtml(athlete.id)}', '${id}', -1)">−</button>
+                    <span id="joker-${escapeHtml(athlete.id)}-${id}" class="${value > 0 ? 'info' : 'err'}">${value}</span>
+                    <button class="plus" onclick="adjustJoker('${escapeHtml(athlete.id)}', '${id}', 1)">+</button>
+                  </div>
+                </td>`;
+            }).join('')}
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
 
-// Charger au démarrage du dashboard admin
-const originalShowDashboard = showDashboard;
-showDashboard = function() {
-  originalShowDashboard();
-  setTimeout(loadSeasonVisualizer, 500); // Petit délai pour s'assurer que les autres données sont chargées
-};
+async function adjustJoker(athleteId, jokerType, delta) {
+  const span = document.getElementById(`joker-${athleteId}-${jokerType}`);
+  if (!span) return;
 
+  const currentValue = parseInt(span.textContent, 10) || 0;
+  const newValue = Math.max(0, Math.min(JOKER_MAX_STOCK, currentValue + delta));
+  if (newValue === currentValue) return;
 
+  const setValue = (value) => {
+    span.textContent = value;
+    span.className = value > 0 ? 'info' : 'err';
+  };
+  setValue(newValue);
 
+  // On n'envoie que le joker modifié : le backend ne touche pas aux autres
+  try {
+    await adminJson(`/admin/jokers/${athleteId}`, {
+      method: 'PUT',
+      body: { jokerStock: { [jokerType]: newValue } }
+    });
+    const name = athletesCache[athleteId]?.name || athleteId;
+    addLog(`🃏 ${jokerType} ${delta > 0 ? '+1' : '-1'} pour ${name} (stock: ${newValue})`);
+    span.style.transform = 'scale(1.3)';
+    setTimeout(() => { span.style.transform = ''; }, 200);
+  } catch (error) {
+    setValue(currentValue);
+    addLog(`❌ Erreur jokers: ${error.message}`);
+  }
+}
+
+window.adjustJoker = adjustJoker;
+
+document.getElementById('resetAllJokersBtn').addEventListener('click', async () => {
+  if (!confirm('⚠️ Remettre le stock de jokers de TOUS les athlètes à sa valeur de départ ?\n\nLes jokers en attente sur le round en cours sont annulés. Action irréversible.')) return;
+
+  try {
+    const data = await adminJson(`/admin/jokers/reset/${LEAGUE_ID}`, { method: 'POST' });
+    addLog(`🔄 Jokers réinitialisés pour ${data.count} athlètes (${data.refundsAdded || 0} usages figés compensés)`);
+    loadJokersData();
+  } catch (error) {
+    addLog(`❌ Erreur reset jokers: ${error.message}`);
+    alert('Erreur: ' + error.message);
+  }
+});
 
 // ============================================
 // INIT
