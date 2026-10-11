@@ -13,7 +13,8 @@ import {
   getSeasonNumber, isTeamSeason,
   getRoundInSeason, getRoundsPerSeason,
   getAthleteColor, getAthleteInitials,
-  fetchWithTimeout, loadSeasonPlanning
+  fetchWithTimeout, loadSeasonPlanning,
+  getDayInRound as getDayInRoundAt, getRoundDuration
 } from './config.js';
 import { formatDate, formatElevation } from './ui.js';
 
@@ -282,13 +283,8 @@ function getCurrentRound() {
 }
 
 function getDayInRound() {
-  // Minuit LOCAL comme le backend : new Date('2026-02-02') serait minuit UTC,
-  // et le « jour 1 » démarrerait à 1h/2h du matin heure de Paris.
-  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate).split('-').map(Number);
-  const start = new Date(y, m - 1, d);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  return (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;
+  // Calendrier réel (durée variable en saison Deadline), minuit local
+  return getDayInRoundAt(new Date());
 }
 
 // ============================================
@@ -474,7 +470,7 @@ function renderCurrentRound() {
 
   const dayInRoundEl = document.getElementById('dayInRound');
   if (dayInRoundEl) {
-    dayInRoundEl.textContent = `Jour ${dayInRound}/${CHALLENGE_CONFIG.roundDurationDays}`;
+    dayInRoundEl.textContent = `Jour ${dayInRound}/${getRoundDuration(getCurrentRound())}`;
   }
 
   const roundEndEl = document.getElementById('roundEndDate');

@@ -17,7 +17,7 @@ import {
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
   setFrozenCache,
-  getMainChallengePoints, getEliminatedChallengePoints,
+  getMainChallengePoints, getEliminatedChallengePoints, getMainPointsMultiplier,
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
   getSeasonRosterSize,
@@ -1931,6 +1931,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
     } else if (isFinale && position <= 3) {
       mainPts = getMainChallengePoints(position);
     }
+    mainPts *= getMainPointsMultiplier(currentSeasonNumber);
 
     let pointsBadges = '';
     if (mainPts > 0) {
@@ -3810,8 +3811,8 @@ function computeSeasonPointsByAthlete(seasonNumber, frozen) {
       const nonElim = r.ranking.filter(x => x.eliminatedPosition == null);
       if (nonElim.length === 1) {
         const w = nonElim[0];
-        // Ajouter 24 - mainPoints existant pour pas double-compter
-        const adjust = 24 - (w.mainPoints || 0);
+        // Compléter jusqu'aux points du vainqueur sans double-compter
+        const adjust = getMainChallengePoints(1) * getMainPointsMultiplier(seasonNumber) - (w.mainPoints || 0);
         if (adjust > 0) addPts(w.id, w.name, adjust);
       }
     }

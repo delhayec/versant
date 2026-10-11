@@ -421,24 +421,7 @@ app.get('/api/round-configs', async (req, res) => {
  * sinon on décale d'une heure en été et une activité peut changer de round.
  */
 function getRoundNumberForDate(timestamp) {
-  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate).split('-').map(Number);
-  const challengeStart = new Date(y, m - 1, d).getTime();
-  if (timestamp < challengeStart) return null;
-
-  // Estimation, puis recalage sur les vraies bornes : un passage heure d'été /
-  // heure d'hiver décale le compte de jours d'une heure, ce qui suffit à faire
-  // basculer une activité de fin de soirée dans le round voisin.
-  const dayMs = 24 * 3600 * 1000;
-  const elapsedDays = Math.floor((timestamp - challengeStart) / dayMs);
-  let round = Math.floor(elapsedDays / CHALLENGE_CONFIG.roundDurationDays) + 1;
-
-  for (let i = 0; i < 3; i++) {
-    const { start, end } = frozenResults.getRoundDates(round, CHALLENGE_CONFIG);
-    if (timestamp < start.getTime()) { round--; continue; }
-    if (timestamp > end.getTime()) { round++; continue; }
-    return round;
-  }
-  return round >= 1 ? round : null;
+  return sharedConfig.getRoundNumberForDate(timestamp, CHALLENGE_CONFIG);
 }
 
 // GET /api/weather-coverage/:leagueId - Couverture météo par round
@@ -535,13 +518,34 @@ app.get('/api/admin/season-plan', async (req, res) => {
 });
 
 // ============================================
-// PLANNING DES SAISONS (standard / équipes)
+// PLANNING DES SAISONS (standard / équipes / points doublés / deadline)
 // ============================================
 const sharedConfig = require('./shared-config');
+const { planDeadlineRounds } = require('./deadline-planner');
 
-// GET public - type de chaque saison, lu par le frontend au chargement
+async function getLeagueAthletes() {
+  const athletes = await safeReadJSON(ATHLETES_FILE, []);
+  return athletes.filter(a => a.league_id === CHALLENGE_CONFIG.leagueId && a.active);
+}
+
+/** Replanifie la saison Deadline en cours (sans effet sinon). Jamais bloquant. */
+async function replanDeadline(reason) {
+  try {
+    return await frozenResults.replanDeadlineSeason(await getLeagueAthletes(), CHALLENGE_CONFIG);
+  } catch (e) {
+    console.warn(`⚠️ Replanification Deadline (${reason}):`, e.message);
+    return null;
+  }
+}
+
+// GET public - type des saisons, deadlines et durées des rounds, lus par le
+// frontend au chargement (les dates des rounds en dépendent)
 app.get('/api/season-planning', (req, res) => {
-  res.json(sharedConfig.SEASON_PLANNING);
+  res.json({
+    types: sharedConfig.SEASON_PLANNING,
+    deadlines: sharedConfig.SEASON_DEADLINES,
+    roundDurations: sharedConfig.ROUND_DURATIONS
+  });
 });
 
 // GET admin - planning enrichi du statut de chaque saison
@@ -549,10 +553,8 @@ app.get('/api/admin/season-planning', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const data = await frozenResults.loadFrozenResultsRaw();
-    const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const plan = await frozenResults.getSeasonPlan(
-      athletes.filter(a => a.league_id === CHALLENGE_CONFIG.leagueId && a.active), CHALLENGE_CONFIG
-    );
+    const athletes = await getLeagueAthletes();
+    const plan = await frozenResults.getSeasonPlan(athletes, CHALLENGE_CONFIG);
     const frozenSeasons = new Set(Object.values(data?.rounds || {})
       .filter(r => r?.frozen).map(r => Number(r.seasonNumber)));
     const lastSeason = Math.max(12, plan.seasonNumber + 4, ...Object.keys(sharedConfig.SEASON_PLANNING).map(Number));
@@ -563,17 +565,34 @@ app.get('/api/admin/season-planning', async (req, res) => {
         : s === plan.seasonNumber ? 'current'
         : s < plan.seasonNumber ? 'closed'
         : 'upcoming';
-      seasons.push({
-        seasonNumber: s,
-        type: sharedConfig.SEASON_PLANNING[s] || 'standard',
-        status,
+      const type = sharedConfig.SEASON_PLANNING[s] || 'standard';
+      const deadline = sharedConfig.getSeasonDeadline(s);
+      const entry = {
+        seasonNumber: s, type, deadline, status,
         hasFrozenRounds: frozenSeasons.has(s),
-        startRound: s === plan.seasonNumber ? plan.startRound : null
-      });
+        startRound: s === plan.seasonNumber ? plan.startRound
+          : s === plan.seasonNumber + 1 ? plan.endRound + 1 : null
+      };
+
+      // Saison Deadline : plan réel (saison en cours, cf. visualisateur) ou aperçu
+      // pour la saison suivante, estimé avec tous les joueurs actifs et la fin
+      // projetée de la saison en cours.
+      const seasonType = sharedConfig.SEASON_TYPES[type];
+      if (seasonType?.hasDeadline && deadline && s === plan.seasonNumber + 1) {
+        const startDate = sharedConfig.getRoundDates(entry.startRound, CHALLENGE_CONFIG).start;
+        const preview = planDeadlineRounds({
+          actives: athletes.length, startDate, deadline,
+          finalists: CHALLENGE_CONFIG.finalistsCount,
+          durationRange: seasonType.durationRange,
+          eliminationsRange: seasonType.eliminationsRange
+        });
+        entry.preview = { startDate, rounds: preview.rounds, warning: preview.warning };
+      }
+      seasons.push(entry);
     }
     res.json({
       seasons,
-      types: Object.values(sharedConfig.SEASON_TYPES).map(t => ({ id: t.id, name: t.name }))
+      types: Object.values(sharedConfig.SEASON_TYPES).map(t => ({ id: t.id, name: t.name, hasDeadline: !!t.hasDeadline }))
     });
   } catch (error) {
     console.error('Erreur season-planning:', error);
@@ -581,36 +600,59 @@ app.get('/api/admin/season-planning', async (req, res) => {
   }
 });
 
-// POST admin - changer le type d'une saison pas encore commencée
+// POST admin - changer le type (et la deadline) d'une saison pas encore figée
 app.post('/api/admin/season-planning/:seasonNumber', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const seasonNumber = parseInt(req.params.seasonNumber, 10);
-    const { type } = req.body || {};
+    const { type, deadline } = req.body || {};
     if (isNaN(seasonNumber) || seasonNumber < 1) {
       return res.status(400).json({ error: 'Numéro de saison invalide' });
     }
-    if (!sharedConfig.SEASON_TYPES[type]) {
+    const seasonType = sharedConfig.SEASON_TYPES[type];
+    if (!seasonType) {
       return res.status(400).json({ error: `Type de saison inconnu: ${type}` });
+    }
+    if (seasonType.hasDeadline) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(deadline || ''))) {
+        return res.status(400).json({ error: 'Date de fin (deadline) requise au format AAAA-MM-JJ' });
+      }
+      const [y, m, d] = deadline.split('-').map(Number);
+      if (new Date(y, m - 1, d, 23, 59, 59) < new Date()) {
+        return res.status(400).json({ error: 'La deadline est déjà passée' });
+      }
     }
 
     // Une saison dont un round est figé ne peut plus changer de type : ses
-    // résultats ont été calculés avec l'ancien mode de jeu.
+    // résultats ont été calculés avec l'ancien mode de jeu. Seule la deadline
+    // d'une saison Deadline en cours reste ajustable.
     const data = await frozenResults.loadFrozenResultsRaw();
     const hasFrozen = Object.values(data?.rounds || {})
       .some(r => r?.frozen && Number(r.seasonNumber) === seasonNumber);
-    if (hasFrozen) {
+    const deadlineOnlyChange = seasonType.hasDeadline && sharedConfig.SEASON_PLANNING[seasonNumber] === type;
+    if (hasFrozen && !deadlineOnlyChange) {
       return res.status(409).json({ error: `La saison ${seasonNumber} a déjà des rounds figés, son type ne peut plus changer` });
     }
 
-    const overrides = await safeReadJSON(sharedConfig.SEASON_PLANNING_FILE, {});
-    overrides[String(seasonNumber)] = type;
-    await safeWriteJSON(sharedConfig.SEASON_PLANNING_FILE, overrides);
-    sharedConfig.applySeasonPlanningOverrides({ [seasonNumber]: type });
+    const raw = await safeReadJSON(sharedConfig.SEASON_PLANNING_FILE, {});
+    const stored = raw.types || raw.deadlines ? raw : { types: raw };
+    stored.types = stored.types || {};
+    stored.deadlines = stored.deadlines || {};
+    stored.types[String(seasonNumber)] = type;
+    if (seasonType.hasDeadline) stored.deadlines[String(seasonNumber)] = deadline;
+    else delete stored.deadlines[String(seasonNumber)];
+    await safeWriteJSON(sharedConfig.SEASON_PLANNING_FILE, stored);
+
+    sharedConfig.applySeasonPlanningOverrides({ types: { [seasonNumber]: type } });
+    if (seasonType.hasDeadline) sharedConfig.SEASON_DEADLINES[seasonNumber] = deadline;
+    else delete sharedConfig.SEASON_DEADLINES[seasonNumber];
     _teamsCache.clear();
 
-    console.log(`🗓️ Saison ${seasonNumber} → ${type}`);
-    res.json({ success: true, seasonNumber, type });
+    // Saison en cours : appliquer tout de suite (sinon au premier gel de la saison)
+    const replan = await replanDeadline('planning admin');
+
+    console.log(`🗓️ Saison ${seasonNumber} → ${type}${seasonType.hasDeadline ? ` (deadline ${deadline})` : ''}`);
+    res.json({ success: true, seasonNumber, type, deadline: seasonType.hasDeadline ? deadline : null, replan });
   } catch (error) {
     console.error('Erreur season-planning POST:', error);
     res.status(500).json({ error: error.message });
@@ -2655,5 +2697,7 @@ initializeServer().then(async () => {
     // Bonus restés rattachés à une saison close (ex: saison figée par script)
     await frozenResults.purgeClosedSeasonBonuses().catch(e =>
       console.warn('⚠️ Rattrapage purge bonus:', e.message));
+    // Saison Deadline en cours : recaler les rounds restants
+    await replanDeadline('démarrage');
   }, 5000);
 });

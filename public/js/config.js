@@ -71,6 +71,25 @@ export const SEASON_TYPES = {
     metric: "distance",
     isTeamBased: false,
   },
+  double_points: {
+    id: "double_points",
+    name: "Points doublés",
+    description: "Individuel - tous les points du challenge principal ×2",
+    metric: "elevation",
+    isTeamBased: false,
+    mainPointsMultiplier: 2,
+  },
+  deadline: {
+    id: "deadline",
+    name: "Deadline",
+    description:
+      "Individuel - la saison finit à une date fixée (rounds de 3 à 7 jours, 1 à 4 éliminations)",
+    metric: "elevation",
+    isTeamBased: false,
+    hasDeadline: true,
+    durationRange: { min: 3, max: 7 },
+    eliminationsRange: { min: 1, max: 4 },
+  },
   team: {
     id: "team",
     name: "Équipes",
@@ -112,12 +131,21 @@ let seasonPlanningPromise = null;
 export function loadSeasonPlanning() {
   if (IS_DEMO) return Promise.resolve(SEASON_PLANNING);
   if (!seasonPlanningPromise) {
-    seasonPlanningPromise = fetchWithTimeout("/api/season-planning", 5000)
+    // Les configs de round (finales posées par le planificateur Deadline) sont
+    // chargées en même temps : elles déterminent la longueur de ces saisons.
+    seasonPlanningPromise = loadSpecialRulesOverrides()
+      .then(() => fetchWithTimeout("/api/season-planning", 5000))
       .then((response) => (response.ok ? response.json() : {}))
-      .then((planning) => {
-        for (const [season, typeId] of Object.entries(planning || {})) {
+      .then((payload) => {
+        // Ancien format : { "9": "team" }
+        const types = payload?.types || (payload?.roundDurations ? {} : payload) || {};
+        for (const [season, typeId] of Object.entries(types)) {
           if (SEASON_TYPES[typeId]) SEASON_PLANNING[Number(season)] = typeId;
         }
+        Object.assign(SEASON_DEADLINES, payload?.deadlines || {});
+        if (payload?.roundDurations) setRoundDurations(payload.roundDurations);
+        // Types et longueurs de saison ont pu changer : recalculer
+        invalidateRosterCache();
         return SEASON_PLANNING;
       })
       .catch((e) => {
@@ -126,6 +154,14 @@ export function loadSeasonPlanning() {
       });
   }
   return seasonPlanningPromise;
+}
+
+// Date de fin des saisons Deadline : { [seasonNumber]: 'YYYY-MM-DD' }
+export const SEASON_DEADLINES = {};
+
+/** Multiplicateur des points du challenge principal (saison « points doublés »). */
+export function getMainPointsMultiplier(seasonNumber) {
+  return getSeasonType(seasonNumber)?.mainPointsMultiplier || 1;
 }
 
 export function getSeasonType(seasonNumber) {
@@ -1041,6 +1077,14 @@ function _computeRoundsForSeason(seasonNumber, frozen) {
   const seasonType = getSeasonType(seasonNumber);
   const count = getSeasonRosterSize(seasonNumber, frozen) || 13;
 
+  if (seasonType?.hasDeadline) {
+    // La finale est posée par le planificateur dans round_configs (type 'finale')
+    const startRound = getSeasonStartRound(seasonNumber, frozen);
+    for (let r = startRound; r < startRound + 40; r++) {
+      if (roundConfigsRaw[String(r)]?.type === "finale") return r - startRound + 1;
+    }
+  }
+
   if (seasonType?.isTeamBased) {
     const teamSize = seasonType.teamSize || 3;
     // Chaque round élimine 1 équipe complète (teamSize joueurs)
@@ -1096,25 +1140,12 @@ export function getSeasonStartRound(seasonNumber, frozen = null) {
   return globalRound;
 }
 
-/**
- * Jour de début d'une saison (en jours depuis yearStartDate)
- */
-function getSeasonStartDay(seasonNumber, frozen = null) {
-  let day = 0;
-  for (let s = 1; s < seasonNumber; s++) {
-    day += getRoundsForSeason(s, frozen) * CHALLENGE_CONFIG.roundDurationDays;
-  }
-  return day;
-}
-
 export function getTotalSeasons() {
-  let totalDays = 0;
+  // Saisons entièrement contenues dans l'année
+  const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate);
   let s = 0;
-  while (totalDays < 365) {
-    s++;
-    totalDays += getRoundsForSeason(s) * CHALLENGE_CONFIG.roundDurationDays;
-  }
-  return s - 1; // La dernière saison dépasse → on ne la compte pas
+  while (s < 100 && getSeasonDates(s + 1).end <= yearEnd) s++;
+  return s;
 }
 
 /**
@@ -1143,33 +1174,22 @@ export function getSeasonNumber(date, frozenData = null) {
     }
   }
 
-  // 2. FALLBACK : calcul théorique
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const days = Math.floor((date - start) / (1000 * 60 * 60 * 24));
-  let accumulated = 0;
+  // 2. FALLBACK : calcul théorique (rounds cumulés des saisons)
+  const round = getGlobalRoundNumber(date);
   let s = 1;
   while (s <= 20) {
-    const seasonDays =
-      getRoundsForSeason(s, data) * CHALLENGE_CONFIG.roundDurationDays;
-    if (accumulated + seasonDays > days) return s;
-    accumulated += seasonDays;
+    const lastRound = getSeasonStartRound(s, data) + getRoundsForSeason(s, data) - 1;
+    if (round <= lastRound) return s;
     s++;
   }
   return s;
 }
 
 export function getSeasonDates(seasonNumber, frozen = null) {
-  const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const startDay = getSeasonStartDay(seasonNumber, frozen);
-  const duration =
-    getRoundsForSeason(seasonNumber, frozen) *
-    CHALLENGE_CONFIG.roundDurationDays;
-
-  const start = new Date(yearStart);
-  start.setDate(start.getDate() + startDay);
-  const end = new Date(start);
-  end.setDate(end.getDate() + duration - 1);
-  end.setHours(23, 59, 59, 999);
+  const startRound = getSeasonStartRound(seasonNumber, frozen);
+  const lastRound = startRound + getRoundsForSeason(seasonNumber, frozen) - 1;
+  const start = getRoundDates(startRound).start;
+  const end = getRoundDates(lastRound).end;
   const yearEnd = new Date(CHALLENGE_CONFIG.yearEndDate);
   return {
     start,
@@ -1189,9 +1209,11 @@ function challengeStartLocalMidnight() {
 }
 
 export function getGlobalRoundNumber(date) {
-  const start = challengeStartLocalMidnight();
-  const days = Math.floor((date - start) / (1000 * 60 * 60 * 24));
-  return Math.max(1, Math.floor(days / CHALLENGE_CONFIG.roundDurationDays) + 1);
+  const ts = new Date(date).getTime();
+  for (let r = 1; r <= 1000; r++) {
+    if (ts <= getRoundDates(r).end.getTime()) return r;
+  }
+  return 1000;
 }
 
 export function getRoundInSeason(date, frozen = null) {
@@ -1201,16 +1223,44 @@ export function getRoundInSeason(date, frozen = null) {
   return globalRound - seasonStartRound + 1;
 }
 
+// Durée de chaque round, en jours (miroir de backend/shared-config.js).
+// Par défaut CHALLENGE_CONFIG.roundDurationDays ; les saisons Deadline la
+// surchargent via round_configs (durationDays). Les dates d'un round sont le
+// cumul des durées des rounds précédents.
+const ROUND_DURATIONS = {};
+
+export function setRoundDurations(durationsOrConfigs) {
+  for (const key of Object.keys(ROUND_DURATIONS)) delete ROUND_DURATIONS[key];
+  for (const [round, value] of Object.entries(durationsOrConfigs || {})) {
+    const days = Number(typeof value === "object" ? value?.durationDays : value);
+    if (Number.isInteger(days) && days >= 1 && days <= 14) {
+      ROUND_DURATIONS[Number(round)] = days;
+    }
+  }
+}
+
+export function getRoundDuration(globalRoundNumber) {
+  return ROUND_DURATIONS[globalRoundNumber] || CHALLENGE_CONFIG.roundDurationDays;
+}
+
 export function getRoundDates(globalRoundNumber) {
-  const start = challengeStartLocalMidnight();
-  start.setDate(
-    start.getDate() +
-      (globalRoundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays,
-  );
-  const end = new Date(start);
-  end.setDate(end.getDate() + CHALLENGE_CONFIG.roundDurationDays - 1);
-  end.setHours(23, 59, 59, 999);
+  const base = challengeStartLocalMidnight();
+  let offsetDays = (globalRoundNumber - 1) * CHALLENGE_CONFIG.roundDurationDays;
+  for (const [r, days] of Object.entries(ROUND_DURATIONS)) {
+    if (Number(r) < globalRoundNumber) {
+      offsetDays += days - CHALLENGE_CONFIG.roundDurationDays;
+    }
+  }
+  const y = base.getFullYear(), m = base.getMonth(), d = base.getDate();
+  const start = new Date(y, m, d + offsetDays);
+  const end = new Date(y, m, d + offsetDays + getRoundDuration(globalRoundNumber) - 1, 23, 59, 59, 999);
   return { start, end };
+}
+
+/** Jour courant dans un round (1 = premier jour). */
+export function getDayInRound(date = new Date()) {
+  const { start } = getRoundDates(getGlobalRoundNumber(date));
+  return Math.floor((new Date(date) - start) / (1000 * 60 * 60 * 24)) + 1;
 }
 
 export function isFinaleRound(roundInSeason, seasonNumber, frozen = null) {
@@ -1247,6 +1297,8 @@ export async function loadSpecialRulesOverrides() {
     if (response.ok) {
       const roundConfigs = await response.json();
       roundConfigsRaw = roundConfigs;
+      setRoundDurations(roundConfigs);
+      invalidateRosterCache();
       specialRulesOverrides = {};
       for (const [roundNumber, config] of Object.entries(roundConfigs)) {
         if (config?.specialRule && config.specialRule !== "standard") {

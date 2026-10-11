@@ -149,6 +149,34 @@ const INITIAL_JOKER_STOCK = 2;
 // ============================================
 // UTILITAIRES DE DATES
 // ============================================
+// Durée de chaque round, en jours. Par défaut config.roundDurationDays ; un round
+// peut la surcharger via round_configs.json (champ durationDays, posé par le
+// planificateur des saisons Deadline). Les dates d'un round sont le CUMUL des
+// durées des rounds précédents : surcharger un round ne déplace que les suivants.
+const ROUND_DURATION_LIMITS = { min: 1, max: 14 };
+const ROUND_DURATIONS = {};
+
+function setRoundDurations(roundConfigs) {
+  for (const key of Object.keys(ROUND_DURATIONS)) delete ROUND_DURATIONS[key];
+  for (const [round, cfg] of Object.entries(roundConfigs || {})) {
+    const days = Number(cfg?.durationDays);
+    if (Number.isInteger(days) && days >= ROUND_DURATION_LIMITS.min && days <= ROUND_DURATION_LIMITS.max) {
+      ROUND_DURATIONS[Number(round)] = days;
+    }
+  }
+}
+
+try {
+  setRoundDurations(JSON.parse(require('fs').readFileSync(
+    require('path').join(__dirname, 'data', 'round_configs.json'), 'utf8')));
+} catch (e) {
+  if (e.code !== 'ENOENT') console.warn('⚠️ round_configs.json illisible (durées de round):', e.message);
+}
+
+function getRoundDuration(roundNumber, config = CHALLENGE_CONFIG) {
+  return ROUND_DURATIONS[roundNumber] || config.roundDurationDays;
+}
+
 function getRoundDates(roundNumber, config = CHALLENGE_CONFIG) {
   // IMPORTANT : ancrer le début du round à MINUIT LOCAL (heure de Paris, cf.
   // TZ=Europe/Paris côté serveur). `new Date('2026-02-02')` serait interprété en
@@ -156,12 +184,26 @@ function getRoundDates(roundNumber, config = CHALLENGE_CONFIG) {
   // 01h00 où une activité (rattachée par son heure de FIN) ne tomberait dans
   // aucun round. On parse donc les composantes Y/M/D en local.
   const [y, m, d] = String(config.yearStartDate).split('-').map(Number);
-  const start = new Date(y, m - 1, d); // minuit local
-  start.setDate(start.getDate() + (roundNumber - 1) * config.roundDurationDays);
-  const end = new Date(start);
-  end.setDate(end.getDate() + config.roundDurationDays - 1);
-  end.setHours(23, 59, 59, 999);
+  let offsetDays = (roundNumber - 1) * config.roundDurationDays;
+  for (const [r, days] of Object.entries(ROUND_DURATIONS)) {
+    if (Number(r) < roundNumber) offsetDays += days - config.roundDurationDays;
+  }
+  const start = new Date(y, m - 1, d + offsetDays); // minuit local
+  const end = new Date(y, m - 1, d + offsetDays + getRoundDuration(roundNumber, config) - 1, 23, 59, 59, 999);
   return { start, end };
+}
+
+/**
+ * Round global contenant un instant (rattachement par getRoundDates, donc
+ * compatible avec les durées variables). null avant le début du challenge.
+ */
+function getRoundNumberForDate(timestamp, config = CHALLENGE_CONFIG) {
+  const ts = timestamp instanceof Date ? timestamp.getTime() : Number(timestamp);
+  if (ts < getRoundDates(1, config).start.getTime()) return null;
+  for (let r = 1; r <= 1000; r++) {
+    if (ts <= getRoundDates(r, config).end.getTime()) return r;
+  }
+  return null;
 }
 
 /**
@@ -213,6 +255,23 @@ const SEASON_TYPES = {
     name: "Standard",
     isTeamBased: false
   },
+  double_points: {
+    id: "double_points",
+    name: "Points doublés",
+    isTeamBased: false,
+    // Tous les points du challenge principal de la saison sont multipliés
+    mainPointsMultiplier: 2
+  },
+  deadline: {
+    id: "deadline",
+    name: "Deadline",
+    isTeamBased: false,
+    // La saison se termine à une date fixée : durée des rounds et nombre
+    // d'éliminations sont planifiés pour que la finale finisse ce jour-là
+    hasDeadline: true,
+    durationRange: { min: 3, max: 7 },
+    eliminationsRange: { min: 1, max: 4 }
+  },
   team: {
     id: "team",
     name: "Équipes",
@@ -230,9 +289,20 @@ const SEASON_TYPES = {
 // moteur de gel et scripts voient le même planning.
 const SEASON_PLANNING_FILE = require('path').join(__dirname, 'data', 'season_planning.json');
 
+// Date de fin des saisons Deadline : { [seasonNumber]: 'YYYY-MM-DD' }
+const SEASON_DEADLINES = {};
+
+/**
+ * Applique le contenu de season_planning.json. Format : { types: {…}, deadlines: {…} },
+ * ou l'ancien format plat { "9": "team" }.
+ */
 function applySeasonPlanningOverrides(overrides) {
-  for (const [season, typeId] of Object.entries(overrides || {})) {
+  const types = overrides?.types || (overrides?.deadlines ? {} : overrides) || {};
+  for (const [season, typeId] of Object.entries(types)) {
     if (SEASON_TYPES[typeId] && Number(season) >= 1) SEASON_PLANNING[Number(season)] = typeId;
+  }
+  for (const [season, date] of Object.entries(overrides?.deadlines || {})) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(date))) SEASON_DEADLINES[Number(season)] = date;
   }
 }
 
@@ -240,6 +310,19 @@ try {
   applySeasonPlanningOverrides(JSON.parse(require('fs').readFileSync(SEASON_PLANNING_FILE, 'utf8')));
 } catch (e) {
   if (e.code !== 'ENOENT') console.warn('⚠️ season_planning.json illisible:', e.message);
+}
+
+function getSeasonDeadline(seasonNumber) {
+  return SEASON_DEADLINES[seasonNumber] || null;
+}
+
+function isDeadlineSeason(seasonNumber) {
+  return getSeasonType(seasonNumber)?.hasDeadline === true;
+}
+
+/** Multiplicateur des points du challenge principal pour une saison. */
+function getMainPointsMultiplier(seasonNumber) {
+  return getSeasonType(seasonNumber)?.mainPointsMultiplier || 1;
 }
 
 function getSeasonType(seasonNumber) {
@@ -332,6 +415,15 @@ module.exports = {
   INITIAL_JOKER_STOCK,
   BONUS_IDS,
   getRoundDates,
+  getRoundDuration,
+  getRoundNumberForDate,
+  setRoundDurations,
+  ROUND_DURATIONS,
+  ROUND_DURATION_LIMITS,
+  SEASON_DEADLINES,
+  getSeasonDeadline,
+  isDeadlineSeason,
+  getMainPointsMultiplier,
   getSeasonRoundCount,
   getSeasonNumber,
   getRoundInSeason

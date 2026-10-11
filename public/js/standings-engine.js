@@ -41,7 +41,7 @@ import {
   getParticipantById, getRoundDates, getSeasonNumber, getSeasonDates,
   getRoundInSeason, isFinaleRound,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
-  getMainChallengePoints, getEliminatedChallengePoints,
+  getMainChallengePoints, getEliminatedChallengePoints, getMainPointsMultiplier,
   wasRegisteredBeforeStart,
   isParticipantInRound, getSeasonRoster, getSeasonRosterSize,
   formBalancedTeams, getSpecialRuleForRound, getEffectiveNbEliminations,
@@ -1495,14 +1495,16 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
       const indexInRound = sameRoundElims.findIndex(e => e.id === elim.id);
       position = activeAtRoundStart - indexInRound;
     }
-    mainPts = getMainChallengePoints(Math.max(1, Math.min(position, seasonRosterSize)));
+    // Valeur recalculée (pas de valeur figée) : appliquer le multiplicateur de
+    // la saison, déjà inclus dans les mainPoints figés par le backend
+    mainPts = getMainChallengePoints(Math.max(1, Math.min(position, seasonRosterSize))) * getMainPointsMultiplier(s);
   }
   elimPts = elimPointsMap[p.id] || 0;
 } else if (sData.winner?.id === p.id) {
-        mainPts = getMainChallengePoints(1);
+        mainPts = getMainChallengePoints(1) * getMainPointsMultiplier(s);
         totals[p.id].wins++;
       } else if (sData.seasonComplete) {
-        mainPts = getMainChallengePoints(2);
+        mainPts = getMainChallengePoints(2) * getMainPointsMultiplier(s);
       } else {
         // Fallback : chercher directement les mainPoints attribués par le backend
         // dans le ranking figé du dernier round de la saison (cas finale team ou

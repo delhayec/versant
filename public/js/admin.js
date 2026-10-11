@@ -197,6 +197,12 @@ const ROUND_TYPE_LABELS = {
   no_eliminations: 'Sans élimination'
 };
 
+const SEASON_TYPE_TAGS = {
+  team: 'équipes',
+  double_points: 'points ×2',
+  deadline: 'deadline'
+};
+
 const STATUS_LABELS = {
   frozen: '<span class="ok">❄️ Figé</span>',
   pending_freeze: '<span class="err">⚠️ Terminé, à figer</span>',
@@ -276,11 +282,13 @@ function renderSeasonPlan(plan, weatherCoverage) {
   const rows = plan.rounds.map(r => {
     const editable = r.status !== 'frozen';
     const cfg = r.config || {};
-    const dates = `${formatDate(r.start)} → ${formatDate(r.end)}`;
+    const duration = Math.round((new Date(r.end) - new Date(r.start)) / 86400000);
+    const dates = `${formatDate(r.start)} → ${formatDate(r.end)} <span class="hint">(${duration} j)</span>`;
     const rowClass = r.status === 'frozen' ? 'is-frozen' : (r.status === 'ongoing' ? 'is-current' : '');
 
+    const planned = cfg.source === 'deadline';
     let elimCell;
-    if (!editable) {
+    if (!editable || planned) {
       elimCell = `<span>${r.eliminations}</span>`;
     } else if (isTeam) {
       elimCell = `<span title="Une équipe éliminée par round">${r.eliminations}</span>`;
@@ -293,7 +301,9 @@ function renderSeasonPlan(plan, weatherCoverage) {
     }
 
     const currentType = cfg.type || 'standard';
-    const typeCell = editable
+    const typeCell = planned
+      ? `${r.isFinale ? '🏆 Finale' : 'Standard'}<div class="hint">planifié (deadline)</div>`
+      : editable
       ? `<select id="config-type-${r.roundNumber}">${renderOptions(ROUND_TYPE_LABELS, currentType)}</select>
          ${r.isFinale && currentType !== 'finale' ? '<div class="hint info">finale (calculée)</div>' : ''}`
       : (r.isFinale ? '🏆 Finale' : 'Standard');
@@ -326,11 +336,12 @@ function renderSeasonPlan(plan, weatherCoverage) {
 
   return `
     <div class="season-summary">
-      <div>Saison <strong>${plan.seasonNumber}</strong>${isTeam ? ' <span class="tag">équipes</span>' : ''}</div>
+      <div>Saison <strong>${plan.seasonNumber}</strong>${plan.seasonType !== 'standard' ? ` <span class="tag">${escapeHtml(SEASON_TYPE_TAGS[plan.seasonType] || plan.seasonType)}</span>` : ''}</div>
       <div>Rounds <strong>R${plan.startRound} → R${plan.endRound}</strong></div>
       <div>Joueurs au départ <strong>${plan.totalParticipants}</strong></div>
       ${isTeam ? '' : `<div>Finalistes visés <strong>${plan.finalistsCount}</strong></div>`}
       <div>Élim. par défaut <strong>${plan.eliminationsPerRound}</strong></div>
+      ${plan.deadline ? `<div>Deadline <strong>${formatDate(plan.deadline + 'T12:00:00')}</strong></div>` : ''}
     </div>
     ${alerts}
     <table class="admin-table">
@@ -351,6 +362,8 @@ async function saveRoundConfigFromUI(roundNumber) {
   const specialRule = document.getElementById(`config-rule-${roundNumber}`)?.value || 'standard';
 
   const body = { type, specialRule };
+  // Round planifié (saison Deadline) : seule la règle spéciale est modifiable
+  if (!document.getElementById(`config-type-${roundNumber}`)) delete body.type;
   if (rawElim !== '') {
     const nbElim = parseInt(rawElim, 10);
     if (isNaN(nbElim) || nbElim < 0) {
@@ -394,46 +407,100 @@ const SEASON_STATUS_LABELS = {
   upcoming: '<span class="info">📅 À venir</span>'
 };
 
+function renderDeadlinePlan(rounds) {
+  return rounds.map(r => r.isFinale
+    ? `<span class="tag">${r.durationDays} j · finale</span>`
+    : `<span class="tag">${r.durationDays} j · ${r.nbEliminations} élim</span>`).join(' ');
+}
+
 async function loadSeasonPlanning() {
   const container = document.getElementById('seasonPlanningContent');
   try {
     const { seasons, types } = await adminJson('/admin/season-planning');
     const typeLabel = id => types.find(t => t.id === id)?.name || id;
+    const deadlineTypes = new Set(types.filter(t => t.hasDeadline).map(t => t.id));
 
     container.innerHTML = `
       <table class="admin-table">
-        <thead><tr><th>Saison</th><th>Statut</th><th>Type</th></tr></thead>
+        <thead><tr><th>Saison</th><th>Statut</th><th>Type</th><th>Détail</th></tr></thead>
         <tbody>${seasons.map(s => {
           const editable = !s.hasFrozenRounds && s.status !== 'closed';
+          // La deadline d'une saison Deadline en cours reste ajustable
+          const deadlineEditable = editable || (s.status === 'current' && deadlineTypes.has(s.type));
           const typeCell = editable
-            ? `<select onchange="saveSeasonType(${s.seasonNumber}, this)">
+            ? `<select id="season-type-${s.seasonNumber}" onchange="onSeasonTypeChange(${s.seasonNumber})">
                  ${types.map(t => `<option value="${t.id}" ${t.id === s.type ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
                </select>`
             : `${s.type === 'team' ? '👥 ' : ''}${escapeHtml(typeLabel(s.type))}`;
+
+          const showDeadline = deadlineTypes.has(s.type);
+          const deadlineInput = deadlineEditable
+            ? `<span id="season-deadline-wrap-${s.seasonNumber}" style="${showDeadline ? '' : 'display: none;'}">
+                 Fin le <input type="date" id="season-deadline-${s.seasonNumber}" value="${s.deadline || ''}">
+               </span>`
+            : (s.deadline ? `Fin le ${formatDate(s.deadline + 'T12:00:00')}` : '');
+          const saveBtn = editable || deadlineEditable
+            ? ` <button class="btn btn-primary btn-sm" onclick="saveSeasonType(${s.seasonNumber})">💾</button>`
+            : '';
+
+          let detail = deadlineInput;
+          if (s.preview) {
+            detail += `<div class="hint">Aperçu (${seasons.length && s.startRound ? `dès R${s.startRound}, ` : ''}estimé avec tous les joueurs actifs) :<br>${renderDeadlinePlan(s.preview.rounds)}</div>`;
+            if (s.preview.warning) detail += `<div class="hint warn">⚠️ ${escapeHtml(s.preview.warning)}</div>`;
+          }
+          if (s.type === 'double_points') detail += '<span class="hint">Points du challenge principal ×2</span>';
+
           return `
             <tr class="${s.status === 'closed' ? 'is-frozen' : (s.status === 'current' ? 'is-current' : '')}">
-              <td><strong>Saison ${s.seasonNumber}</strong>${s.startRound ? ` <span class="hint">(depuis R${s.startRound})</span>` : ''}</td>
+              <td><strong>Saison ${s.seasonNumber}</strong>${s.startRound ? ` <span class="hint">(R${s.startRound})</span>` : ''}</td>
               <td>${SEASON_STATUS_LABELS[s.status] || ''}</td>
-              <td>${typeCell}</td>
+              <td>${typeCell}${saveBtn}</td>
+              <td>${detail}</td>
             </tr>`;
         }).join('')}</tbody>
-      </table>`;
+      </table>
+      <p class="hint">Saison Deadline : rounds de 3 à 7 jours et 1 à 4 éliminations, recalculés après chaque gel pour finir le jour choisi.</p>`;
+    container.dataset.deadlineTypes = [...deadlineTypes].join(',');
   } catch (error) {
     container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
     addLog(`❌ Erreur planning saisons: ${error.message}`);
   }
 }
 
-async function saveSeasonType(seasonNumber, select) {
-  const type = select.value;
-  const label = select.selectedOptions[0].textContent;
-  if (!confirm(`Passer la saison ${seasonNumber} en mode « ${label} » ?`)) {
+function onSeasonTypeChange(seasonNumber) {
+  const type = document.getElementById(`season-type-${seasonNumber}`).value;
+  const deadlineTypes = (document.getElementById('seasonPlanningContent').dataset.deadlineTypes || '').split(',');
+  const wrap = document.getElementById(`season-deadline-wrap-${seasonNumber}`);
+  if (wrap) wrap.style.display = deadlineTypes.includes(type) ? '' : 'none';
+}
+
+async function saveSeasonType(seasonNumber) {
+  const select = document.getElementById(`season-type-${seasonNumber}`);
+  const deadlineInput = document.getElementById(`season-deadline-${seasonNumber}`);
+  const deadlineTypes = (document.getElementById('seasonPlanningContent').dataset.deadlineTypes || '').split(',');
+  // Saison en cours non modifiable : seul le champ deadline est présent
+  const type = select ? select.value : 'deadline';
+  const label = select ? select.selectedOptions[0].textContent : 'Deadline';
+  const body = { type };
+  if (deadlineTypes.includes(type)) {
+    if (!deadlineInput?.value) {
+      alert('Choisis la date de fin de la saison');
+      return;
+    }
+    body.deadline = deadlineInput.value;
+  }
+
+  const summary = body.deadline ? ` avec fin le ${formatDate(body.deadline + 'T12:00:00')}` : '';
+  if (!confirm(`Saison ${seasonNumber} en mode « ${label} »${summary} ?`)) {
     loadSeasonPlanning();
     return;
   }
   try {
-    await adminJson(`/admin/season-planning/${seasonNumber}`, { method: 'POST', body: { type } });
-    addLog(`🗓️ Saison ${seasonNumber} → ${label}`);
+    const result = await adminJson(`/admin/season-planning/${seasonNumber}`, { method: 'POST', body });
+    addLog(`🗓️ Saison ${seasonNumber} → ${label}${summary}`);
+    if (result.replan?.planned && result.replan.seasonNumber === seasonNumber) {
+      addLog(`⏳ Rounds replanifiés R${result.replan.fromRound}→R${result.replan.toRound}${result.replan.warning ? ` (⚠️ ${result.replan.warning})` : ''}`);
+    }
     loadSeasonPlanning();
     loadSeasonVisualizer();
   } catch (error) {
@@ -443,6 +510,7 @@ async function saveSeasonType(seasonNumber, select) {
   }
 }
 
+window.onSeasonTypeChange = onSeasonTypeChange;
 window.saveSeasonType = saveSeasonType;
 
 // ============================================

@@ -20,6 +20,7 @@ import {
   SPORT_SETTINGS,
   isValidSport,
   getRoundDates,
+  getRoundDuration,
   getGlobalRoundNumber,
   getRoundsForSeason,
   getSeasonNumber,
@@ -1242,7 +1243,7 @@ function calculateHourlyDistribution(data, groupBy) {
       const d = new Date(act.start_date);
       const globalRound = getGlobalRoundNumber(d);
       const roundDates = getRoundDates(globalRound);
-      const dayOfRound = Math.min(5, Math.max(1, Math.floor((d - roundDates.start) / (1000 * 60 * 60 * 24)) + 1));
+      const dayOfRound = Math.min(getRoundDuration(globalRound), Math.max(1, Math.floor((d - roundDates.start) / (1000 * 60 * 60 * 24)) + 1));
       key = `J${dayOfRound}`;
     } else {
       key = mapSportName(act.sport_type);
@@ -2490,13 +2491,11 @@ function computeAthleteStats(data, frozenResults = null) {
     const sport = mapSportName(a.sport_type);
     s.elevation_by_sport[sport] = (s.elevation_by_sport[sport] || 0) + (a.total_elevation_gain || 0);
 
-    // Bin par round (5 jours depuis yearStart)
+    // Bin par round (calendrier réel : la durée des rounds peut varier)
     try {
       const actDate = new Date(a.start_date);
-      const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-      const daysSinceStart = Math.floor((actDate - yearStart) / 86400000);
-      if (daysSinceStart >= 0) {
-        const roundNum = Math.floor(daysSinceStart / 5) + 1;
+      if (actDate >= getRoundDates(1).start) {
+        const roundNum = getGlobalRoundNumber(actDate);
         if (!s.elevation_by_round[roundNum]) {
           s.elevation_by_round[roundNum] = { elevation: 0 };
         }
