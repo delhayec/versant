@@ -1615,7 +1615,9 @@ const isNoBonusRound = results.specialRule === 'no_bonus';
     try {
       const generated = await generateBonusChoiceForBestEliminated(results.eliminations, roundNumber);
       if (generated) {
+        // Persisté pour pouvoir vérifier après coup qui a reçu un choix
         results.bonusChoiceGenerated = generated;
+        await saveFrozenResults(data);
       }
     } catch (e) {
       console.warn(`⚠️ Erreur génération choix bonus round ${roundNumber}:`, e.message);
@@ -1934,7 +1936,23 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
         if (bonus.bonus_id === 'brouillard') return d.type === 'brouillard';
         return false;
       });
-      if (detail) {
+      if (bonus.bonus_id === 'duel') {
+        // Duel : celui des deux co-éliminés qui a le plus de D+ depuis
+        // l'élimination gagne +1 pt au classement général. Égalité = aucun point.
+        const target = rankingList.find(e => String(e.id) === String(bonus.target_athlete_id));
+        const mine = Number(entry?.totalElevation) || 0;
+        const theirs = Number(target?.totalElevation) || 0;
+        const won = !!target && mine > theirs;
+        nextEffectResult = {
+          amount: 0,
+          myElevation: mine,
+          targetElevation: theirs,
+          won,
+          pointsAwarded: won ? 1 : 0,
+          appliedAt: new Date().toISOString(),
+          frozenAtSeasonClose: true
+        };
+      } else if (detail) {
         nextEffectResult = {
           amount: detail.amount || 0,
           activityName: detail.activityName || null,
@@ -1995,8 +2013,10 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
         athlete_name: b.athlete_name,
         elimination_round: b.elimination_round
       });
-      // Important : ajouter aussi à l'archive de la saison
-      archivedBonuses.push({ ...updatedBonusesLive[i] });
+      // Remplacer la copie archivée à l'étape 1 (sinon le bonus y figure deux fois)
+      const archivedIdx = archivedBonuses.findIndex(x => x.id && x.id === b.id);
+      if (archivedIdx >= 0) archivedBonuses[archivedIdx] = { ...updatedBonusesLive[i] };
+      else archivedBonuses.push({ ...updatedBonusesLive[i] });
     }
   }
 
@@ -2358,6 +2378,74 @@ async function unfreezeEliminatedChallengeForSeason(seasonNumber) {
 }
 
 // ============================================
+// RATTRAPAGE DE PURGE DES BONUS
+// ============================================
+
+/**
+ * Archive les bonus et choix en attente restés rattachés à une saison déjà
+ * close (challenge des éliminés figé) sans être passés par la purge — typiquement
+ * une saison figée par script. Idempotent : sans effet si tout est déjà archivé.
+ */
+async function purgeClosedSeasonBonuses() {
+  const data = await loadFrozenResults();
+  const closedSeasons = new Set(Object.keys(data.eliminatedChallengeRankings || {}).map(Number));
+  const seasonOfRound = (roundNumber) => {
+    const season = Number(data.rounds?.[String(roundNumber)]?.seasonNumber);
+    return closedSeasons.has(season) ? season : null;
+  };
+
+  const now = new Date().toISOString();
+  const bonuses = await loadAllBonuses();
+  let archived = 0;
+  for (let i = 0; i < bonuses.length; i++) {
+    const b = bonuses[i];
+    if (b.season_number) continue;
+    const season = seasonOfRound(b.elimination_round);
+    if (!season) continue;
+
+    const updated = { ...b, season_number: season };
+    if (b.status === 'available') {
+      Object.assign(updated, { status: 'expired', effect_applied: false, expired_at: now, expired_reason: 'season_closed_unused' });
+    } else if (b.status === 'active' || b.status === 'chosen') {
+      Object.assign(updated, {
+        status: 'used',
+        effect_applied: true,
+        effect_result: b.effect_result || { amount: 0, noEffect: true, frozenAtSeasonClose: true, lateArchive: true }
+      });
+    }
+    bonuses[i] = updated;
+
+    if (!data.seasonBonuses) data.seasonBonuses = {};
+    const archive = data.seasonBonuses[String(season)] || (data.seasonBonuses[String(season)] = []);
+    if (!archive.some(x => x.id && x.id === updated.id)) archive.push({ ...updated });
+    archived++;
+  }
+
+  const pendingFile = path.join(DATA_DIR, 'pending_bonus_choices.json');
+  let pending = {};
+  try { pending = JSON.parse(await fs.readFile(pendingFile, 'utf8')); } catch (e) { /* aucun */ }
+  let purgedPending = 0;
+  for (const [athleteId, p] of Object.entries(pending)) {
+    if (seasonOfRound(p?.elimination_round)) {
+      delete pending[athleteId];
+      purgedPending++;
+    }
+  }
+
+  if (archived) {
+    await fs.writeFile(BONUSES_FILE, JSON.stringify(bonuses, null, 2), 'utf8');
+    await saveFrozenResults(data);
+  }
+  if (purgedPending) {
+    await fs.writeFile(pendingFile, JSON.stringify(pending, null, 2), 'utf8');
+  }
+  if (archived || purgedPending) {
+    console.log(`🧹 Rattrapage purge bonus : ${archived} bonus archivé(s), ${purgedPending} choix en attente supprimé(s)`);
+  }
+  return { archived, purgedPending };
+}
+
+// ============================================
 // PLAN DE LA SAISON EN COURS (visualisateur admin)
 // ============================================
 
@@ -2479,6 +2567,7 @@ async function getSeasonPlan(athletes, config, now = new Date()) {
 module.exports = {
   computeElevationGauge,
   getSeasonPlan,
+  purgeClosedSeasonBonuses,
   getAllFrozenResults,
   getFrozenRoundResult,
   freezeRoundResults,

@@ -282,7 +282,10 @@ function getCurrentRound() {
 }
 
 function getDayInRound() {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
+  // Minuit LOCAL comme le backend : new Date('2026-02-02') serait minuit UTC,
+  // et le « jour 1 » démarrerait à 1h/2h du matin heure de Paris.
+  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate).split('-').map(Number);
+  const start = new Date(y, m - 1, d);
   const now = new Date();
   const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
   return (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;

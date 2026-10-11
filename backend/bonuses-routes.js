@@ -52,6 +52,16 @@ async function safeWriteJSON(filepath, data) {
 /**
  * Tire au sort N bonus parmi les disponibles
  */
+/**
+ * Round global en cours (mêmes bornes que le calcul des rounds).
+ */
+function getCurrentRoundNumber(now = Date.now()) {
+  for (let r = 1; r <= 500; r++) {
+    if (getRoundDates(r).end.getTime() >= now) return r;
+  }
+  return null;
+}
+
 function drawRandomBonuses(count = BONUS_CHOICE_COUNT) {
   const shuffled = [...BONUS_IDS].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
@@ -117,18 +127,17 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       //   1. Bonus 'available' = en attente d'utilisation (priorité absolue,
       //      le joueur doit pouvoir l'activer).
       //   2. Bonus 'active' = effet saisonnier en cours.
-      //   3. Bonus le plus récent par elimination_round (= dernière saison où
-      //      le joueur a été éliminé). Permet de garder une trace utilisable
-      //      pour l'historique sans masquer les bonus plus anciens.
-      let myBonus = null;
-      if (myBonuses.length > 0) {
-        const available = myBonuses.find(b => b.status === 'available');
-        const active = myBonuses.find(b => b.status === 'active');
-        const sorted = [...myBonuses].sort((a, b) =>
-          (Number(b.elimination_round) || 0) - (Number(a.elimination_round) || 0)
-        );
-        myBonus = available || active || sorted[0];
-      }
+      //   3. Bonus le plus récent de la saison en cours (ex: déjà utilisé).
+      // Un bonus archivé (season_number posé à la clôture de sa saison) est
+      // purgé : on ne l'affiche plus, sinon un vieux bonus « utilisé » ou
+      // « actif » reste visible saison après saison.
+      const currentBonuses = myBonuses
+        .filter(b => !b.season_number)
+        .sort((a, b) => (Number(b.elimination_round) || 0) - (Number(a.elimination_round) || 0));
+      const myBonus = currentBonuses.find(b => b.status === 'available')
+        || currentBonuses.find(b => b.status === 'active')
+        || currentBonuses[0]
+        || null;
 
       res.json({
         bonus: myBonus || null,
@@ -353,10 +362,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       // si round_number n'est pas précisé.
       try {
         let targetRound = round_number;
-        if (targetRound == null) {
-          const { getGlobalRoundNumber } = require('./config');
-          targetRound = getGlobalRoundNumber(new Date());
-        }
+        if (targetRound == null) targetRound = getCurrentRoundNumber();
         const cfg = await roundConfigs.getRoundConfig(targetRound);
         if (cfg?.specialRule === 'no_bonus') {
           return res.status(403).json({

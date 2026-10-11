@@ -173,6 +173,7 @@ async function loadDashboardData() {
   loadSeasonVisualizer();
   loadFrozenStatus();
   loadJokersData();
+  loadBonusesAdmin();
 }
 
 function updateExcludedCount() {
@@ -446,6 +447,7 @@ function refreshAfterFreezeChange() {
   loadFrozenStatus();
   loadSeasonVisualizer();
   loadJokersData();
+  loadBonusesAdmin();
 }
 
 function getRoundInput() {
@@ -849,6 +851,76 @@ document.getElementById('resetAllJokersBtn').addEventListener('click', async () 
     alert('Erreur: ' + error.message);
   }
 });
+
+// ============================================
+// BONUS ÉPHÉMÈRES
+// ============================================
+const BONUS_STATUS_LABELS = {
+  available: '<span class="info">À utiliser</span>',
+  active: '<span class="warn">Actif</span>',
+  used: '<span class="ok">Utilisé</span>',
+  expired: '<span class="muted">Expiré</span>'
+};
+
+function describeBonusResult(bonus) {
+  const r = bonus.effect_result;
+  if (!r) return '<span class="muted">—</span>';
+  if (bonus.bonus_id === 'marquage') return r.targetEliminated ? '<span class="ok">✅ cible éliminée (+1 pt)</span>' : 'cible sauvée';
+  if (bonus.bonus_id === 'duel' && r.won !== undefined) return r.won ? '<span class="ok">✅ gagné (+1 pt)</span>' : 'perdu / égalité';
+  if (r.amount) return `${r.amount > 0 ? '+' : ''}${Math.round(r.amount)} m`;
+  if (r.stolenElevation) return `${Math.round(r.stolenElevation)} m`;
+  return escapeHtml(r.error || (r.noEffect ? 'sans effet' : '—'));
+}
+
+async function loadBonusesAdmin() {
+  const container = document.getElementById('bonusesAdmin');
+  try {
+    const data = await adminJson('/admin/bonuses');
+    const pending = Object.entries(data.pending || {})
+      .sort((a, b) => Number(b[1].elimination_round) - Number(a[1].elimination_round));
+    const current = (data.bonuses || [])
+      .filter(b => !b.season_number)
+      .sort((a, b) => Number(b.elimination_round) - Number(a.elimination_round));
+
+    const pendingHtml = pending.length
+      ? `<table class="admin-table">
+          <thead><tr><th>Athlète</th><th>Éliminé au</th><th>Choix proposés</th><th>Généré le</th></tr></thead>
+          <tbody>${pending.map(([id, p]) => `
+            <tr>
+              <td>${escapeHtml(p.athlete_name || athletesCache[id]?.name || id)}</td>
+              <td>R${escapeHtml(p.elimination_round)}</td>
+              <td>${(p.choices || []).map(escapeHtml).join(' / ')}</td>
+              <td class="muted">${formatDate(p.created_at)}</td>
+            </tr>`).join('')}</tbody>
+        </table>`
+      : '<p class="muted">Aucun choix en attente.</p>';
+
+    const currentHtml = current.length
+      ? `<table class="admin-table">
+          <thead><tr><th>Athlète</th><th>Bonus</th><th>Éliminé au</th><th>Statut</th><th>Utilisé au</th><th>Cible</th><th>Résultat</th></tr></thead>
+          <tbody>${current.map(b => `
+            <tr>
+              <td>${escapeHtml(b.athlete_name)}</td>
+              <td>${escapeHtml(b.bonus_id)}</td>
+              <td>R${escapeHtml(b.elimination_round)}</td>
+              <td>${BONUS_STATUS_LABELS[b.status] || escapeHtml(b.status)}</td>
+              <td>${b.used_in_round ? `R${escapeHtml(b.used_in_round)}` : '<span class="muted">—</span>'}</td>
+              <td>${escapeHtml(b.target_athlete_name || '—')}</td>
+              <td>${describeBonusResult(b)}</td>
+            </tr>`).join('')}</tbody>
+        </table>`
+      : '<p class="muted">Aucun bonus choisi sur la saison en cours.</p>';
+
+    container.innerHTML = `
+      <h4 style="margin: 0 0 8px;">⏳ Choix en attente (${pending.length})</h4>
+      ${pendingHtml}
+      <h4 style="margin: 20px 0 8px;">🎁 Bonus de la saison en cours (${current.length})</h4>
+      ${currentHtml}`;
+  } catch (error) {
+    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
+    addLog(`❌ Erreur bonus: ${error.message}`);
+  }
+}
 
 // ============================================
 // INIT

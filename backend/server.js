@@ -1972,6 +1972,7 @@ app.post('/api/standings/snapshot', async (req, res) => {
       totalEliminatedPoints: s.totalEliminatedPoints || 0,
       totalRescapePoints: s.totalRescapePoints || 0,
       totalGaugePoints: s.totalGaugePoints || 0,
+      totalBonusPoints: s.totalBonusPoints || 0,
       totalPoints: s.totalPoints || 0,
       wins: s.wins || 0,
       seasonsPlayed: s.seasonsPlayed || 0
@@ -2566,7 +2567,10 @@ initializeServer().then(async () => {
 
   // Catch-up auto-freeze au démarrage (différé de quelques secondes pour
   // laisser le serveur se stabiliser avant de toucher aux fichiers).
-  setTimeout(() => {
-    catchUpAutoFreezeOnStartup();
+  setTimeout(async () => {
+    await catchUpAutoFreezeOnStartup();
+    // Bonus restés rattachés à une saison close (ex: saison figée par script)
+    await frozenResults.purgeClosedSeasonBonuses().catch(e =>
+      console.warn('⚠️ Rattrapage purge bonus:', e.message));
   }, 5000);
 });

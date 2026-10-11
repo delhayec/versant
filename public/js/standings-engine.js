@@ -519,6 +519,46 @@ export function calculateGaugePointsForSeason(seasonNumber, frozenResultsCache) 
 }
 
 /**
+ * Points gagnés par les bonus éphémères d'une saison (« +1 point au classement
+ * général ») : marquage dont la cible a été éliminée, duel remporté.
+ * Sources : archive de la saison (seasonBonuses), bonus figés dans les rounds
+ * (bonusesUsed) et bonus encore vivants (bonuses.json), dédoublonnés.
+ *
+ * @returns {Object} { [athleteId]: totalPoints }
+ */
+export function calculateBonusPointsForSeason(seasonNumber, frozenResultsCache, bonusesCache = []) {
+  const result = {};
+  if (!frozenResultsCache?.rounds) return result;
+
+  const seasonRounds = Object.entries(frozenResultsCache.rounds)
+    .filter(([, r]) => r?.frozen && Number(r.seasonNumber) === Number(seasonNumber));
+  const seasonRoundNumbers = new Set(seasonRounds.map(([k]) => Number(k)));
+
+  const candidates = [
+    ...(frozenResultsCache.seasonBonuses?.[String(seasonNumber)] || []),
+    ...seasonRounds.flatMap(([, r]) => r.bonusesUsed || []),
+    ...(bonusesCache || []).filter(b => seasonRoundNumbers.has(Number(b.elimination_round)))
+  ];
+
+  const seen = new Set();
+  for (const b of candidates) {
+    const key = b.id || `${b.bonus_id}_${b.athlete_id}_${b.elimination_round}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const res = b.effect_result;
+    let pts = 0;
+    if (b.bonus_id === 'marquage' && res?.targetEliminated === true) pts = res.pointsAwarded || 1;
+    if (b.bonus_id === 'duel' && res?.won === true) pts = res.pointsAwarded || 1;
+    if (pts > 0) {
+      const id = String(b.athlete_id);
+      result[id] = (result[id] || 0) + pts;
+    }
+  }
+  return result;
+}
+
+/**
  * Jauge de D+ en direct pour le round en cours (même règle que le backend).
  *
  * @param {Array} roundActivities - activités valides du round (filterByPeriod)
@@ -1371,6 +1411,7 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
       totalEliminatedPoints: 0,
       totalRescapePoints: 0,
       totalGaugePoints: 0,
+      totalBonusPoints: 0,
       totalPoints: 0,
       wins: 0,
       seasonsPlayed: 0,
@@ -1407,6 +1448,7 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
     // Calculer les points rescapé de cette saison
     const rescapeData = calculateRescapePointsForSeason(s, frozenResultsCache);
     const gaugeData = calculateGaugePointsForSeason(s, frozenResultsCache);
+    const bonusData = calculateBonusPointsForSeason(s, frozenResultsCache, bonusesCache);
 
     // Roster de la saison : un athlète inscrit après son début n'en fait pas
     // partie (il attend la saison suivante) et ne doit donc recevoir AUCUN point
@@ -1482,6 +1524,7 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
 // Points rescapé
       const rescapePts = rescapeData[p.id]?.totalPoints || 0;
       const gaugePts = gaugeData[p.id] || 0;
+      const bonusPts = bonusData[p.id] || 0;
       // Détecter si un vainqueur explicite existe dans les rounds figés de cette saison
       // (permet de compter S5 comme "terminée" même quand sData.seasonComplete est false)
       let seasonHasExplicitWinner = false;
@@ -1502,15 +1545,17 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
         totals[p.id].totalEliminatedPoints += elimPts;
         totals[p.id].totalRescapePoints += rescapePts;
         totals[p.id].totalGaugePoints += gaugePts;
-        totals[p.id].totalPoints += mainPts + elimPts + rescapePts + gaugePts;
+        totals[p.id].totalBonusPoints += bonusPts;
+        totals[p.id].totalPoints += mainPts + elimPts + rescapePts + gaugePts + bonusPts;
         if (seasonEffectivelyComplete) {
           totals[p.id].seasonsPlayed++;
         }
       } else {
-        // Saison en cours : ajouter les points rescapé et jauge même pour les joueurs encore actifs
+        // Saison en cours : rescapé, jauge et bonus comptent dès le figement du round
         totals[p.id].totalRescapePoints += rescapePts;
         totals[p.id].totalGaugePoints += gaugePts;
-        totals[p.id].totalPoints += rescapePts + gaugePts;
+        totals[p.id].totalBonusPoints += bonusPts;
+        totals[p.id].totalPoints += rescapePts + gaugePts + bonusPts;
       }
     });
   }
@@ -1724,7 +1769,8 @@ export function computeFinalStandings({ activities, currentDate, frozenResults, 
     const mainPts = Math.max(e.totalMainPoints || 0, frozen.mainPoints);
     const elimPts = e.totalEliminatedPoints || 0;
     const rescapePts = e.totalRescapePoints || 0;
-    const bonusPts = frozen.bonusPoints || 0;
+    const gaugePts = e.totalGaugePoints || 0;
+    const bonusPts = e.totalBonusPoints || 0;
     const wins = Math.max(e.wins || 0, frozen.wins);
 
     return {
@@ -1732,8 +1778,9 @@ export function computeFinalStandings({ activities, currentDate, frozenResults, 
       totalMainPoints: mainPts,
       totalEliminatedPoints: elimPts,
       totalRescapePoints: rescapePts,
+      totalGaugePoints: gaugePts,
       bonusPoints: bonusPts,
-      totalPoints: mainPts + elimPts + rescapePts + bonusPts,
+      totalPoints: mainPts + elimPts + rescapePts + gaugePts + bonusPts,
       wins,
       previousSeasonTotal: prevSeason.total,
       currentSeasonMain: currSeason.mainPoints,
