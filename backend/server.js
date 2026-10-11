@@ -535,6 +535,89 @@ app.get('/api/admin/season-plan', async (req, res) => {
 });
 
 // ============================================
+// PLANNING DES SAISONS (standard / équipes)
+// ============================================
+const sharedConfig = require('./shared-config');
+
+// GET public - type de chaque saison, lu par le frontend au chargement
+app.get('/api/season-planning', (req, res) => {
+  res.json(sharedConfig.SEASON_PLANNING);
+});
+
+// GET admin - planning enrichi du statut de chaque saison
+app.get('/api/admin/season-planning', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const plan = await frozenResults.getSeasonPlan(
+      athletes.filter(a => a.league_id === CHALLENGE_CONFIG.leagueId && a.active), CHALLENGE_CONFIG
+    );
+    const frozenSeasons = new Set(Object.values(data?.rounds || {})
+      .filter(r => r?.frozen).map(r => Number(r.seasonNumber)));
+    const lastSeason = Math.max(12, plan.seasonNumber + 4, ...Object.keys(sharedConfig.SEASON_PLANNING).map(Number));
+
+    const seasons = [];
+    for (let s = 1; s <= lastSeason; s++) {
+      const status = data?.eliminatedChallengeRankings?.[String(s)] ? 'closed'
+        : s === plan.seasonNumber ? 'current'
+        : s < plan.seasonNumber ? 'closed'
+        : 'upcoming';
+      seasons.push({
+        seasonNumber: s,
+        type: sharedConfig.SEASON_PLANNING[s] || 'standard',
+        status,
+        hasFrozenRounds: frozenSeasons.has(s),
+        startRound: s === plan.seasonNumber ? plan.startRound : null
+      });
+    }
+    res.json({
+      seasons,
+      types: Object.values(sharedConfig.SEASON_TYPES).map(t => ({ id: t.id, name: t.name }))
+    });
+  } catch (error) {
+    console.error('Erreur season-planning:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST admin - changer le type d'une saison pas encore commencée
+app.post('/api/admin/season-planning/:seasonNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const seasonNumber = parseInt(req.params.seasonNumber, 10);
+    const { type } = req.body || {};
+    if (isNaN(seasonNumber) || seasonNumber < 1) {
+      return res.status(400).json({ error: 'Numéro de saison invalide' });
+    }
+    if (!sharedConfig.SEASON_TYPES[type]) {
+      return res.status(400).json({ error: `Type de saison inconnu: ${type}` });
+    }
+
+    // Une saison dont un round est figé ne peut plus changer de type : ses
+    // résultats ont été calculés avec l'ancien mode de jeu.
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const hasFrozen = Object.values(data?.rounds || {})
+      .some(r => r?.frozen && Number(r.seasonNumber) === seasonNumber);
+    if (hasFrozen) {
+      return res.status(409).json({ error: `La saison ${seasonNumber} a déjà des rounds figés, son type ne peut plus changer` });
+    }
+
+    const overrides = await safeReadJSON(sharedConfig.SEASON_PLANNING_FILE, {});
+    overrides[String(seasonNumber)] = type;
+    await safeWriteJSON(sharedConfig.SEASON_PLANNING_FILE, overrides);
+    sharedConfig.applySeasonPlanningOverrides({ [seasonNumber]: type });
+    _teamsCache.clear();
+
+    console.log(`🗓️ Saison ${seasonNumber} → ${type}`);
+    res.json({ success: true, seasonNumber, type });
+  } catch (error) {
+    console.error('Erreur season-planning POST:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // SEASON BONUSES ARCHIVE (dans frozen_results)
 // ============================================
 

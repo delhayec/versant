@@ -225,6 +225,23 @@ const SEASON_TYPES = {
   }
 };
 
+// Planning modifiable depuis l'admin : data/season_planning.json surcharge les
+// valeurs par défaut ci-dessus. Chargé à la lecture du module pour que serveur,
+// moteur de gel et scripts voient le même planning.
+const SEASON_PLANNING_FILE = require('path').join(__dirname, 'data', 'season_planning.json');
+
+function applySeasonPlanningOverrides(overrides) {
+  for (const [season, typeId] of Object.entries(overrides || {})) {
+    if (SEASON_TYPES[typeId] && Number(season) >= 1) SEASON_PLANNING[Number(season)] = typeId;
+  }
+}
+
+try {
+  applySeasonPlanningOverrides(JSON.parse(require('fs').readFileSync(SEASON_PLANNING_FILE, 'utf8')));
+} catch (e) {
+  if (e.code !== 'ENOENT') console.warn('⚠️ season_planning.json illisible:', e.message);
+}
+
 function getSeasonType(seasonNumber) {
   const typeId = SEASON_PLANNING[seasonNumber] || 'standard';
   return SEASON_TYPES[typeId];
@@ -291,6 +308,8 @@ const BONUS_IDS = [
 module.exports = {
   CHALLENGE_CONFIG,
   SEASON_PLANNING,
+  SEASON_PLANNING_FILE,
+  applySeasonPlanningOverrides,
   SEASON_TYPES,
   getSeasonType,
   isTeamSeason,

@@ -103,6 +103,31 @@ export const SEASON_PLANNING = {
   12: "standard",
 };
 
+/**
+ * Charge le planning des saisons défini depuis l'admin (/api/season-planning)
+ * et l'applique sur SEASON_PLANNING. Les valeurs ci-dessus servent de repli
+ * (mode démo, serveur injoignable).
+ */
+let seasonPlanningPromise = null;
+export function loadSeasonPlanning() {
+  if (IS_DEMO) return Promise.resolve(SEASON_PLANNING);
+  if (!seasonPlanningPromise) {
+    seasonPlanningPromise = fetchWithTimeout("/api/season-planning", 5000)
+      .then((response) => (response.ok ? response.json() : {}))
+      .then((planning) => {
+        for (const [season, typeId] of Object.entries(planning || {})) {
+          if (SEASON_TYPES[typeId]) SEASON_PLANNING[Number(season)] = typeId;
+        }
+        return SEASON_PLANNING;
+      })
+      .catch((e) => {
+        console.warn("⚠️ Planning des saisons indisponible, valeurs par défaut:", e);
+        return SEASON_PLANNING;
+      });
+  }
+  return seasonPlanningPromise;
+}
+
 export function getSeasonType(seasonNumber) {
   const typeId = SEASON_PLANNING[seasonNumber] || "standard";
   return SEASON_TYPES[typeId];
@@ -739,6 +764,10 @@ export async function loadParticipants() {
     return PARTICIPANTS_2025;
   }
 
+  // Le type des saisons (standard / équipes) conditionne tous les calculs qui
+  // suivent le chargement des participants : on le charge en même temps.
+  const planningLoaded = loadSeasonPlanning();
+
   try {
     // Utiliser le même endpoint que l'admin : /api/athletes/versant-2026
     // Timeout de 8 secondes pour éviter blocage sur mobile
@@ -776,11 +805,13 @@ export async function loadParticipants() {
       await loadParticipantsFromActivities();
     }
 
+    await planningLoaded;
     return PARTICIPANTS;
   } catch (error) {
     console.error("❌ Erreur chargement participants:", error);
     // Tenter de charger depuis les activités en cas d'erreur
     await loadParticipantsFromActivities();
+    await planningLoaded;
     return PARTICIPANTS;
   }
 }

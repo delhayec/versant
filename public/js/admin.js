@@ -171,6 +171,7 @@ async function loadDashboardData() {
   }
 
   loadSeasonVisualizer();
+  loadSeasonPlanning();
   loadFrozenStatus();
   loadJokersData();
   loadBonusesAdmin();
@@ -383,6 +384,66 @@ async function deleteRoundConfigFromUI(roundNumber) {
 window.saveRoundConfigFromUI = saveRoundConfigFromUI;
 window.deleteRoundConfigFromUI = deleteRoundConfigFromUI;
 document.getElementById('refreshSeasonVisualizerBtn').addEventListener('click', loadSeasonVisualizer);
+
+// ============================================
+// PLANNING DES SAISONS
+// ============================================
+const SEASON_STATUS_LABELS = {
+  closed: '<span class="muted">✔️ Terminée</span>',
+  current: '<span class="warn">⏳ En cours</span>',
+  upcoming: '<span class="info">📅 À venir</span>'
+};
+
+async function loadSeasonPlanning() {
+  const container = document.getElementById('seasonPlanningContent');
+  try {
+    const { seasons, types } = await adminJson('/admin/season-planning');
+    const typeLabel = id => types.find(t => t.id === id)?.name || id;
+
+    container.innerHTML = `
+      <table class="admin-table">
+        <thead><tr><th>Saison</th><th>Statut</th><th>Type</th></tr></thead>
+        <tbody>${seasons.map(s => {
+          const editable = !s.hasFrozenRounds && s.status !== 'closed';
+          const typeCell = editable
+            ? `<select onchange="saveSeasonType(${s.seasonNumber}, this)">
+                 ${types.map(t => `<option value="${t.id}" ${t.id === s.type ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+               </select>`
+            : `${s.type === 'team' ? '👥 ' : ''}${escapeHtml(typeLabel(s.type))}`;
+          return `
+            <tr class="${s.status === 'closed' ? 'is-frozen' : (s.status === 'current' ? 'is-current' : '')}">
+              <td><strong>Saison ${s.seasonNumber}</strong>${s.startRound ? ` <span class="hint">(depuis R${s.startRound})</span>` : ''}</td>
+              <td>${SEASON_STATUS_LABELS[s.status] || ''}</td>
+              <td>${typeCell}</td>
+            </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+  } catch (error) {
+    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
+    addLog(`❌ Erreur planning saisons: ${error.message}`);
+  }
+}
+
+async function saveSeasonType(seasonNumber, select) {
+  const type = select.value;
+  const label = select.selectedOptions[0].textContent;
+  if (!confirm(`Passer la saison ${seasonNumber} en mode « ${label} » ?`)) {
+    loadSeasonPlanning();
+    return;
+  }
+  try {
+    await adminJson(`/admin/season-planning/${seasonNumber}`, { method: 'POST', body: { type } });
+    addLog(`🗓️ Saison ${seasonNumber} → ${label}`);
+    loadSeasonPlanning();
+    loadSeasonVisualizer();
+  } catch (error) {
+    addLog(`❌ Erreur planning saison ${seasonNumber}: ${error.message}`);
+    alert('Erreur: ' + error.message);
+    loadSeasonPlanning();
+  }
+}
+
+window.saveSeasonType = saveSeasonType;
 
 // ============================================
 // SYNCHRONISATION

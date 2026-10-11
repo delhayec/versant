@@ -13,7 +13,7 @@ import {
   getSeasonNumber, isTeamSeason,
   getRoundInSeason, getRoundsPerSeason,
   getAthleteColor, getAthleteInitials,
-  fetchWithTimeout
+  fetchWithTimeout, loadSeasonPlanning
 } from './config.js';
 import { formatDate, formatElevation } from './ui.js';
 
@@ -1406,6 +1406,7 @@ function showNotification(message, type = 'info') {
 // ============================================
 async function init() {
   try {
+    await loadSeasonPlanning();
     await loadCurrentUser();
     await loadActivities();
     await loadJokersFromServer();
