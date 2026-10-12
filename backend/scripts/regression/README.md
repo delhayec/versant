@@ -64,7 +64,7 @@ Il passe ensuite des **sondes de sécurité** : des requêtes qu'un attaquant po
 | `strava-suppression-forgee-bon-abonnement` | Suppression avec le bon `subscription_id`, pour une activité qui existe encore sur Strava |
 | `strava-mise-a-jour-autre-athlete` | Mise à jour visant l'activité d'un autre athlète : à qui appartient-elle ensuite ? |
 | `strava-creation-activite-d-un-autre` | Création d'une activité que Strava attribue à un autre athlète |
-| `snapshot-legitime` | Le classement réellement envoyé par un navigateur (fixture) est-il accepté ? |
+| `snapshot-legitime` | Le classement réellement envoyé par un navigateur (fixture) est-il accepté ? Depuis L22, la route n'existe plus (404) : c'est le serveur qui calcule le classement. |
 | `snapshot-falsifie` | Un classement inventé est-il enregistré ? |
 | `connexion` | Connexion acceptée ou refusée, et format du hash stocké ensuite |
 | `connexion-apres-migration` | Seconde connexion, puis connexion d'un compte dont l'ancien hash SHA-256 a été supprimé |

@@ -694,8 +694,8 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     return { id, name: a?.name || `Athlète ${id}` };
   });
 
-  // pointsMap pour équilibrage : on lit le snapshot envoyé par le frontend
-  // (calcul source de vérité, mis à jour à chaque rendu de la page index).
+  // pointsMap pour équilibrage : on lit le classement annuel calculé par le serveur
+  // (moteur du front exécuté côté serveur, recalculé après chaque gel, synchro, etc.).
   // Si le snapshot n'existe pas (cas test ou ancien serveur), tous les
   // joueurs sont à 0 → équilibrage purement aléatoire mais reproductible
   // via le seed = roundNumber.

@@ -172,7 +172,7 @@ const DATA_DIR = path.join(ROOT, 'data');
   // ============================================
   console.log('\n=== Simulation saison 4 (15 joueurs réels) ===\n');
 
-  // Lire les points depuis le snapshot envoyé par le frontend (source de vérité).
+  // Lire les points depuis le classement annuel calculé par le serveur (yearlyStandingsSnapshot).
   // Si pas dispo : fallback sur calculateYearlyStandings backend (= moins précis).
   const realPointsMap = {};
   let pointsSource = '';

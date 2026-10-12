@@ -55,7 +55,7 @@ app.use(express.json());
 // recalculé côté serveur, en différé (cf. scheduleStandingsRefresh). Sauf les
 // routes sans effet sur le jeu ; les webhooks Strava sont traités à part (file).
 const STANDINGS_NEUTRAL_WRITES = [
-  '/api/auth/', '/api/standings/', '/api/webhook/', '/api/admin/login', '/api/admin/webhooks',
+  '/api/auth/', '/api/webhook/', '/api/admin/login', '/api/admin/webhooks',
   '/api/admin/strava', '/api/admin/tokens', '/api/admin/reset-password'
 ];
 app.use('/api', (req, res, next) => {
@@ -2296,59 +2296,7 @@ app.get('/api/frozen-results', async (req, res) => {
   }
 });
 
-/**
- * Reçoit un snapshot du classement annuel calculé par le frontend (source de
- * vérité pour les points). Stocké dans frozen_results.json pour que :
- *  - Le calcul backend des équipes (saison team) utilise les bons points.
- *  - Le script de test puisse afficher les vrais points sans dupliquer la logique.
- *
- * Body attendu :
- *  { standings: [{ id, name, totalMainPoints, totalEliminatedPoints,
- *                  totalRescapePoints, totalPoints, ... }] }
- *
- * Le snapshot est silencieusement ignoré si vide ou malformé.
- */
-const SNAPSHOT_NUMERIC_FIELDS = [
-  'totalMainPoints', 'totalEliminatedPoints', 'totalRescapePoints',
-  'totalGaugePoints', 'totalPoints', 'wins', 'seasonsPlayed'
-];
-
-app.post('/api/standings/snapshot', async (req, res) => {
-  try {
-    const { standings } = req.body;
-    if (!Array.isArray(standings) || standings.length === 0) {
-      return res.status(400).json({ error: 'standings array required' });
-    }
-
-    // Route publique (chaque navigateur l'appelle) : on n'accepte que des
-    // joueurs actifs de la ligue, une fois chacun, avec des compteurs positifs.
-    // Un classement inventé fausserait l'équilibrage des saisons « équipes ».
-    const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const allowedIds = new Set(
-      athletes.filter(a => a.league_id === currentEdition().leagueId && a.active).map(a => normalizeId(a.id))
-    );
-    const seenIds = new Set();
-    const invalid = standings.some(s => {
-      const id = normalizeId(s?.participant?.id ?? s?.id);
-      if (!id || !allowedIds.has(id) || seenIds.has(id)) return true;
-      seenIds.add(id);
-      return SNAPSHOT_NUMERIC_FIELDS.some(f => s[f] !== undefined && !(Number.isFinite(s[f]) && s[f] >= 0));
-    });
-    if (invalid) {
-      return res.status(400).json({ error: 'snapshot invalide' });
-    }
-
-    const compact = compactStandings(standings);
-    await saveYearlyStandingsSnapshot(compact);
-
-    res.json({ success: true, count: compact.length });
-  } catch (error) {
-    console.error('Erreur standings snapshot:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-/** Forme stockée du classement annuel (yearlyStandingsSnapshot). */
+/** Forme stockée du classement annuel (yearlyStandingsSnapshot), calculé par le serveur (L22). */
 function compactStandings(standings) {
     // Normaliser : ne stocker que les champs utiles (anti-bloat)
     const compact = standings.map(s => ({
@@ -2444,16 +2392,15 @@ app.post('/api/admin/standings/compute', async (req, res) => {
   }
 });
 
-// Admin: Export du classement annuel. Les points sont calculés par le moteur
-// frontend (standings-engine) et poussés dans yearlyStandingsSnapshot à chaque
-// affichage du classement : on exporte ce snapshot plutôt que de recalculer.
+// Admin: Export du classement annuel, tel que le serveur l'a calculé et
+// enregistré dans yearlyStandingsSnapshot (cf. refreshYearlyStandings).
 app.get('/api/admin/ranking/:leagueId/export', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const data = await frozenResults.loadFrozenResultsRaw();
     const snapshot = data?.yearlyStandingsSnapshot;
     if (!snapshot?.standings?.length) {
-      return res.status(404).json({ error: 'Aucun classement disponible (ouvrez la page principale pour le générer)' });
+      return res.status(404).json({ error: 'Aucun classement disponible (il est calculé au démarrage du serveur et après chaque gel ; POST /api/admin/standings/refresh pour le forcer)' });
     }
     const date = new Date().toISOString().split('T')[0];
     res.setHeader('Content-Type', 'application/json');
