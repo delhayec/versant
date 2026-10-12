@@ -81,6 +81,8 @@ export function buildServerHandlers(fixture, repoRoot) {
   const readJokerUsage = compile(extractFunction(server, 'readJokerUsage', file), 'readJokerUsage', {
     safeReadJSON: async () => fixture.json('jokers_usage.json'),
     JOKERS_FILE: 'jokers_usage.json',
+    // Depuis L20, le chemin vient du contexte d'édition (edition-context.js)
+    currentEdition: () => ({ paths: { jokers: 'jokers_usage.json' } }),
     normalizeJokerUsage
   });
   const readJokerUsageWithFrozen = compile(extractFunction(server, 'readJokerUsageWithFrozen', file), 'readJokerUsageWithFrozen', {
