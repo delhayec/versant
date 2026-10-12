@@ -396,6 +396,21 @@ function checkAdmin(req, res) {
   return true;
 }
 
+// Admin: Télécharger jokers_usage.json (format tableau, importable directement).
+// Déclaré AVANT le router jokers : sa route /admin/jokers/:leagueId capturerait
+// sinon « download » comme identifiant de ligue.
+app.get('/api/admin/jokers/download', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = await fs.readFile(JOKERS_FILE, 'utf8');
+    res.setHeader('Content-Disposition', 'attachment; filename=jokers_usage.json');
+    res.setHeader('Content-Type', 'application/json');
+    res.send(data);
+  } catch {
+    res.status(404).json({ error: 'Fichier non trouvé' });
+  }
+});
+
 // Monter le router jokers
 const jokersRouter = createJokersRoutes({
   ATHLETES_FILE,
@@ -463,24 +478,7 @@ app.get('/api/round-configs', async (req, res) => {
  * sinon on décale d'une heure en été et une activité peut changer de round.
  */
 function getRoundNumberForDate(timestamp) {
-  const [y, m, d] = String(CHALLENGE_CONFIG.yearStartDate).split('-').map(Number);
-  const challengeStart = new Date(y, m - 1, d).getTime();
-  if (timestamp < challengeStart) return null;
-
-  // Estimation, puis recalage sur les vraies bornes : un passage heure d'été /
-  // heure d'hiver décale le compte de jours d'une heure, ce qui suffit à faire
-  // basculer une activité de fin de soirée dans le round voisin.
-  const dayMs = 24 * 3600 * 1000;
-  const elapsedDays = Math.floor((timestamp - challengeStart) / dayMs);
-  let round = Math.floor(elapsedDays / CHALLENGE_CONFIG.roundDurationDays) + 1;
-
-  for (let i = 0; i < 3; i++) {
-    const { start, end } = frozenResults.getRoundDates(round, CHALLENGE_CONFIG);
-    if (timestamp < start.getTime()) { round--; continue; }
-    if (timestamp > end.getTime()) { round++; continue; }
-    return round;
-  }
-  return round >= 1 ? round : null;
+  return sharedConfig.getRoundNumberForDate(timestamp, CHALLENGE_CONFIG);
 }
 
 // GET /api/weather-coverage/:leagueId - Couverture météo par round
@@ -557,6 +555,164 @@ app.delete('/api/admin/round-configs/:roundNumber', async (req, res) => {
   } catch (error) {
     console.error('Erreur round-configs DELETE:', error);
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/admin/season-plan - Plan de la saison en cours (visualisateur admin)
+// Calculé par le moteur de gel : rounds figés tels quels, suivants projetés.
+app.get('/api/admin/season-plan', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const leagueId = req.query.leagueId || 'versant-2026';
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const plan = await frozenResults.getSeasonPlan(leagueAthletes, CHALLENGE_CONFIG);
+    res.json(plan);
+  } catch (error) {
+    console.error('Erreur season-plan:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// PLANNING DES SAISONS (standard / équipes / points doublés / deadline)
+// ============================================
+const sharedConfig = require('./shared-config');
+const { planDeadlineRounds } = require('./deadline-planner');
+
+async function getLeagueAthletes() {
+  const athletes = await safeReadJSON(ATHLETES_FILE, []);
+  return athletes.filter(a => a.league_id === CHALLENGE_CONFIG.leagueId && a.active);
+}
+
+/** Replanifie la saison Deadline en cours (sans effet sinon). Jamais bloquant. */
+async function replanDeadline(reason) {
+  try {
+    return await frozenResults.replanDeadlineSeason(await getLeagueAthletes(), CHALLENGE_CONFIG);
+  } catch (e) {
+    console.warn(`⚠️ Replanification Deadline (${reason}):`, e.message);
+    return null;
+  }
+}
+
+// GET public - type des saisons, deadlines et durées des rounds, lus par le
+// frontend au chargement (les dates des rounds en dépendent)
+app.get('/api/season-planning', (req, res) => {
+  res.json({
+    types: sharedConfig.SEASON_PLANNING,
+    deadlines: sharedConfig.SEASON_DEADLINES,
+    roundDurations: sharedConfig.ROUND_DURATIONS
+  });
+});
+
+// GET admin - planning enrichi du statut de chaque saison
+app.get('/api/admin/season-planning', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const athletes = await getLeagueAthletes();
+    const plan = await frozenResults.getSeasonPlan(athletes, CHALLENGE_CONFIG);
+    const frozenSeasons = new Set(Object.values(data?.rounds || {})
+      .filter(r => r?.frozen).map(r => Number(r.seasonNumber)));
+    const lastSeason = Math.max(12, plan.seasonNumber + 4, ...Object.keys(sharedConfig.SEASON_PLANNING).map(Number));
+
+    const seasons = [];
+    for (let s = 1; s <= lastSeason; s++) {
+      const status = data?.eliminatedChallengeRankings?.[String(s)] ? 'closed'
+        : s === plan.seasonNumber ? 'current'
+        : s < plan.seasonNumber ? 'closed'
+        : 'upcoming';
+      const type = sharedConfig.SEASON_PLANNING[s] || 'standard';
+      const deadline = sharedConfig.getSeasonDeadline(s);
+      const entry = {
+        seasonNumber: s, type, deadline, status,
+        hasFrozenRounds: frozenSeasons.has(s),
+        startRound: s === plan.seasonNumber ? plan.startRound
+          : s === plan.seasonNumber + 1 ? plan.endRound + 1 : null
+      };
+
+      // Saison Deadline : plan réel (saison en cours, cf. visualisateur) ou aperçu
+      // pour la saison suivante, estimé avec tous les joueurs actifs et la fin
+      // projetée de la saison en cours.
+      const seasonType = sharedConfig.SEASON_TYPES[type];
+      if (seasonType?.hasDeadline && deadline && s === plan.seasonNumber + 1) {
+        const startDate = sharedConfig.getRoundDates(entry.startRound, CHALLENGE_CONFIG).start;
+        const preview = planDeadlineRounds({
+          actives: athletes.length, startDate, deadline,
+          finalists: CHALLENGE_CONFIG.finalistsCount,
+          durationRange: seasonType.durationRange,
+          eliminationsRange: seasonType.eliminationsRange
+        });
+        entry.preview = { startDate, rounds: preview.rounds, warning: preview.warning };
+      }
+      seasons.push(entry);
+    }
+    res.json({
+      seasons,
+      types: Object.values(sharedConfig.SEASON_TYPES).map(t => ({ id: t.id, name: t.name, hasDeadline: !!t.hasDeadline }))
+    });
+  } catch (error) {
+    console.error('Erreur season-planning:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST admin - changer le type (et la deadline) d'une saison pas encore figée
+app.post('/api/admin/season-planning/:seasonNumber', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const seasonNumber = parseInt(req.params.seasonNumber, 10);
+    const { type, deadline } = req.body || {};
+    if (isNaN(seasonNumber) || seasonNumber < 1) {
+      return res.status(400).json({ error: 'Numéro de saison invalide' });
+    }
+    const seasonType = sharedConfig.SEASON_TYPES[type];
+    if (!seasonType) {
+      return res.status(400).json({ error: `Type de saison inconnu: ${type}` });
+    }
+    if (seasonType.hasDeadline) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(deadline || ''))) {
+        return res.status(400).json({ error: 'Date de fin (deadline) requise au format AAAA-MM-JJ' });
+      }
+      const [y, m, d] = deadline.split('-').map(Number);
+      if (new Date(y, m - 1, d, 23, 59, 59) < new Date()) {
+        return res.status(400).json({ error: 'La deadline est déjà passée' });
+      }
+    }
+
+    // Une saison dont un round est figé ne peut plus changer de type : ses
+    // résultats ont été calculés avec l'ancien mode de jeu. Seule la deadline
+    // d'une saison Deadline en cours reste ajustable.
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const hasFrozen = Object.values(data?.rounds || {})
+      .some(r => r?.frozen && Number(r.seasonNumber) === seasonNumber);
+    const deadlineOnlyChange = seasonType.hasDeadline && sharedConfig.SEASON_PLANNING[seasonNumber] === type;
+    if (hasFrozen && !deadlineOnlyChange) {
+      return res.status(409).json({ error: `La saison ${seasonNumber} a déjà des rounds figés, son type ne peut plus changer` });
+    }
+
+    const raw = await safeReadJSON(sharedConfig.SEASON_PLANNING_FILE, {});
+    const stored = raw.types || raw.deadlines ? raw : { types: raw };
+    stored.types = stored.types || {};
+    stored.deadlines = stored.deadlines || {};
+    stored.types[String(seasonNumber)] = type;
+    if (seasonType.hasDeadline) stored.deadlines[String(seasonNumber)] = deadline;
+    else delete stored.deadlines[String(seasonNumber)];
+    await safeWriteJSON(sharedConfig.SEASON_PLANNING_FILE, stored);
+
+    sharedConfig.applySeasonPlanningOverrides({ types: { [seasonNumber]: type } });
+    if (seasonType.hasDeadline) sharedConfig.SEASON_DEADLINES[seasonNumber] = deadline;
+    else delete sharedConfig.SEASON_DEADLINES[seasonNumber];
+    _teamsCache.clear();
+
+    // Saison en cours : appliquer tout de suite (sinon au premier gel de la saison)
+    const replan = await replanDeadline('planning admin');
+
+    console.log(`🗓️ Saison ${seasonNumber} → ${type}${seasonType.hasDeadline ? ` (deadline ${deadline})` : ''}`);
+    res.json({ success: true, seasonNumber, type, deadline: seasonType.hasDeadline ? deadline : null, replan });
+  } catch (error) {
+    console.error('Erreur season-planning POST:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -885,9 +1041,12 @@ app.get('/api/jokers/my', requireAuth, async (req, res) => {
 
     // Calculer le stock restant
     const stock = {};
+    // Les admin_refund ajoutent +1 au stock (même formule que l'admin)
     JOKER_IDS.forEach(jokerId => {
-      const usedCount = myUsage.filter(j => j.joker_id === jokerId).length;
-      stock[jokerId] = Math.max(0, INITIAL_JOKER_STOCK - usedCount);
+      const entries = myUsage.filter(j => j.joker_id === jokerId);
+      const refunds = entries.filter(j => j.status === 'admin_refund').length;
+      const usedCount = entries.length - refunds;
+      stock[jokerId] = Math.max(0, Math.min(5, INITIAL_JOKER_STOCK - usedCount + refunds));
     });
 
     res.json({ stock, used: myUsage });
@@ -1013,16 +1172,17 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
       console.warn('⚠️ Impossible de vérifier le statut éliminé:', e.message);
     }
 
-    // Pré-calculer le nombre d'usages dans frozen results pour cet athlète et ce joker
-    let frozenUsageCount = 0;
+    // Pré-calculer les rounds figés où cet athlète a utilisé ce joker
+    // (dédoublonnés plus bas contre jokers_usage.json, comme readJokerUsageWithFrozen)
+    const frozenUsageRounds = [];
     try {
       const frozenData = await frozenResults.getAllFrozenResults();
       if (frozenData?.rounds) {
         for (const [roundKey, roundData] of Object.entries(frozenData.rounds)) {
           const jokersUsed = roundData.jokersUsed || [];
-          frozenUsageCount += jokersUsed.filter(j =>
-            String(j.athleteId) === normalizeId(req.athleteId) && j.jokerId === joker_id
-          ).length;
+          jokersUsed
+            .filter(j => String(j.athleteId) === normalizeId(req.athleteId) && j.jokerId === joker_id)
+            .forEach(() => frozenUsageRounds.push(parseInt(roundKey)));
         }
       }
     } catch (e) {}
@@ -1034,10 +1194,15 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
     await safeModifyJSON(JOKERS_FILE, (rawData) => {
       const jokerUsage = normalizeJokerUsage(rawData);
       const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
-      const fileUsedCount = myUsage.filter(j => j.joker_id === joker_id).length;
-      const totalUsedCount = fileUsedCount + frozenUsageCount;
+      const fileEntries = myUsage.filter(j => j.joker_id === joker_id);
+      const refunds = fileEntries.filter(j => j.status === 'admin_refund').length;
+      const frozenUsageCount = frozenUsageRounds.filter(
+        r => !fileEntries.some(j => j.round_number === r)
+      ).length;
+      const totalUsedCount = (fileEntries.length - refunds) + frozenUsageCount;
 
-      if (totalUsedCount >= INITIAL_JOKER_STOCK) {
+      // Les admin_refund ajoutent +1 au stock (même formule que l'admin)
+      if (Math.min(5, INITIAL_JOKER_STOCK - totalUsedCount + refunds) <= 0) {
         error = 'Plus de joker disponible';
         return jokerUsage; // Pas de modification
       }
@@ -1100,19 +1265,6 @@ app.get('/api/admin/jokers', async (req, res) => {
     res.json({ count: jokerUsage.length, jokers: jokerUsage });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Admin: Télécharger jokers_usage.json (format tableau, importable directement)
-app.get('/api/admin/jokers/download', async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  try {
-    const data = await fs.readFile(JOKERS_FILE, 'utf8');
-    res.setHeader('Content-Disposition', 'attachment; filename=jokers_usage.json');
-    res.setHeader('Content-Type', 'application/json');
-    res.send(data);
-  } catch {
-    res.status(404).json({ error: 'Fichier non trouvé' });
   }
 });
 
@@ -2175,6 +2327,7 @@ app.post('/api/standings/snapshot', async (req, res) => {
       totalEliminatedPoints: s.totalEliminatedPoints || 0,
       totalRescapePoints: s.totalRescapePoints || 0,
       totalGaugePoints: s.totalGaugePoints || 0,
+      totalBonusPoints: s.totalBonusPoints || 0,
       totalPoints: s.totalPoints || 0,
       wins: s.wins || 0,
       seasonsPlayed: s.seasonsPlayed || 0
@@ -2191,6 +2344,32 @@ app.post('/api/standings/snapshot', async (req, res) => {
     res.json({ success: true, count: compact.length });
   } catch (error) {
     console.error('Erreur standings snapshot:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Admin: Export du classement annuel. Les points sont calculés par le moteur
+// frontend (standings-engine) et poussés dans yearlyStandingsSnapshot à chaque
+// affichage du classement : on exporte ce snapshot plutôt que de recalculer.
+app.get('/api/admin/ranking/:leagueId/export', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = await frozenResults.loadFrozenResultsRaw();
+    const snapshot = data?.yearlyStandingsSnapshot;
+    if (!snapshot?.standings?.length) {
+      return res.status(404).json({ error: 'Aucun classement disponible (ouvrez la page principale pour le générer)' });
+    }
+    const date = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=classement-${req.params.leagueId}-${date}.json`);
+    res.send(JSON.stringify({
+      league_id: req.params.leagueId,
+      generated_at: new Date().toISOString(),
+      snapshot_updated_at: snapshot.updatedAt,
+      ranking: snapshot.standings
+    }, null, 2));
+  } catch (error) {
+    console.error('Erreur export classement:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -2734,8 +2913,13 @@ initializeServer().then(async () => {
   // Catch-up auto-freeze au démarrage (différé de quelques secondes pour
   // laisser le serveur se stabiliser avant de toucher aux fichiers).
   if (!JOBS_DISABLED) {
-    setTimeout(() => {
-      catchUpAutoFreezeOnStartup();
+    setTimeout(async () => {
+      await catchUpAutoFreezeOnStartup();
+      // Bonus restés rattachés à une saison close (ex: saison figée par script)
+      await frozenResults.purgeClosedSeasonBonuses().catch(e =>
+        console.warn('⚠️ Rattrapage purge bonus:', e.message));
+      // Saison Deadline en cours : recaler les rounds restants
+      await replanDeadline('démarrage');
     }, 5000);
   }
 });

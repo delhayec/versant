@@ -4,15 +4,69 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Administration - Versant 2026</title>
-  
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=20260918b">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
+  <style>
+    .admin-wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .admin-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px; }
+    .admin-box h3 { color: #f97316; margin: 0 0 12px; font-family: 'Syne', sans-serif; }
+    .admin-box .desc { color: rgba(255,255,255,0.6); font-size: 14px; margin: 0 0 16px; }
+    .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-bottom: 24px; }
+    .admin-grid .wide { grid-column: 1 / -1; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 24px; }
+    .stat { text-align: center; }
+    .stat .value { font-size: 36px; font-weight: 700; }
+    .stat .label { color: rgba(255,255,255,0.6); font-size: 14px; }
+    .admin-box input, .admin-box select { padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; font-size: 14px; box-sizing: border-box; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .row > input, .row > select { flex: 1; min-width: 120px; }
+    .btn { padding: 10px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; }
+    .btn:disabled { opacity: 0.5; cursor: wait; }
+    .btn-block { width: 100%; }
+    .btn-primary { background: #22d3ee; color: #0a0a0f; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-warn { background: #f97316; color: white; }
+    .btn-ghost { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); text-align: left; }
+    .btn-danger { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .status-box { padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+    .sub-box { padding: 12px; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.3); border-radius: 8px; margin-bottom: 12px; }
+    .sub-box label { color: #22d3ee; font-weight: 600; display: block; margin-bottom: 8px; }
+    .hint { color: rgba(255,255,255,0.5); font-size: 12px; margin: 8px 0 0; }
+    .stack { display: flex; flex-direction: column; gap: 10px; }
+    .scroll { max-height: 500px; overflow: auto; }
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .admin-table th { text-align: left; padding: 10px 8px; color: rgba(255,255,255,0.6); border-bottom: 1px solid rgba(255,255,255,0.15); font-weight: 600; }
+    .admin-table td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+    .admin-table .num { text-align: right; font-family: 'Space Mono', monospace; }
+    .admin-table .center { text-align: center; }
+    .admin-table input, .admin-table select { padding: 4px 8px; font-size: 13px; }
+    .muted { color: rgba(255,255,255,0.5); }
+    .ok { color: #10b981; } .warn { color: #fbbf24; } .err { color: #ef4444; } .info { color: #22d3ee; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; background: rgba(255,255,255,0.08); }
+    .season-summary { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; font-size: 14px; }
+    .season-summary strong { color: #22d3ee; font-family: 'Space Mono', monospace; }
+    .alert { padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
+    tr.is-frozen { opacity: 0.65; }
+    tr.is-current { background: rgba(251,191,36,0.06); }
+    .joker-cell { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .joker-cell button { width: 28px; height: 28px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; line-height: 1; }
+    .joker-cell .minus { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .joker-cell .plus { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .joker-cell span { min-width: 24px; font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 600; transition: transform 0.2s; }
+    #logsContainer { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; font-family: 'Space Mono', monospace; font-size: 13px; max-height: 200px; overflow-y: auto; }
+    #logsContainer div { margin-bottom: 8px; }
+    @media (max-width: 600px) {
+      .admin-wrap { padding: 0 16px; }
+      .admin-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-  <!-- Navigation -->
   <nav class="nav-sticky">
     <div class="nav-container">
       <a href="index.html" class="nav-brand">
@@ -26,314 +80,177 @@
     </div>
   </nav>
 
-  <!-- Login Section -->
+  <!-- Connexion -->
   <section class="ranking-section" id="loginSection" style="padding-top: 120px;">
     <div style="max-width: 400px; margin: 0 auto; padding: 0 24px;">
-      <div class="info-box" style="padding: 40px; text-align: center;">
+      <div class="admin-box" style="padding: 40px; text-align: center;">
         <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
-        <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 24px;">
-          Accès Administration
-        </h2>
-
-        <div id="loginError" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
-
+        <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 24px;">Accès Administration</h2>
+        <div id="loginError" class="err" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
         <form id="adminLoginForm">
-          <input
-            type="password"
-            id="adminPassword"
-            placeholder="Mot de passe admin"
-            required
-            style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 16px; box-sizing: border-box;"
-          >
-          <button type="submit" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
-            Connexion
-          </button>
+          <input type="password" id="adminPassword" placeholder="Mot de passe admin" required
+            style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 16px; box-sizing: border-box;">
+          <button type="submit" class="btn btn-block" style="padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; font-size: 16px;">Connexion</button>
         </form>
       </div>
     </div>
   </section>
 
-  <!-- Admin Dashboard -->
+  <!-- Tableau de bord -->
   <section class="ranking-section" id="adminDashboard" style="display: none; padding-top: 120px;">
-    <div style="max-width: 1200px; margin: 0 auto; padding: 0 24px;">
+    <div class="admin-wrap">
 
-      <div class="section-header" style="margin-bottom: 40px;">
+      <div class="section-header" style="margin-bottom: 32px;">
         <span class="section-number">🔧</span>
         <h2 class="section-title">Panneau d'Administration</h2>
         <p class="section-desc">Gérer la ligue Versant 2026</p>
       </div>
 
-      <!-- Stats rapides -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px;">
-        <div class="info-box" style="text-align: center; padding: 24px;">
-          <div style="font-size: 36px; font-weight: 700; color: #f97316;" id="statAthletes">-</div>
-          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Athlètes inscrits</div>
-        </div>
-        <div class="info-box" style="text-align: center; padding: 24px;">
-          <div style="font-size: 36px; font-weight: 700; color: #22d3ee;" id="statActivities">-</div>
-          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Activités</div>
-        </div>
-        <div class="info-box" style="text-align: center; padding: 24px;">
-          <div style="font-size: 36px; font-weight: 700; color: #10b981;" id="statExcluded">0</div>
-          <div style="color: rgba(255,255,255,0.6); font-size: 14px;">Activités exclues</div>
-        </div>
+      <div class="stats-grid">
+        <div class="admin-box stat"><div class="value" style="color: #f97316;" id="statAthletes">-</div><div class="label">Athlètes actifs</div></div>
+        <div class="admin-box stat"><div class="value" style="color: #22d3ee;" id="statActivities">-</div><div class="label">Activités</div></div>
+        <div class="admin-box stat"><div class="value" style="color: #10b981;" id="statExcluded">-</div><div class="label">Activités exclues</div></div>
+        <div class="admin-box stat"><div class="value" style="color: #a855f7;" id="statFrozen">-</div><div class="label">Rounds figés</div></div>
       </div>
 
+      <!-- Saison en cours -->
+      <div class="admin-box" style="margin-bottom: 24px;">
+        <h3>🗓️ Saison en cours</h3>
+        <p class="desc">
+          Plan calculé par le moteur de gel : les rounds figés sont affichés tels quels, les suivants sont projetés
+          à partir du nombre de joueurs actifs et de la configuration de chaque round.
+          Laissez « Nb élim » vide pour garder la valeur par défaut (ou celle de la règle spéciale).
+        </p>
+        <div id="seasonVisualizerContent" class="scroll"><p class="muted">Chargement...</p></div>
+        <button id="refreshSeasonVisualizerBtn" class="btn btn-primary" style="margin-top: 12px;">🔄 Rafraîchir</button>
+      </div>
 
-          <!-- ============================================
-     VISUALISATEUR DE SAISON
-     ============================================ -->
-        <div class="card" style="margin-bottom: 20px;">
-          <h2 style="color: #22d3ee; margin-bottom: 16px;">🗓️ Configuration de la saison en cours</h2>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
-            Vue d'ensemble des rounds de la saison en cours. Vous pouvez modifier le nombre d'éliminations
-            et le type de chaque round à venir.
-          </p>
-          <div id="seasonVisualizerContent" style="overflow-x: auto;">
-            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
-          </div>
-          <button id="refreshSeasonVisualizerBtn" style="margin-top: 12px; padding: 10px 20px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-            🔄 Rafraîchir
-          </button>
-        </div>
+      <!-- Planning des saisons -->
+      <div class="admin-box" style="margin-bottom: 24px;">
+        <h3>📅 Planning des saisons</h3>
+        <p class="desc">
+          Mode de jeu de chaque saison. Modifiable tant qu'aucun round de la saison n'est figé ;
+          à régler avant le début de la saison (le changement s'applique dès l'enregistrement).
+        </p>
+        <div id="seasonPlanningContent" class="scroll"><p class="muted">Chargement...</p></div>
+      </div>
 
-
-      <!-- Actions -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px;">
-
-        <!-- Webhook Strava -->
-        <div class="info-box">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            🪝 Webhook Strava (temps réel)
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Recevez automatiquement les nouvelles activités dès qu'un athlète les enregistre sur Strava.
-          </p>
-          <div id="webhookStatus" style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
-            Statut: <span style="color: #fbbf24;">Cliquez sur Activer pour vérifier</span>
-          </div>
-          <div style="display: flex; gap: 12px;">
-            <button id="enableWebhookBtn" style="flex: 1; padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-              ✅ Activer
-            </button>
-            <button id="disableWebhookBtn" style="flex: 1; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-              🗑️ Désactiver
-            </button>
-          </div>
-        </div>
+      <div class="admin-grid">
 
         <!-- Synchronisation -->
-        <div class="info-box">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            🔄 Synchronisation Strava
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Synchroniser manuellement les activités de tous les athlètes.
-          </p>
-          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-            <input type="date" id="syncStartDate" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
-            <input type="date" id="syncEndDate" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+        <div class="admin-box">
+          <h3>🔄 Synchronisation Strava</h3>
+          <p class="desc">Automatique à 6h, 10h, 14h, 18h, 20h et 22h (+ 00h15 avant le gel). Forcer ici une synchro sur une période.</p>
+          <div class="row">
+            <input type="date" id="syncStartDate">
+            <input type="date" id="syncEndDate">
           </div>
-          <button id="syncBtn" style="width: 100%; padding: 12px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-            Lancer la synchronisation
-          </button>
+          <button id="syncBtn" class="btn btn-primary btn-block">Lancer la synchronisation</button>
           <div id="syncResult" style="margin-top: 12px; font-size: 14px;"></div>
         </div>
 
-        <!-- Export Classement -->
-        <div class="info-box">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            🏆 Export Classement
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Générer et télécharger le classement actuel en JSON.
-          </p>
-          <button id="exportRankingBtn" style="width: 100%; padding: 12px; background: #a855f7; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">
-            📥 Télécharger le classement (JSON)
-          </button>
-          <div style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; font-size: 13px;">
-            <div style="color: rgba(255,255,255,0.6); margin-bottom: 8px;">⏰ Export automatique quotidien</div>
-            <div style="color: #10b981;">Tous les jours à 20h → GitHub</div>
-          </div>
-        </div>
-
-        <!-- Résultats Figés -->
-        <div class="info-box">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            ❄️ Résultats Figés
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
-            Les résultats sont figés définitivement à la fin de chaque round.<br>
-            <strong style="color: #22d3ee;">NOUVEAU:</strong> Importez un fichier JSON pour figer avec les données exactes de la page principale.
-          </p>
-          <div id="frozenStatus" style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
-            Statut: <span style="color: #fbbf24;">Chargement...</span>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-
-            <!-- Import JSON (NOUVEAU) -->
-            <div style="padding: 12px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.3); border-radius: 8px; margin-bottom: 8px;">
-              <label style="color: #22d3ee; font-weight: 600; display: block; margin-bottom: 8px;">
-                📥 Importer frozen_results.json
-              </label>
+        <!-- Résultats figés -->
+        <div class="admin-box">
+          <h3>❄️ Résultats figés</h3>
+          <p class="desc">Les rounds terminés sont figés automatiquement chaque nuit à 00h15 (après une synchro).</p>
+          <div id="frozenStatus" class="status-box"><span class="warn">Chargement...</span></div>
+          <div class="stack">
+            <button id="autoFreezeBtn" class="btn btn-primary btn-block">❄️ Figer les rounds terminés</button>
+            <div class="row" style="margin: 0;">
+              <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1">
+              <button id="freezeRoundBtn" class="btn btn-success">Figer</button>
+              <button id="unfreezeRoundBtn" class="btn btn-warn">Défiger</button>
+            </div>
+            <div class="sub-box">
+              <label>📥 Importer frozen_results.json</label>
               <input type="file" id="importFrozenFile" accept=".json" style="display: none;">
-              <div style="display: flex; gap: 8px;">
-                <button id="importFrozenBtn" style="flex: 1; padding: 10px; background: #22d3ee; color: #0a0a0f; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                  📂 Choisir fichier
-                </button>
-                <select id="importMode" style="padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+              <div class="row" style="margin: 0;">
+                <button id="importFrozenBtn" class="btn btn-primary" style="flex: 1;">📂 Choisir fichier</button>
+                <select id="importMode">
                   <option value="merge">Fusionner</option>
                   <option value="replace">Remplacer tout</option>
                 </select>
               </div>
-              <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 8px;">
-                Fusionner = garde les rounds existants et ajoute les nouveaux<br>
-                Remplacer = écrase tout avec le fichier importé
-              </p>
+              <p class="hint">Fusionner = garde les rounds existants et ajoute les nouveaux · Remplacer = écrase tout</p>
             </div>
-
-            <button id="autoFreezeBtn" style="width: 100%; padding: 12px; background: rgba(34, 211, 238, 0.5); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-              ❄️ Auto-figer (recalcule depuis les données brutes)
-            </button>
-            <div style="display: flex; gap: 8px;">
-              <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1" max="50" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
-              <button id="freezeRoundBtn" style="padding: 10px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                Figer
-              </button>
-              <button id="unfreezeRoundBtn" style="padding: 10px 16px; background: #f97316; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                Défiger
-              </button>
-            </div>
-            <button id="resetFrozenBtn" style="width: 100%; padding: 12px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-weight: 600; cursor: pointer;">
-              🗑️ Réinitialiser TOUS les résultats
-            </button>
+            <button id="resetFrozenBtn" class="btn btn-danger btn-block">🗑️ Réinitialiser TOUS les résultats</button>
           </div>
         </div>
 
         <!-- Téléchargements -->
-        <div class="info-box">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            📥 Télécharger les données
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Exporter les fichiers JSON bruts.
-          </p>
-          <div style="display: flex; flex-direction: column; gap: 12px;">
-            <button class="download-btn" data-file="athletes" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
-              📋 athletes.json
-            </button>
-            <button class="download-btn" data-file="activities" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
-              🏃 activities.json
-            </button>
-            <button class="download-btn" data-file="jokers" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
-              🃏 jokers_usage.json
-            </button>
-            <button class="download-btn" data-file="frozen" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; text-align: left;">
-              ❄️ frozen_results.json
-            </button>
+        <div class="admin-box">
+          <h3>📥 Télécharger les données</h3>
+          <p class="desc">Exporter les fichiers JSON du serveur.</p>
+          <div class="stack">
+            <button class="btn btn-ghost download-btn" data-file="ranking">🏆 Classement annuel</button>
+            <button class="btn btn-ghost download-btn" data-file="athletes">📋 athletes.json</button>
+            <button class="btn btn-ghost download-btn" data-file="activities">🏃 activities.json</button>
+            <button class="btn btn-ghost download-btn" data-file="jokers">🃏 jokers_usage.json</button>
+            <button class="btn btn-ghost download-btn" data-file="frozen">❄️ frozen_results.json</button>
           </div>
         </div>
 
-                <!-- Reset Mot de Passe -->
-        <div class="info-box">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            🔑 Reset Mot de Passe
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Réinitialiser le mot de passe d'un joueur qui l'a oublié.
-          </p>
-
-          <div style="margin-bottom: 16px;">
-            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Sélectionner l'athlète</label>
-            <select id="resetPasswordAthlete" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px;">
-              <option value="">-- Choisir un athlète --</option>
-            </select>
+        <!-- Reset mot de passe -->
+        <div class="admin-box">
+          <h3>🔑 Reset mot de passe</h3>
+          <p class="desc">Réinitialiser le mot de passe d'un joueur qui l'a oublié.</p>
+          <div class="stack">
+            <select id="resetPasswordAthlete"><option value="">-- Choisir un athlète --</option></select>
+            <input type="text" id="resetPasswordNew" placeholder="Nouveau mot de passe (6 caractères min.)">
+            <button id="resetPasswordBtn" class="btn btn-block" style="background: linear-gradient(135deg, #f97316, #f43f5e); color: white;">🔐 Réinitialiser le mot de passe</button>
           </div>
-
-          <div style="margin-bottom: 16px;">
-            <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 8px; font-size: 14px;">Nouveau mot de passe</label>
-            <input type="text" id="resetPasswordNew" placeholder="Minimum 6 caractères" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px; box-sizing: border-box;">
-          </div>
-
-          <button id="resetPasswordBtn" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">
-            🔐 Réinitialiser le mot de passe
-          </button>
-
           <div id="resetPasswordResult" style="margin-top: 12px; font-size: 14px;"></div>
         </div>
 
-        <!-- Gestion des activités (exclure) -->
-        <div class="info-box" style="grid-column: 1 / -1;">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            🏃 Gestion des activités
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 20px;">
-            Exclure ou réintégrer des activités qui ne respectent pas les règles du challenge.
-          </p>
-
-          <!-- Filtres -->
-          <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-            <input type="text" id="activitySearch" placeholder="Rechercher (nom, athlète...)" style="flex: 1; min-width: 200px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
-            <select id="activityFilter" style="padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white;">
+        <!-- Activités -->
+        <div class="admin-box wide">
+          <h3>🏃 Gestion des activités</h3>
+          <p class="desc">Exclure ou réintégrer des activités qui ne respectent pas les règles du challenge.</p>
+          <div class="row">
+            <input type="text" id="activitySearch" placeholder="Rechercher (nom, athlète...)" style="min-width: 200px;">
+            <select id="activityFilter" style="flex: 0 1 auto;">
               <option value="all">Toutes les activités</option>
               <option value="active">Actives uniquement</option>
               <option value="excluded">Exclues uniquement</option>
             </select>
-            <button id="refreshActivitiesBtn" style="padding: 10px 20px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; cursor: pointer;">
-              🔄 Rafraîchir
-            </button>
+            <button id="refreshActivitiesBtn" class="btn btn-ghost">🔄 Rafraîchir</button>
           </div>
-
-          <div id="activitiesList" style="max-height: 500px; overflow-y: auto;">
-            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
-          </div>
+          <div id="activitiesList" class="scroll"><p class="muted">Chargement...</p></div>
         </div>
 
-        <!-- Liste des athlètes -->
-        <div class="info-box" style="grid-column: 1 / -1;">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            👥 Athlètes inscrits
-          </h3>
-          <div id="athletesList" style="max-height: 400px; overflow-y: auto;">
-            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
-          </div>
+        <!-- Athlètes -->
+        <div class="admin-box wide">
+          <h3>👥 Athlètes actifs</h3>
+          <div id="athletesList" class="scroll" style="max-height: 400px;"><p class="muted">Chargement...</p></div>
         </div>
 
-
-        <!-- Gestion des Jokers -->
-        <div class="info-box" style="grid-column: 1 / -1;">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            🃏 Gestion des Jokers
-          </h3>
-          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
-            Modifier le stock de jokers de chaque athlète. Utilisez les boutons +/- ou entrez directement une valeur.
-          </p>
-          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-            <button id="resetAllJokersBtn" style="padding: 10px 20px; background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; cursor: pointer;">
-              🔄 Reset tous les jokers (2 de chaque)
-            </button>
+        <!-- Jokers -->
+        <div class="admin-box wide">
+          <h3>🃏 Gestion des jokers</h3>
+          <p class="desc">Stock restant de chaque athlète (usages figés inclus). Les boutons +/- enregistrent immédiatement.</p>
+          <div class="row">
+            <button id="resetAllJokersBtn" class="btn btn-danger">🔄 Remettre tous les stocks au départ</button>
           </div>
-          <div id="jokersManagementTable" style="max-height: 500px; overflow-y: auto;">
-            <p style="color: rgba(255,255,255,0.5);">Chargement...</p>
-          </div>
+          <div id="jokersManagementTable" class="scroll"><p class="muted">Chargement...</p></div>
         </div>
 
-        <!-- Logs -->
-        <div class="info-box" style="grid-column: 1 / -1;">
-          <h3 style="color: #f97316; margin-bottom: 16px; font-family: 'Syne', sans-serif;">
-            📜 Journal des actions
-          </h3>
-          <div id="logsContainer" style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; font-family: 'Space Mono', monospace; font-size: 13px; max-height: 200px; overflow-y: auto;">
-            <div style="color: rgba(255,255,255,0.5);">En attente d'actions...</div>
-          </div>
+        <!-- Bonus éphémères -->
+        <div class="admin-box wide">
+          <h3>🎁 Bonus éphémères</h3>
+          <p class="desc">Choix en attente des meilleurs éliminés et bonus de la saison en cours. Les bonus des saisons closes sont archivés.</p>
+          <div id="bonusesAdmin" class="scroll"><p class="muted">Chargement...</p></div>
+        </div>
+
+        <!-- Journal -->
+        <div class="admin-box wide">
+          <h3>📜 Journal des actions</h3>
+          <div id="logsContainer"><div class="muted">En attente d'actions...</div></div>
         </div>
 
       </div>
     </div>
-
   </section>
 
-  <!-- Footer -->
   <footer class="footer" style="margin-top: 80px;">
     <div class="footer-content">
       <div class="footer-brand">◭ Versant</div>
@@ -341,6 +258,6 @@
     </div>
   </footer>
 
-  <script src="js/admin.js?v=20261005a"></script>
+  <script src="js/admin.js?v=20261012a"></script>
 </body>
 </html>

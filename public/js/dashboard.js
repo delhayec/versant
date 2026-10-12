@@ -11,8 +11,10 @@ import {
   getRoundDates,
   getGlobalRoundNumber,
   getSeasonNumber, isTeamSeason,
+  getRoundInSeason, getRoundsPerSeason,
   getAthleteColor, getAthleteInitials,
-  fetchWithTimeout
+  fetchWithTimeout, loadSeasonPlanning,
+  getDayInRound as getDayInRoundAt, getRoundDuration
 } from './config.js';
 import { formatDate, formatElevation } from './ui.js';
 
@@ -256,11 +258,14 @@ function getJokerStock(participantId) {
   const pid = String(participantId);
   const stock = {};
 
+  // Même formule que l'admin et jokers.js : les admin_refund ajoutent +1
   Object.keys(JOKER_TYPES).forEach(jokerId => {
-    const usedCount = jokerUsageCache.filter(
+    const entries = jokerUsageCache.filter(
       u => String(u.athlete_id) === pid && u.joker_id === jokerId
-    ).length;
-    stock[jokerId] = Math.max(0, INITIAL_JOKER_STOCK - usedCount);
+    );
+    const refunds = entries.filter(u => u.status === 'admin_refund').length;
+    const usedCount = entries.length - refunds;
+    stock[jokerId] = Math.max(0, Math.min(5, INITIAL_JOKER_STOCK - usedCount + refunds));
   });
 
   return stock;
@@ -278,10 +283,8 @@ function getCurrentRound() {
 }
 
 function getDayInRound() {
-  const start = new Date(CHALLENGE_CONFIG.yearStartDate);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  return (daysSinceStart % CHALLENGE_CONFIG.roundDurationDays) + 1;
+  // Calendrier réel (durée variable en saison Deadline), minuit local
+  return getDayInRoundAt(new Date());
 }
 
 // ============================================
@@ -467,7 +470,7 @@ function renderCurrentRound() {
 
   const dayInRoundEl = document.getElementById('dayInRound');
   if (dayInRoundEl) {
-    dayInRoundEl.textContent = `Jour ${dayInRound}/${CHALLENGE_CONFIG.roundDurationDays}`;
+    dayInRoundEl.textContent = `Jour ${dayInRound}/${getRoundDuration(getCurrentRound())}`;
   }
 
   const roundEndEl = document.getElementById('roundEndDate');
@@ -1148,6 +1151,8 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
   const currentRound = getCurrentRound();
   const dayInRound = getDayInRound();
   const canActivateNow = joker.canActivateNow && dayInRound <= (joker.maxDayForImmediateUse || 3);
+  const roundInSeason = getRoundInSeason(new Date());
+  const roundsPerSeason = getRoundsPerSeason();
 
   const modal = document.createElement('div');
   modal.className = 'joker-selection-modal';
@@ -1397,6 +1402,7 @@ function showNotification(message, type = 'info') {
 // ============================================
 async function init() {
   try {
+    await loadSeasonPlanning();
     await loadCurrentUser();
     await loadActivities();
     await loadJokersFromServer();

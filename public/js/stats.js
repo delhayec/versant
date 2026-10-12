@@ -20,6 +20,7 @@ import {
   SPORT_SETTINGS,
   isValidSport,
   getRoundDates,
+  getRoundDuration,
   getGlobalRoundNumber,
   getRoundsForSeason,
   getSeasonNumber,
@@ -745,34 +746,40 @@ let polylineLayers = [];
 function initMap() {
   if (map) { map.invalidateSize(); return; }
   map = L.map('map', { center: [46.5, 2.5], zoom: 5 });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 19
+  // Fond sombre Esri : utilisable sans clé API (les fonds CARTO en exigent
+  // désormais une et affichaient « API KEY REQUIRED »).
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+    maxZoom: 16
   }).addTo(map);
   setTimeout(() => map.invalidateSize(), 200);
 }
 
-function isSegmentStraight(points, startIdx, endIdx) {
-  if (endIdx - startIdx < 2) return false;
-  const s = points[startIdx];
-  const e = points[endIdx];
-  const direct = haversine(s[0], s[1], e[0], e[1]);
-  let path = 0;
-  for (let i = startIdx; i < endIdx; i++) {
-    path += haversine(points[i][0], points[i][1], points[i+1][0], points[i+1][1]);
-  }
-  return path > 0 ? direct / path > 0.99 : false;
-}
-
+// Coupe les longues lignes droites (trajets GPS sautés, téléportations) pour
+// ne pas tracer de traits parasites à travers la carte.
+// Longueurs cumulées en préfixe : chaque test de rectitude est en O(1) au lieu
+// de re-sommer le chemin (le calcul bloquait plusieurs secondes sur la saison).
 function filterStraightLines(points, minStraightDist) {
   if (!points || points.length < 3) return points ? [points] : [];
+  const cumul = new Float64Array(points.length);
+  for (let k = 1; k < points.length; k++) {
+    cumul[k] = cumul[k - 1] + haversine(points[k - 1][0], points[k - 1][1], points[k][0], points[k][1]);
+  }
+  const isStraight = (a, b) => {
+    const path = cumul[b] - cumul[a];
+    return path > 0 && haversine(points[a][0], points[a][1], points[b][0], points[b][1]) / path > 0.99;
+  };
+
   const segments = [];
   let current = [points[0]];
   for (let i = 1; i < points.length - 1; i++) {
     let straightEnd = -1;
     for (let j = i + 2; j < Math.min(i + 50, points.length); j++) {
+      // Le chemin est toujours ≥ la distance directe : inutile de tester
+      // la rectitude tant qu'il ne dépasse pas le seuil.
+      if (cumul[j] - cumul[i] <= minStraightDist) continue;
       const d = haversine(points[i][0], points[i][1], points[j][0], points[j][1]);
-      if (d > minStraightDist && isSegmentStraight(points, i, j)) straightEnd = j;
+      if (d > minStraightDist && isStraight(i, j)) straightEnd = j;
     }
     if (straightEnd > 0) {
       current.push(points[i]);
@@ -1236,7 +1243,7 @@ function calculateHourlyDistribution(data, groupBy) {
       const d = new Date(act.start_date);
       const globalRound = getGlobalRoundNumber(d);
       const roundDates = getRoundDates(globalRound);
-      const dayOfRound = Math.min(5, Math.max(1, Math.floor((d - roundDates.start) / (1000 * 60 * 60 * 24)) + 1));
+      const dayOfRound = Math.min(getRoundDuration(globalRound), Math.max(1, Math.floor((d - roundDates.start) / (1000 * 60 * 60 * 24)) + 1));
       key = `J${dayOfRound}`;
     } else {
       key = mapSportName(act.sport_type);
@@ -2484,13 +2491,11 @@ function computeAthleteStats(data, frozenResults = null) {
     const sport = mapSportName(a.sport_type);
     s.elevation_by_sport[sport] = (s.elevation_by_sport[sport] || 0) + (a.total_elevation_gain || 0);
 
-    // Bin par round (5 jours depuis yearStart)
+    // Bin par round (calendrier réel : la durée des rounds peut varier)
     try {
       const actDate = new Date(a.start_date);
-      const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-      const daysSinceStart = Math.floor((actDate - yearStart) / 86400000);
-      if (daysSinceStart >= 0) {
-        const roundNum = Math.floor(daysSinceStart / 5) + 1;
+      if (actDate >= getRoundDates(1).start) {
+        const roundNum = getGlobalRoundNumber(actDate);
         if (!s.elevation_by_round[roundNum]) {
           s.elevation_by_round[roundNum] = { elevation: 0 };
         }
@@ -2539,6 +2544,8 @@ function computeAthleteStats(data, frozenResults = null) {
     }
   }
 
+  const gameStats = computeGameStats(frozenResults);
+
   return [...stats.values()].map(s => {
     const best24h = Object.entries(s.elevation_by_day).reduce(
       (acc, [day, el]) => el > acc.elevation ? { day, elevation: el } : acc,
@@ -2573,9 +2580,71 @@ function computeAthleteStats(data, frozenResults = null) {
       main_points: mainPoints,
       eliminated_points: eliminatedPoints,
       seasons_won: seasonsWon,
-      elevation_per_point: elevationPerPoint
+      elevation_per_point: elevationPerPoint,
+      ...(gameStats[String(s.athlete_id)] || EMPTY_GAME_STATS)
     };
   });
+}
+
+const RICRAC_MIN_ROUNDS = 5; // en dessous, la moyenne n'a pas de sens
+const EMPTY_GAME_STATS = {
+  elim_margin_avg: null, elim_margin_rounds: 0, close_calls: 0,
+  finals_played: 0, jokers_used: 0, times_targeted: 0
+};
+
+/**
+ * Statistiques « de jeu » par athlète, lues dans les rounds figés :
+ * - marge moyenne au-dessus de la zone d'élimination, sur les rounds survécus
+ *   (rounds individuels avec éliminations, hors finale) : nombre de places
+ *   au-dessus du premier éliminé
+ * - nombre de rounds sauvés à une place près, finales jouées
+ * - jokers utilisés, nombre de fois ciblé par un joker ou un bonus
+ */
+function computeGameStats(frozenResults) {
+  const out = {};
+  const get = id => (out[String(id)] ||= { ...EMPTY_GAME_STATS, margin_sum: 0 });
+
+  for (const round of Object.values(frozenResults?.rounds || {})) {
+    if (!round?.frozen) continue;
+    const ranking = round.ranking || [];
+
+    if (round.isFinalePrincipale) {
+      ranking.forEach(e => { get(e.id).finals_played++; });
+    }
+    for (const j of round.jokersUsed || []) {
+      if (j.athleteId) get(j.athleteId).jokers_used++;
+      if (j.targetId) get(j.targetId).times_targeted++;
+    }
+    for (const b of round.bonusesUsed || []) {
+      if (b.target_athlete_id) get(b.target_athlete_id).times_targeted++;
+    }
+
+    const isTeamRound = round.seasonType === 'team' || round.isTeamSeasonRound;
+    const eliminations = round.eliminations || [];
+    if (isTeamRound || round.isFinalePrincipale || eliminations.length === 0) continue;
+
+    const eliminatedIds = new Set(eliminations.map(e => String(e.id)));
+    const elimPositions = ranking.filter(e => eliminatedIds.has(String(e.id))).map(e => e.position);
+    if (elimPositions.length === 0) continue;
+    const firstElimPosition = Math.min(...elimPositions);
+
+    for (const entry of ranking) {
+      // Les rounds où le joueur est éliminé ne comptent pas
+      if (eliminatedIds.has(String(entry.id))) continue;
+      const g = get(entry.id);
+      // Un joueur sous la barre sauvé par un bouclier compte comme marge nulle
+      const margin = Math.max(0, firstElimPosition - entry.position);
+      g.margin_sum += margin;
+      g.elim_margin_rounds++;
+      if (margin === 1) g.close_calls++;
+    }
+  }
+
+  for (const g of Object.values(out)) {
+    g.elim_margin_avg = g.elim_margin_rounds >= RICRAC_MIN_ROUNDS ? g.margin_sum / g.elim_margin_rounds : null;
+    delete g.margin_sum;
+  }
+  return out;
 }
 
 function renderRankingTable(stats) {
@@ -2653,6 +2722,25 @@ function renderAchievements(stats) {
     { id: 'champion', emoji: '🥇', name: 'Champion', desc: 'Saisons remportées', type: 'legendary',
       getValue: s => s.seasons_won, format: v => `${v} saison${v > 1 ? 's' : ''}` },
 
+    // === JEU (rounds figés) ===
+    { id: 'ricrac', emoji: '🦎', name: 'RicRac', desc: 'Survit au plus près de l’élimination (places au-dessus de la zone, en moyenne sur les rounds survécus)', type: 'fun',
+      lowerIsBetter: true,
+      getValue: s => s.elim_margin_avg,
+      format: v => `${v.toFixed(2)} pl.`,
+      formatWinner: s => `${s.elim_margin_avg.toFixed(2)} pl. (${s.elim_margin_rounds} rounds)` },
+    { id: 'untouchable', emoji: '🧘', name: 'Intouchable', desc: 'La plus grande marge moyenne sur la zone d’élimination', type: 'normal',
+      getValue: s => s.elim_margin_avg ?? 0,
+      format: v => `${v.toFixed(2)} pl.`,
+      formatWinner: s => `${s.elim_margin_avg.toFixed(2)} pl. (${s.elim_margin_rounds} rounds)` },
+    { id: 'closecall', emoji: '😅', name: 'Sur le fil', desc: 'Rounds sauvés à une place près', type: 'fun',
+      getValue: s => s.close_calls, format: v => `${v} fois` },
+    { id: 'finalist', emoji: '🏁', name: 'Habitué des Finales', desc: 'Finales disputées', type: 'normal',
+      getValue: s => s.finals_played, format: v => `${v} finale${v > 1 ? 's' : ''}` },
+    { id: 'jokers', emoji: '🃏', name: 'Joker Addict', desc: 'Le plus de jokers utilisés', type: 'fun',
+      getValue: s => s.jokers_used, format: v => `${v} joker${v > 1 ? 's' : ''}` },
+    { id: 'target', emoji: '🎯', name: 'Cible n°1', desc: 'Le plus ciblé par les jokers et bonus', type: 'fun',
+      getValue: s => s.times_targeted, format: v => `${v} fois` },
+
     // === RECORDS PUNCTUELS ===
     { id: 'best24h', emoji: '🔥', name: 'Journée de Feu', desc: 'Le plus gros D+ en 24h', type: 'legendary',
       getValue: s => s.best_24h_elevation, format: v => `${formatElevationCompact(v)} m` },
@@ -2721,11 +2809,23 @@ function renderAchievements(stats) {
     document.body.appendChild(tooltipEl);
   }
 
+  // Classe les athlètes pour un badge. lowerIsBetter : la plus petite valeur
+  // gagne (0 compris), les valeurs null (non classé) sont écartées.
+  const rankForAchievement = (ach) => {
+    if (ach.lowerIsBetter) {
+      return stats
+        .filter(s => ach.getValue(s) != null)
+        .sort((a, b) => ach.getValue(a) - ach.getValue(b));
+    }
+    return stats
+      .filter(s => ach.getValue(s) > 0)
+      .sort((a, b) => ach.getValue(b) - ach.getValue(a));
+  };
+
   const cards = [];
   achievements.forEach((ach, aIdx) => {
-    const valid = stats.filter(s => ach.getValue(s) > 0);
-    if (valid.length === 0) return;
-    const sorted = [...valid].sort((a, b) => ach.getValue(b) - ach.getValue(a));
+    const sorted = rankForAchievement(ach);
+    if (sorted.length === 0) return;
     const winner = sorted[0];
     const top3 = sorted.slice(0, 3);
 
@@ -2754,8 +2854,7 @@ function renderAchievements(stats) {
     const idx = parseInt(card.dataset.idx, 10);
     const ach = achievements[idx];
     if (!ach) return;
-    const valid = stats.filter(s => ach.getValue(s) > 0);
-    const sorted = [...valid].sort((a, b) => ach.getValue(b) - ach.getValue(a)).slice(0, 3);
+    const sorted = rankForAchievement(ach).slice(0, 3);
 
     card.addEventListener('mouseenter', () => {
       let html = `<div style="font-weight:600;margin-bottom:10px;font-size:13px">${ach.emoji} ${ach.name}</div>`;
@@ -2831,11 +2930,16 @@ function refreshFilteredViews() {
   renderCompareChart();
 
   // Si tableau détaillé visible, le re-rendre
-  if (rankingVisible) {
-    const stats = computeAthleteStats(filtered, frozenResultsCache);
-    renderRankingTable(stats);
-    renderAchievements(stats);
-  }
+  if (rankingVisible) renderRankingAndAchievements(filtered);
+}
+
+// Points et badges « jeu » lisent les rounds figés : attendre leur chargement,
+// sinon un clic rapide sur « Tableau détaillé » les affiche vides.
+async function renderRankingAndAchievements(filtered) {
+  const frozen = await loadFrozenResults();
+  const stats = computeAthleteStats(filtered, frozen);
+  renderRankingTable(stats);
+  renderAchievements(stats);
 }
 
 function toggleRankingSection() {
@@ -2848,10 +2952,7 @@ function toggleRankingSection() {
   btn.classList.toggle('active', rankingVisible);
 
   if (rankingVisible) {
-    const filtered = getFilteredData();
-    const stats = computeAthleteStats(filtered, frozenResultsCache);
-    renderRankingTable(stats);
-    renderAchievements(stats);
+    renderRankingAndAchievements(getFilteredData());
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }

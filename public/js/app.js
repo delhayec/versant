@@ -17,7 +17,7 @@ import {
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
   setFrozenCache,
-  getMainChallengePoints, getEliminatedChallengePoints,
+  getMainChallengePoints, getEliminatedChallengePoints, getMainPointsMultiplier,
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
   getSeasonRosterSize,
@@ -52,6 +52,8 @@ import {
   getFrozenRound,
   getRescapeFromPreviousRound,
   calculateRescapePointsForSeason,
+  calculateGaugePointsForSeason,
+  calculateBonusPointsForSeason,
   getRescapeInfoForRound,
   computeLiveElevationGauge,
   // Activity helpers
@@ -1349,7 +1351,7 @@ function renderFinalStandings(container) {
     const elimPts = e.totalEliminatedPoints || 0;
     const rescapePts = e.totalRescapePoints || 0;
     const gaugePts = e.totalGaugePoints || 0;
-    const bonusPts = frozen.bonusPoints || 0;
+    const bonusPts = e.totalBonusPoints || 0;
     const wins = Math.max(e.wins || 0, frozen.wins);
 
     return {
@@ -1929,6 +1931,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
     } else if (isFinale && position <= 3) {
       mainPts = getMainChallengePoints(position);
     }
+    mainPts *= getMainPointsMultiplier(currentSeasonNumber);
 
     let pointsBadges = '';
     if (mainPts > 0) {
@@ -3626,67 +3629,12 @@ function computeSeasonRecap(seasonNumber, frozen) {
   // Score = positionAvantSaison - positionPointsSaison.
   //   Positif → surperf (parti bas, fini haut)
   //   Négatif → sous-perf
-  const perf = computePerformanceLeaderboard(seasonNumber, frozen, seasonRounds, elimSeason);
+  const perf = computePerformanceLeaderboard(seasonNumber, frozen, seasonRounds);
   const topSurperf = perf.filter(p => p.value > 0).sort((a, b) => b.value - a.value);
   const topSousperf = perf.filter(p => p.value < 0).sort((a, b) => a.value - b.value);
 
-  // ===== 7. TOTAL POINTS SAISON (principal + éliminé + rescapé + marquage/duel réussis) =====
-  const totalPointsByAthlete = {};
-  const addPts = (id, name, n) => {
-    if (!id || !n) return;
-    const k = String(id);
-    if (!totalPointsByAthlete[k]) totalPointsByAthlete[k] = { id: k, name, value: 0 };
-    totalPointsByAthlete[k].value += n;
-  };
-  // Points principal
-  for (const r of seasonRounds) {
-    for (const entry of (r.ranking || [])) {
-      addPts(entry.id, entry.name, entry.mainPoints || 0);
-    }
-    // Si winner détecté côté frontend (24 pts vainqueur), corriger
-    if (r.ranking?.length) {
-      const nonElim = r.ranking.filter(x => x.eliminatedPosition == null);
-      if (nonElim.length === 1) {
-        const w = nonElim[0];
-        // Ajouter 24 - mainPoints existant pour pas double-compter
-        const adjust = 24 - (w.mainPoints || 0);
-        if (adjust > 0) addPts(w.id, w.name, adjust);
-      }
-    }
-  }
-  // Points éliminés
-  for (const entry of (elimSeason.ranking || [])) {
-    addPts(entry.id || entry.participant?.id, entry.name || entry.participant?.name, entry.points || 0);
-  }
-  // Points rescapé : présents dans rescapeInfo de chaque round
-  for (const r of seasonRounds) {
-    if (r.rescapeInfo?.points) {
-      addPts(r.rescapeInfo.athleteId, r.rescapeInfo.athleteName, r.rescapeInfo.points);
-    }
-  }
-  // Points jauge de D+ collective
-  for (const r of seasonRounds) {
-    const g = r.elevationGauge;
-    if (!g?.points) continue;
-    for (const id of (g.beneficiaries || [])) {
-      addPts(id, getParticipantById(id)?.name || id, g.points);
-    }
-  }
-  // Points marquage réussi (+1 par marquage où targetEliminated)
-  const allBonuses = (frozen.seasonBonuses?.[String(seasonNumber)] || []).concat(
-    seasonRounds.flatMap(r => r.bonusesUsed || [])
-  );
-  const seenBonusIds = new Set();
-  for (const b of allBonuses) {
-    if (b.id && seenBonusIds.has(b.id)) continue;
-    if (b.id) seenBonusIds.add(b.id);
-    if (b.bonus_id === 'marquage' && b.effect_result?.targetEliminated === true) {
-      addPts(b.athlete_id, b.athlete_name, b.effect_result.pointsAwarded || 1);
-    }
-    if (b.bonus_id === 'duel' && b.effect_result?.won === true) {
-      addPts(b.athlete_id, b.athlete_name, b.effect_result.pointsAwarded || 1);
-    }
-  }
+  // ===== 7. TOTAL POINTS SAISON (principal + éliminé + rescapé + jauge + marquage/duel réussis) =====
+  const totalPointsByAthlete = computeSeasonPointsByAthlete(seasonNumber, frozen);
   const topTotalPoints = Object.values(totalPointsByAthlete).sort((a, b) => b.value - a.value);
 
   // ===== 8. RATIO D+/PTS =====
@@ -3836,74 +3784,115 @@ function computeSeasonRecap(seasonNumber, frozen) {
 }
 
 /**
- * Construit le classement des performances :
- * - positionAvant = rang du joueur dans le classement général au début de la saison
- * - positionAprès = rang dans le classement des points gagnés CETTE saison uniquement
- * - value = positionAvant - positionAprès (positif = surperf)
+ * Points gagnés PENDANT une saison, par athlète : principal (vainqueur inclus,
+ * dont les mainPoints ne sont plus stockés dans le round figé), challenge des
+ * éliminés, rescapé, jauge collective, marquage et duel réussis.
+ * @returns {Object} id -> { id, name, value }
  */
-function computePerformanceLeaderboard(seasonNumber, frozen, seasonRounds, elimSeason) {
-  // 1. Points gagnés PENDANT la saison (main + eliminated)
-  const pointsBySeason = {};
+function computeSeasonPointsByAthlete(seasonNumber, frozen) {
+  const seasonRounds = Object.values(frozen?.rounds || {})
+    .filter(r => r?.frozen && Number(r.seasonNumber) === Number(seasonNumber));
+  const elimSeason = frozen?.eliminatedChallengeRankings?.[String(seasonNumber)] || {};
+
+  const totalPointsByAthlete = {};
+  const addPts = (id, name, n) => {
+    if (!id || !n) return;
+    const k = String(id);
+    if (!totalPointsByAthlete[k]) totalPointsByAthlete[k] = { id: k, name, value: 0 };
+    totalPointsByAthlete[k].value += n;
+  };
+  // Points principal
   for (const r of seasonRounds) {
     for (const entry of (r.ranking || [])) {
-      const id = String(entry.id);
-      if (!pointsBySeason[id]) pointsBySeason[id] = { id, name: entry.name, value: 0 };
-      pointsBySeason[id].value += (entry.mainPoints || 0);
+      addPts(entry.id, entry.name, entry.mainPoints || 0);
+    }
+    // Si winner détecté côté frontend (24 pts vainqueur), corriger
+    if (r.ranking?.length) {
+      const nonElim = r.ranking.filter(x => x.eliminatedPosition == null);
+      if (nonElim.length === 1) {
+        const w = nonElim[0];
+        // Compléter jusqu'aux points du vainqueur sans double-compter
+        const adjust = getMainChallengePoints(1) * getMainPointsMultiplier(seasonNumber) - (w.mainPoints || 0);
+        if (adjust > 0) addPts(w.id, w.name, adjust);
+      }
     }
   }
+  // Points éliminés
   for (const entry of (elimSeason.ranking || [])) {
-    const id = String(entry.id || entry.participant?.id);
-    const name = entry.name || entry.participant?.name;
-    if (!pointsBySeason[id]) pointsBySeason[id] = { id, name, value: 0 };
-    pointsBySeason[id].value += (entry.points || 0);
+    addPts(entry.id || entry.participant?.id, entry.name || entry.participant?.name, entry.points || 0);
   }
-  const pointsRanking = Object.values(pointsBySeason).sort((a, b) => b.value - a.value);
-  const positionAfter = {};
-  pointsRanking.forEach((entry, idx) => { positionAfter[entry.id] = idx + 1; });
+  // Points rescapé et jauge collective : même calcul que le classement général
+  // (rescapeInfo.points n'est pas toujours renseigné dans les rounds figés)
+  const rescapeData = calculateRescapePointsForSeason(seasonNumber, frozen);
+  const gaugeData = calculateGaugePointsForSeason(seasonNumber, frozen);
+  for (const [id, info] of Object.entries(rescapeData)) {
+    addPts(id, getParticipantById(id)?.name || id, info.totalPoints);
+  }
+  for (const [id, pts] of Object.entries(gaugeData)) {
+    addPts(id, getParticipantById(id)?.name || id, pts);
+  }
+  // Bonus éphémères réussis (marquage, duel) : même calcul que le classement général
+  const bonusData = calculateBonusPointsForSeason(seasonNumber, frozen, bonusesCache);
+  for (const [id, pts] of Object.entries(bonusData)) {
+    addPts(id, getParticipantById(id)?.name || id, pts);
+  }
+  return totalPointsByAthlete;
+}
 
-  // 2. Classement général AVANT la saison
-  // = somme de tous les rounds des saisons < seasonNumber + leur challenge éliminés
-  const standingsBefore = {};
-  const rounds = frozen.rounds || {};
-  const prevRounds = Object.values(rounds).filter(r => Number(r?.seasonNumber) < Number(seasonNumber));
-  for (const r of prevRounds) {
+/**
+ * Rangs « compétition » : à points égaux, même rang (1, 2, 2, 4…).
+ */
+function competitionRanks(entries) {
+  const sorted = [...entries].sort((a, b) => b.value - a.value);
+  const ranks = {};
+  sorted.forEach((e, i) => {
+    ranks[e.id] = i > 0 && e.value === sorted[i - 1].value ? ranks[sorted[i - 1].id] : i + 1;
+  });
+  return ranks;
+}
+
+/**
+ * Classement des performances de la saison, parmi ses participants :
+ * - positionBefore = rang au classement général AVANT la saison (toutes les
+ *   saisons précédentes, mêmes catégories de points)
+ * - positionAfter  = rang aux points gagnés CETTE saison uniquement
+ * - value = positionBefore - positionAfter (positif = surperf)
+ */
+function computePerformanceLeaderboard(seasonNumber, frozen, seasonRounds) {
+  const seasonPoints = computeSeasonPointsByAthlete(seasonNumber, frozen);
+
+  // Participants de la saison : tous ceux classés dans au moins un de ses rounds
+  const participants = {};
+  for (const r of seasonRounds) {
     for (const entry of (r.ranking || [])) {
-      const id = String(entry.id);
-      if (!standingsBefore[id]) standingsBefore[id] = { id, name: entry.name, value: 0 };
-      standingsBefore[id].value += (entry.mainPoints || 0);
+      participants[String(entry.id)] = entry.name;
     }
   }
-  const prevElimSeasons = Object.entries(frozen.eliminatedChallengeRankings || {})
-    .filter(([k]) => Number(k) < Number(seasonNumber));
-  for (const [, season] of prevElimSeasons) {
-    for (const entry of (season.ranking || [])) {
-      const id = String(entry.id || entry.participant?.id);
-      const name = entry.name || entry.participant?.name;
-      if (!standingsBefore[id]) standingsBefore[id] = { id, name, value: 0 };
-      standingsBefore[id].value += (entry.points || 0);
-    }
-  }
-  const standingsRanking = Object.values(standingsBefore).sort((a, b) => b.value - a.value);
-  const positionBefore = {};
-  standingsRanking.forEach((entry, idx) => { positionBefore[entry.id] = idx + 1; });
+  const ids = Object.keys(participants);
+  if (ids.length === 0) return [];
 
-  // 3. Calculer le différentiel pour chaque athlète présent dans positionAfter
-  const result = [];
-  for (const entry of pointsRanking) {
-    const id = entry.id;
-    const before = positionBefore[id];
-    const after = positionAfter[id];
-    if (before == null || after == null) continue;
-    result.push({
-      id,
-      name: entry.name,
-      value: before - after, // positif = surperf
-      positionBefore: before,
-      positionAfter: after,
-      pointsSeason: entry.value
-    });
+  const before = {};
+  const previousSeasons = new Set(
+    Object.values(frozen.rounds || {})
+      .map(r => Number(r?.seasonNumber))
+      .filter(n => n && n < Number(seasonNumber))
+  );
+  for (const s of previousSeasons) {
+    const pts = computeSeasonPointsByAthlete(s, frozen);
+    for (const id of ids) before[id] = (before[id] || 0) + (pts[id]?.value || 0);
   }
-  return result;
+
+  const positionBefore = competitionRanks(ids.map(id => ({ id, value: before[id] || 0 })));
+  const positionAfter = competitionRanks(ids.map(id => ({ id, value: seasonPoints[id]?.value || 0 })));
+
+  return ids.map(id => ({
+    id,
+    name: participants[id],
+    value: positionBefore[id] - positionAfter[id], // positif = surperf
+    positionBefore: positionBefore[id],
+    positionAfter: positionAfter[id],
+    pointsSeason: seasonPoints[id]?.value || 0
+  }));
 }
 
 // ============================================

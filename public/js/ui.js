@@ -8,7 +8,7 @@
 
 import { 
   CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES, ROUND_RULES, PARTICIPANTS,
-  getSeasonDates, getRoundDates, getRoundInSeason, getParticipantById,
+  getSeasonDates, getRoundDates, getRoundDuration, getRoundInSeason, getParticipantById,
   getAthleteColor, getAthleteInitials, getRoundInfo,
   isRainyActivity, getActivityElevation, WEATHER_RULE,
   ELEVATION_GAUGE, getGaugeTier, getGaugeTierById
@@ -90,9 +90,10 @@ export function renderCombinedBanner(container, data) {
 
   const isRoundActive = currentDate >= roundDates.start && currentDate <= roundDates.end;
 
-  // Calcul du jour actuel dans le round (1 à 5)
+  // Jour actuel dans le round (la durée varie en saison Deadline)
   const msPerDay = 24 * 60 * 60 * 1000;
-  const dayInRound = Math.min(5, Math.max(1, Math.floor((currentDate - roundDates.start) / msPerDay) + 1));
+  const roundDuration = getRoundDuration(currentRoundNumber);
+  const dayInRound = Math.min(roundDuration, Math.max(1, Math.floor((currentDate - roundDates.start) / msPerDay) + 1));
 
   // Calcul du temps restant pour le countdown
   const timeRemaining = roundDates.end.getTime() - currentDate.getTime();
@@ -121,7 +122,7 @@ export function renderCombinedBanner(container, data) {
       <div class="banner-block banner-round-block">
         <span class="banner-label">ROUND</span>
         <span class="banner-value">${roundInSeason}</span>
-        ${isRoundActive ? `<span class="banner-day">J${dayInRound}/5</span>` : ''}
+        ${isRoundActive ? `<span class="banner-day">J${dayInRound}/${roundDuration}</span>` : ''}
         ${ruleBadge}
       </div>
 

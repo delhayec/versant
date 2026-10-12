@@ -26,7 +26,8 @@ const {
   ELEVATION_GAUGE, getGaugeObjectivePerPlayer, getGaugeTier,
   BONUS_IDS,
   getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
-  isTeamSeason, getSeasonType, getTeamEliminatedPoints
+  isTeamSeason, getSeasonType, getTeamEliminatedPoints, getRoundsForTeamSeason,
+  isDeadlineSeason, getMainPointsMultiplier
 } = require('./shared-config');
 
 // Import de la fonction d'application des bonus
@@ -244,12 +245,10 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
     return null;
   }
 
-  const roundsPerSeason = getSeasonRoundCount(totalParticipants, eliminationsPerRound);
-  const seasonNumber = roundData.seasonNumber || Math.ceil(roundNumber / roundsPerSeason);
-  const roundInSeason = roundData.roundInSeason || (((roundNumber - 1) % roundsPerSeason) + 1);
-  const isFinale = roundInSeason === roundsPerSeason;
-
-  if (isFinale) return null;
+  // Pas de rescapé en finale. La finale est celle réellement jouée (le nombre de
+  // rounds d'une saison varie : règles spéciales, saisons Deadline…).
+  if (roundData.isFinalePrincipale) return null;
+  const seasonNumber = roundData.seasonNumber;
 
   // Dernier survivant = dernier du ranking parmi les non-éliminés
   // Règle : un joueur ayant utilisé un bouclier ce round est exclu de l'attribution
@@ -268,10 +267,10 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
   if (!rescape) return null;
 
   // Compter les rescapés consécutifs dans la saison courante
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
   let consecutive = 1;
-  for (let prevR = roundNumber - 1; prevR >= seasonStartRound; prevR--) {
+  for (let prevR = roundNumber - 1; prevR >= 1; prevR--) {
     const prev = allRounds[String(prevR)];
+    if (Number(prev?.seasonNumber) !== Number(seasonNumber)) break;
     if (prev && prev.rescapeInfo && String(prev.rescapeInfo.athleteId) === String(rescape.id)) {
       consecutive++;
     } else {
@@ -1013,7 +1012,12 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   const seasonStartRound = getSeasonStartRoundFromFrozen(seasonNumber, roundNumber, previousRounds);
   const totalParticipants = getSeasonSizingRoster(athletes, seasonStartRound, config).length;
   const roundsPerSeason = getSeasonRoundCount(totalParticipants, config.eliminationsPerRound, config.finalistsCount);
-  const isFinale = roundInSeason === roundsPerSeason;
+  // Saison Deadline : la finale est posée par le planificateur (type 'finale'
+  // dans round_configs), pas par la formule à 2 éliminations par round.
+  const isFinale = !isDeadlineSeason(seasonNumber) && roundInSeason === roundsPerSeason;
+  // Saison « points doublés » : multiplie les points du challenge principal
+  const pointsMultiplier = getMainPointsMultiplier(seasonNumber);
+  const mainPointsFor = (position) => getMainPoints(position) * pointsMultiplier;
 
   // Déterminer les participants actifs (non éliminés dans les rounds précédents de cette saison).
   // On part du roster du round : un athlète entré après coup n'apparaît pas
@@ -1219,6 +1223,10 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     } else {
       toEliminate = eligibleForElimination.slice(1);
     }
+  } else if (eliminationsForThisRound <= 0) {
+    // Round sans élimination (config admin nbEliminations: 0 ou type
+    // no_eliminations). Garde-fou : slice(-0) renverrait TOUT le classement.
+    toEliminate = [];
   } else if (useNewRules && zeroElevationPlayers.length >= 2 && zeroElevationPlayers.length >= eliminationsForThisRound) {
     // Si le nombre de joueurs à 0 D+ dépasse le nombre d'éliminations prévues → tous éliminés
     toEliminate = zeroElevationPlayers;
@@ -1262,19 +1270,19 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
 
       if (eliminationEntry.reason === 'zero_elevation' && lastInactivePosition !== null) {
         // Inactif éliminé : ex-aequo avec les autres inactifs, points de la dernière position inactive
-        entry.mainPoints = getMainPoints(Math.max(1, Math.min(lastInactivePosition, totalParticipants)));
+        entry.mainPoints = mainPointsFor(Math.max(1, Math.min(lastInactivePosition, totalParticipants)));
       } else {
         // Actif éliminé : points selon sa position absolue dans le classement
-        entry.mainPoints = getMainPoints(Math.max(1, Math.min(position, totalParticipants)));
+        entry.mainPoints = mainPointsFor(Math.max(1, Math.min(position, totalParticipants)));
       }
       entry.eliminatedPosition = position;
     } else if (effectiveIsFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
-      entry.mainPoints = getMainPoints(1);
+      entry.mainPoints = mainPointsFor(1);
       entry.isWinner = true;
     } else if (effectiveIsFinale) {
       // Finale sans élimination (customNbEliminations === 0) : chaque finaliste reçoit
       // les points correspondant à sa position dans le classement final
-      entry.mainPoints = getMainPoints(Math.max(1, Math.min(entry.position, totalParticipants)));
+      entry.mainPoints = mainPointsFor(Math.max(1, Math.min(entry.position, totalParticipants)));
       // Le vainqueur de la finale (pos=1) reçoit aussi le flag isWinner
       // pour être détecté comme champion de saison par le frontend
       if (entry.position === 1) {
@@ -1599,6 +1607,13 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
 
   console.log(`❄️ Round ${roundNumber} figé (calculé): ${results.eliminations.length} éliminé(s)`);
 
+  // Saison Deadline : recaler les rounds suivants sur les éliminations réelles
+  try {
+    await replanDeadlineSeason(athletes, config);
+  } catch (e) {
+    console.warn(`⚠️ Replanification Deadline après R${roundNumber}:`, e.message);
+  }
+
   // Générer automatiquement les choix de bonus pour le meilleur éliminé.
   // EXCEPTION saison team : pas de bonus éphémère pour les éliminés de la
   // finale principale R4 (règle métier : "Les 6 finalistes (R4) entrent au
@@ -1611,7 +1626,9 @@ const isNoBonusRound = results.specialRule === 'no_bonus';
     try {
       const generated = await generateBonusChoiceForBestEliminated(results.eliminations, roundNumber);
       if (generated) {
+        // Persisté pour pouvoir vérifier après coup qui a reçu un choix
         results.bonusChoiceGenerated = generated;
+        await saveFrozenResults(data);
       }
     } catch (e) {
       console.warn(`⚠️ Erreur génération choix bonus round ${roundNumber}:`, e.message);
@@ -1930,7 +1947,23 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
         if (bonus.bonus_id === 'brouillard') return d.type === 'brouillard';
         return false;
       });
-      if (detail) {
+      if (bonus.bonus_id === 'duel') {
+        // Duel : celui des deux co-éliminés qui a le plus de D+ depuis
+        // l'élimination gagne +1 pt au classement général. Égalité = aucun point.
+        const target = rankingList.find(e => String(e.id) === String(bonus.target_athlete_id));
+        const mine = Number(entry?.totalElevation) || 0;
+        const theirs = Number(target?.totalElevation) || 0;
+        const won = !!target && mine > theirs;
+        nextEffectResult = {
+          amount: 0,
+          myElevation: mine,
+          targetElevation: theirs,
+          won,
+          pointsAwarded: won ? 1 : 0,
+          appliedAt: new Date().toISOString(),
+          frozenAtSeasonClose: true
+        };
+      } else if (detail) {
         nextEffectResult = {
           amount: detail.amount || 0,
           activityName: detail.activityName || null,
@@ -1991,8 +2024,10 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
         athlete_name: b.athlete_name,
         elimination_round: b.elimination_round
       });
-      // Important : ajouter aussi à l'archive de la saison
-      archivedBonuses.push({ ...updatedBonusesLive[i] });
+      // Remplacer la copie archivée à l'étape 1 (sinon le bonus y figure deux fois)
+      const archivedIdx = archivedBonuses.findIndex(x => x.id && x.id === b.id);
+      if (archivedIdx >= 0) archivedBonuses[archivedIdx] = { ...updatedBonusesLive[i] };
+      else archivedBonuses.push({ ...updatedBonusesLive[i] });
     }
   }
 
@@ -2353,8 +2388,298 @@ async function unfreezeEliminatedChallengeForSeason(seasonNumber) {
   return false;
 }
 
+// ============================================
+// RATTRAPAGE DE PURGE DES BONUS
+// ============================================
+
+/**
+ * Archive les bonus et choix en attente restés rattachés à une saison déjà
+ * close (challenge des éliminés figé) sans être passés par la purge — typiquement
+ * une saison figée par script. Idempotent : sans effet si tout est déjà archivé.
+ */
+async function purgeClosedSeasonBonuses() {
+  const data = await loadFrozenResults();
+  const closedSeasons = new Set(Object.keys(data.eliminatedChallengeRankings || {}).map(Number));
+  const seasonOfRound = (roundNumber) => {
+    const season = Number(data.rounds?.[String(roundNumber)]?.seasonNumber);
+    return closedSeasons.has(season) ? season : null;
+  };
+
+  const now = new Date().toISOString();
+  const bonuses = await loadAllBonuses();
+  let archived = 0;
+  for (let i = 0; i < bonuses.length; i++) {
+    const b = bonuses[i];
+    if (b.season_number) continue;
+    const season = seasonOfRound(b.elimination_round);
+    if (!season) continue;
+
+    const updated = { ...b, season_number: season };
+    if (b.status === 'available') {
+      Object.assign(updated, { status: 'expired', effect_applied: false, expired_at: now, expired_reason: 'season_closed_unused' });
+    } else if (b.status === 'active' || b.status === 'chosen') {
+      Object.assign(updated, {
+        status: 'used',
+        effect_applied: true,
+        effect_result: b.effect_result || { amount: 0, noEffect: true, frozenAtSeasonClose: true, lateArchive: true }
+      });
+    }
+    bonuses[i] = updated;
+
+    if (!data.seasonBonuses) data.seasonBonuses = {};
+    const archive = data.seasonBonuses[String(season)] || (data.seasonBonuses[String(season)] = []);
+    if (!archive.some(x => x.id && x.id === updated.id)) archive.push({ ...updated });
+    archived++;
+  }
+
+  const pendingFile = path.join(DATA_DIR, 'pending_bonus_choices.json');
+  let pending = {};
+  try { pending = JSON.parse(await fs.readFile(pendingFile, 'utf8')); } catch (e) { /* aucun */ }
+  let purgedPending = 0;
+  for (const [athleteId, p] of Object.entries(pending)) {
+    if (seasonOfRound(p?.elimination_round)) {
+      delete pending[athleteId];
+      purgedPending++;
+    }
+  }
+
+  if (archived) {
+    await fs.writeFile(BONUSES_FILE, JSON.stringify(bonuses, null, 2), 'utf8');
+    await saveFrozenResults(data);
+  }
+  if (purgedPending) {
+    await fs.writeFile(pendingFile, JSON.stringify(pending, null, 2), 'utf8');
+  }
+  if (archived || purgedPending) {
+    console.log(`🧹 Rattrapage purge bonus : ${archived} bonus archivé(s), ${purgedPending} choix en attente supprimé(s)`);
+  }
+  return { archived, purgedPending };
+}
+
+// ============================================
+// SAISONS DEADLINE : PLANIFICATION DES ROUNDS
+// ============================================
+
+/**
+ * (Re)planifie les rounds restants de la saison en cours si elle est de type
+ * Deadline : écrit durationDays / nbEliminations / type 'finale' dans
+ * round_configs.json (source: 'deadline') à partir du prochain round à figer.
+ * Appelé après chaque gel, au démarrage et quand l'admin modifie la deadline :
+ * les éliminations réelles (règle des 0 D+…) sont ainsi absorbées en continu.
+ * Les configs Deadline devenues sans objet (saison repassée en standard…) sont
+ * retirées.
+ */
+async function replanDeadlineSeason(athletes, config, now = new Date()) {
+  const { planDeadlineRounds } = require('./deadline-planner');
+  const { getSeasonDeadline, getRoundDuration } = require('./shared-config');
+
+  const data = await loadFrozenResults();
+  const rounds = data.rounds || {};
+  const frozenNumbers = Object.keys(rounds).filter(k => rounds[k]?.frozen).map(Number);
+  const nextRound = (frozenNumbers.length ? Math.max(...frozenNumbers) : 0) + 1;
+  const { seasonNumber } = detectSeasonContext(nextRound, rounds);
+
+  const configs = await roundConfigs.loadRoundConfigs();
+  const isDeadline = isDeadlineSeason(seasonNumber);
+  const deadline = isDeadline ? getSeasonDeadline(seasonNumber) : null;
+
+  // Retirer les anciennes configs du planificateur à partir du prochain round,
+  // en gardant ce que l'admin y a mis (règle spéciale).
+  let changed = false;
+  for (const [key, cfg] of Object.entries(configs)) {
+    if (cfg?.source !== 'deadline' || Number(key) < nextRound) continue;
+    if (cfg.specialRule && cfg.specialRule !== 'standard') {
+      configs[key] = { specialRule: cfg.specialRule };
+    } else {
+      delete configs[key];
+    }
+    changed = true;
+  }
+
+  if (!isDeadline || !deadline) {
+    if (changed) await roundConfigs.writeConfigs(configs);
+    return { seasonNumber, planned: false, reason: isDeadline ? 'no_deadline' : 'not_deadline_season' };
+  }
+
+  // Joueurs encore en course au prochain round
+  const seasonStartRound = getSeasonStartRoundFromFrozen(seasonNumber, nextRound, rounds);
+  const eliminated = new Set();
+  for (const r of Object.values(rounds)) {
+    if (r?.frozen && Number(r.seasonNumber) === Number(seasonNumber)) {
+      (r.eliminations || []).forEach(e => eliminated.add(String(e.id)));
+    }
+  }
+  const actives = getRoundRoster(athletes, nextRound, seasonStartRound, config)
+    .filter(a => !eliminated.has(String(a.id))).length;
+
+  // Le prochain round peut avoir déjà commencé : sa durée ne peut pas finir
+  // avant aujourd'hui. Les durées sont lues AVANT réécriture des configs.
+  const startDate = getRoundDates(nextRound, config).start;
+  const type = getSeasonType(seasonNumber);
+  const elapsedDays = Math.max(0, Math.floor((now - startDate) / (24 * 3600 * 1000)));
+  const minFirstDuration = Math.min(type.durationRange.max, Math.max(type.durationRange.min, elapsedDays + 1));
+
+  const plan = planDeadlineRounds({
+    actives,
+    startDate,
+    deadline,
+    finalists: config.finalistsCount,
+    durationRange: type.durationRange,
+    eliminationsRange: type.eliminationsRange,
+    minFirstDuration
+  });
+
+  plan.rounds.forEach((r, i) => {
+    const key = String(nextRound + i);
+    const entry = { ...(configs[key]?.specialRule ? { specialRule: configs[key].specialRule } : {}) };
+    entry.durationDays = r.durationDays;
+    entry.type = r.isFinale ? 'finale' : 'standard';
+    if (!r.isFinale) entry.nbEliminations = r.nbEliminations;
+    entry.source = 'deadline';
+    configs[key] = entry;
+  });
+  await roundConfigs.writeConfigs(configs);
+
+  const lastRound = nextRound + plan.rounds.length - 1;
+  console.log(`⏳ Saison Deadline ${seasonNumber} : ${plan.rounds.length} round(s) R${nextRound}→R${lastRound}, ` +
+    `fin ${getRoundDates(lastRound, config).end.toLocaleDateString('fr-FR')} (deadline ${deadline})` +
+    (plan.warning ? ` ⚠️ ${plan.warning}` : ''));
+
+  return {
+    seasonNumber, planned: true, deadline, actives,
+    fromRound: nextRound, toRound: lastRound,
+    endDate: getRoundDates(lastRound, config).end,
+    rounds: plan.rounds.map((r, i) => ({ roundNumber: nextRound + i, ...r })),
+    warning: plan.warning
+  };
+}
+
+// ============================================
+// PLAN DE LA SAISON EN COURS (visualisateur admin)
+// ============================================
+
+/**
+ * Plan de la saison en cours, construit avec les MÊMES primitives que le gel
+ * (detectSeasonContext, roster de dimensionnement, getSeasonRoundCount, config
+ * admin du round, override des règles spéciales). Les rounds figés sont lus tels
+ * quels ; les suivants sont projetés jusqu'à la finale.
+ *
+ * La projection est un minimum : la règle « ≥2 joueurs à 0 D+ → tous éliminés »
+ * peut éliminer davantage, ce qui n'est connu qu'au gel.
+ */
+async function getSeasonPlan(athletes, config, now = new Date()) {
+  const data = await loadFrozenResults();
+  const rounds = data.rounds || {};
+  const configs = await roundConfigs.loadRoundConfigs();
+
+  const frozenNumbers = Object.keys(rounds)
+    .filter(k => rounds[k]?.frozen)
+    .map(Number)
+    .filter(n => !isNaN(n));
+  const nextRound = (frozenNumbers.length ? Math.max(...frozenNumbers) : 0) + 1;
+
+  // Saison du prochain round à figer = saison en cours (une saison close par
+  // une finale fait démarrer la suivante dès le round d'après).
+  const { seasonNumber } = detectSeasonContext(nextRound, rounds);
+  const startRound = getSeasonStartRoundFromFrozen(seasonNumber, nextRound, rounds);
+  const teamSeason = isTeamSeason(seasonNumber);
+  const teamSize = getSeasonType(seasonNumber)?.teamSize || 3;
+
+  const totalParticipants = getSeasonSizingRoster(athletes, startRound, config).length;
+  const roundsPerSeason = teamSeason
+    ? getRoundsForTeamSeason(totalParticipants, teamSize)
+    : getSeasonRoundCount(totalParticipants, config.eliminationsPerRound, config.finalistsCount);
+
+  const plan = [];
+  let eliminatedSoFar = 0;
+
+  for (let r = startRound; r < startRound + 40; r++) {
+    const roundInSeason = r - startRound + 1;
+    const { start, end } = getRoundDates(r, config);
+    const cfg = configs[String(r)] || null;
+    const frozenRound = rounds[String(r)];
+    const isFrozen = !!frozenRound?.frozen && Number(frozenRound.seasonNumber) === Number(seasonNumber);
+
+    let status;
+    if (isFrozen) status = 'frozen';
+    else if (now > end) status = 'pending_freeze';
+    else if (now >= start) status = 'ongoing';
+    else status = 'upcoming';
+
+    let entry;
+    if (isFrozen) {
+      const activeAtStart = frozenRound.activeParticipants?.length ?? frozenRound.ranking?.length ?? 0;
+      const eliminations = frozenRound.eliminations?.length || 0;
+      eliminatedSoFar += eliminations;
+      entry = {
+        roundNumber: r, roundInSeason, start, end, status,
+        activeAtStart, eliminations,
+        isFinale: !!frozenRound.isFinalePrincipale,
+        eliminationSource: 'frozen',
+        specialRule: frozenRound.specialRule?.id || frozenRound.specialRule || null,
+        seasonEnds: (activeAtStart - eliminations) <= 1
+          || frozenRound.teamFinalRound === true
+          || frozenRound.configForcedFinale === true
+      };
+    } else {
+      const activeAtStart = Math.max(0, getRoundRoster(athletes, r, startRound, config).length - eliminatedSoFar);
+      const ruleOverride = ROUND_RULES_BACKEND[cfg?.specialRule]?.parameters?.eliminationsOverride;
+      const isFinale = cfg?.type === 'finale'
+        || (!isDeadlineSeason(seasonNumber) && roundInSeason === roundsPerSeason);
+
+      let eliminations, eliminationSource;
+      if (teamSeason) {
+        eliminations = isFinale ? activeAtStart : Math.min(teamSize, activeAtStart);
+        eliminationSource = 'team';
+      } else if (isFinale) {
+        eliminations = cfg?.nbEliminations === 0 ? 0 : Math.max(0, activeAtStart - 1);
+        eliminationSource = 'finale';
+      } else if (cfg?.nbEliminations !== undefined) {
+        eliminations = cfg.nbEliminations;
+        eliminationSource = 'admin';
+      } else if (ruleOverride !== undefined) {
+        eliminations = ruleOverride;
+        eliminationSource = 'rule';
+      } else {
+        eliminations = config.eliminationsPerRound;
+        eliminationSource = 'default';
+      }
+      eliminations = Math.min(eliminations, activeAtStart);
+      eliminatedSoFar += eliminations;
+
+      entry = {
+        roundNumber: r, roundInSeason, start, end, status,
+        activeAtStart, eliminations, isFinale, eliminationSource,
+        specialRule: cfg?.specialRule || null,
+        seasonEnds: isFinale || (activeAtStart - eliminations) <= 1
+      };
+    }
+
+    entry.config = cfg;
+    plan.push(entry);
+    if (entry.seasonEnds) break;
+  }
+
+  return {
+    seasonNumber,
+    seasonType: getSeasonType(seasonNumber)?.id || 'standard',
+    deadline: require('./shared-config').getSeasonDeadline(seasonNumber),
+    startRound,
+    endRound: plan.length ? plan[plan.length - 1].roundNumber : startRound,
+    nextRound,
+    totalParticipants,
+    roundsPerSeason,
+    finalistsCount: config.finalistsCount,
+    eliminationsPerRound: config.eliminationsPerRound,
+    rounds: plan
+  };
+}
+
 module.exports = {
   computeElevationGauge,
+  getSeasonPlan,
+  replanDeadlineSeason,
+  purgeClosedSeasonBonuses,
   getAllFrozenResults,
   getFrozenRoundResult,
   freezeRoundResults,
