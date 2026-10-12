@@ -50,6 +50,22 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Toute écriture réussie sur l'API peut changer le classement annuel : il est
+// recalculé côté serveur, en différé (cf. scheduleStandingsRefresh). Sauf les
+// routes sans effet sur le jeu ; les webhooks Strava sont traités à part (file).
+const STANDINGS_NEUTRAL_WRITES = [
+  '/api/auth/', '/api/standings/', '/api/webhook/', '/api/admin/login', '/api/admin/webhooks',
+  '/api/admin/strava', '/api/admin/tokens', '/api/admin/reset-password'
+];
+app.use('/api', (req, res, next) => {
+  if (req.method !== 'GET' && !STANDINGS_NEUTRAL_WRITES.some(prefix => req.originalUrl.startsWith(prefix))) {
+    res.on('finish', () => {
+      if (res.statusCode < 400) scheduleStandingsRefresh(`${req.method} ${req.originalUrl.split('?')[0]}`);
+    });
+  }
+  next();
+});
 // Les modules ES importés depuis app.js (config.js, standings-engine.js, …) n'ont
 // pas de query string de cache-busting : seul le point d'entrée en a une. On force
 // donc la revalidation sur le JS/CSS. `no-cache` n'interdit pas le cache, il exige
@@ -1538,6 +1554,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   // Météo des activités nouvelles ou pas encore consolidées
   await enrichLeagueWeather(leagueId);
 
+  scheduleStandingsRefresh(`synchro ${leagueId}`);
   return { success: true, totalNew, totalUpdated, errors };
 }
 
@@ -1843,6 +1860,7 @@ async function processOneWebhook(event) {
 
     console.log(`   ✅ Ajouté: ${stravaActivity.name} (+${stravaActivity.total_elevation_gain}m)`);
     await logWebhook(event, 'success', { name: stravaActivity.name, elevation: stravaActivity.total_elevation_gain });
+    scheduleStandingsRefresh('webhook Strava');
 
   } else if (event.aspect_type === 'delete') {
     // Une activité n'est retirée que si elle appartient à l'émetteur de
@@ -1878,6 +1896,7 @@ async function processOneWebhook(event) {
       await safeWriteJSON(activitiesFile, activities);
       console.log(`   🗑️ Supprimé`);
       await logWebhook(event, 'deleted', {});
+      scheduleStandingsRefresh('webhook Strava');
     }
   } else if (event.aspect_type === 'update') {
     // Activité modifiée sur Strava - la mettre à jour localement
@@ -1999,6 +2018,7 @@ async function processOneWebhook(event) {
 
       console.log(`   🔄 MAJ: ${changes.join(', ')}`);
       await logWebhook(event, 'updated', { changes, name: stravaActivity.name });
+      scheduleStandingsRefresh('webhook Strava');
 
     } catch (error) {
       console.log(`   ❌ Erreur fetch update: ${error.message}`);
@@ -2318,6 +2338,18 @@ app.post('/api/standings/snapshot', async (req, res) => {
       return res.status(400).json({ error: 'snapshot invalide' });
     }
 
+    const compact = compactStandings(standings);
+    await saveYearlyStandingsSnapshot(compact);
+
+    res.json({ success: true, count: compact.length });
+  } catch (error) {
+    console.error('Erreur standings snapshot:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/** Forme stockée du classement annuel (yearlyStandingsSnapshot). */
+function compactStandings(standings) {
     // Normaliser : ne stocker que les champs utiles (anti-bloat)
     const compact = standings.map(s => ({
       id: String(s.participant?.id ?? s.id),
@@ -2331,7 +2363,10 @@ app.post('/api/standings/snapshot', async (req, res) => {
       wins: s.wins || 0,
       seasonsPlayed: s.seasonsPlayed || 0
     })).filter(s => s.id && s.id !== 'undefined');
+    return compact;
+}
 
+async function saveYearlyStandingsSnapshot(compact) {
     const data = await frozenResults.getAllFrozenResults();
     const fullData = (await frozenResults.loadFrozenResultsRaw?.()) || data;
     fullData.yearlyStandingsSnapshot = {
@@ -2339,11 +2374,73 @@ app.post('/api/standings/snapshot', async (req, res) => {
       standings: compact
     };
     await frozenResults.saveFrozenResultsRaw?.(fullData);
+}
 
+// ============================================
+// CLASSEMENT ANNUEL CALCULÉ PAR LE SERVEUR (L22)
+// ============================================
+// Le moteur du front tourne côté serveur (engine-runner.js) : le classement ne
+// dépend plus du code, éventuellement en cache, d'un navigateur. Il est
+// recalculé après chaque écriture qui peut le changer (gel, synchro, webhook,
+// action de jeu ou d'admin), en différé pour regrouper les déclenchements.
+const engineRunner = require('./engine-runner');
+const STANDINGS_REFRESH_DELAY_MS = 10000;
+let standingsRefreshTimer = null;
+let standingsRefreshChain = Promise.resolve();
+
+function localApiBase() {
+  return `http://127.0.0.1:${PORT}`;
+}
+
+/** Recalcule et enregistre le classement annuel. Les recalculs s'enchaînent, jamais en parallèle. */
+function refreshYearlyStandings(reason) {
+  const run = async () => {
+    const started = Date.now();
+    const { standings } = await engineRunner.computeYearlyStandings({ baseUrl: localApiBase() });
+    const compact = compactStandings(standings);
+    if (compact.length === 0) throw new Error('classement vide, rien enregistré');
+    await saveYearlyStandingsSnapshot(compact);
+    console.log(`🏆 Classement annuel recalculé (${reason}) : ${compact.length} joueurs, ${Date.now() - started} ms`);
+    return compact;
+  };
+  const result = standingsRefreshChain.then(run, run);
+  standingsRefreshChain = result.catch(() => {});
+  return result;
+}
+
+/** Recalcul différé. Coupé en bac à sable (VERSANT_DISABLE_JOBS), comme les autres tâches. */
+function scheduleStandingsRefresh(reason) {
+  if (JOBS_DISABLED) return;
+  clearTimeout(standingsRefreshTimer);
+  standingsRefreshTimer = setTimeout(() => {
+    refreshYearlyStandings(reason).catch(e => console.error('❌ Classement annuel :', e.message));
+  }, STANDINGS_REFRESH_DELAY_MS);
+}
+
+// Admin : recalculer et enregistrer maintenant
+app.post('/api/admin/standings/refresh', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const compact = await refreshYearlyStandings('admin');
     res.json({ success: true, count: compact.length });
   } catch (error) {
-    console.error('Erreur standings snapshot:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Erreur recalcul classement:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin : calculer le classement à une date donnée, SANS l'enregistrer
+// (vérification, harnais de non-régression)
+app.post('/api/admin/standings/compute', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const at = req.body?.at ? new Date(req.body.at) : null;
+    if (at && isNaN(at.getTime())) return res.status(400).json({ error: 'date invalide' });
+    const result = await engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), at: at?.toISOString() });
+    res.json({ at: result.at, standings: compactStandings(result.standings) });
+  } catch (error) {
+    console.error('Erreur calcul classement:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -2821,6 +2918,7 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
       activitiesForFreeze, leagueAthletes, jokerUsage, currentEdition().config
     );
     console.log(`❄️ [${reason}] ${frozen.length} round(s) figé(s)`);
+    if (frozen.length > 0) scheduleStandingsRefresh(`gel (${reason})`);
     return frozen;
   } catch (error) {
     console.error(`❌ [${reason}] Erreur auto-freeze:`, error.message);
@@ -2907,6 +3005,7 @@ initializeServer().then(async () => {
     if (!ADMIN_PASSWORD) console.warn('⚠️  ADMIN_PASSWORD non défini : toutes les routes admin sont refusées');
     if (JOBS_DISABLED) console.log('⏸️  VERSANT_DISABLE_JOBS=1 : tâches planifiées et rattrapage du gel désactivés');
     if (process.env.VERSANT_DATA_DIR) console.log(`📁 Données : ${DATA_DIR}`);
+    scheduleStandingsRefresh('démarrage');
     console.log('');
   });
 
