@@ -26,11 +26,12 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const {
-  CHALLENGE_CONFIG,
   VALID_SPORTS, isValidSport,
   ELIMINATED_CHALLENGE_POINTS, getEliminatedPoints,
   getRoundDates
 } = require('./shared-config');
+// Config de l'édition en cours (cf. edition-context.js)
+const { currentEdition } = require('./edition-context');
 
 // ============================================
 // HELPERS ACTIVITÉS (portés depuis standings-engine)
@@ -83,12 +84,12 @@ function calculateStats(activities) {
  */
 function getEliminatedActivities(athleteId, eliminationRound, allActivities, endDate = null) {
   const normalizedId = String(athleteId);
-  const roundDates = getRoundDates(eliminationRound, CHALLENGE_CONFIG);
+  const roundDates = getRoundDates(eliminationRound, currentEdition().config);
   const startDate = new Date(roundDates.end);
   startDate.setDate(startDate.getDate() + 1);
   startDate.setHours(0, 0, 0, 0);
 
-  const finalEnd = endDate || new Date(CHALLENGE_CONFIG.yearEndDate + 'T23:59:59.999Z');
+  const finalEnd = endDate || new Date(currentEdition().config.yearEndDate + 'T23:59:59.999Z');
 
   return filterByParticipant(
     filterByPeriod(allActivities, startDate, finalEnd),
@@ -281,7 +282,7 @@ function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, se
       }
     }
     if (lastRoundOfSeason === null) return null;
-    const dates = getRoundDates(lastRoundOfSeason, CHALLENGE_CONFIG);
+    const dates = getRoundDates(lastRoundOfSeason, currentEdition().config);
     return dates?.end || null;
   }
 
@@ -385,7 +386,7 @@ function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, c
 
   for (const p of eliminatedList) {
     // eliminatedRound est GLOBAL ici (on le fournit directement)
-    const roundDates = getRoundDates(p.eliminatedRound, CHALLENGE_CONFIG);
+    const roundDates = getRoundDates(p.eliminatedRound, currentEdition().config);
     const eliminationDate = new Date(roundDates.end);
 
     if (currentDate < eliminationDate) continue;

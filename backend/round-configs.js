@@ -10,11 +10,10 @@
  */
 
 const fs = require('fs').promises;
-const path = require('path');
 
 const sharedConfig = require('./shared-config');
-const { DATA_DIR } = require('./data-dir');
-const CONFIGS_FILE = path.join(DATA_DIR, 'round_configs.json');
+// Fichier de l'édition en cours (cf. edition-context.js)
+const { currentEdition } = require('./edition-context');
 
 const VALID_TYPES = ['standard', 'finale', 'bonus_round', 'no_eliminations'];
 
@@ -25,7 +24,7 @@ const VALID_SPECIAL_RULES = ['standard', 'handicap', 'no_bonus', 'pluie_qui_moui
 
 async function loadRoundConfigs() {
   try {
-    const content = await fs.readFile(CONFIGS_FILE, 'utf8');
+    const content = await fs.readFile(currentEdition().paths.roundConfigs, 'utf8');
     return JSON.parse(content);
   } catch (e) {
     if (e.code === 'ENOENT') return {};
@@ -100,7 +99,7 @@ async function saveRoundConfig(roundNumber, config) {
  * dates de tous les rounds suivants en dépendent.
  */
 async function writeConfigs(configs) {
-  await fs.writeFile(CONFIGS_FILE, JSON.stringify(configs, null, 2));
+  await fs.writeFile(currentEdition().paths.roundConfigs, JSON.stringify(configs, null, 2));
   sharedConfig.setRoundDurations(configs);
 }
 

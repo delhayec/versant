@@ -42,10 +42,8 @@ try {
 // Import du moteur de challenge éliminés (CommonJS)
 const elimChallenge = require('./elim-challenge');
 
-// Configuration
-const { DATA_DIR } = require('./data-dir');
-const FROZEN_FILE = path.join(DATA_DIR, 'frozen_results.json');
-const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
+// Fichiers de l'édition en cours (cf. edition-context.js)
+const { currentEdition } = require('./edition-context');
 
 
 // Définition des règles spéciales (miroir de config.js frontend)
@@ -163,7 +161,7 @@ function getRoundRoster(athletes, roundNumber, seasonStartRound, config) {
 
 async function loadFrozenResults() {
   try {
-    const data = await fs.readFile(FROZEN_FILE, 'utf8');
+    const data = await fs.readFile(currentEdition().paths.frozen, 'utf8');
     return JSON.parse(data);
   } catch {
     return { version: "1.0", rounds: {}, lastUpdated: null };
@@ -172,7 +170,7 @@ async function loadFrozenResults() {
 
 async function saveFrozenResults(data) {
   data.lastUpdated = new Date().toISOString();
-  await fs.writeFile(FROZEN_FILE, JSON.stringify(data, null, 2));
+  await fs.writeFile(currentEdition().paths.frozen, JSON.stringify(data, null, 2));
 }
 
 // ============================================
@@ -185,7 +183,7 @@ async function saveFrozenResults(data) {
  */
 async function loadBonusesUsedInRound(roundNumber) {
   try {
-    const raw = await fs.readFile(BONUSES_FILE, 'utf8');
+    const raw = await fs.readFile(currentEdition().paths.bonuses, 'utf8');
     const all = JSON.parse(raw);
     if (!Array.isArray(all)) return [];
     return all
@@ -202,7 +200,7 @@ async function loadBonusesUsedInRound(roundNumber) {
  * Retourne une liste normalisée en camelCase (athleteId, jokerId, ...) avec `status` et `effect_result`.
  */
 async function loadJokersUsedInRound(roundNumber) {
-  const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
+  const JOKERS_FILE = currentEdition().paths.jokers;
   try {
     const raw = await fs.readFile(JOKERS_FILE, 'utf8');
     const data = JSON.parse(raw);
@@ -323,7 +321,7 @@ async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
   }
 
   // Charger les choix en attente
-  const pendingFile = path.join(DATA_DIR, 'pending_bonus_choices.json');
+  const pendingFile = currentEdition().paths.pendingBonusChoices;
   let pendingChoices = {};
   try {
     const content = await fs.readFile(pendingFile, 'utf8');
@@ -726,7 +724,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
   try {
     const path = require('path');
     const fs = require('fs').promises;
-    const SEASON_TEAMS_FILE = path.join(DATA_DIR, 'season_teams.json');
+    const SEASON_TEAMS_FILE = currentEdition().paths.seasonTeams;
     const raw = await fs.readFile(SEASON_TEAMS_FILE, 'utf8').catch(() => null);
     if (raw) {
       const stored = JSON.parse(raw);
@@ -1364,7 +1362,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
 async function applyEphemeralBonusEffects(ranking, roundNumber, roundActivities) {
   let bonuses = [];
   try {
-    const raw = await fs.readFile(BONUSES_FILE, 'utf8');
+    const raw = await fs.readFile(currentEdition().paths.bonuses, 'utf8');
     bonuses = JSON.parse(raw);
   } catch (e) {
     // Pas de fichier bonus ou erreur de lecture → rien à appliquer
@@ -1499,7 +1497,7 @@ case 'marquage': {
 
   // Sauvegarder les résultats d'effets dans bonuses.json
   try {
-    await fs.writeFile(BONUSES_FILE, JSON.stringify(bonuses, null, 2), 'utf8');
+    await fs.writeFile(currentEdition().paths.bonuses, JSON.stringify(bonuses, null, 2), 'utf8');
   } catch (e) {
     console.warn('⚠️ Impossible de sauvegarder bonuses.json après application:', e.message);
   }
@@ -1791,7 +1789,7 @@ async function unfreezeRound(roundNumber) {
  */
 async function loadLeagueActivities(leagueId) {
   try {
-    const file = path.join(DATA_DIR, 'leagues', `${leagueId}_activities.json`);
+    const file = currentEdition().paths.activities(leagueId);
     const raw = await fs.readFile(file, 'utf8');
     const parsed = JSON.parse(raw);
     // Le fichier peut être soit un tableau direct, soit { activities: [...] }
@@ -1808,7 +1806,7 @@ async function loadLeagueActivities(leagueId) {
  */
 async function loadAllBonuses() {
   try {
-    const raw = await fs.readFile(BONUSES_FILE, 'utf8');
+    const raw = await fs.readFile(currentEdition().paths.bonuses, 'utf8');
     const all = JSON.parse(raw);
     return Array.isArray(all) ? all : [];
   } catch {
@@ -2033,7 +2031,7 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
 
   // Cas 2 : purger les pending_bonus_choices non validés pour cette saison
   try {
-    const PENDING_FILE = path.join(DATA_DIR, 'pending_bonus_choices.json');
+    const PENDING_FILE = currentEdition().paths.pendingBonusChoices;
     const pendingRaw = await fs.readFile(PENDING_FILE, 'utf8').catch(() => '{}');
     const pending = JSON.parse(pendingRaw || '{}');
     let pendingChanged = false;
@@ -2069,9 +2067,9 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
 
   // Sauvegarder bonuses.json (live) avec les nouveaux statuts
   try {
-    await fs.writeFile(BONUSES_FILE, JSON.stringify(updatedBonusesLive, null, 2), 'utf8');
+    await fs.writeFile(currentEdition().paths.bonuses, JSON.stringify(updatedBonusesLive, null, 2), 'utf8');
   } catch (e) {
-    console.warn(`⚠️ Impossible d'écrire ${BONUSES_FILE} pendant freeze saison ${seasonNumber}:`, e.message);
+    console.warn(`⚠️ Impossible d'écrire ${currentEdition().paths.bonuses} pendant freeze saison ${seasonNumber}:`, e.message);
   }
 
   return { archivedBonuses, purgeLog };
@@ -2083,14 +2081,13 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
  *
  * @param {number} seasonNumber - Numéro de la saison à figer
  * @param {Object} [options]
- * @param {string} [options.leagueId] - ID de ligue pour charger les activités (défaut : CHALLENGE_CONFIG.leagueId)
+ * @param {string} [options.leagueId] - ID de ligue pour charger les activités (défaut : ligue de l'édition en cours)
  * @param {Date} [options.currentDate] - Borne sup du calcul (défaut : now)
  * @param {boolean} [options.force] - Écraser une valeur existante
  * @returns {Object} { success, ranking?, error? }
  */
 async function freezeTeamEliminatedChallengeForSeason(seasonNumber, options = {}) {
   const data = await loadFrozenResults();
-  const { CHALLENGE_CONFIG } = require('./shared-config');
 
   // Récupérer tous les rounds de la saison
   const seasonRounds = [];
@@ -2112,7 +2109,7 @@ async function freezeTeamEliminatedChallengeForSeason(seasonNumber, options = {}
   const seasonEnd = seasonRounds[seasonRounds.length - 1].dates?.end ||
                     seasonRounds[seasonRounds.length - 1].endDate;
 
-  const leagueId = options.leagueId || CHALLENGE_CONFIG.leagueId;
+  const leagueId = options.leagueId || currentEdition().leagueId;
   const allActivities = await loadLeagueActivities(leagueId);
 
   // Pour chaque équipe éliminée, calculer son D+ cumulé depuis l'élimination
@@ -2286,7 +2283,7 @@ async function freezeTeamEliminatedChallengeForSeason(seasonNumber, options = {}
  *
  * @param {number} seasonNumber - Numéro de la saison à figer
  * @param {Object} [options]
- * @param {string} [options.leagueId] - ID de ligue pour charger les activités (défaut : CHALLENGE_CONFIG.leagueId)
+ * @param {string} [options.leagueId] - ID de ligue pour charger les activités (défaut : ligue de l'édition en cours)
  * @param {Date} [options.currentDate] - Borne sup du calcul (défaut : now)
  * @param {boolean} [options.force] - Écraser une valeur existante
  * @returns {Object} { success, ranking?, error? }
@@ -2322,8 +2319,7 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
   }
 
   // Charger les activités et les bonus
-  const { CHALLENGE_CONFIG } = require('./shared-config');
-  const leagueId = options.leagueId || CHALLENGE_CONFIG.leagueId;
+  const leagueId = options.leagueId || currentEdition().leagueId;
   const activities = await loadLeagueActivities(leagueId);
   const bonusesCache = await loadAllBonuses();
   const seasonBonusesCache = data.seasonBonuses || {};
@@ -2432,7 +2428,7 @@ async function purgeClosedSeasonBonuses() {
     archived++;
   }
 
-  const pendingFile = path.join(DATA_DIR, 'pending_bonus_choices.json');
+  const pendingFile = currentEdition().paths.pendingBonusChoices;
   let pending = {};
   try { pending = JSON.parse(await fs.readFile(pendingFile, 'utf8')); } catch (e) { /* aucun */ }
   let purgedPending = 0;
@@ -2444,7 +2440,7 @@ async function purgeClosedSeasonBonuses() {
   }
 
   if (archived) {
-    await fs.writeFile(BONUSES_FILE, JSON.stringify(bonuses, null, 2), 'utf8');
+    await fs.writeFile(currentEdition().paths.bonuses, JSON.stringify(bonuses, null, 2), 'utf8');
     await saveFrozenResults(data);
   }
   if (purgedPending) {
