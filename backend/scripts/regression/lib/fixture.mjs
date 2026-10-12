@@ -124,9 +124,12 @@ export function buildServerHandlers(fixture, repoRoot) {
     const route = extractBetween(server, planningMarker, routeEndMarker, file);
     const body = route.slice(planningMarker.length, -routeEndMarker.length);
     const sharedConfig = loadBackendSharedConfig(fixture, repoRoot);
+    // Depuis L21, la route lit le planning du contexte d'édition (legacy ici)
+    const editionContext = loadBackendModule(fixture, repoRoot, './edition-context');
+    const currentEdition = editionContext?.currentEdition;
     seasonPlanning = () => {
       let payload;
-      new Function('sharedConfig', 'req', 'res', body)(sharedConfig, {}, { json: v => { payload = v; } });
+      new Function('sharedConfig', 'currentEdition', 'req', 'res', body)(sharedConfig, currentEdition, {}, { json: v => { payload = v; } });
       return JSON.parse(JSON.stringify(payload));
     };
   }
@@ -139,10 +142,21 @@ export function buildServerHandlers(fixture, repoRoot) {
  * durées de round au chargement : on le charge sur le dossier de la fixture.
  */
 export function loadBackendSharedConfig(fixture, repoRoot) {
+  return loadBackendModule(fixture, repoRoot, './shared-config');
+}
+
+/** Module backend du code testé, chargé sur le dossier de la fixture ; null s'il n'existe pas. */
+export function loadBackendModule(fixture, repoRoot, name) {
+  const require = createRequire(join(repoRoot, 'backend', 'harnais.js'));
+  try {
+    require.resolve(name);
+  } catch {
+    return null;
+  }
   const previous = process.env.VERSANT_DATA_DIR;
   process.env.VERSANT_DATA_DIR = fixture.dataDir;
   try {
-    return createRequire(join(repoRoot, 'backend', 'harnais.js'))('./shared-config');
+    return require(name);
   } finally {
     if (previous === undefined) delete process.env.VERSANT_DATA_DIR;
     else process.env.VERSANT_DATA_DIR = previous;
