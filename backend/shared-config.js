@@ -168,7 +168,7 @@ function setRoundDurations(roundConfigs) {
 
 try {
   setRoundDurations(JSON.parse(require('fs').readFileSync(
-    require('path').join(__dirname, 'data', 'round_configs.json'), 'utf8')));
+    require('path').join(require('./data-dir').DATA_DIR, 'round_configs.json'), 'utf8')));
 } catch (e) {
   if (e.code !== 'ENOENT') console.warn('⚠️ round_configs.json illisible (durées de round):', e.message);
 }
@@ -287,7 +287,7 @@ const SEASON_TYPES = {
 // Planning modifiable depuis l'admin : data/season_planning.json surcharge les
 // valeurs par défaut ci-dessus. Chargé à la lecture du module pour que serveur,
 // moteur de gel et scripts voient le même planning.
-const SEASON_PLANNING_FILE = require('path').join(__dirname, 'data', 'season_planning.json');
+const SEASON_PLANNING_FILE = require('path').join(require('./data-dir').DATA_DIR, 'season_planning.json');
 
 // Date de fin des saisons Deadline : { [seasonNumber]: 'YYYY-MM-DD' }
 const SEASON_DEADLINES = {};
