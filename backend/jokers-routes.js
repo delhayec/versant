@@ -6,6 +6,8 @@
 const express = require('express');
 const router = express.Router();
 const fs = require('fs').promises;
+// Fichiers propres à une édition (jokers, figés) : cf. edition-context.js
+const { currentEdition } = require('./edition-context');
 
 const JOKER_CONFIG = {
   voleur: { id: "voleur", name: "Voleur", initialStock: 2, requiresTarget: true },
@@ -23,7 +25,7 @@ function createInitialJokersStock() {
   };
 }
 
-function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PASSWORD, requireAuth }) {
+function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
 
   /**
    * Compte les "admin refunds" (remboursements qui ajoutent +1 au stock).
@@ -46,14 +48,14 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
   async function readMergedJokerUsage() {
     // 1) Lire jokers_usage.json (normaliser format objet vs tableau)
     let jokerUsageRaw = [];
-    try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+    try { jokerUsageRaw = JSON.parse(await fs.readFile(currentEdition().paths.jokers, 'utf8')); } catch (e) {}
     const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
       (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
 
     // 2) Lire frozen_results.json et extraire les jokersUsed
     try {
-      if (FROZEN_FILE) {
-        const frozenData = JSON.parse(await fs.readFile(FROZEN_FILE, 'utf8'));
+      if (currentEdition().paths.frozen) {
+        const frozenData = JSON.parse(await fs.readFile(currentEdition().paths.frozen, 'utf8'));
         if (frozenData?.rounds) {
           for (const [roundKey, roundData] of Object.entries(frozenData.rounds)) {
             const jokersUsed = roundData.jokersUsed || [];
@@ -177,7 +179,7 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
 
       // Charger le fichier jokers_usage.json (seul fichier modifiable par l'admin)
       let jokerUsageRaw = [];
-      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch {}
+      try { jokerUsageRaw = JSON.parse(await fs.readFile(currentEdition().paths.jokers, 'utf8')); } catch {}
       let jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
         (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
 
@@ -285,7 +287,7 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
         }
       }
 
-      await fs.writeFile(JOKERS_FILE, JSON.stringify(jokerUsage, null, 2));
+      await fs.writeFile(currentEdition().paths.jokers, JSON.stringify(jokerUsage, null, 2));
       console.log(`🃏 Admin: stock jokers modifié pour ${athlete.name}: ${changes.join(', ') || 'aucun changement'}`);
 
       res.json({ success: true, athlete_id: athleteId, jokers_stock: jokerStock, changes });
@@ -307,7 +309,7 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
 
       // Vider les usages de jokers pour cette ligue
       let jokerUsageRaw = [];
-      try { jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8')); } catch (e) {}
+      try { jokerUsageRaw = JSON.parse(await fs.readFile(currentEdition().paths.jokers, 'utf8')); } catch (e) {}
       const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
         (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
 
@@ -321,7 +323,7 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
       // figés déjà présents dans jokers_usage.json — entrées qu'on vient de retirer).
       let frozenUses = [];
       try {
-        const frozenData = JSON.parse(await fs.readFile(FROZEN_FILE, 'utf8'));
+        const frozenData = JSON.parse(await fs.readFile(currentEdition().paths.frozen, 'utf8'));
         // Dédoublonnés par athlète + joker + round, comme dans readMergedJokerUsage
         const seen = new Set();
         for (const [roundKey, roundData] of Object.entries(frozenData?.rounds || {})) {
@@ -357,7 +359,7 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
         refundsAdded++;
       }
 
-      await fs.writeFile(JOKERS_FILE, JSON.stringify(remaining, null, 2));
+      await fs.writeFile(currentEdition().paths.jokers, JSON.stringify(remaining, null, 2));
       const usagesRemoved = jokerUsage.filter(u => leagueAthleteIds.has(String(u.athlete_id))).length;
       console.log(`🃏 Admin: Reset jokers pour ${leagueAthletes.length} athlètes (${usagesRemoved} entrées supprimées, ${refundsAdded} usages figés compensés)`);
 
@@ -377,7 +379,7 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
       const { usageId } = req.params;
       const { result } = req.body;
 
-      const jokerUsageRaw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+      const jokerUsageRaw = JSON.parse(await fs.readFile(currentEdition().paths.jokers, 'utf8'));
       const jokerUsage = Array.isArray(jokerUsageRaw) ? jokerUsageRaw :
         (jokerUsageRaw && Array.isArray(jokerUsageRaw.usage)) ? jokerUsageRaw.usage : [];
       const usageIndex = jokerUsage.findIndex(j => j.id === usageId);
@@ -387,7 +389,7 @@ function createJokersRoutes({ ATHLETES_FILE, JOKERS_FILE, FROZEN_FILE, ADMIN_PAS
       jokerUsage[usageIndex].resolved_at = new Date().toISOString();
       jokerUsage[usageIndex].result = result;
 
-      await fs.writeFile(JOKERS_FILE, JSON.stringify(jokerUsage, null, 2));
+      await fs.writeFile(currentEdition().paths.jokers, JSON.stringify(jokerUsage, null, 2));
       res.json({ success: true, usage: jokerUsage[usageIndex] });
     } catch (error) {
       console.error('Erreur résolution joker:', error);

@@ -30,7 +30,7 @@ const JOBS_DISABLED = process.env.VERSANT_DISABLE_JOBS === '1';
 const cron = JOBS_DISABLED ? { schedule: () => null } : require('node-cron');
 
 // Import configuration partagée (source unique de vérité)
-const { CHALLENGE_CONFIG, VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK, isTeamSeason, isRainyActivity } = require('./shared-config');
+const { VALID_SPORTS, isValidSport, JOKER_IDS, INITIAL_JOKER_STOCK, isTeamSeason, isRainyActivity } = require('./shared-config');
 
 // Import du module jokers
 const { createJokersRoutes } = require('./jokers-routes');
@@ -87,7 +87,8 @@ const STRAVA_SUBSCRIPTION_ID = process.env.STRAVA_SUBSCRIPTION_ID
 const { DATA_DIR } = require('./data-dir');
 const LEAGUES_DIR = path.join(DATA_DIR, 'leagues');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
-const JOKERS_FILE = path.join(DATA_DIR, 'jokers_usage.json');
+// Fichiers propres à une édition (jokers, figés, activités…) : cf. edition-context.js
+const { currentEdition } = require('./edition-context');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const FAILED_WEBHOOKS_FILE = path.join(DATA_DIR, 'failed_webhooks.json');
 const WEBHOOK_LOG_FILE = path.join(DATA_DIR, 'webhook_log.json');
@@ -217,7 +218,7 @@ function normalizeJokerUsage(data) {
  * Lit jokers_usage.json et retourne un tableau normalisé
  */
 async function readJokerUsage() {
-  const raw = await safeReadJSON(JOKERS_FILE, []);
+  const raw = await safeReadJSON(currentEdition().paths.jokers, []);
   return normalizeJokerUsage(raw);
 }
 
@@ -325,7 +326,7 @@ async function initializeServer() {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.mkdir(LEAGUES_DIR, { recursive: true });
 
-  const files = [ATHLETES_FILE, JOKERS_FILE, SESSIONS_FILE, FAILED_WEBHOOKS_FILE, WEBHOOK_LOG_FILE];
+  const files = [ATHLETES_FILE, currentEdition().paths.jokers, SESSIONS_FILE, FAILED_WEBHOOKS_FILE, WEBHOOK_LOG_FILE];
   for (const file of files) {
     try {
       await fs.access(file);
@@ -343,10 +344,10 @@ async function initializeServer() {
 
   // Migration: corriger le format de jokers_usage.json si nécessaire
   try {
-    const raw = JSON.parse(await fs.readFile(JOKERS_FILE, 'utf8'));
+    const raw = JSON.parse(await fs.readFile(currentEdition().paths.jokers, 'utf8'));
     if (!Array.isArray(raw)) {
       const normalized = normalizeJokerUsage(raw);
-      await fs.writeFile(JOKERS_FILE, JSON.stringify(normalized, null, 2));
+      await fs.writeFile(currentEdition().paths.jokers, JSON.stringify(normalized, null, 2));
       console.log(`🔧 Migration jokers_usage.json: format objet → tableau (${normalized.length} entrées)`);
     }
   } catch (e) {
@@ -402,7 +403,7 @@ function checkAdmin(req, res) {
 app.get('/api/admin/jokers/download', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const data = await fs.readFile(JOKERS_FILE, 'utf8');
+    const data = await fs.readFile(currentEdition().paths.jokers, 'utf8');
     res.setHeader('Content-Disposition', 'attachment; filename=jokers_usage.json');
     res.setHeader('Content-Type', 'application/json');
     res.send(data);
@@ -414,8 +415,6 @@ app.get('/api/admin/jokers/download', async (req, res) => {
 // Monter le router jokers
 const jokersRouter = createJokersRoutes({
   ATHLETES_FILE,
-  JOKERS_FILE,
-  FROZEN_FILE: path.join(DATA_DIR, 'frozen_results.json'),
   ADMIN_PASSWORD,
   requireAuth
 });
@@ -429,7 +428,7 @@ createBonusesRoutes(app, requireAuth, checkAdmin);
 // ============================================
 app.get('/api/config', (req, res) => {
   res.json({
-    challenge: CHALLENGE_CONFIG,
+    challenge: currentEdition().config,
     validSports: VALID_SPORTS,
     jokerIds: JOKER_IDS,
     initialJokerStock: INITIAL_JOKER_STOCK
@@ -478,7 +477,7 @@ app.get('/api/round-configs', async (req, res) => {
  * sinon on décale d'une heure en été et une activité peut changer de round.
  */
 function getRoundNumberForDate(timestamp) {
-  return sharedConfig.getRoundNumberForDate(timestamp, CHALLENGE_CONFIG);
+  return sharedConfig.getRoundNumberForDate(timestamp, currentEdition().config);
 }
 
 // GET /api/weather-coverage/:leagueId - Couverture météo par round
@@ -487,7 +486,7 @@ function getRoundNumberForDate(timestamp) {
 // (typiquement : pas de coordonnées GPS).
 app.get('/api/weather-coverage/:leagueId', async (req, res) => {
   try {
-    const activitiesFile = path.join(LEAGUES_DIR, `${req.params.leagueId}_activities.json`);
+    const activitiesFile = currentEdition().paths.activities(req.params.leagueId);
     const activities = await safeReadJSON(activitiesFile, []);
 
     const byRound = {};
@@ -563,10 +562,10 @@ app.delete('/api/admin/round-configs/:roundNumber', async (req, res) => {
 app.get('/api/admin/season-plan', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const leagueId = req.query.leagueId || 'versant-2026';
+    const leagueId = req.query.leagueId || currentEdition().leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
-    const plan = await frozenResults.getSeasonPlan(leagueAthletes, CHALLENGE_CONFIG);
+    const plan = await frozenResults.getSeasonPlan(leagueAthletes, currentEdition().config);
     res.json(plan);
   } catch (error) {
     console.error('Erreur season-plan:', error);
@@ -582,13 +581,13 @@ const { planDeadlineRounds } = require('./deadline-planner');
 
 async function getLeagueAthletes() {
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
-  return athletes.filter(a => a.league_id === CHALLENGE_CONFIG.leagueId && a.active);
+  return athletes.filter(a => a.league_id === currentEdition().leagueId && a.active);
 }
 
 /** Replanifie la saison Deadline en cours (sans effet sinon). Jamais bloquant. */
 async function replanDeadline(reason) {
   try {
-    return await frozenResults.replanDeadlineSeason(await getLeagueAthletes(), CHALLENGE_CONFIG);
+    return await frozenResults.replanDeadlineSeason(await getLeagueAthletes(), currentEdition().config);
   } catch (e) {
     console.warn(`⚠️ Replanification Deadline (${reason}):`, e.message);
     return null;
@@ -611,7 +610,7 @@ app.get('/api/admin/season-planning', async (req, res) => {
   try {
     const data = await frozenResults.loadFrozenResultsRaw();
     const athletes = await getLeagueAthletes();
-    const plan = await frozenResults.getSeasonPlan(athletes, CHALLENGE_CONFIG);
+    const plan = await frozenResults.getSeasonPlan(athletes, currentEdition().config);
     const frozenSeasons = new Set(Object.values(data?.rounds || {})
       .filter(r => r?.frozen).map(r => Number(r.seasonNumber)));
     const lastSeason = Math.max(12, plan.seasonNumber + 4, ...Object.keys(sharedConfig.SEASON_PLANNING).map(Number));
@@ -636,10 +635,10 @@ app.get('/api/admin/season-planning', async (req, res) => {
       // projetée de la saison en cours.
       const seasonType = sharedConfig.SEASON_TYPES[type];
       if (seasonType?.hasDeadline && deadline && s === plan.seasonNumber + 1) {
-        const startDate = sharedConfig.getRoundDates(entry.startRound, CHALLENGE_CONFIG).start;
+        const startDate = sharedConfig.getRoundDates(entry.startRound, currentEdition().config).start;
         const preview = planDeadlineRounds({
           actives: athletes.length, startDate, deadline,
-          finalists: CHALLENGE_CONFIG.finalistsCount,
+          finalists: currentEdition().config.finalistsCount,
           durationRange: seasonType.durationRange,
           eliminationsRange: seasonType.eliminationsRange
         });
@@ -747,7 +746,7 @@ app.post('/api/admin/season-bonuses/:seasonNumber', async (req, res) => {
     frozen.seasonBonuses[String(seasonNumber)] = bonuses;
     frozen.lastUpdated = new Date().toISOString();
 
-    const FROZEN_FILE_PATH = path.join(DATA_DIR, 'frozen_results.json');
+    const FROZEN_FILE_PATH = currentEdition().paths.frozen;
     await fs.writeFile(FROZEN_FILE_PATH, JSON.stringify(frozen, null, 2));
 
     res.json({ success: true, count: bonuses.length });
@@ -970,7 +969,7 @@ app.post('/api/athletes/register', async (req, res) => {
     // (Europe/Paris), toISOString() reculerait d'un jour.
     const toLocalDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
       .toISOString().split('T')[0];
-    const backfillStart = toLocalDay(frozenResults.getRoundDates(startRound, CHALLENGE_CONFIG).start);
+    const backfillStart = toLocalDay(frozenResults.getRoundDates(startRound, currentEdition().config).start);
     const backfillEnd = toLocalDay(new Date());
     syncLeague(league_id, backfillStart, backfillEnd, { athleteIds: [normalizedId] })
       .then(r => console.log(`📥 Backfill ${name}: ${r.totalNew} activité(s) depuis ${backfillStart}`))
@@ -1142,7 +1141,7 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
           try {
             const athletes2 = await safeReadJSON(ATHLETES_FILE, []);
             const totalParticipants = athletes2.filter(a =>
-              a.league_id === (req.body.leagueId || 'versant-2026') && a.active
+              a.league_id === (req.body.leagueId || currentEdition().leagueId) && a.active
             ).length;
             if (totalParticipants >= 2) {
               const { getSeasonNumber } = require('./shared-config');
@@ -1191,7 +1190,7 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
     let resultUsage = null;
     let error = null;
 
-    await safeModifyJSON(JOKERS_FILE, (rawData) => {
+    await safeModifyJSON(currentEdition().paths.jokers, (rawData) => {
       const jokerUsage = normalizeJokerUsage(rawData);
       const myUsage = jokerUsage.filter(j => normalizeId(j.athlete_id) === normalizeId(req.athleteId));
       const fileEntries = myUsage.filter(j => j.joker_id === joker_id);
@@ -1248,7 +1247,7 @@ app.post('/api/admin/jokers/reset-all', async (req, res) => {
   if (!checkAdmin(req, res)) return;
 
   try {
-    await safeWriteJSON(JOKERS_FILE, []);
+    await safeWriteJSON(currentEdition().paths.jokers, []);
     console.log('🃏 Tous les jokers réinitialisés');
     res.json({ success: true, message: 'Tous les jokers ont été réinitialisés' });
   } catch (error) {
@@ -1273,7 +1272,7 @@ app.get('/api/admin/jokers', async (req, res) => {
 // ============================================
 app.get('/api/activities/:leagueId', async (req, res) => {
   try {
-    const activitiesFile = path.join(LEAGUES_DIR, `${req.params.leagueId}_activities.json`);
+    const activitiesFile = currentEdition().paths.activities(req.params.leagueId);
     const activities = await safeReadJSON(activitiesFile, []);
     res.json(activities);
   } catch (error) {
@@ -1283,7 +1282,7 @@ app.get('/api/activities/:leagueId', async (req, res) => {
 
 app.get('/api/activities-status/:leagueId', async (req, res) => {
   try {
-    const activitiesFile = path.join(LEAGUES_DIR, `${req.params.leagueId}_activities.json`);
+    const activitiesFile = currentEdition().paths.activities(req.params.leagueId);
     const stats = await fs.stat(activitiesFile).catch(() => null);
     const activities = await safeReadJSON(activitiesFile, []);
 
@@ -1377,7 +1376,7 @@ async function refreshAllTokens() {
  * Best-effort : une panne d'Open-Meteo ne doit jamais faire échouer un sync.
  */
 async function enrichLeagueWeather(leagueId, options = {}) {
-  const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+  const activitiesFile = currentEdition().paths.activities(leagueId);
   try {
     const activities = await safeReadJSON(activitiesFile, []);
     const stats = await weather.enrichActivities(activities, options);
@@ -1414,7 +1413,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
     console.log(`   🎯 Restreint à ${leagueAthletes.length} athlète(s)`);
   }
 
-  const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+  const activitiesFile = currentEdition().paths.activities(leagueId);
   let activities = await safeReadJSON(activitiesFile, []);
 
   let totalNew = 0;
@@ -1706,7 +1705,7 @@ async function processOneWebhook(event) {
 
   const athlete = athletes[athleteIndex];
   const leagueId = athlete.league_id;
-  const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+  const activitiesFile = currentEdition().paths.activities(leagueId);
 
   console.log(`   → Athlète: ${athlete.name}`);
 
@@ -2212,7 +2211,7 @@ app.get('/api/admin/athletes/:leagueId', async (req, res) => {
 app.get('/api/admin/activities/:leagueId/download', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const data = await fs.readFile(path.join(LEAGUES_DIR, `${req.params.leagueId}_activities.json`), 'utf8');
+    const data = await fs.readFile(currentEdition().paths.activities(req.params.leagueId), 'utf8');
     res.setHeader('Content-Disposition', `attachment; filename=${req.params.leagueId}_activities.json`);
     res.send(data);
   } catch {
@@ -2232,7 +2231,7 @@ app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res)
     const { leagueId, activityId } = req.params;
     const { exclude } = req.body;
 
-    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activitiesFile = currentEdition().paths.activities(leagueId);
     let activities = await safeReadJSON(activitiesFile, []);
 
     const activityIndex = activities.findIndex(a => String(a.id) === String(activityId));
@@ -2306,7 +2305,7 @@ app.post('/api/standings/snapshot', async (req, res) => {
     // Un classement inventé fausserait l'équilibrage des saisons « équipes ».
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const allowedIds = new Set(
-      athletes.filter(a => a.league_id === CHALLENGE_CONFIG.leagueId && a.active).map(a => normalizeId(a.id))
+      athletes.filter(a => a.league_id === currentEdition().leagueId && a.active).map(a => normalizeId(a.id))
     );
     const seenIds = new Set();
     const invalid = standings.some(s => {
@@ -2387,7 +2386,8 @@ app.get('/api/admin/ranking/:leagueId/export', async (req, res) => {
  *
  * Cache mémoire 30s pour limiter le coût.
  */
-const _teamsCache = new Map(); // key = roundNumber, value = { ts, payload }
+const _teamsCache = new Map(); // key = édition + round (teamsCacheKey), value = { ts, payload }
+const teamsCacheKey = roundNumber => `${currentEdition().paths.frozen}#${roundNumber}`;
 const TEAMS_CACHE_TTL_MS = 30000;
 
 app.get('/api/teams/round/:roundNumber', async (req, res) => {
@@ -2398,7 +2398,7 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
     }
 
     // Cache hit ?
-    const cached = _teamsCache.get(roundNumber);
+    const cached = _teamsCache.get(teamsCacheKey(roundNumber));
     if (cached && Date.now() - cached.ts < TEAMS_CACHE_TTL_MS) {
       return res.json(cached.payload);
     }
@@ -2416,7 +2416,7 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
         teams: frozenRound.teams,
         eliminatedTeam: frozenRound.eliminatedTeam || null
       };
-      _teamsCache.set(roundNumber, { ts: Date.now(), payload });
+      _teamsCache.set(teamsCacheKey(roundNumber), { ts: Date.now(), payload });
       return res.json(payload);
     }
 
@@ -2424,9 +2424,9 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
     const { isTeamSeason: isTeam } = require('./shared-config');
     // On utilise calculateRoundResults dans un mode "dry-run" : on charge les
     // données mais on n'appelle pas la persistance.
-    const config = CHALLENGE_CONFIG;
+    const config = currentEdition().config;
     const leagueId = config.leagueId;
-    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activitiesFile = currentEdition().paths.activities(leagueId);
     const activities = await safeReadJSON(activitiesFile, []);
     const athletesAll = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletesAll.filter(a => a.league_id === leagueId && a.active);
@@ -2518,7 +2518,7 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
     // Cas d'usage :
     //   - R21 = round 1 d'une saison team : lit "teams" à la racine (compo initiale tirée au sort)
     //   - R22, R23 ... : lit "rounds[X].teams" si stocké (re-tirage après élimination)
-    const SEASON_TEAMS_FILE = path.join(DATA_DIR, 'season_teams.json');
+    const SEASON_TEAMS_FILE = currentEdition().paths.seasonTeams;
     const storedSeasonTeams = await safeReadJSON(SEASON_TEAMS_FILE, {});
     const seasonEntry = storedSeasonTeams[String(detectedSeason)];
 
@@ -2556,7 +2556,7 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
         lockedFromFile: true,
         lockedSource
       };
-      _teamsCache.set(roundNumber, { ts: Date.now(), payload });
+      _teamsCache.set(teamsCacheKey(roundNumber), { ts: Date.now(), payload });
       return res.json(payload);
     }
 
@@ -2573,7 +2573,7 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
       teams: teamsWithAnimal,
       eliminatedTeam: null
     };
-    _teamsCache.set(roundNumber, { ts: Date.now(), payload });
+    _teamsCache.set(teamsCacheKey(roundNumber), { ts: Date.now(), payload });
     res.json(payload);
   } catch (error) {
     console.error('Erreur teams round:', error);
@@ -2624,9 +2624,9 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
 
   try {
     const roundNumber = parseInt(req.params.roundNumber);
-    const leagueId = req.body.leagueId || 'versant-2026';
+    const leagueId = req.body.leagueId || currentEdition().leagueId;
 
-    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activitiesFile = currentEdition().paths.activities(leagueId);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await readJokerUsage();
@@ -2640,7 +2640,7 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
       activitiesForFreeze,
       leagueAthletes,
       jokerUsage,
-      CHALLENGE_CONFIG
+      currentEdition().config
     );
 
     res.json({ success: true, round: result });
@@ -2655,9 +2655,9 @@ app.post('/api/admin/auto-freeze', async (req, res) => {
   if (!checkAdmin(req, res)) return;
 
   try {
-    const leagueId = req.body.leagueId || 'versant-2026';
+    const leagueId = req.body.leagueId || currentEdition().leagueId;
 
-    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const activitiesFile = currentEdition().paths.activities(leagueId);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await readJokerUsage();
@@ -2670,7 +2670,7 @@ app.post('/api/admin/auto-freeze', async (req, res) => {
       activitiesForFreeze,
       leagueAthletes,
       jokerUsage,
-      CHALLENGE_CONFIG
+      currentEdition().config
     );
 
     res.json({ success: true, frozenCount: frozen.length, rounds: frozen });
@@ -2703,7 +2703,7 @@ app.post('/api/admin/freeze-elim-challenge/:seasonNumber', async (req, res) => {
     if (Number.isNaN(seasonNumber) || seasonNumber < 1) {
       return res.status(400).json({ error: 'invalid_season_number' });
     }
-    const leagueId = req.body?.leagueId || 'versant-2026';
+    const leagueId = req.body?.leagueId || currentEdition().leagueId;
     const force = req.body?.force === true;
 
     const result = await frozenResults.freezeEliminatedChallengeForSeason(seasonNumber, {
@@ -2802,8 +2802,8 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
     }
   }
   try {
-    const leagueId = 'versant-2026';
-    const activitiesFile = path.join(LEAGUES_DIR, `${leagueId}_activities.json`);
+    const leagueId = currentEdition().leagueId;
+    const activitiesFile = currentEdition().paths.activities(leagueId);
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     if (leagueAthletes.length === 0) {
@@ -2818,7 +2818,7 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
     const activitiesForFreeze = await safeReadJSON(activitiesFile, []);
 
     const frozen = await frozenResults.autoFreezeCompletedRounds(
-      activitiesForFreeze, leagueAthletes, jokerUsage, CHALLENGE_CONFIG
+      activitiesForFreeze, leagueAthletes, jokerUsage, currentEdition().config
     );
     console.log(`❄️ [${reason}] ${frozen.length} round(s) figé(s)`);
     return frozen;
@@ -2860,7 +2860,7 @@ async function hasPendingRoundToFreeze() {
     const data = await frozenResults.loadFrozenResultsRaw();
     const now = Date.now();
     for (let r = 1; r <= 500; r++) {
-      const end = frozenResults.getRoundDates(r, CHALLENGE_CONFIG).end.getTime();
+      const end = frozenResults.getRoundDates(r, currentEdition().config).end.getTime();
       if (end >= now) return false; // round pas terminé → les suivants non plus
       if (!data?.rounds?.[String(r)]?.frozen) return true;
     }

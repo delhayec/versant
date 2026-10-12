@@ -20,7 +20,8 @@ const roundConfigs = require('./round-configs');
 const { getRoundDates } = require('./shared-config');
 
 const { DATA_DIR } = require('./data-dir');
-const BONUSES_FILE = path.join(DATA_DIR, 'bonuses.json');
+// Fichiers propres à une édition (bonus, choix en attente) : cf. edition-context.js
+const { currentEdition } = require('./edition-context');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 
 // Liste des bonus disponibles
@@ -105,7 +106,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   // ==========================================
   app.get('/api/bonuses/all', async (req, res) => {
     try {
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
       res.json(bonuses);
     } catch (error) {
       console.error('Erreur lecture bonuses:', error);
@@ -118,7 +119,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   // ==========================================
   app.get('/api/bonuses/my', requireAuth, async (req, res) => {
     try {
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
       const myBonuses = bonuses.filter(b =>
         normalizeId(b.athlete_id) === normalizeId(req.athleteId)
       );
@@ -158,10 +159,10 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   // ==========================================
   app.get('/api/bonuses/choices', requireAuth, async (req, res) => {
     try {
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
 
       // Vérifier s'il y a un choix en attente (= une élimination récente non encore validée)
-      const pendingChoices = await safeReadJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), {});
+      const pendingChoices = await safeReadJSON(currentEdition().paths.pendingBonusChoices, {});
       const myPending = pendingChoices[normalizeId(req.athleteId)];
 
       // Si l'athlète a un pending pour un elimination_round précis, vérifier
@@ -226,14 +227,14 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       const choices = drawRandomBonuses(BONUS_CHOICE_COUNT);
 
       // Sauvegarder les choix en attente
-      const pendingChoices = await safeReadJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), {});
+      const pendingChoices = await safeReadJSON(currentEdition().paths.pendingBonusChoices, {});
       pendingChoices[normalizeId(athlete_id)] = {
         choices,
         elimination_round,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 jours
       };
-      await safeWriteJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), pendingChoices);
+      await safeWriteJSON(currentEdition().paths.pendingBonusChoices, pendingChoices);
 
       console.log(`🎁 Choix de bonus générés pour ${athlete_id}: ${choices.join(', ')}`);
       res.json({ success: true, choices });
@@ -261,7 +262,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       }
 
       // Vérifier les choix en attente
-      const pendingChoices = await safeReadJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), {});
+      const pendingChoices = await safeReadJSON(currentEdition().paths.pendingBonusChoices, {});
       const myPending = pendingChoices[athleteId];
 
       if (!myPending || !myPending.choices.includes(bonus_id)) {
@@ -271,7 +272,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       // Vérifier qu'il n'a pas déjà choisi pour CE round d'élimination spécifique.
       // Avoir des bonus de saisons précédentes ne doit PAS bloquer un nouveau
       // choix après une nouvelle élimination.
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
       const currentElimRound = Number(myPending.elimination_round);
       const alreadyChosenForThisElim = bonuses.find(b =>
         normalizeId(b.athlete_id) === athleteId &&
@@ -336,11 +337,11 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       };
 
       bonuses.push(newBonus);
-      await safeWriteJSON(BONUSES_FILE, bonuses);
+      await safeWriteJSON(currentEdition().paths.bonuses, bonuses);
 
       // Supprimer les choix en attente
       delete pendingChoices[athleteId];
-      await safeWriteJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), pendingChoices);
+      await safeWriteJSON(currentEdition().paths.pendingBonusChoices, pendingChoices);
 
       console.log(`🎁 Bonus ${bonus_id} attribué à ${athlete?.name}`);
       res.json({ success: true, bonus: newBonus });
@@ -379,7 +380,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       // Récupérer les bonus du joueur. Préférer un bonus 'available'
       // (= en attente d'utilisation) plutôt qu'un bonus déjà 'used' / 'active'
       // (qui peut venir d'une saison précédente).
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
       const myBonuses = bonuses
         .map((b, i) => ({ b, i }))
         .filter(({ b }) => normalizeId(b.athlete_id) === athleteId);
@@ -430,7 +431,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
         target_athlete_name: targetName
       };
 
-      await safeWriteJSON(BONUSES_FILE, bonuses);
+      await safeWriteJSON(currentEdition().paths.bonuses, bonuses);
 
       console.log(`🎁 Bonus ${bonus.bonus_id} utilisé par ${bonus.athlete_name}${targetName ? ` sur ${targetName}` : ''}`);
 
@@ -450,7 +451,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
   // ==========================================
   app.get('/api/bonuses/active', async (req, res) => {
     try {
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
 
       // Filtrer les bonus utilisés qui ont un effet en cours
       const activeBonuses = bonuses.filter(b =>
@@ -472,7 +473,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
     try {
       const { bonus_id, athlete_id, effect_result } = req.body;
 
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
       const bonusIndex = bonuses.findIndex(b =>
         b.id === bonus_id || (normalizeId(b.athlete_id) === normalizeId(athlete_id) && b.bonus_id === bonus_id)
       );
@@ -485,7 +486,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       bonuses[bonusIndex].effect_result = effect_result;
       bonuses[bonusIndex].effect_applied_at = new Date().toISOString();
 
-      await safeWriteJSON(BONUSES_FILE, bonuses);
+      await safeWriteJSON(currentEdition().paths.bonuses, bonuses);
 
       console.log(`🎁 Effet du bonus ${bonuses[bonusIndex].bonus_id} appliqué`);
       res.json({ success: true, bonus: bonuses[bonusIndex] });
@@ -532,8 +533,8 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
     if (!checkAdmin(req, res)) return;
 
     try {
-      await safeWriteJSON(BONUSES_FILE, []);
-      await safeWriteJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), {});
+      await safeWriteJSON(currentEdition().paths.bonuses, []);
+      await safeWriteJSON(currentEdition().paths.pendingBonusChoices, {});
 
       console.log('🎁 Tous les bonus réinitialisés');
       res.json({ success: true, message: 'Tous les bonus ont été réinitialisés' });
@@ -549,8 +550,8 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
     if (!checkAdmin(req, res)) return;
 
     try {
-      const bonuses = await safeReadJSON(BONUSES_FILE, []);
-      const pendingChoices = await safeReadJSON(path.join(DATA_DIR, 'pending_bonus_choices.json'), {});
+      const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
+      const pendingChoices = await safeReadJSON(currentEdition().paths.pendingBonusChoices, {});
 
       res.json({
         count: bonuses.length,
@@ -590,7 +591,7 @@ function getEffectDescription(bonusId, targetName) {
  * @returns {Array} Liste des bonus avec leurs effets appliqués
  */
 async function applyBonusEffectsForRound(roundNumber, activities, config) {
-  const bonuses = await safeReadJSON(BONUSES_FILE, []);
+  const bonuses = await safeReadJSON(currentEdition().paths.bonuses, []);
   const appliedBonuses = [];
 
   // Calculer les dates du round via la source unique (minuit local, pas de trou
@@ -755,7 +756,7 @@ async function applyBonusEffectsForRound(roundNumber, activities, config) {
 
   // Sauvegarder
   if (appliedBonuses.length > 0) {
-    await safeWriteJSON(BONUSES_FILE, bonuses);
+    await safeWriteJSON(currentEdition().paths.bonuses, bonuses);
     console.log(`🎁 ${appliedBonuses.length} effets de bonus appliqués pour le round ${roundNumber}`);
   }
 
