@@ -53,7 +53,7 @@ export async function runFront({ repoRoot, fixtureDir, at }) {
     const config = await import(pathToFileURL(join(engineDir, 'config.js')).href);
     const jokers = await import(pathToFileURL(join(engineDir, 'jokers.js')).href);
     const engine = await import(pathToFileURL(join(engineDir, 'standings-engine.js')).href);
-    const pages = buildPageExtracts(repoRoot, config);
+    const pages = buildPageExtracts(repoRoot, config, engine);
 
     const result = await compute({ config, jokers, engine, pages, handlers });
     result.apiCalls = summarizeCalls(apiCalls);
@@ -67,15 +67,17 @@ export async function runFront({ repoRoot, fixtureDir, at }) {
 }
 
 /** Code des pages exécuté tel quel : app.js et stats.js ne s'importent pas hors navigateur. */
-function buildPageExtracts(repoRoot, config) {
+function buildPageExtracts(repoRoot, config, engine) {
   const appFile = 'public/js/app.js';
   const statsFile = 'public/js/stats.js';
   const app = readSource(join(repoRoot, appFile));
   const stats = readSource(join(repoRoot, statsFile));
 
-  const parseActivitiesData = compile(extractFunction(app, 'parseActivitiesData', appFile), 'parseActivitiesData', {
-    isValidSport: config.isValidSport
-  });
+  // Depuis L22, parseActivitiesData est exportée par le moteur (déplacée d'app.js)
+  const parseActivitiesData = engine.parseActivitiesData
+    ?? compile(extractFunction(app, 'parseActivitiesData', appFile), 'parseActivitiesData', {
+      isValidSport: config.isValidSport
+    });
 
   // renderFinalStandings : calcul des totaux affichés (le reste de la fonction est du HTML)
   const enrichBlock = extractBetween(
