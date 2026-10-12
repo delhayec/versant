@@ -75,6 +75,8 @@ Les réponses de plus de 256 Ko sont réduites à leur empreinte. Les champs qui
 
 La partie C exige `npm install` dans `backend/`. Sur un code antérieur à L01, elle est sautée : démarrer le serveur sans `VERSANT_DISABLE_JOBS` lancerait le rattrapage du gel et la synchro Strava.
 
+**Parité de config front / backend.** Plusieurs constantes sont recopiées entre `public/js/config.js` et `backend/shared-config.js` : barèmes de points, jauge, règle météo, types et planning des saisons, `CHALLENGE_CONFIG`… Pour chaque nom exporté des deux côtés (hors fonctions), les clés communes doivent avoir la même valeur. Les champs présents d'un seul côté, comme les libellés, sont ignorés. Résultat dans `front.<date>.configParity`. Écart connu : `BONUS_IDS`, où le front garde kamikaze et malédiction, mais seulement dans un tirage qui n'est jamais appelé (`jokers.js:584`).
+
 **Contrôle de fidélité.** La fixture contient le classement qu'un vrai navigateur a envoyé au serveur (`yearlyStandingsSnapshot`). À cet instant précis, le harnais doit retrouver exactement le même classement. Sinon, c'est le harnais qui est en défaut, pas le code testé.
 
 **Pas encore couvert :**

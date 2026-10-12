@@ -21,7 +21,7 @@ import { slim } from './canonical.mjs';
 import { installFixedClock } from './clock.mjs';
 import { captureConsole } from './console.mjs';
 import { compile, extractBetween, extractConst, extractFunction, readSource } from './extract.mjs';
-import { buildServerHandlers, createFakeFetch, loadFixture } from './fixture.mjs';
+import { buildServerHandlers, configParity, createFakeFetch, loadBackendSharedConfig, loadFixture } from './fixture.mjs';
 
 const ENGINE_FILES = ['config.js', 'jokers.js', 'standings-engine.js'];
 
@@ -57,6 +57,8 @@ export async function runFront({ repoRoot, fixtureDir, at }) {
 
     const result = await compute({ config, jokers, engine, pages, handlers });
     result.apiCalls = summarizeCalls(apiCalls);
+    // Après le chargement des données : le planning des saisons est appliqué
+    result.configParity = configParity(config, loadBackendSharedConfig(fixture, repoRoot));
     return { result, logs: logs.lines };
   } finally {
     logs.restore();

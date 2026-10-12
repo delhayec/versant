@@ -123,15 +123,7 @@ export function buildServerHandlers(fixture, repoRoot) {
     const routeEndMarker = '\n});';
     const route = extractBetween(server, planningMarker, routeEndMarker, file);
     const body = route.slice(planningMarker.length, -routeEndMarker.length);
-    const previous = process.env.VERSANT_DATA_DIR;
-    process.env.VERSANT_DATA_DIR = fixture.dataDir;
-    let sharedConfig;
-    try {
-      sharedConfig = createRequire(join(repoRoot, 'backend', 'harnais.js'))('./shared-config');
-    } finally {
-      if (previous === undefined) delete process.env.VERSANT_DATA_DIR;
-      else process.env.VERSANT_DATA_DIR = previous;
-    }
+    const sharedConfig = loadBackendSharedConfig(fixture, repoRoot);
     seasonPlanning = () => {
       let payload;
       new Function('sharedConfig', 'req', 'res', body)(sharedConfig, {}, { json: v => { payload = v; } });
@@ -140,6 +132,49 @@ export function buildServerHandlers(fixture, repoRoot) {
   }
 
   return { normalizeJokerUsage, readJokerUsage, readJokerUsageWithFrozen, listAthletes, compactSnapshot, seasonPlanning };
+}
+
+/**
+ * backend/shared-config.js du code testé. Il lit le planning des saisons et les
+ * durées de round au chargement : on le charge sur le dossier de la fixture.
+ */
+export function loadBackendSharedConfig(fixture, repoRoot) {
+  const previous = process.env.VERSANT_DATA_DIR;
+  process.env.VERSANT_DATA_DIR = fixture.dataDir;
+  try {
+    return createRequire(join(repoRoot, 'backend', 'harnais.js'))('./shared-config');
+  } finally {
+    if (previous === undefined) delete process.env.VERSANT_DATA_DIR;
+    else process.env.VERSANT_DATA_DIR = previous;
+  }
+}
+
+/**
+ * Parité des constantes recopiées entre le front (public/js/config.js) et le
+ * backend (backend/shared-config.js) : pour chaque nom exporté des deux côtés
+ * (hors fonctions), les clés communes doivent avoir la même valeur. Les clés
+ * présentes d'un seul côté (libellés, champs d'affichage) sont ignorées.
+ */
+export function configParity(front, back) {
+  const differences = [];
+  const walk = (f, b, path) => {
+    if (Array.isArray(f) || Array.isArray(b)) {
+      if (!Array.isArray(f) || !Array.isArray(b) || f.length !== b.length) {
+        differences.push({ path, front: f, back: b });
+        return;
+      }
+      f.forEach((x, i) => walk(x, b[i], `${path}[${i}]`));
+      return;
+    }
+    if (f && b && typeof f === 'object' && typeof b === 'object') {
+      for (const key of Object.keys(f).filter(k => k in b)) walk(f[key], b[key], `${path}.${key}`);
+      return;
+    }
+    if (JSON.stringify(f) !== JSON.stringify(b)) differences.push({ path, front: f, back: b });
+  };
+  const names = Object.keys(back).filter(k => k in front && typeof back[k] !== 'function').sort();
+  for (const name of names) walk(front[name], back[name], name);
+  return { comparedNames: names, differences };
 }
 
 /**

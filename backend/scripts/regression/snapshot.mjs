@@ -219,6 +219,12 @@ function printSummary(output, outFile, logFile, text, elapsedMs) {
       ? `   Fidélité : classement identique au snapshot navigateur du ${check.snapshotDate} (${check.players} joueurs)`
       : `   ⚠️ Fidélité : ${check.mismatches.length} écart(s) avec le snapshot navigateur du ${check.snapshotDate} — voir checks.navigatorSnapshot`);
   }
+  const parity = output.front?.capturedAt?.configParity;
+  if (parity) {
+    console.log(parity.differences.length === 0
+      ? `   Parité config front / backend : ${parity.comparedNames.length} constantes identiques`
+      : `   ⚠️ Parité config front / backend : ${parity.differences.length} écart(s) (${[...new Set(parity.differences.map(d => d.path.split(/[.[]/)[0]))].join(', ')}) — voir front.capturedAt.configParity`);
+  }
   console.log(`   journal : ${logFile}`);
 }
 
