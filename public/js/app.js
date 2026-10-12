@@ -57,6 +57,7 @@ import {
   getRescapeInfoForRound,
   computeLiveElevationGauge,
   // Activity helpers
+  parseActivitiesData,
   getActivityEndTime,
   filterByPeriod,
   filterByParticipant,
@@ -422,52 +423,6 @@ async function loadActivities() {
   }
 }
 
-/**
- * Parse différents formats de données d'activités
- * Supporte: tableau direct, {activities: []}, {ranking: [{activities: []}]}
- */
-function parseActivitiesData(data) {
-  // Si c'est déjà un tableau
-  if (Array.isArray(data)) {
-    return data.filter(a => !a.sport_type || isValidSport(a.sport_type));
-  }
-
-  // Si c'est {activities: [...]}
-  if (data.activities && Array.isArray(data.activities)) {
-    return data.activities.filter(a => !a.sport_type || isValidSport(a.sport_type));
-  }
-
-  // Si c'est {ranking: [{id, activities: [...]}]} (format classement.json)
-  if (data.ranking && Array.isArray(data.ranking)) {
-    const activities = [];
-    for (const participant of data.ranking) {
-      if (participant.activities && Array.isArray(participant.activities)) {
-        for (const activity of participant.activities) {
-          activities.push({
-            ...activity,
-            // Normaliser les champs pour compatibilité
-            start_date: activity.date || activity.start_date,
-            total_elevation_gain: activity.elevation || activity.total_elevation_gain,
-            distance: activity.distance,
-            // Si pas de sport_type, assumer que c'est valide (données pré-filtrées)
-            sport_type: activity.sport_type || 'Run',
-            // Ajouter les infos athlète pour le filtrage
-            athlete: {
-              id: participant.id,
-              firstname: participant.name?.split(' ')[0] || '',
-              lastname: participant.name?.split(' ').slice(1).join(' ') || ''
-            }
-          });
-        }
-      }
-    }
-    // Pour les données classement.json, pas besoin de re-filtrer par sport
-    return activities;
-  }
-
-  console.warn('⚠️ Format de données non reconnu');
-  return [];
-}
 
 // ============================================
 // FILTRAGE DES ACTIVITÉS
