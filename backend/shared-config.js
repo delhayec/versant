@@ -20,7 +20,13 @@ const CHALLENGE_CONFIG = {
   // Nombre de finalistes qui s'affrontent au dernier round d'une saison.
   // On élimine jusqu'à n'en garder que finalistsCount, puis un round de finale
   // les départage (tous éliminés sauf le premier).
-  finalistsCount: 4
+  finalistsCount: 4,
+  // Règle 0 D+ (cf. frozen-results : tous les joueurs à 0 D+ éliminés) appliquée
+  // à partir de ce round. Avant le R7, versant-2026 suivait l'ancien règlement.
+  zeroElevationRuleFromRound: 7,
+  // Premier round où la jauge collective de D+ rapporte des points
+  // (cf. ELEVATION_GAUGE). null : pas de jauge.
+  elevationGaugeStartRound: 52
 };
 
 // ============================================
@@ -108,8 +114,8 @@ const getEliminatedPoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? 0;
 // grimpe mécaniquement au fil de la saison, seuls les plus forts restant).
 // Barème calibré sur les rounds 1→48 de 2026 (~60 % de rounds neutres).
 // ⚠️ Garder synchronisé avec public/js/config.js (ELEVATION_GAUGE).
+// Le round de départ est un paramètre d'édition : CHALLENGE_CONFIG.elevationGaugeStartRound.
 const ELEVATION_GAUGE = {
-  startRound: 52,
   // Objectif de D+ MOYEN par joueur, selon le nombre de joueurs en lice
   // (arrondi de la courbe 5 700 × n^-0,6 ajustée sur l'historique)
   objectivePerPlayer: [

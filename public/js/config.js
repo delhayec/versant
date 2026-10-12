@@ -44,6 +44,11 @@ export const CHALLENGE_CONFIG = {
   // les départage (tous éliminés sauf le premier).
   // Miroir de backend/shared-config.js::CHALLENGE_CONFIG.finalistsCount.
   finalistsCount: 4,
+  // Miroirs de backend/shared-config.js::CHALLENGE_CONFIG (paramètres d'édition) :
+  // règle 0 D+ à partir de ce round (avant le R7 : ancien règlement de 2026) ;
+  zeroElevationRuleFromRound: 7,
+  // premier round où la jauge collective rapporte des points (null : pas de jauge).
+  elevationGaugeStartRound: 52,
   mainMetric: "elevation",
   mainMetricLabel: "Dénivelé positif",
   mainMetricUnit: "m",
@@ -221,8 +226,8 @@ export const getEliminatedChallengePoints = (pos) =>
 // une jauge dont l'objectif dépend du nombre de joueurs en lice.
 // ⚠️ Garder synchronisé avec backend/shared-config.js (ELEVATION_GAUGE) :
 // le backend fige le résultat (frozen_results.rounds[n].elevationGauge).
+// Le round de départ est un paramètre d'édition : CHALLENGE_CONFIG.elevationGaugeStartRound.
 export const ELEVATION_GAUGE = {
-  startRound: 52,
   objectivePerPlayer: [
     { minPlayers: 14, objective: 1100 },
     { minPlayers: 11, objective: 1300 },

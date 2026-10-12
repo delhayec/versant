@@ -509,10 +509,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
         return res.status(400).json({ error: 'activities requises' });
       }
 
-      const appliedBonuses = await applyBonusEffectsForRound(roundNumber, activities, config || {
-        yearStartDate: '2026-02-02',
-        roundDurationDays: 5
-      });
+      const appliedBonuses = await applyBonusEffectsForRound(roundNumber, activities, config || currentEdition().config);
 
       res.json({
         success: true,

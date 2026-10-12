@@ -23,7 +23,7 @@ const {
   WEATHER_RULE, isRainyActivity, getActivityElevation,
   MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
   getMainPoints, getEliminatedPoints,
-  ELEVATION_GAUGE, getGaugeObjectivePerPlayer, getGaugeTier,
+  getGaugeObjectivePerPlayer, getGaugeTier,
   BONUS_IDS,
   getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
   isTeamSeason, getSeasonType, getTeamEliminatedPoints, getRoundsForTeamSeason,
@@ -540,10 +540,12 @@ function gatherTeamSeasonHistory(seasonNumber, previousRounds) {
  *
  * @param {string[]} activeIds - joueurs du principal au début du round
  * @param {Array} roundActivities - activités valides du round (déjà filtrées)
- * @returns {Object|null} null si le round est antérieur à ELEVATION_GAUGE.startRound
+ * @returns {Object|null} null si l'édition n'a pas de jauge ou si le round est
+ *   antérieur à son premier round de jauge (config.elevationGaugeStartRound)
  */
 function computeElevationGauge(roundNumber, seasonNumber, activeIds, roundActivities, previousRounds) {
-  if (roundNumber < ELEVATION_GAUGE.startRound || activeIds.length === 0) return null;
+  const gaugeStartRound = currentEdition().config.elevationGaugeStartRound;
+  if (gaugeStartRound == null || roundNumber < gaugeStartRound || activeIds.length === 0) return null;
 
   const activeSet = new Set(activeIds.map(String));
   const athleteOf = a => String(a.athlete?.id || a.athlete_id);
@@ -1209,8 +1211,8 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   // Déterminer qui éliminer
   let toEliminate = [];
 
-  // Appliquer les nouvelles règles seulement à partir du R7
-  const useNewRules = roundNumber >= 7;
+  // Appliquer les nouvelles règles seulement à partir du round fixé par l'édition (R7)
+  const useNewRules = roundNumber >= config.zeroElevationRuleFromRound;
 
   if (effectiveIsFinale) {
     // FINALE: éliminer tous sauf 1

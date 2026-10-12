@@ -1339,7 +1339,8 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
     return;
   }
 
-  const isLive = roundNumber >= ELEVATION_GAUGE.startRound;
+  const gaugeStartRound = CHALLENGE_CONFIG.elevationGaugeStartRound;
+  const isLive = gaugeStartRound != null && roundNumber >= gaugeStartRound;
   const pct = r => Math.min(100, (r / GAUGE_SCALE_MAX) * 100);
   const fillPct = pct(gauge.ratio);
 
@@ -1365,7 +1366,7 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
   const tier = gauge.tier;
   const status = isLive
     ? `Si le round s'arrêtait maintenant : <strong>${tier.label}</strong> · ${describeGaugeEffect(tier)}`
-    : `Aperçu : la jauge rapporte des points à partir du round ${ELEVATION_GAUGE.startRound}. Actuellement : ${tier.label}`;
+    : `Aperçu : la jauge rapporte des points à partir du round ${gaugeStartRound}. Actuellement : ${tier.label}`;
 
   container.innerHTML = `
     <div class="elevation-gauge tier-${tier.id}${isLive ? '' : ' is-preview'}">

@@ -1190,8 +1190,8 @@ if (frozenRound && frozenRound.frozen) {
       // Joueurs à 0 D+ (éligibles uniquement)
       const zeroElevationPlayers = eligibleForElimination.filter(e => e.totalElevation === 0);
 
-      // Appliquer les nouvelles règles seulement à partir du R7
-      const useNewRules = globalRound >= 7;
+      // Appliquer les nouvelles règles seulement à partir du round fixé par l'édition (R7)
+      const useNewRules = globalRound >= CHALLENGE_CONFIG.zeroElevationRuleFromRound;
 
       if (isCurrentRoundFinale) {
         // FINALE: éliminer tous sauf 1
