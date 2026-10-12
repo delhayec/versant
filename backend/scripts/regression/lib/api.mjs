@@ -67,6 +67,12 @@ export async function runApi({ repoRoot, fixtureDir }) {
   try {
     server = await startServer({ backendDir, sandbox, logs, stravaBase: strava.base, adminPassword: ADMIN_PASSWORD });
     const responses = await captureReadRoutes(server.base, fixture, leagueId, plan);
+    // Classement calculé par le serveur (L22) à l'instant de la fixture, avant
+    // que les sondes ne modifient les données. Code antérieur : route absente.
+    const engine = await call(server.base, '/api/admin/standings/compute', { 'x-admin-password': ADMIN_PASSWORD }, {
+      method: 'POST', body: { at: fixture.meta.capturedAt }, raw: true
+    });
+    const serverEngine = engine.status === 200 ? { at: engine.body.at, standings: engine.body.standings } : { status: engine.status };
     const probes = await runProbes(server.base, leagueId, plan, sandbox);
     await server.stop();
     server = null;
@@ -90,7 +96,7 @@ export async function runApi({ repoRoot, fixtureDir }) {
       await bare.stop();
     }
 
-    return { result: { responses, probes }, logs };
+    return { result: { responses, probes, serverEngine }, logs };
   } finally {
     if (server) await server.stop();
     await strava.stop();

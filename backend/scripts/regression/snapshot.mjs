@@ -184,8 +184,21 @@ function fidelityChecks(output, frozen) {
       players: expected.length,
       identical: mismatches.length === 0,
       mismatches
-    }
+    },
+    serverEngine: serverEngineCheck(output)
   };
+}
+
+/**
+ * Classement calculé par le serveur (partie C, moteur exécuté côté serveur,
+ * L22) contre celui de la partie A (recette du navigateur), au même instant.
+ */
+function serverEngineCheck(output) {
+  const server = output.api?.serverEngine;
+  const front = output.front?.capturedAt;
+  if (!server?.standings || !front) return 'non applicable';
+  const same = JSON.stringify(canonicalize(server.standings)) === JSON.stringify(canonicalize(front.snapshotCompact || []));
+  return { at: server.at, players: server.standings.length, identical: same };
 }
 
 function printSummary(output, outFile, logFile, text, elapsedMs) {
@@ -218,6 +231,12 @@ function printSummary(output, outFile, logFile, text, elapsedMs) {
     console.log(check.identical
       ? `   Fidélité : classement identique au snapshot navigateur du ${check.snapshotDate} (${check.players} joueurs)`
       : `   ⚠️ Fidélité : ${check.mismatches.length} écart(s) avec le snapshot navigateur du ${check.snapshotDate} — voir checks.navigatorSnapshot`);
+  }
+  const engineCheck = output.checks.serverEngine;
+  if (engineCheck && typeof engineCheck === 'object') {
+    console.log(engineCheck.identical
+      ? `   Moteur serveur : classement identique à la partie A (${engineCheck.players} joueurs)`
+      : `   ❌ Moteur serveur : classement différent de la partie A — voir api.serverEngine`);
   }
   const parity = output.front?.capturedAt?.configParity;
   if (parity) {
