@@ -103,6 +103,7 @@ La partie C exige `npm install` dans `backend/`. Sur un code antérieur à L01, 
 | `backend/server.js` | `normalizeJokerUsage`, `readJokerUsage`, `readJokerUsageWithFrozen` | Réponse de `/api/jokers/all` |
 | `backend/server.js` | Corps de `GET /api/athletes/:leagueId` | Réponse de `/api/athletes/…` |
 | `backend/server.js` | Bloc `const compact = standings.map(` | Forme du snapshot, pour le contrôle de fidélité |
+| `backend/server.js` | Corps de `GET /api/season-planning`, exécuté avec le vrai `shared-config.js` lu sur la fixture | Planning des saisons chargé par le front |
 
 Si un repère disparaît (fonction renommée, code déplacé), l'extraction échoue avec un message explicite. Le harnais doit alors être adapté **dans un commit séparé**, puis revalidé en le rejouant sur le code de référence.
 
@@ -117,6 +118,8 @@ Une fixture contient des données personnelles (noms, activités) : elle se rang
 Anonymisation appliquée :
 - **`athletes.json`** : seuls `id`, `name`, `league_id`, `active`, `registered_at`, `active_from_round` et `active_from_season` sont conservés. Pas d'e-mail, de hash de mot de passe, de token Strava ni de profil.
 - **Activités** : les traces, les coordonnées (y compris `weather.lat` et `weather.lon`), les lieux et les fréquences cardiaques sont supprimés.
+
+`season_planning.json` (planning des saisons, facultatif) est copié s'il existe. Pour une fixture qui ne l'a pas, il peut être reconstitué depuis la route publique `GET /api/season-planning` (champs `types` et `deadlines`).
 
 `round_configs.json` n'est **pas** dans la sauvegarde `versant-data`. Il faut le fournir avec `--round-configs`. Sur le serveur, il se trouve dans `/opt/versant-api/backend/data/`. Il est aussi lisible par la route publique `GET /api/round-configs`.
 
@@ -166,6 +169,8 @@ Elles sont rangées hors du dépôt, dans `../versant-regression/refs/` :
 | `reference-d6bce5b-fixbonus.json` | `d6bce5b` + retrait de kamikaze et malédiction du tirage | A, B | Seul écart avec l'origine : les choix tirés au gel du R49 |
 | `reference-L01.json` | précédent + L01 | A, B, C | Première référence avec l'API |
 | `reference-sondes.json` | précédent + sondes de sécurité | A, B, C | **Référence du lot sécurité** (L11 à L15) : les sondes y constatent les failles |
+| `master-f1012.json` | master `ef5b8d5`, fixture du 12/10 | A, B | **Référence du lot 2**. Contrôle de fidélité en écart, expliqué : le navigateur qui a envoyé le snapshot ignorait le bouclier de Clement D au R50 (code en cache) ; le harnais suit les données figées |
+| `branche-f1012.json` | `multi-ligues` après fusion de master, fixture du 12/10 | A, B, C | Parties A et B identiques à `master-f1012.json` |
 
 ## Procédure du chantier multi-ligues
 

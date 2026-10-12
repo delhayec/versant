@@ -12,6 +12,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { compile, compileAsync, extractBetween, extractFunction, readSource } from './extract.mjs';
 
@@ -25,7 +26,7 @@ export const REQUIRED_FILES = [
   'round_configs.json'
 ];
 
-export const OPTIONAL_FILES = ['special_rules.json'];
+export const OPTIONAL_FILES = ['special_rules.json', 'season_planning.json'];
 
 export function activitiesPath(leagueId) {
   return join('leagues', `${leagueId}_activities.json`);
@@ -111,7 +112,32 @@ export function buildServerHandlers(fixture, repoRoot) {
   );
   const compactSnapshot = standings => compile(compactBlock, 'compact', { standings });
 
-  return { normalizeJokerUsage, readJokerUsage, readJokerUsageWithFrozen, listAthletes, compactSnapshot };
+  // Réponse de GET /api/season-planning : planning lu par shared-config.js dans
+  // le dossier des données de la fixture. Code antérieur à la route : 404.
+  const planningMarker = "app.get('/api/season-planning', (req, res) => {";
+  let seasonPlanning = null;
+  if (server.includes(planningMarker)) {
+    // Fin de la route : « }); » en début de ligne (celui de res.json est indenté)
+    const routeEndMarker = '\n});';
+    const route = extractBetween(server, planningMarker, routeEndMarker, file);
+    const body = route.slice(planningMarker.length, -routeEndMarker.length);
+    const previous = process.env.VERSANT_DATA_DIR;
+    process.env.VERSANT_DATA_DIR = fixture.dataDir;
+    let sharedConfig;
+    try {
+      sharedConfig = createRequire(join(repoRoot, 'backend', 'harnais.js'))('./shared-config');
+    } finally {
+      if (previous === undefined) delete process.env.VERSANT_DATA_DIR;
+      else process.env.VERSANT_DATA_DIR = previous;
+    }
+    seasonPlanning = () => {
+      let payload;
+      new Function('sharedConfig', 'req', 'res', body)(sharedConfig, {}, { json: v => { payload = v; } });
+      return JSON.parse(JSON.stringify(payload));
+    };
+  }
+
+  return { normalizeJokerUsage, readJokerUsage, readJokerUsageWithFrozen, listAthletes, compactSnapshot, seasonPlanning };
 }
 
 /**
@@ -128,7 +154,8 @@ export function createFakeFetch(fixture, handlers, calls) {
     [/^\/api\/bonuses\/all$/, () => fixture.json('bonuses.json')],
     [/^\/api\/round-configs$/, () => fixture.json('round_configs.json')],
     [/^\/api\/special-rules$/, () => (fixture.raw['special_rules.json'] ? fixture.json('special_rules.json') : {})],
-    [/^\/api\/jokers\/all$/, () => handlers.readJokerUsageWithFrozen()]
+    [/^\/api\/jokers\/all$/, () => handlers.readJokerUsageWithFrozen()],
+    ...(handlers.seasonPlanning ? [[/^\/api\/season-planning$/, () => handlers.seasonPlanning()]] : [])
   ];
 
   return async function fakeFetch(input) {
