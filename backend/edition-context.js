@@ -15,18 +15,22 @@
 const { AsyncLocalStorage } = require('node:async_hooks');
 const path = require('path');
 const { DATA_DIR } = require('./data-dir');
-const { CHALLENGE_CONFIG } = require('./shared-config');
+const { CHALLENGE_CONFIG, LEGACY_PLANNING, loadEditionPlanning } = require('./shared-config');
 
 /**
  * Contexte d'une édition dont les données sont rangées dans `dataDir`, avec la
  * même arborescence que backend/data/ aujourd'hui.
+ * `planning` (types de saisons, échéances Deadline, durées de round) est lu
+ * dans dataDir s'il n'est pas fourni ; il reste modifiable (admin).
  */
-function createEditionContext({ leagueId, editionId = null, dataDir, config }) {
+function createEditionContext({ leagueId, editionId = null, dataDir, config, planning = loadEditionPlanning(dataDir) }) {
   return Object.freeze({
     leagueId,
     editionId,
     config,
+    planning,
     paths: Object.freeze({
+      seasonPlanning: path.join(dataDir, 'season_planning.json'),
       frozen: path.join(dataDir, 'frozen_results.json'),
       bonuses: path.join(dataDir, 'bonuses.json'),
       jokers: path.join(dataDir, 'jokers_usage.json'),
@@ -43,7 +47,8 @@ function createEditionContext({ leagueId, editionId = null, dataDir, config }) {
 const LEGACY_CONTEXT = createEditionContext({
   leagueId: CHALLENGE_CONFIG.leagueId,
   dataDir: DATA_DIR,
-  config: CHALLENGE_CONFIG
+  config: CHALLENGE_CONFIG,
+  planning: LEGACY_PLANNING
 });
 
 const storage = new AsyncLocalStorage();

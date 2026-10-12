@@ -162,28 +162,44 @@ const INITIAL_JOKER_STOCK = 2;
 const ROUND_DURATION_LIMITS = { min: 1, max: 14 };
 const ROUND_DURATIONS = {};
 
-function setRoundDurations(roundConfigs) {
-  for (const key of Object.keys(ROUND_DURATIONS)) delete ROUND_DURATIONS[key];
+// Planning et config de l'édition en cours (cf. edition-context.js). ROUND_DURATIONS,
+// SEASON_PLANNING et SEASON_DEADLINES sont ceux de l'édition legacy (versant-2026).
+// require paresseux : edition-context.js dépend lui-même de ce module.
+function editionPlanning() {
+  return require('./edition-context').currentEdition().planning;
+}
+
+function editionConfig() {
+  return require('./edition-context').currentEdition().config;
+}
+
+function fillRoundDurations(target, roundConfigs) {
+  for (const key of Object.keys(target)) delete target[key];
   for (const [round, cfg] of Object.entries(roundConfigs || {})) {
     const days = Number(cfg?.durationDays);
     if (Number.isInteger(days) && days >= ROUND_DURATION_LIMITS.min && days <= ROUND_DURATION_LIMITS.max) {
-      ROUND_DURATIONS[Number(round)] = days;
+      target[Number(round)] = days;
     }
   }
 }
 
+/** Durées de round de l'édition en cours, d'après ses configs de round. */
+function setRoundDurations(roundConfigs) {
+  fillRoundDurations(editionPlanning().roundDurations, roundConfigs);
+}
+
 try {
-  setRoundDurations(JSON.parse(require('fs').readFileSync(
+  fillRoundDurations(ROUND_DURATIONS, JSON.parse(require('fs').readFileSync(
     require('path').join(require('./data-dir').DATA_DIR, 'round_configs.json'), 'utf8')));
 } catch (e) {
   if (e.code !== 'ENOENT') console.warn('⚠️ round_configs.json illisible (durées de round):', e.message);
 }
 
-function getRoundDuration(roundNumber, config = CHALLENGE_CONFIG) {
-  return ROUND_DURATIONS[roundNumber] || config.roundDurationDays;
+function getRoundDuration(roundNumber, config = editionConfig()) {
+  return editionPlanning().roundDurations[roundNumber] || config.roundDurationDays;
 }
 
-function getRoundDates(roundNumber, config = CHALLENGE_CONFIG) {
+function getRoundDates(roundNumber, config = editionConfig()) {
   // IMPORTANT : ancrer le début du round à MINUIT LOCAL (heure de Paris, cf.
   // TZ=Europe/Paris côté serveur). `new Date('2026-02-02')` serait interprété en
   // UTC → le round démarrerait à 01h/02h Paris et laisserait un trou de 00h00 à
@@ -191,7 +207,7 @@ function getRoundDates(roundNumber, config = CHALLENGE_CONFIG) {
   // aucun round. On parse donc les composantes Y/M/D en local.
   const [y, m, d] = String(config.yearStartDate).split('-').map(Number);
   let offsetDays = (roundNumber - 1) * config.roundDurationDays;
-  for (const [r, days] of Object.entries(ROUND_DURATIONS)) {
+  for (const [r, days] of Object.entries(editionPlanning().roundDurations)) {
     if (Number(r) < roundNumber) offsetDays += days - config.roundDurationDays;
   }
   const start = new Date(y, m - 1, d + offsetDays); // minuit local
@@ -203,7 +219,7 @@ function getRoundDates(roundNumber, config = CHALLENGE_CONFIG) {
  * Round global contenant un instant (rattachement par getRoundDates, donc
  * compatible avec les durées variables). null avant le début du challenge.
  */
-function getRoundNumberForDate(timestamp, config = CHALLENGE_CONFIG) {
+function getRoundNumberForDate(timestamp, config = editionConfig()) {
   const ts = timestamp instanceof Date ? timestamp.getTime() : Number(timestamp);
   if (ts < getRoundDates(1, config).start.getTime()) return null;
   for (let r = 1; r <= 1000; r++) {
@@ -225,19 +241,19 @@ function getRoundNumberForDate(timestamp, config = CHALLENGE_CONFIG) {
  */
 function getSeasonRoundCount(
   totalParticipants,
-  eliminationsPerRound = CHALLENGE_CONFIG.eliminationsPerRound,
-  finalistsCount = CHALLENGE_CONFIG.finalistsCount
+  eliminationsPerRound = editionConfig().eliminationsPerRound,
+  finalistsCount = editionConfig().finalistsCount
 ) {
   const toEliminate = Math.max(0, totalParticipants - finalistsCount);
   return Math.ceil(toEliminate / eliminationsPerRound) + 1;
 }
 
-function getSeasonNumber(roundNumber, totalParticipants, eliminationsPerRound = CHALLENGE_CONFIG.eliminationsPerRound) {
+function getSeasonNumber(roundNumber, totalParticipants, eliminationsPerRound = editionConfig().eliminationsPerRound) {
   const roundsPerSeason = getSeasonRoundCount(totalParticipants, eliminationsPerRound);
   return Math.ceil(roundNumber / roundsPerSeason);
 }
 
-function getRoundInSeason(roundNumber, totalParticipants, eliminationsPerRound = CHALLENGE_CONFIG.eliminationsPerRound) {
+function getRoundInSeason(roundNumber, totalParticipants, eliminationsPerRound = editionConfig().eliminationsPerRound) {
   const roundsPerSeason = getSeasonRoundCount(totalParticipants, eliminationsPerRound);
   return ((roundNumber - 1) % roundsPerSeason) + 1;
 }
@@ -302,24 +318,58 @@ const SEASON_DEADLINES = {};
  * Applique le contenu de season_planning.json. Format : { types: {…}, deadlines: {…} },
  * ou l'ancien format plat { "9": "team" }.
  */
-function applySeasonPlanningOverrides(overrides) {
+function applyPlanningOverrides(planning, overrides) {
   const types = overrides?.types || (overrides?.deadlines ? {} : overrides) || {};
   for (const [season, typeId] of Object.entries(types)) {
-    if (SEASON_TYPES[typeId] && Number(season) >= 1) SEASON_PLANNING[Number(season)] = typeId;
+    if (SEASON_TYPES[typeId] && Number(season) >= 1) planning.seasonTypes[Number(season)] = typeId;
   }
   for (const [season, date] of Object.entries(overrides?.deadlines || {})) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(String(date))) SEASON_DEADLINES[Number(season)] = date;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(date))) planning.seasonDeadlines[Number(season)] = date;
   }
 }
 
+/** Applique un planning (format de season_planning.json) à l'édition en cours. */
+function applySeasonPlanningOverrides(overrides) {
+  applyPlanningOverrides(editionPlanning(), overrides);
+}
+
+// Planning de l'édition legacy (versant-2026) : les objets ci-dessus, chargés ici
+const LEGACY_PLANNING = {
+  seasonTypes: SEASON_PLANNING,
+  seasonDeadlines: SEASON_DEADLINES,
+  roundDurations: ROUND_DURATIONS
+};
+
 try {
-  applySeasonPlanningOverrides(JSON.parse(require('fs').readFileSync(SEASON_PLANNING_FILE, 'utf8')));
+  applyPlanningOverrides(LEGACY_PLANNING, JSON.parse(require('fs').readFileSync(SEASON_PLANNING_FILE, 'utf8')));
 } catch (e) {
   if (e.code !== 'ENOENT') console.warn('⚠️ season_planning.json illisible:', e.message);
 }
 
+/**
+ * Planning d'une édition dont les données sont rangées dans dataDir : types de
+ * saisons et échéances (season_planning.json), durées de round (round_configs.json).
+ * Sans fichier, toutes les saisons sont standard (pas de planning de versant-2026).
+ */
+function loadEditionPlanning(dataDir) {
+  const fs = require('fs');
+  const path = require('path');
+  const read = name => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8'));
+    } catch (e) {
+      if (e.code !== 'ENOENT') console.warn(`⚠️ ${name} illisible (${dataDir}):`, e.message);
+      return null;
+    }
+  };
+  const planning = { seasonTypes: {}, seasonDeadlines: {}, roundDurations: {} };
+  applyPlanningOverrides(planning, read('season_planning.json'));
+  fillRoundDurations(planning.roundDurations, read('round_configs.json'));
+  return planning;
+}
+
 function getSeasonDeadline(seasonNumber) {
-  return SEASON_DEADLINES[seasonNumber] || null;
+  return editionPlanning().seasonDeadlines[seasonNumber] || null;
 }
 
 function isDeadlineSeason(seasonNumber) {
@@ -332,12 +382,12 @@ function getMainPointsMultiplier(seasonNumber) {
 }
 
 function getSeasonType(seasonNumber) {
-  const typeId = SEASON_PLANNING[seasonNumber] || 'standard';
+  const typeId = editionPlanning().seasonTypes[seasonNumber] || 'standard';
   return SEASON_TYPES[typeId];
 }
 
 function isTeamSeason(seasonNumber) {
-  return SEASON_PLANNING[seasonNumber] === 'team';
+  return editionPlanning().seasonTypes[seasonNumber] === 'team';
 }
 
 /**
@@ -397,8 +447,9 @@ const BONUS_IDS = [
 module.exports = {
   CHALLENGE_CONFIG,
   SEASON_PLANNING,
-  SEASON_PLANNING_FILE,
   applySeasonPlanningOverrides,
+  LEGACY_PLANNING,
+  loadEditionPlanning,
   SEASON_TYPES,
   getSeasonType,
   isTeamSeason,

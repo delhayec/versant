@@ -598,9 +598,9 @@ async function replanDeadline(reason) {
 // frontend au chargement (les dates des rounds en dépendent)
 app.get('/api/season-planning', (req, res) => {
   res.json({
-    types: sharedConfig.SEASON_PLANNING,
-    deadlines: sharedConfig.SEASON_DEADLINES,
-    roundDurations: sharedConfig.ROUND_DURATIONS
+    types: currentEdition().planning.seasonTypes,
+    deadlines: currentEdition().planning.seasonDeadlines,
+    roundDurations: currentEdition().planning.roundDurations
   });
 });
 
@@ -613,7 +613,7 @@ app.get('/api/admin/season-planning', async (req, res) => {
     const plan = await frozenResults.getSeasonPlan(athletes, currentEdition().config);
     const frozenSeasons = new Set(Object.values(data?.rounds || {})
       .filter(r => r?.frozen).map(r => Number(r.seasonNumber)));
-    const lastSeason = Math.max(12, plan.seasonNumber + 4, ...Object.keys(sharedConfig.SEASON_PLANNING).map(Number));
+    const lastSeason = Math.max(12, plan.seasonNumber + 4, ...Object.keys(currentEdition().planning.seasonTypes).map(Number));
 
     const seasons = [];
     for (let s = 1; s <= lastSeason; s++) {
@@ -621,7 +621,7 @@ app.get('/api/admin/season-planning', async (req, res) => {
         : s === plan.seasonNumber ? 'current'
         : s < plan.seasonNumber ? 'closed'
         : 'upcoming';
-      const type = sharedConfig.SEASON_PLANNING[s] || 'standard';
+      const type = currentEdition().planning.seasonTypes[s] || 'standard';
       const deadline = sharedConfig.getSeasonDeadline(s);
       const entry = {
         seasonNumber: s, type, deadline, status,
@@ -685,23 +685,23 @@ app.post('/api/admin/season-planning/:seasonNumber', async (req, res) => {
     const data = await frozenResults.loadFrozenResultsRaw();
     const hasFrozen = Object.values(data?.rounds || {})
       .some(r => r?.frozen && Number(r.seasonNumber) === seasonNumber);
-    const deadlineOnlyChange = seasonType.hasDeadline && sharedConfig.SEASON_PLANNING[seasonNumber] === type;
+    const deadlineOnlyChange = seasonType.hasDeadline && currentEdition().planning.seasonTypes[seasonNumber] === type;
     if (hasFrozen && !deadlineOnlyChange) {
       return res.status(409).json({ error: `La saison ${seasonNumber} a déjà des rounds figés, son type ne peut plus changer` });
     }
 
-    const raw = await safeReadJSON(sharedConfig.SEASON_PLANNING_FILE, {});
+    const raw = await safeReadJSON(currentEdition().paths.seasonPlanning, {});
     const stored = raw.types || raw.deadlines ? raw : { types: raw };
     stored.types = stored.types || {};
     stored.deadlines = stored.deadlines || {};
     stored.types[String(seasonNumber)] = type;
     if (seasonType.hasDeadline) stored.deadlines[String(seasonNumber)] = deadline;
     else delete stored.deadlines[String(seasonNumber)];
-    await safeWriteJSON(sharedConfig.SEASON_PLANNING_FILE, stored);
+    await safeWriteJSON(currentEdition().paths.seasonPlanning, stored);
 
     sharedConfig.applySeasonPlanningOverrides({ types: { [seasonNumber]: type } });
-    if (seasonType.hasDeadline) sharedConfig.SEASON_DEADLINES[seasonNumber] = deadline;
-    else delete sharedConfig.SEASON_DEADLINES[seasonNumber];
+    if (seasonType.hasDeadline) currentEdition().planning.seasonDeadlines[seasonNumber] = deadline;
+    else delete currentEdition().planning.seasonDeadlines[seasonNumber];
     _teamsCache.clear();
 
     // Saison en cours : appliquer tout de suite (sinon au premier gel de la saison)
