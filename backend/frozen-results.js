@@ -26,7 +26,7 @@ const {
   getGaugeObjectivePerPlayer, getGaugeTier,
   BONUS_IDS,
   getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
-  isTeamSeason, getSeasonType, getTeamEliminatedPoints, getRoundsForTeamSeason,
+  isTeamSeason, getSeasonType, getTeamSettings, getTeamEliminatedPoints, getRoundsForTeamSeason,
   isDeadlineSeason, getMainPointsMultiplier
 } = require('./shared-config');
 
@@ -599,10 +599,10 @@ function computeElevationGauge(roundNumber, seasonNumber, activeIds, roundActivi
  */
 async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeason, activities, athletes, jokerUsage, config, previousRounds) {
   const teamUtils = require('./team-utils');
-  const { getSeasonType } = require('./shared-config');
+  const { getTeamSettings } = require('./shared-config');
 
-  const seasonType = getSeasonType(seasonNumber);
-  const teamSize = seasonType?.teamSize || 3;
+  const teamSettings = getTeamSettings(seasonNumber);
+  const teamSize = teamSettings.teamSize;
 
   const roundDates = getRoundDates(roundNumber, config);
   const roundStart = roundDates.start.getTime();
@@ -699,19 +699,28 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
   // Si le snapshot n'existe pas (cas test ou ancien serveur), tous les
   // joueurs sont à 0 → équilibrage purement aléatoire mais reproductible
   // via le seed = roundNumber.
-  const pointsMap = {};
+  // Saison réglée sur balanceBy 'elevation' : on équilibre sur le D+ cumulé
+  // depuis le 1er janvier jusqu'au début du round (+ corrections manuelles).
+  let pointsMap = {};
   activeAthletes.forEach(a => { pointsMap[a.id] = 0; });
 
-  try {
-    const dataForSnapshot = await loadFrozenResults();
-    const snap = dataForSnapshot.yearlyStandingsSnapshot?.standings;
-    if (Array.isArray(snap)) {
-      snap.forEach(s => {
-        if (s.id != null) pointsMap[String(s.id)] = s.totalPoints || 0;
-      });
+  if (teamSettings.balanceBy === 'elevation') {
+    pointsMap = teamUtils.buildElevationBalanceMap(activeAthletes, activities, roundDates.start, {
+      adjustments: teamSettings.elevationAdjustments,
+      isValidSport
+    });
+  } else {
+    try {
+      const dataForSnapshot = await loadFrozenResults();
+      const snap = dataForSnapshot.yearlyStandingsSnapshot?.standings;
+      if (Array.isArray(snap)) {
+        snap.forEach(s => {
+          if (s.id != null) pointsMap[String(s.id)] = s.totalPoints || 0;
+        });
+      }
+    } catch (e) {
+      console.warn('⚠️ Snapshot yearlyStandings indisponible:', e.message);
     }
-  } catch (e) {
-    console.warn('⚠️ Snapshot yearlyStandings indisponible:', e.message);
   }
 
 // === Lecture prioritaire des équipes verrouillées dans season_teams.json ===
@@ -2581,7 +2590,7 @@ async function getSeasonPlan(athletes, config, now = new Date()) {
   const { seasonNumber } = detectSeasonContext(nextRound, rounds);
   const startRound = getSeasonStartRoundFromFrozen(seasonNumber, nextRound, rounds);
   const teamSeason = isTeamSeason(seasonNumber);
-  const teamSize = getSeasonType(seasonNumber)?.teamSize || 3;
+  const teamSize = getTeamSettings(seasonNumber).teamSize;
 
   const totalParticipants = getSeasonSizingRoster(athletes, startRound, config).length;
   const roundsPerSeason = teamSeason

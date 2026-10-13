@@ -131,10 +131,10 @@ const DATA_DIR = path.join(ROOT, 'data');
   // Test 4 : barème team éliminés
   const { getTeamEliminatedPoints } = require(path.join(ROOT, 'shared-config.js'));
   const cases = [
-    [1, 1, 12], [1, 2, 11], [1, 3, 10],
-    [2, 1, 8],  [2, 2, 7],  [2, 3, 6],
-    [3, 1, 4],  [3, 2, 3],  [3, 3, 2],
-    [4, 1, 0],  [5, 1, 0],  [3, 4, 0]
+    [1, 1, 12], [1, 2, 11], [1, 3, 10], [1, 4, 9],
+    [2, 1, 8],  [2, 2, 7],  [2, 3, 6],  [2, 4, 5],
+    [3, 1, 4],  [3, 2, 3],  [3, 3, 2],  [3, 4, 1],
+    [4, 1, 0],  [5, 1, 0],  [3, 5, 0]
   ];
   let scaleOK = true;
   for (const [tr, p, expected] of cases) {
@@ -145,7 +145,7 @@ const DATA_DIR = path.join(ROOT, 'data');
     }
   }
   if (scaleOK) {
-    console.log('✅ Barème TEAM_ELIMINATED_POINTS: 12 cases vérifiées');
+    console.log(`✅ Barème TEAM_ELIMINATED_POINTS: ${cases.length} cases vérifiées`);
     results.passed++;
   } else {
     results.failed++;

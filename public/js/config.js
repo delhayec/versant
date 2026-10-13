@@ -99,7 +99,7 @@ export const SEASON_TYPES = {
     id: "team",
     name: "Équipes",
     description:
-      "Par équipes de 3 – D+ cumulé – toute l'équipe dernière est éliminée",
+      "Par équipes – D+ cumulé – toute l'équipe dernière est éliminée",
     metric: "elevation",
     isTeamBased: true,
     teamSize: 3,
@@ -148,6 +148,7 @@ export function loadSeasonPlanning() {
           if (SEASON_TYPES[typeId]) SEASON_PLANNING[Number(season)] = typeId;
         }
         Object.assign(SEASON_DEADLINES, payload?.deadlines || {});
+        Object.assign(SEASON_TEAM_SETTINGS, payload?.teamSettings || {});
         if (payload?.roundDurations) setRoundDurations(payload.roundDurations);
         // Types et longueurs de saison ont pu changer : recalculer
         invalidateRosterCache();
@@ -163,6 +164,27 @@ export function loadSeasonPlanning() {
 
 // Date de fin des saisons Deadline : { [seasonNumber]: 'YYYY-MM-DD' }
 export const SEASON_DEADLINES = {};
+
+// Réglages des saisons Équipes (teamSettings de season_planning.json) :
+// { [seasonNumber]: { teamSize, balanceBy, elevationAdjustments } }
+export const SEASON_TEAM_SETTINGS = {};
+
+/**
+ * Réglages effectifs d'une saison Équipes (miroir de getTeamSettings du
+ * backend) : taille des équipes, critère d'équilibrage ('points' ou
+ * 'elevation' = D+ depuis le 1er janvier) et corrections de D+.
+ */
+export function getTeamSettings(seasonNumber) {
+  const base = SEASON_TYPES.team;
+  const custom = SEASON_TEAM_SETTINGS[seasonNumber] || {};
+  const teamSize =
+    Number.isInteger(custom.teamSize) && custom.teamSize >= 2 ? custom.teamSize : base.teamSize;
+  return {
+    teamSize,
+    balanceBy: custom.balanceBy === "elevation" ? "elevation" : base.balancingMethod,
+    elevationAdjustments: custom.elevationAdjustments || {},
+  };
+}
 
 /** Multiplicateur des points du challenge principal (saison « points doublés »). */
 export function getMainPointsMultiplier(seasonNumber) {
@@ -298,11 +320,11 @@ export const getGaugeTierById = (id) =>
 // ============================================
 // teamRank: 1 = meilleure équipe d'éliminés (D+ cumulé le plus élevé)
 // posInTeam: 1 = meilleur contributeur de l'équipe (D+ individuel le plus élevé)
-// Au-delà de 3 équipes / 3 joueurs : 0 pts.
+// Au-delà de 3 équipes / 4 joueurs : 0 pts.
 export const TEAM_ELIMINATED_POINTS = {
-  1: { 1: 12, 2: 11, 3: 10 },
-  2: { 1: 8, 2: 7, 3: 6 },
-  3: { 1: 4, 2: 3, 3: 2 },
+  1: { 1: 12, 2: 11, 3: 10, 4: 9 },
+  2: { 1: 8, 2: 7, 3: 6, 4: 5 },
+  3: { 1: 4, 2: 3, 3: 2, 4: 1 },
 };
 
 export const getTeamEliminatedPoints = (teamRank, posInTeam) =>
@@ -1091,11 +1113,13 @@ function _computeRoundsForSeason(seasonNumber, frozen) {
   }
 
   if (seasonType?.isTeamBased) {
-    const teamSize = seasonType.teamSize || 3;
-    // Chaque round élimine 1 équipe complète (teamSize joueurs)
-    // Rounds d'élim = ceil((count - teamSize) / teamSize)
-    // +1 pour la finale (dernières équipes s'affrontent)
-    return Math.ceil((count - teamSize) / teamSize) + 1;
+    // Miroir de getRoundsForTeamSeason (backend) : floor(count / teamSize)
+    // équipes, les joueurs en surplus complètent des équipes existantes.
+    // Chaque round retire une équipe jusqu'à la finale à 2, +1 round pour la
+    // finale des éliminés.
+    const { teamSize } = getTeamSettings(seasonNumber);
+    if (count < teamSize * 2) return 2;
+    return Math.floor(count / teamSize);
   }
 
   return getSeasonRoundCount(count);
@@ -1391,6 +1415,22 @@ export const formBalancedTeams = (
   teamSize = 3,
 ) =>
   window.TeamFormation.formBalancedTeams(athletes, pointsMap, seed, teamSize);
+
+/**
+ * Carte d'équilibrage d'un round de saison Équipes, identique à celle du
+ * backend : D+ depuis le 1er janvier (+ corrections) si la saison est réglée
+ * sur 'elevation', sinon les points du classement général (pointsMap).
+ */
+export const getTeamBalanceMap = (seasonNumber, globalRound, athletes, activities, pointsMap) => {
+  const settings = getTeamSettings(seasonNumber);
+  if (settings.balanceBy !== "elevation") return pointsMap;
+  return window.TeamFormation.buildElevationBalanceMap(
+    athletes,
+    activities,
+    getRoundDates(globalRound).start,
+    { adjustments: settings.elevationAdjustments, isValidSport: (t) => !t || isValidSport(t) },
+  );
+};
 
 /**
  * Couleurs d'équipe (données présentationnelles, identiques backend/frontend).

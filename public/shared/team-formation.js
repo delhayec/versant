@@ -67,7 +67,8 @@
    *   internes (= équipe la moins homogène, donc bénéficie de l'apport).
    *
    * @param {Array} athletes - Liste des athlètes actifs [{id, name, ...}]
-   * @param {Object} pointsMap - Points par athlète {id: points}
+   * @param {Object} pointsMap - Valeur d'équilibrage par athlète {id: valeur} :
+   *   points du classement général, ou D+ de l'année (buildElevationBalanceMap)
    * @param {number} seed - Graine pour le tirage (basé sur le round number)
    * @param {number} teamSize - Taille cible des équipes (défaut 3)
    * @returns {Array} Équipes [{ index, color, members: [{id, name, points}], totalPoints }]
@@ -216,5 +217,42 @@
     }));
   }
 
-  return { TEAM_COLORS, seededRandom, evaluateStdDev, formBalancedTeams };
+  // ============================================
+  // CARTE D'ÉQUILIBRAGE SUR LE D+ DE L'ANNÉE
+  // ============================================
+  /**
+   * D+ cumulé de chaque athlète depuis le 1er janvier (heure de Paris) de
+   * l'année du round, jusqu'au DÉBUT du round exclu : la compo ne bouge donc
+   * pas pendant le round, et le gel retrouve les équipes affichées.
+   * Résultat arrondi au mètre pour que backend et frontend obtiennent
+   * exactement les mêmes valeurs (et donc les mêmes équipes).
+   *
+   * @param {Array} athletes - [{ id }]
+   * @param {Array} activities - activités Strava de la ligue
+   * @param {Date|number|string} roundStart - début du round
+   * @param {Object} options - { adjustments: {id: mètres}, isValidSport: fn }
+   * @returns {Object} { id: mètres }
+   */
+  function buildElevationBalanceMap(athletes, activities, roundStart, options = {}) {
+    const { adjustments = {}, isValidSport = () => true } = options;
+    const end = new Date(roundStart).getTime();
+    const year = new Date(end + 3600 * 1000).getUTCFullYear();
+    const start = Date.parse(`${year}-01-01T00:00:00+01:00`);
+    const map = {};
+    athletes.forEach(a => { map[String(a.id)] = 0; });
+    for (const act of activities || []) {
+      const id = String(act.athlete?.id || act.athlete_id);
+      if (!(id in map) || act.excluded) continue;
+      if (!isValidSport(act.sport_type || act.type)) continue;
+      const t = new Date(act.start_date).getTime();
+      if (t < start || t >= end) continue;
+      map[id] += act.total_elevation_gain || 0;
+    }
+    for (const id of Object.keys(map)) {
+      map[id] = Math.round(map[id] + (Number(adjustments[id]) || 0));
+    }
+    return map;
+  }
+
+  return { TEAM_COLORS, seededRandom, evaluateStdDev, formBalancedTeams, buildElevationBalanceMap };
 });

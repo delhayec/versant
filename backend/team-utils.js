@@ -15,7 +15,8 @@
 const {
   TEAM_COLORS,
   seededRandom,
-  formBalancedTeams
+  formBalancedTeams,
+  buildElevationBalanceMap
 } = require('../public/shared/team-formation.js');
 
 // ============================================
@@ -75,6 +76,7 @@ module.exports = {
   TEAM_ANIMALS,
   TEAM_COLORS,
   formBalancedTeams,
+  buildElevationBalanceMap,
   assignTeamAnimals,
   seededRandom
 };
