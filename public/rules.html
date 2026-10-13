@@ -540,16 +540,17 @@
           <h2 class="team-season-title">Saison Équipes — Règles spéciales</h2>
         </div>
         <p class="team-season-intro" id="teamSeasonContext">
-          La Saison 4 se joue par équipes. Voici tout ce qui change pendant cette saison.
+          Cette saison se joue par équipes. Voici tout ce qui change pendant cette saison.
         </p>
 
         <div class="team-rules-grid">
           <div class="team-rule-card">
             <h4>🎲 Composition des équipes</h4>
             <p>
-              5 équipes de 3 joueurs  sont tirées au sort
+              4 équipes de 4 joueurs sont tirées au sort
               <strong>à chaque round</strong>. L'algorithme d'équilibrage minimise
-              l'écart de points entre les équipes en utilisant le classement annuel.
+              l'écart de D+ entre les équipes, en utilisant le D+ cumulé de chaque
+              joueur depuis le 1er janvier (arrêté au début du round).
             </p>
           </div>
 
@@ -560,8 +561,8 @@
             <p>
               On somme le D+ de tous les membres pour chaque équipe. À la fin
               du round, <strong>l'équipe avec le moins de D+ cumulé est éliminée
-              en bloc</strong> (les 3 joueurs basculent dans le challenge des
-              éliminés).Les points sont attribués selon la contribution individuelle
+              en bloc</strong> (les 4 joueurs basculent dans le challenge des
+              éliminés). Les points sont attribués selon la contribution individuelle
               au sein de l'équipe.
             </p>
           </div>
@@ -578,23 +579,23 @@
           </div>
 
           <div class="team-rule-card">
-            <h4>🏆 Round R4 — Finale principale</h4>
+            <h4>🏆 Round R3 — Finale principale</h4>
             <p>
-              La finale du challenge principale se déroule a 2 équipes (6 joueurs).
-              <strong>Équipe gagnante : positions 1-2-3 (24/21/18 pts).
-              Équipe vaincue : positions 4-5-6 (15/12/10 pts)</strong>, selon
+              La finale du challenge principal se déroule à 2 équipes (8 joueurs).
+              <strong>Équipe gagnante : positions 1 à 4 (24/21/18/15 pts).
+              Équipe vaincue : positions 5 à 8 (12/10/8/6 pts)</strong>, selon
               la contribution individuelle au sein de l'équipe.
             </p>
           </div>
 
           <div class="team-rule-card">
-            <h4>👻 Round R5 — Finale challenge éliminés</h4>
+            <h4>👻 Round R4 — Finale challenge éliminés</h4>
             <p>
               Les deux équipes finaliste intègre le challenge des éliminés pour un Super-Round bonus de durée standard.
               Toutes les équipes éliminées au
               cours de la saison participent <strong>dans leur composition
-              d'origine</strong> . Les 6 finalistes du R4
-              entrent au R5 sans avoir reçu de bonus éphémère
+              d'origine</strong>. Les 8 finalistes du R3
+              entrent au R4 sans avoir reçu de bonus éphémère.
             </p>
           </div>
 
@@ -602,23 +603,23 @@
             <h4>📊 Points du challenge des éliminés</h4>
             <p>
               À la fin de la saison, on classe les équipes éliminées par D+
-              cumulé depuis leur élimination jusqu'à la fin du R5 :
+              cumulé depuis leur élimination jusqu'à la fin du R4 :
             </p>
             <ul class="team-points-list">
-              <li><strong>1ère équipe</strong> : 12 / 11 / 10 pts (selon contribution individuelle)</li>
-              <li><strong>2ème équipe</strong> : 8 / 7 / 6 pts</li>
-              <li><strong>3ème équipe</strong> : 4 / 3 / 2 pts</li>
-              <li><strong>4ème et 5ème équipe</strong> : 0 pt</li>
+              <li><strong>1ère équipe</strong> : 12 / 11 / 10 / 9 pts (selon contribution individuelle)</li>
+              <li><strong>2ème équipe</strong> : 8 / 7 / 6 / 5 pts</li>
+              <li><strong>3ème équipe</strong> : 4 / 3 / 2 / 1 pts</li>
+              <li><strong>4ème équipe</strong> : 0 pt</li>
             </ul>
           </div>
 
           <div class="team-rule-card">
             <h4>🎁 Bonus éphémères</h4>
             <p>
-              Comme dans les saisons standard, à chaque round (R1 à R3), le
+              Comme dans les saisons standard, à chaque round (R1 et R2), le
               meilleur des éliminés (= meilleur D+ individuel dans l'équipe
               éliminée) reçoit un choix entre 2 bonus éphémères. Ces bonus
-              restent valides jusqu'à la fin de la saison, R5 inclus.
+              restent valides jusqu'à la fin de la saison, R4 inclus.
             </p>
           </div>
         </div>
@@ -1042,10 +1043,13 @@
     // Pour annoncer la saison team un round à l'avance, on lit un drapeau
     // optionnel localStorage 'versant_team_announce' (mis à 'true' par
     // l'admin quand bon lui semble).
-    import { getSeasonNumber, isTeamSeason } from './js/config.js';
+    import { getSeasonNumber, isTeamSeason, loadSeasonPlanning } from './js/config.js';
     import { getCurrentDate } from './js/demo.js';
 
     try {
+      // Sans le planning du serveur, toutes les saisons hors défauts du front
+      // sont vues comme standard (la saison Équipes ne serait pas détectée).
+      await loadSeasonPlanning();
       const today = getCurrentDate();
       const currentSeason = getSeasonNumber(today);
 

@@ -277,6 +277,9 @@ const SEASON_TYPES = {
     name: "Équipes",
     isTeamBased: true,
     teamSize: 3,
+    // Équilibrage des équipes : 'points' (classement général) ou 'elevation'
+    // (D+ depuis le 1er janvier). Surchargeable par saison (teamSettings).
+    balanceBy: 'points',
     eliminateWholeTeam: true,
     reshuffleEachRound: true,
     // Round supplémentaire pour le challenge éliminés en finale de saison
@@ -292,9 +295,17 @@ const SEASON_PLANNING_FILE = require('path').join(__dirname, 'data', 'season_pla
 // Date de fin des saisons Deadline : { [seasonNumber]: 'YYYY-MM-DD' }
 const SEASON_DEADLINES = {};
 
+// Réglages des saisons Équipes : { [seasonNumber]: { teamSize, balanceBy, elevationAdjustments } }
+const SEASON_TEAM_SETTINGS = {};
+
 /**
- * Applique le contenu de season_planning.json. Format : { types: {…}, deadlines: {…} },
- * ou l'ancien format plat { "9": "team" }.
+ * Applique le contenu de season_planning.json. Format : { types: {…}, deadlines: {…},
+ * teamSettings: {…} }, ou l'ancien format plat { "9": "team" }.
+ *
+ * teamSettings : { "9": { "teamSize": 4, "balanceBy": "elevation",
+ *   "elevationAdjustments": { "<athleteId>": 85638 } } }
+ * elevationAdjustments corrige le D+ servant à l'équilibrage (athlète arrivé en
+ * cours d'année dont les sorties d'avant l'inscription ne sont pas importées).
  */
 function applySeasonPlanningOverrides(overrides) {
   const types = overrides?.types || (overrides?.deadlines ? {} : overrides) || {};
@@ -303,6 +314,11 @@ function applySeasonPlanningOverrides(overrides) {
   }
   for (const [season, date] of Object.entries(overrides?.deadlines || {})) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(String(date))) SEASON_DEADLINES[Number(season)] = date;
+  }
+  for (const [season, settings] of Object.entries(overrides?.teamSettings || {})) {
+    if (Number(season) >= 1 && settings && typeof settings === 'object') {
+      SEASON_TEAM_SETTINGS[Number(season)] = settings;
+    }
   }
 }
 
@@ -335,9 +351,30 @@ function isTeamSeason(seasonNumber) {
 }
 
 /**
+ * Réglages effectifs d'une saison Équipes : valeurs du type 'team' surchargées
+ * par teamSettings de season_planning.json.
+ * @returns {{ teamSize: number, balanceBy: 'points'|'elevation', elevationAdjustments: Object }}
+ */
+function getTeamSettings(seasonNumber) {
+  const base = SEASON_TYPES.team;
+  const custom = SEASON_TEAM_SETTINGS[seasonNumber] || {};
+  const teamSize = Number.isInteger(custom.teamSize) && custom.teamSize >= 2 ? custom.teamSize : base.teamSize;
+  return {
+    teamSize,
+    balanceBy: custom.balanceBy === 'elevation' ? 'elevation' : base.balanceBy,
+    elevationAdjustments: custom.elevationAdjustments || {}
+  };
+}
+
+/**
  * Pour une saison team, calcule le nombre de rounds total.
  * @param {number} totalParticipants - Nombre de joueurs au début de la saison
  * @returns {number} Nombre total de rounds dont 1 round final pour le challenge éliminés
+ *
+ * Nombre d'équipes = floor(joueurs / teamSize) : les joueurs en surplus
+ * complètent des équipes existantes (cf. formBalancedTeams), ils n'en forment
+ * pas une de plus. Chaque round retire exactement une équipe (16 joueurs en
+ * équipes de 3 : 5 équipes → 4 → 3 → finale à 2).
  *
  * Exemple avec 15 joueurs et teamSize=3 :
  *   R1: 5 équipes → 1 éliminée → 4 actifs
@@ -352,7 +389,7 @@ function getRoundsForTeamSeason(totalParticipants, teamSize = 3) {
     // Pas assez pour avoir au moins 2 équipes → 1 seul round + final éliminés
     return 2;
   }
-  let teamCount = Math.ceil(totalParticipants / teamSize);
+  const teamCount = Math.floor(totalParticipants / teamSize);
   // Rounds d'élimination jusqu'à la finale (où il reste 2 équipes)
   // Au round R, on commence avec teamCount - (R-1) équipes
   // On veut atteindre 2 équipes au début du round finale
@@ -366,11 +403,11 @@ function getRoundsForTeamSeason(totalParticipants, teamSize = 3) {
 // ============================================
 // teamRank: 1 = meilleure équipe d'éliminés (D+ cumulé le plus élevé du challenge)
 // posInTeam: 1 = meilleur contributeur de l'équipe (D+ individuel le plus élevé)
-// Au-delà de 3 équipes ou 3 joueurs par équipe : 0 pts
+// Au-delà de 3 équipes ou 4 joueurs par équipe : 0 pts
 const TEAM_ELIMINATED_POINTS = {
-  1: { 1: 12, 2: 11, 3: 10 },
-  2: { 1:  8, 2:  7, 3:  6 },
-  3: { 1:  4, 2:  3, 3:  2 }
+  1: { 1: 12, 2: 11, 3: 10, 4: 9 },
+  2: { 1:  8, 2:  7, 3:  6, 4: 5 },
+  3: { 1:  4, 2:  3, 3:  2, 4: 1 }
 };
 
 function getTeamEliminatedPoints(teamRank, posInTeam) {
@@ -396,6 +433,7 @@ module.exports = {
   SEASON_TYPES,
   getSeasonType,
   isTeamSeason,
+  getTeamSettings,
   getRoundsForTeamSeason,
   TEAM_ELIMINATED_POINTS,
   getTeamEliminatedPoints,
@@ -421,6 +459,7 @@ module.exports = {
   ROUND_DURATIONS,
   ROUND_DURATION_LIMITS,
   SEASON_DEADLINES,
+  SEASON_TEAM_SETTINGS,
   getSeasonDeadline,
   isDeadlineSeason,
   getMainPointsMultiplier,

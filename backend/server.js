@@ -544,6 +544,7 @@ app.get('/api/season-planning', (req, res) => {
   res.json({
     types: sharedConfig.SEASON_PLANNING,
     deadlines: sharedConfig.SEASON_DEADLINES,
+    teamSettings: sharedConfig.SEASON_TEAM_SETTINGS,
     roundDurations: sharedConfig.ROUND_DURATIONS
   });
 });
@@ -2233,8 +2234,8 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
     //
     // Plus simple : on appelle l'endpoint cache directement via le team-utils.
     const teamUtils = require('./team-utils');
-    const seasonType = require('./shared-config').getSeasonType(detectedSeason);
-    const teamSize = seasonType?.teamSize || 3;
+    const teamSettings = require('./shared-config').getTeamSettings(detectedSeason);
+    const teamSize = teamSettings.teamSize;
 
     // Déterminer les actifs de cette saison (non éliminés dans rounds précédents)
     let activeIds = leagueAthletes.map(a => String(a.id));
@@ -2248,16 +2249,24 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
       }
     }
 
-    // pointsMap depuis le snapshot
-    const pointsMap = {};
+    // Carte d'équilibrage : D+ de l'année (saison réglée sur 'elevation'),
+    // sinon points du snapshot du classement annuel. Même calcul que le gel.
+    let pointsMap = {};
     activeIds.forEach(id => { pointsMap[id] = 0; });
-    const snap = allFrozen.yearlyStandingsSnapshot?.standings;
-    if (Array.isArray(snap)) {
-      snap.forEach(s => {
-        if (s.id != null && pointsMap[String(s.id)] !== undefined) {
-          pointsMap[String(s.id)] = s.totalPoints || 0;
-        }
-      });
+    if (teamSettings.balanceBy === 'elevation') {
+      pointsMap = teamUtils.buildElevationBalanceMap(
+        activeIds.map(id => ({ id })), activities, sharedConfig.getRoundDates(roundNumber, config).start,
+        { adjustments: teamSettings.elevationAdjustments, isValidSport: sharedConfig.isValidSport }
+      );
+    } else {
+      const snap = allFrozen.yearlyStandingsSnapshot?.standings;
+      if (Array.isArray(snap)) {
+        snap.forEach(s => {
+          if (s.id != null && pointsMap[String(s.id)] !== undefined) {
+            pointsMap[String(s.id)] = s.totalPoints || 0;
+          }
+        });
+      }
     }
 
     // Récupérer animaux déjà utilisés cette saison

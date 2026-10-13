@@ -44,7 +44,8 @@ import {
   getMainChallengePoints, getEliminatedChallengePoints, getMainPointsMultiplier,
   wasRegisteredBeforeStart,
   isParticipantInRound, getSeasonRoster, getSeasonRosterSize,
-  formBalancedTeams, getSpecialRuleForRound, getEffectiveNbEliminations,
+  formBalancedTeams, getTeamSettings, getTeamBalanceMap,
+  getSpecialRuleForRound, getEffectiveNbEliminations,
   getActivityElevation, isRainyActivity,
   getGaugeObjectivePerPlayer, getGaugeTier
 } from './config.js';
@@ -915,6 +916,7 @@ export function simulateTeamSeasonEliminations(activities, seasonNumber, current
   const pointsMap = {};
   yearlyStandings.forEach(e => { pointsMap[e.participant.id] = e.totalPoints || 0; });
   active.forEach(p => { if (!(p.id in pointsMap)) pointsMap[p.id] = 0; });
+  const { teamSize } = getTeamSettings(seasonNumber);
 
   for (let roundInSeason = 1; roundInSeason <= maxRounds; roundInSeason++) {
     const globalRound = seasonStartRound + roundInSeason - 1;
@@ -932,7 +934,10 @@ export function simulateTeamSeasonEliminations(activities, seasonNumber, current
 
     // Round en cours (pas terminé)
     if (currentDate <= roundDates.end) {
-      const teams = formBalancedTeams(active, pointsMap, globalRound);
+      const teams = formBalancedTeams(
+        active, getTeamBalanceMap(seasonNumber, globalRound, active, activities, pointsMap),
+        globalRound, teamSize
+      );
       const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
 
       const teamsWithElevation = teams.map(team => {
@@ -987,7 +992,10 @@ export function simulateTeamSeasonEliminations(activities, seasonNumber, current
       });
     } else {
       // CALCULER — round terminé mais pas encore figé
-      const teams = formBalancedTeams(active, pointsMap, globalRound);
+      const teams = formBalancedTeams(
+        active, getTeamBalanceMap(seasonNumber, globalRound, active, activities, pointsMap),
+        globalRound, teamSize
+      );
       const roundActivities = filterByPeriod(activities, roundDates.start, roundDates.end);
 
       const teamsWithElevation = teams.map(team => {
