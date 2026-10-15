@@ -2185,6 +2185,30 @@ app.get('/api/admin/ranking/:leagueId/export', async (req, res) => {
 const _teamsCache = new Map(); // key = roundNumber, value = { ts, payload }
 const TEAMS_CACHE_TTL_MS = 30000;
 
+/**
+ * Enregistre la compo d'un round dans season_teams.json, sauf si une compo y
+ * est déjà : le premier tirage gagne, il n'est jamais écrasé. Écritures
+ * enchaînées pour que deux requêtes simultanées ne se marchent pas dessus.
+ * @returns {Promise<boolean>} true si une compo est enregistrée pour ce round
+ */
+let _seasonTeamsWriteChain = Promise.resolve();
+function lockSeasonTeams(file, seasonNumber, roundNumber, teams) {
+  const run = async () => {
+    const stored = await safeReadJSON(file, {});
+    const seasonEntry = stored[String(seasonNumber)] || (stored[String(seasonNumber)] = {});
+    seasonEntry.rounds = seasonEntry.rounds || {};
+    const existing = seasonEntry.rounds[String(roundNumber)];
+    if (Array.isArray(existing?.teams) && existing.teams.length > 0) return true;
+    seasonEntry.rounds[String(roundNumber)] = { teams, lockedAt: new Date().toISOString() };
+    await safeWriteJSON(file, stored);
+    console.log(`🔒 Équipes S${seasonNumber} R${roundNumber} verrouillées (premier tirage)`);
+    return true;
+  };
+  const result = _seasonTeamsWriteChain.then(run, run);
+  _seasonTeamsWriteChain = result.catch(e => console.error('❌ Verrouillage équipes:', e.message));
+  return result.catch(() => false);
+}
+
 app.get('/api/teams/round/:roundNumber', async (req, res) => {
   try {
     const roundNumber = parseInt(req.params.roundNumber);
@@ -2363,10 +2387,23 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
       return res.json(payload);
     }
 
-    // Sinon : tirage aléatoire normal
-    // Sinon : tirage aléatoire normal
+    // Sinon : tirage normal
     const teams = teamUtils.formBalancedTeams(activeAthletes, pointsMap, roundNumber, teamSize);
     const teamsWithAnimal = teamUtils.assignTeamAnimals(teams, usedAnimalIds, roundNumber);
+
+    // Le premier tirage d'un round commencé est définitif : on l'enregistre dans
+    // season_teams.json (lu en priorité ci-dessus ET par le gel). Sans ça, la
+    // compo était recalculée à chaque visite et changeait dès qu'une donnée
+    // d'entrée bougeait (activité synchronisée en retard, snapshot du classement
+    // renvoyé par un navigateur, athlète activé...).
+    // Seulement si le round a commencé et que le round précédent est figé :
+    // avant, la liste des joueurs en lice n'est pas encore sûre.
+    const roundStarted = Date.now() >= sharedConfig.getRoundDates(roundNumber, config).start.getTime();
+    const previousFrozen = roundNumber === 1 || allFrozen.rounds?.[String(roundNumber - 1)]?.frozen === true;
+    let locked = false;
+    if (roundStarted && previousFrozen) {
+      locked = await lockSeasonTeams(SEASON_TEAMS_FILE, detectedSeason, roundNumber, teamsWithAnimal);
+    }
 
     const payload = {
       roundNumber,
@@ -2376,6 +2413,13 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
       teams: teamsWithAnimal,
       eliminatedTeam: null
     };
+    if (locked) {
+      // Une requête concurrente a pu verrouiller avant nous : renvoyer la compo enregistrée
+      const stored = await safeReadJSON(SEASON_TEAMS_FILE, {});
+      payload.teams = stored[String(detectedSeason)]?.rounds?.[String(roundNumber)]?.teams || teamsWithAnimal;
+      payload.lockedFromFile = true;
+      payload.lockedSource = `rounds["${roundNumber}"]`;
+    }
     _teamsCache.set(roundNumber, { ts: Date.now(), payload });
     res.json(payload);
   } catch (error) {

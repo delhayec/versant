@@ -1,0 +1,151 @@
+{
+  "season": 9,
+  "round": 52,
+  "source": "Tirage du 15/10 au matin, reconstitué depuis la sauvegarde de 02h10 (D+ de l'année sans correction)",
+  "teams": [
+    {
+      "index": 0,
+      "color": {
+        "bg": "rgba(249, 115, 22, 0.15)",
+        "border": "#f97316",
+        "name": "Orange"
+      },
+      "members": [
+        {
+          "id": "87904944",
+          "name": "Guillaume B",
+          "points": 181736
+        },
+        {
+          "id": "110979265",
+          "name": "Pef",
+          "points": 43754
+        },
+        {
+          "id": "119310419",
+          "name": "MaxDePeuf",
+          "points": 32972
+        },
+        {
+          "id": "3989319",
+          "name": "Da M",
+          "points": 5033
+        }
+      ],
+      "totalPoints": 263495,
+      "animal": {
+        "id": "loup",
+        "emoji": "🐺",
+        "name": "Loup"
+      }
+    },
+    {
+      "index": 1,
+      "color": {
+        "bg": "rgba(34, 211, 238, 0.15)",
+        "border": "#22d3ee",
+        "name": "Cyan"
+      },
+      "members": [
+        {
+          "id": "6635902",
+          "name": "Baptiste I",
+          "points": 104211
+        },
+        {
+          "id": "5231535",
+          "name": "Franck P",
+          "points": 78719
+        },
+        {
+          "id": "100399073",
+          "name": "Leo B",
+          "points": 73251
+        },
+        {
+          "id": "31184097",
+          "name": "1000N",
+          "points": 19661
+        }
+      ],
+      "totalPoints": 275842,
+      "animal": {
+        "id": "canard",
+        "emoji": "🦆",
+        "name": "Canard"
+      }
+    },
+    {
+      "index": 2,
+      "color": {
+        "bg": "rgba(168, 85, 247, 0.15)",
+        "border": "#a855f7",
+        "name": "Violet"
+      },
+      "members": [
+        {
+          "id": "3762537",
+          "name": "Baptiste M",
+          "points": 45920
+        },
+        {
+          "id": "8716867",
+          "name": "Thomas M",
+          "points": 87376
+        },
+        {
+          "id": "68391361",
+          "name": "Elodie F",
+          "points": 39535
+        },
+        {
+          "id": "24599008",
+          "name": "Maxence R",
+          "points": 15824
+        }
+      ],
+      "totalPoints": 188655,
+      "animal": {
+        "id": "raton",
+        "emoji": "🦝",
+        "name": "Raton"
+      }
+    },
+    {
+      "index": 3,
+      "color": {
+        "bg": "rgba(16, 185, 129, 0.15)",
+        "border": "#10b981",
+        "name": "Vert"
+      },
+      "members": [
+        {
+          "id": "3953180",
+          "name": "Clement D",
+          "points": 76251
+        },
+        {
+          "id": "45072827",
+          "name": "Benjamin T",
+          "points": 75737
+        },
+        {
+          "id": "84388438",
+          "name": "Rémi S",
+          "points": 64793
+        },
+        {
+          "id": "1841009",
+          "name": "Mariana S",
+          "points": 49200
+        }
+      ],
+      "totalPoints": 265981,
+      "animal": {
+        "id": "sanglier",
+        "emoji": "🐗",
+        "name": "Sanglier"
+      }
+    }
+  ]
+}
