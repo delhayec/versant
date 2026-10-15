@@ -971,7 +971,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     jokersUsed: activeJokers,
     bonusesUsed: [],  // les bonus utilisés sont logés dans bonuses.json (pas dupliqués ici)
     rescapeInfo: null, // pas de rescapé en saison team
-    elevationGauge: computeElevationGauge(roundNumber, seasonNumber, activeIds, roundActivities, previousRounds),
+    elevationGauge: null, // pas de jauge collective de D+ en saison team
     stats: {
       totalActivities: roundActivities.length,
       totalElevation: teamsWithElevation.reduce((s, t) => s + t.totalElevation, 0),

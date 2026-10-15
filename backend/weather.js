@@ -101,7 +101,7 @@ function accumulate(times, values, stepMs, windowStart, windowEnd) {
   return { total, wetSlots, slots, maxRate, stepMinutes: stepMs / 60000 };
 }
 
-async function fetchOpenMeteo(lat, lon, startDate, endDate) {
+async function fetchOpenMeteo(lat, lon, startDate, endDate, deadline = Infinity) {
   const key = `${lat.toFixed(2)}|${lon.toFixed(2)}|${startDate}|${endDate}`;
   if (_cache.has(key)) return _cache.get(key);
 
@@ -125,6 +125,8 @@ async function fetchOpenMeteo(lat, lon, startDate, endDate) {
     } catch (error) {
       lastError = error;
       if (error.response?.status === 429) {
+        // Pas d'attente au-delà du budget : le reste sera repris au prochain passage
+        if (Date.now() + RATE_LIMIT_WAIT_MS > deadline) break;
         console.log(`   ⏳ Open-Meteo rate limit, attente ${RATE_LIMIT_WAIT_MS / 1000}s...`);
         await sleep(RATE_LIMIT_WAIT_MS);
       } else if (attempt < 3) {
@@ -143,7 +145,7 @@ async function fetchOpenMeteo(lat, lon, startDate, endDate) {
  *   - 'no_geo' : activité sans coordonnées (indoor, home trainer, saisie manuelle)
  *   - 'error'  : API injoignable ou réponse inexploitable
  */
-async function fetchActivityWeather(activity) {
+async function fetchActivityWeather(activity, deadline = Infinity) {
   const base = {
     provider: 'open-meteo',
     model: 'historical-forecast',
@@ -159,7 +161,7 @@ async function fetchActivityWeather(activity) {
 
   let data;
   try {
-    data = await fetchOpenMeteo(lat, lon, isoDate(start), isoDate(end));
+    data = await fetchOpenMeteo(lat, lon, isoDate(start), isoDate(end), deadline);
   } catch (error) {
     return { ...base, status: 'error', error: error.message, locked: false };
   }
@@ -224,20 +226,36 @@ function needsWeather(activity, { force = false } = {}) {
  * @param {object} options
  * @param {boolean} options.force  - recalcule même les données verrouillées
  * @param {number}  options.limit  - plafonne le nombre d'activités traitées
+ * @param {number}  options.budgetMs - durée max ; le reste est repris au passage suivant
+ * @param {function} options.filter - ne traite que les activités pour lesquelles il renvoie true
  * @param {function} options.onProgress - callback(activity, weather, index, total)
  * @returns {{processed:number, ok:number, noGeo:number, errors:number, rainy:number, changed:boolean}}
  */
 async function enrichActivities(activities, options = {}) {
-  const { force = false, limit = null, onProgress = null } = options;
+  const { force = false, limit = null, onProgress = null, budgetMs = null, filter = null } = options;
+  const deadline = budgetMs ? Date.now() + budgetMs : Infinity;
 
-  const todo = activities.filter(a => needsWeather(a, { force }));
+  // Les plus récentes d'abord : ce sont celles du round qu'on s'apprête à figer.
+  // Les anciennes en erreur (jamais verrouillées) passent après.
+  const todo = activities.filter(a => needsWeather(a, { force }) && (!filter || filter(a)))
+    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
   const batch = limit ? todo.slice(0, limit) : todo;
 
-  const stats = { processed: 0, ok: 0, noGeo: 0, errors: 0, rainy: 0, changed: false };
+  const stats = { processed: 0, ok: 0, noGeo: 0, errors: 0, rainy: 0, changed: false, skipped: 0 };
 
   for (let i = 0; i < batch.length; i++) {
+    if (Date.now() >= deadline) {
+      stats.skipped = batch.length - i;
+      break;
+    }
     const activity = batch[i];
-    const weather = await fetchActivityWeather(activity);
+    const weather = await fetchActivityWeather(activity, deadline);
+
+    // Une erreur ne doit pas écraser une mesure valide déjà obtenue
+    if (weather.status === 'error' && activity.weather?.status === 'ok') {
+      stats.errors++;
+      continue;
+    }
 
     activity.weather = weather;
     stats.processed++;
