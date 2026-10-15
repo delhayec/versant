@@ -428,6 +428,14 @@ export function calculateRescapePointsForSeason(seasonNumber, frozenResultsCache
 
   if (seasonRoundNumbers.length === 0) return result;
 
+  // Pas de rescapé en saison Équipes (règle métier, comme computeRescapeInfo
+  // côté backend). Sans ce garde, le dernier « survivant » d'un round équipes
+  // recevait des points de rescapé (Da M, S4 : +2).
+  if (seasonRoundNumbers.some(n => {
+    const r = frozenResultsCache.rounds[String(n)];
+    return r?.seasonType === 'team' || r?.isTeamSeasonRound;
+  })) return result;
+
   // La saison n'est considérée "terminée" (donc son dernier round = la finale, sans
   // rescapé) que si le challenge des éliminés a été figé pour elle. Sinon (saison en
   // cours), on ne sait pas encore quel round sera la finale : tous les rounds figés
