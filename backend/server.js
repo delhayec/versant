@@ -176,50 +176,10 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ============================================
-// FILE LOCKING
-// ============================================
-const fileLocks = new Map();
-
-async function acquireLock(filePath, timeout = 15000) {
-  const start = Date.now();
-  while (fileLocks.get(filePath)) {
-    if (Date.now() - start > timeout) {
-      console.warn(`⚠️ Lock timeout: ${filePath}`);
-      fileLocks.delete(filePath);
-      break;
-    }
-    await sleep(50);
-  }
-  fileLocks.set(filePath, true);
-}
-
-function releaseLock(filePath) {
-  fileLocks.delete(filePath);
-}
-
-async function safeReadJSON(filePath, defaultValue = []) {
-  await acquireLock(filePath);
-  try {
-    const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return defaultValue;
-  } finally {
-    releaseLock(filePath);
-  }
-}
-
-async function safeWriteJSON(filePath, data) {
-  await acquireLock(filePath);
-  try {
-    const tempPath = filePath + '.tmp';
-    await fs.writeFile(tempPath, JSON.stringify(data, null, 2));
-    await fs.rename(tempPath, filePath);
-  } finally {
-    releaseLock(filePath);
-  }
-}
+// Verrous et lecture / écriture JSON : cf. json-io.js
+const { safeReadJSON, safeWriteJSON, safeModifyJSON } = require('./json-io');
+// Éditions et activités : couche de stockage (cf. store/index.js)
+const store = require('./store').getStore();
 
 /**
  * Normalise les données de jokers_usage.json
@@ -284,36 +244,6 @@ async function readJokerUsageWithFrozen() {
   return jokerUsage;
 }
 
-/**
- * Lecture-modification-écriture atomique.
- * Le lock est maintenu pendant tout le cycle, éliminant les race conditions.
- * @param {string} filePath - Chemin du fichier JSON
- * @param {Function} modifyFn - Fonction (data) => modifiedData
- * @param {*} defaultValue - Valeur par défaut si le fichier n'existe pas
- * @returns {*} Les données modifiées
- */
-async function safeModifyJSON(filePath, modifyFn, defaultValue = []) {
-  await acquireLock(filePath);
-  try {
-    let data;
-    try {
-      const raw = await fs.readFile(filePath, 'utf8');
-      data = JSON.parse(raw);
-    } catch {
-      data = defaultValue;
-    }
-
-    const modified = await modifyFn(data);
-
-    const tempPath = filePath + '.tmp';
-    await fs.writeFile(tempPath, JSON.stringify(modified, null, 2));
-    await fs.rename(tempPath, filePath);
-
-    return modified;
-  } finally {
-    releaseLock(filePath);
-  }
-}
 
 // ============================================
 // LOGGING
@@ -504,8 +434,8 @@ function getRoundNumberForDate(timestamp) {
 // (typiquement : pas de coordonnées GPS).
 app.get('/api/weather-coverage/:leagueId', async (req, res) => {
   try {
-    const activitiesFile = currentEdition().paths.activities(req.params.leagueId);
-    const activities = await safeReadJSON(activitiesFile, []);
+    const activitiesLeague = req.params.leagueId;
+    const activities = await store.readActivities(activitiesLeague);
 
     const byRound = {};
     for (const a of activities) {
@@ -1291,8 +1221,8 @@ app.get('/api/admin/jokers', async (req, res) => {
 // ============================================
 app.get('/api/activities/:leagueId', async (req, res) => {
   try {
-    const activitiesFile = currentEdition().paths.activities(req.params.leagueId);
-    const activities = await safeReadJSON(activitiesFile, []);
+    const activitiesLeague = req.params.leagueId;
+    const activities = await store.readActivities(activitiesLeague);
     res.json(activities);
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
@@ -1301,9 +1231,8 @@ app.get('/api/activities/:leagueId', async (req, res) => {
 
 app.get('/api/activities-status/:leagueId', async (req, res) => {
   try {
-    const activitiesFile = currentEdition().paths.activities(req.params.leagueId);
-    const stats = await fs.stat(activitiesFile).catch(() => null);
-    const activities = await safeReadJSON(activitiesFile, []);
+    const activitiesMtime = await store.activitiesLastModified(req.params.leagueId);
+    const activities = await store.readActivities(req.params.leagueId);
 
     let lastActivity = null;
     if (activities.length > 0) {
@@ -1324,7 +1253,7 @@ app.get('/api/activities-status/:leagueId', async (req, res) => {
       Object.keys(frozen?.eliminatedChallengeRankings || {}).sort().join(',')
     ].join('|');
 
-    res.json({ count: activities.length, lastModified: stats?.mtime?.toISOString() || null, lastActivity, frozenSignature });
+    res.json({ count: activities.length, lastModified: activitiesMtime?.toISOString() || null, lastActivity, frozenSignature });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
@@ -1424,7 +1353,7 @@ async function getRainRuleRounds() {
 }
 
 async function enrichLeagueWeather(leagueId, options = {}) {
-  const activitiesFile = currentEdition().paths.activities(leagueId);
+  const activitiesLeague = leagueId;
   try {
     const rainRounds = await getRainRuleRounds();
     if (rainRounds.size === 0) return null;
@@ -1433,11 +1362,11 @@ async function enrichLeagueWeather(leagueId, options = {}) {
       new Date(a.start_date).getTime() + (a.elapsed_time || 0) * 1000));
 
     const started = Date.now();
-    const activities = await safeReadJSON(activitiesFile, []);
+    const activities = await store.readActivities(activitiesLeague);
     const stats = await weather.enrichActivities(activities, { budgetMs: WEATHER_BUDGET_MS, filter: inRainRound, ...options });
 
     if (stats.changed) {
-      await safeWriteJSON(activitiesFile, activities);
+      await store.writeActivities(activitiesLeague, activities);
       console.log(
         `   🌦️ Météo: ${stats.processed} activité(s) traitée(s) — ` +
         `${stats.ok} ok, ${stats.rainy} avec pluie, ${stats.noGeo} sans GPS, ${stats.errors} erreur(s)` +
@@ -1469,8 +1398,8 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
     console.log(`   🎯 Restreint à ${leagueAthletes.length} athlète(s)`);
   }
 
-  const activitiesFile = currentEdition().paths.activities(leagueId);
-  let activities = await safeReadJSON(activitiesFile, []);
+  const activitiesLeague = leagueId;
+  let activities = await store.readActivities(activitiesLeague);
 
   let totalNew = 0;
   let totalUpdated = 0;
@@ -1587,7 +1516,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   }
 
   await safeWriteJSON(ATHLETES_FILE, athletes);
-  await safeWriteJSON(activitiesFile, activities);
+  await store.writeActivities(activitiesLeague, activities);
 
   console.log(`   ✅ Total: ${totalNew} nouvelles, ${totalUpdated} mises à jour`);
 
@@ -1762,7 +1691,7 @@ async function processOneWebhook(event) {
 
   const athlete = athletes[athleteIndex];
   const leagueId = athlete.league_id;
-  const activitiesFile = currentEdition().paths.activities(leagueId);
+  const activitiesLeague = leagueId;
 
   console.log(`   → Athlète: ${athlete.name}`);
 
@@ -1847,7 +1776,7 @@ async function processOneWebhook(event) {
       return;
     }
 
-    let activities = await safeReadJSON(activitiesFile, []);
+    let activities = await store.readActivities(activitiesLeague);
 
     if (activities.find(a => a.id === stravaActivity.id)) {
       console.log(`   → Doublon`);
@@ -1893,7 +1822,7 @@ async function processOneWebhook(event) {
       source: 'webhook'
     });
 
-    await safeWriteJSON(activitiesFile, activities);
+    await store.writeActivities(activitiesLeague, activities);
 
     // Météo de la nouvelle activité (best-effort, ne bloque pas le webhook)
     await enrichLeagueWeather(leagueId);
@@ -1906,7 +1835,7 @@ async function processOneWebhook(event) {
     // Une activité n'est retirée que si elle appartient à l'émetteur de
     // l'événement et que Strava confirme qu'elle n'existe plus : un événement
     // forgé ne peut rien supprimer.
-    const target = (await safeReadJSON(activitiesFile, [])).find(a => a.id === objectId);
+    const target = (await store.readActivities(activitiesLeague)).find(a => a.id === objectId);
     if (!target) return;
 
     if (activityOwnerId(target) !== ownerId) {
@@ -1928,19 +1857,19 @@ async function processOneWebhook(event) {
       return;
     }
 
-    let activities = await safeReadJSON(activitiesFile, []);
+    let activities = await store.readActivities(activitiesLeague);
     const before = activities.length;
     activities = activities.filter(a => a.id !== objectId);
 
     if (activities.length < before) {
-      await safeWriteJSON(activitiesFile, activities);
+      await store.writeActivities(activitiesLeague, activities);
       console.log(`   🗑️ Supprimé`);
       await logWebhook(event, 'deleted', {});
       scheduleStandingsRefresh('webhook Strava');
     }
   } else if (event.aspect_type === 'update') {
     // Activité modifiée sur Strava - la mettre à jour localement
-    let activities = await safeReadJSON(activitiesFile, []);
+    let activities = await store.readActivities(activitiesLeague);
     const existingIndex = activities.findIndex(a => a.id === objectId);
 
     if (existingIndex < 0) {
@@ -2054,7 +1983,7 @@ async function processOneWebhook(event) {
         update_source: 'webhook'
       };
 
-      await safeWriteJSON(activitiesFile, activities);
+      await store.writeActivities(activitiesLeague, activities);
 
       console.log(`   🔄 MAJ: ${changes.join(', ')}`);
       await logWebhook(event, 'updated', { changes, name: stravaActivity.name });
@@ -2271,7 +2200,7 @@ app.get('/api/admin/athletes/:leagueId', async (req, res) => {
 app.get('/api/admin/activities/:leagueId/download', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const data = await fs.readFile(currentEdition().paths.activities(req.params.leagueId), 'utf8');
+    const data = await store.exportActivities(req.params.leagueId);
     res.setHeader('Content-Disposition', `attachment; filename=${req.params.leagueId}_activities.json`);
     res.send(data);
   } catch {
@@ -2291,8 +2220,8 @@ app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res)
     const { leagueId, activityId } = req.params;
     const { exclude } = req.body;
 
-    const activitiesFile = currentEdition().paths.activities(leagueId);
-    let activities = await safeReadJSON(activitiesFile, []);
+    const activitiesLeague = leagueId;
+    let activities = await store.readActivities(activitiesLeague);
 
     const activityIndex = activities.findIndex(a => String(a.id) === String(activityId));
     if (activityIndex < 0) {
@@ -2303,7 +2232,7 @@ app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res)
     activities[activityIndex].excluded_at = exclude ? new Date().toISOString() : null;
     activities[activityIndex].excluded_reason = exclude ? 'Exclu par admin' : null;
 
-    await safeWriteJSON(activitiesFile, activities);
+    await store.writeActivities(activitiesLeague, activities);
 
     console.log(`${exclude ? '🚫' : '↩️'} Activité ${activityId} ${exclude ? 'exclue' : 'réintégrée'}`);
 
@@ -2534,8 +2463,8 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
     // données mais on n'appelle pas la persistance.
     const config = currentEdition().config;
     const leagueId = config.leagueId;
-    const activitiesFile = currentEdition().paths.activities(leagueId);
-    const activities = await safeReadJSON(activitiesFile, []);
+    const activitiesLeague = leagueId;
+    const activities = await store.readActivities(activitiesLeague);
     const athletesAll = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletesAll.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await readJokerUsage();
@@ -2762,14 +2691,14 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
     const roundNumber = parseInt(req.params.roundNumber);
     const leagueId = req.body.leagueId || currentEdition().leagueId;
 
-    const activitiesFile = currentEdition().paths.activities(leagueId);
+    const activitiesLeague = leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await readJokerUsage();
 
     // Consolider la météo avant de figer (round gelé = définitif)
     await enrichLeagueWeather(leagueId);
-    const activitiesForFreeze = await safeReadJSON(activitiesFile, []);
+    const activitiesForFreeze = await store.readActivities(activitiesLeague);
 
     const result = await frozenResults.freezeRoundResults(
       roundNumber,
@@ -2793,14 +2722,14 @@ app.post('/api/admin/auto-freeze', async (req, res) => {
   try {
     const leagueId = req.body.leagueId || currentEdition().leagueId;
 
-    const activitiesFile = currentEdition().paths.activities(leagueId);
+    const activitiesLeague = leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     const jokerUsage = await readJokerUsage();
 
     // Consolider la météo avant de figer (round gelé = définitif)
     await enrichLeagueWeather(leagueId);
-    const activitiesForFreeze = await safeReadJSON(activitiesFile, []);
+    const activitiesForFreeze = await store.readActivities(activitiesLeague);
 
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activitiesForFreeze,
@@ -2940,7 +2869,7 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
   }
   try {
     const leagueId = currentEdition().leagueId;
-    const activitiesFile = currentEdition().paths.activities(leagueId);
+    const activitiesLeague = leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
     if (leagueAthletes.length === 0) {
@@ -2952,7 +2881,7 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
     // Consolider la météo AVANT de figer : un round gelé ne change plus jamais,
     // il doit donc l'être sur la donnée météo la plus à jour possible.
     await enrichLeagueWeather(leagueId);
-    const activitiesForFreeze = await safeReadJSON(activitiesFile, []);
+    const activitiesForFreeze = await store.readActivities(activitiesLeague);
 
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activitiesForFreeze, leagueAthletes, jokerUsage, currentEdition().config

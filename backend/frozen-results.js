@@ -1807,9 +1807,7 @@ async function unfreezeRound(roundNumber) {
  */
 async function loadLeagueActivities(leagueId) {
   try {
-    const file = currentEdition().paths.activities(leagueId);
-    const raw = await fs.readFile(file, 'utf8');
-    const parsed = JSON.parse(raw);
+    const parsed = await require('./store').getStore().readActivities(leagueId);
     // Le fichier peut être soit un tableau direct, soit { activities: [...] }
     if (Array.isArray(parsed)) return parsed;
     if (parsed && Array.isArray(parsed.activities)) return parsed.activities;
