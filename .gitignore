@@ -11,6 +11,9 @@ yarn-error.log
 # Données sensibles
 backend/data/athletes.json
 backend/data/leagues/*.json
+# Tout backend/data/ (L31 : activities/<id>.json, leagues/<ligue>/editions/…), sauf l'exemple
+backend/data/*
+!backend/data/athletes.example.json
 
 # Logs
 logs/
