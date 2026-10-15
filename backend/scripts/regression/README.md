@@ -159,6 +159,7 @@ node backend/scripts/regression/compare.mjs \
 - **Code de sortie** de `compare.mjs` : 0 si les deux captures sont identiques, 1 sinon. Les chemins qui diffèrent sont listés.
 - **Écart attendu** : un livrable qui change volontairement une sortie (par exemple, le retrait de l'e-mail de `/api/athletes`) liste cet écart dans sa description. On l'ignore alors avec `--ignore <chemin>`. Tout autre écart est une régression.
 - **`--repo <dossier>`** : teste un autre exemplaire du code, par exemple un `git worktree` sur le tag de référence. Utile pour comparer l'ancien et le nouveau code sur une fixture toute fraîche avant un déploiement.
+- **`--layout editions`** (à partir de L31) : les parties B et C tournent sur une copie migrée vers la nouvelle organisation des données (`backend/scripts/migrate-editions.js aller`), avec `VERSANT_STORE_LAYOUT=editions`. La capture doit être identique à celle de l'organisation actuelle (`--layout legacy`, par défaut).
 - **Journal** : chaque capture écrit un fichier `.log` à côté du `.json`, avec les messages de la console du code testé. Il n'entre pas dans la comparaison.
 
 ## Références en cours

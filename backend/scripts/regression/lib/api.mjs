@@ -28,7 +28,7 @@ import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { canonicalize } from './canonical.mjs';
-import { frozenRoundEnds, loadFixture } from './fixture.mjs';
+import { frozenRoundEnds, loadFixture, migrateToEditions } from './fixture.mjs';
 
 const ADMIN_PASSWORD = 'harnais-admin';
 const UNREACHABLE = 'http://127.0.0.1:9';
@@ -42,7 +42,7 @@ const VOLATILE = {
   '/api/admin/diagnostic': ['timestamp']
 };
 
-export async function runApi({ repoRoot, fixtureDir }) {
+export async function runApi({ repoRoot, fixtureDir, layout = 'legacy' }) {
   const backendDir = join(repoRoot, 'backend');
   const serverSource = readFileSync(join(backendDir, 'server.js'), 'utf8');
   if (!existsSync(join(backendDir, 'data-dir.js')) || !serverSource.includes('VERSANT_DISABLE_JOBS')) {
@@ -59,13 +59,15 @@ export async function runApi({ repoRoot, fixtureDir }) {
 
   const plan = preparePlan(fixture);
   writeCredentials(sandbox, fixture, plan);
+  // Nouvelle organisation (L31) : migration de la copie avant le démarrage
+  if (layout === 'editions') migrateToEditions(repoRoot, sandbox);
 
   const logs = [];
   const strava = await startFakeStrava(plan);
   let server = null;
 
   try {
-    server = await startServer({ backendDir, sandbox, logs, stravaBase: strava.base, adminPassword: ADMIN_PASSWORD });
+    server = await startServer({ backendDir, sandbox, logs, stravaBase: strava.base, adminPassword: ADMIN_PASSWORD, layout });
     const responses = await captureReadRoutes(server.base, fixture, leagueId, plan);
     // Classement calculé par le serveur (L22) à l'instant de la fixture, avant
     // que les sondes ne modifient les données. Code antérieur : route absente.
@@ -78,7 +80,7 @@ export async function runApi({ repoRoot, fixtureDir }) {
     server = null;
 
     // Mot de passe admin par défaut : serveur relancé SANS ADMIN_PASSWORD
-    const bare = await startServer({ backendDir, sandbox, logs, stravaBase: strava.base, adminPassword: null });
+    const bare = await startServer({ backendDir, sandbox, logs, stravaBase: strava.base, adminPassword: null, layout });
     try {
       probes['admin-mot-de-passe-par-defaut'] = {
         avecAdmin123: (await call(bare.base, '/api/admin/jokers', { 'x-admin-password': 'admin123' }, { summary: true })).status,
@@ -395,7 +397,7 @@ async function call(base, path, headers = {}, { method = 'GET', body, raw = fals
 }
 
 /** Démarre server.js depuis le dossier du bac à sable (le .env du développeur n'est pas lu). */
-async function startServer({ backendDir, sandbox, logs, stravaBase, adminPassword }) {
+async function startServer({ backendDir, sandbox, logs, stravaBase, adminPassword, layout = 'legacy' }) {
   const port = await freePort();
   const env = {
     ...process.env,
@@ -407,7 +409,8 @@ async function startServer({ backendDir, sandbox, logs, stravaBase, adminPasswor
     PORT: String(port),
     STRAVA_CLIENT_ID: 'harnais-client',
     STRAVA_CLIENT_SECRET: 'harnais-secret',
-    TZ: 'Europe/Paris'
+    TZ: 'Europe/Paris',
+    VERSANT_STORE_LAYOUT: layout
   };
   if (adminPassword) env.ADMIN_PASSWORD = adminPassword;
   else delete env.ADMIN_PASSWORD;

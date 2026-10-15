@@ -11,6 +11,7 @@
  * recopiées ; elles sont extraites de backend/server.js et exécutées.
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -30,6 +31,17 @@ export const OPTIONAL_FILES = ['special_rules.json', 'season_planning.json'];
 
 export function activitiesPath(leagueId) {
   return join('leagues', `${leagueId}_activities.json`);
+}
+
+/**
+ * Migration L31 (organisation « editions ») d'un dossier de données, par le
+ * script du code testé : backend/scripts/migrate-editions.js aller.
+ */
+export function migrateToEditions(repoRoot, dataDir) {
+  const script = join(repoRoot, 'backend', 'scripts', 'migrate-editions.js');
+  if (!existsSync(script)) throw new Error('--layout editions : backend/scripts/migrate-editions.js absent du code testé');
+  const res = spawnSync(process.execPath, [script, 'aller', '--data', dataDir, '--force'], { encoding: 'utf8' });
+  if (res.status !== 0) throw new Error(`migration vers l'organisation editions échouée : ${res.stderr || res.stdout}`);
 }
 
 /** Charge la fixture : métadonnées + textes bruts des fichiers de données. */

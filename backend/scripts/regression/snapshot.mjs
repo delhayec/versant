@@ -10,6 +10,7 @@
  *   node backend/scripts/regression/snapshot.mjs --fixture <dossier> --out <fichier.json>
  *     [--parts front,back,api]             # A (moteur front), B (gel serveur), C (API)
  *     [--at capturedAt,lastFrozenEnd]      # dates de calcul : préréglages ou dates ISO
+ *     [--layout legacy|editions]           # organisation des données des parties B et C (L31)
  *     [--repo <racine du code testé>]      # par défaut : ce dépôt
  *
  * Chaque calcul tourne dans un processus séparé (état des modules vierge),
@@ -49,6 +50,9 @@ async function main(opts) {
   const outFile = resolve(required(opts.out, '--out'));
   const repoRoot = resolve(opts.repo || DEFAULT_REPO);
   const parts = String(opts.parts || 'front,back,api').split(',');
+  // Organisation des données des parties B et C : actuelle, ou migrée (L31)
+  const layout = opts.layout || 'legacy';
+  if (!['legacy', 'editions'].includes(layout)) throw new Error(`--layout : legacy ou editions attendu, pas « ${layout} »`);
 
   const fixture = loadFixture(fixtureDir);
   const frozen = fixture.json('frozen_results.json');
@@ -74,7 +78,8 @@ async function main(opts) {
       timeZone: TIME_ZONE,
       repo: { root: repoRoot, ...gitState(repoRoot) },
       fixture: { dir: fixtureDir, leagueId: fixture.meta.leagueId, capturedAt: fixture.meta.capturedAt, files: fixture.meta.files },
-      at: atList
+      at: atList,
+      layout
     },
     front: {},
     back: null,
@@ -90,13 +95,13 @@ async function main(opts) {
       }
     }
     if (parts.includes('back')) {
-      const { result, logs: workerLogs } = spawnWorker(workDir, 'back', { fixtureDir, repoRoot, label: 'back' });
+      const { result, logs: workerLogs } = spawnWorker(workDir, 'back', { fixtureDir, repoRoot, label: 'back', layout });
       output.back = result;
       logs.push(...workerLogs);
     }
     if (parts.includes('api')) {
       const { runApi } = await import('./lib/api.mjs');
-      const { result, logs: apiLogs } = await runApi({ repoRoot, fixtureDir });
+      const { result, logs: apiLogs } = await runApi({ repoRoot, fixtureDir, layout });
       output.api = canonicalize(result);
       logs.push(...apiLogs);
     }
@@ -114,10 +119,11 @@ async function main(opts) {
   printSummary(output, outFile, logFile, text, Date.now() - started);
 }
 
-function spawnWorker(workDir, kind, { fixtureDir, repoRoot, at, label }) {
+function spawnWorker(workDir, kind, { fixtureDir, repoRoot, at, label, layout }) {
   const outFile = join(workDir, `${kind}-${label}.json`);
   const workerArgs = [THIS_FILE, '--worker', kind, '--fixture', fixtureDir, '--repo', repoRoot, '--out', outFile];
   if (at) workerArgs.push('--at', at);
+  if (layout) workerArgs.push('--layout', layout);
   const env = { ...process.env, TZ: TIME_ZONE };
   for (const name of SANDBOX_ENV) delete env[name];
   const res = spawnSync(process.execPath, workerArgs, {
@@ -148,7 +154,7 @@ async function runWorker(opts) {
     payload = await runFront({ repoRoot, fixtureDir, at: required(opts.at, '--at') });
   } else if (opts.worker === 'back') {
     const { runBack } = await import('./lib/back.mjs');
-    payload = await runBack({ repoRoot, fixtureDir });
+    payload = await runBack({ repoRoot, fixtureDir, layout: opts.layout || 'legacy' });
   } else {
     throw new Error(`Calcul inconnu : ${opts.worker}`);
   }

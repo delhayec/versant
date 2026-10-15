@@ -23,12 +23,12 @@ import { dirname, join } from 'node:path';
 import { canonicalize, slim } from './canonical.mjs';
 import { installFixedClock, setNow, RealDate } from './clock.mjs';
 import { captureConsole } from './console.mjs';
-import { buildServerHandlers, frozenRoundEnds, loadFixture } from './fixture.mjs';
+import { buildServerHandlers, frozenRoundEnds, loadFixture, migrateToEditions } from './fixture.mjs';
 import { restoreMathRandom, seedMathRandom } from './prng.mjs';
 
 const WATCHED_FILES = ['bonuses.json', 'pending_bonus_choices.json'];
 
-export async function runBack({ repoRoot, fixtureDir }) {
+export async function runBack({ repoRoot, fixtureDir, layout = 'legacy' }) {
   const fixture = loadFixture(fixtureDir);
   const capturedAt = fixture.meta.capturedAt;
   installFixedClock(capturedAt);
@@ -60,7 +60,10 @@ export async function runBack({ repoRoot, fixtureDir }) {
         mkdirSync(dirname(join(dataDir, rel)), { recursive: true });
         writeFileSync(join(dataDir, rel), text);
       }
+      // Nouvelle organisation (L31) : reconstruite à partir des fichiers remis à zéro
+      if (layout === 'editions') migrateToEditions(repoRoot, dataDir);
     };
+    if (layout === 'editions') process.env.VERSANT_STORE_LAYOUT = 'editions';
     resetData();
 
     const require = createRequire(join(backendDir, 'harnais.js'));
