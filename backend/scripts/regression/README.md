@@ -173,6 +173,7 @@ Elles sont rangées hors du dépôt, dans `../versant-regression/refs/` :
 | `reference-sondes.json` | précédent + sondes de sécurité | A, B, C | **Référence du lot sécurité** (L11 à L15) : les sondes y constatent les failles |
 | `master-f1012.json` | master `ef5b8d5`, fixture du 12/10 | A, B | **Référence du lot 2**. Contrôle de fidélité en écart, expliqué : le navigateur qui a envoyé le snapshot ignorait le bouclier de Clement D au R50 (code en cache) ; le harnais suit les données figées |
 | `branche-f1012.json` | `multi-ligues` après fusion de master, fixture du 12/10 | A, B, C | Parties A et B identiques à `master-f1012.json` |
+| `master-f1015.json`, `branche-f1015.json` | master `c8bc8cd` et `multi-ligues` `1813e68`, fixture du 15/10 (début de la S9) | A, B (+ C pour la branche) | **Référence avant la mise en prod des lots 0 à 2**. Fidélité : 16/16 avec le snapshot navigateur. A et B identiques entre master et branche (61 scénarios de gel, équipes de la S9 comprises) |
 
 ## Procédure du chantier multi-ligues
 
