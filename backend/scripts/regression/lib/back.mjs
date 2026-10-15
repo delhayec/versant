@@ -16,7 +16,7 @@
  * aucune modification du code testé n'est nécessaire.
  */
 
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -44,6 +44,13 @@ export async function runBack({ repoRoot, fixtureDir }) {
     mkdirSync(join(root, 'public', 'shared'), { recursive: true });
     for (const f of readdirSync(join(repoRoot, 'backend'))) {
       if (f.endsWith('.js')) copyFileSync(join(repoRoot, 'backend', f), join(backendDir, f));
+    }
+    // Couche de stockage (L30) : sous-dossier backend/store/
+    if (existsSync(join(repoRoot, 'backend', 'store'))) {
+      mkdirSync(join(backendDir, 'store'), { recursive: true });
+      for (const f of readdirSync(join(repoRoot, 'backend', 'store'))) {
+        if (f.endsWith('.js')) copyFileSync(join(repoRoot, 'backend', 'store', f), join(backendDir, 'store', f));
+      }
     }
     copyFileSync(join(repoRoot, 'public', 'shared', 'team-formation.js'), join(root, 'public', 'shared', 'team-formation.js'));
     writeFileSync(join(root, 'package.json'), '{ "type": "commonjs" }\n');
