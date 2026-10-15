@@ -693,9 +693,11 @@ renderRanking(rankingContainer, {
       } // fin else mode standard
     }
 
-    // Jauge collective de D+ du round en cours
+    // Jauge collective de D+ du round en cours (pas de jauge en saison team)
     const gaugeContainer = document.getElementById('elevationGaugeContainer');
-    if (gaugeContainer) {
+    if (gaugeContainer && getSeasonType(currentSeasonNumber)?.isTeamBased) {
+      gaugeContainer.innerHTML = '';
+    } else if (gaugeContainer) {
       const gaugeDates = getRoundDates(currentRoundNumber);
       const gaugeEnd = today < new Date(gaugeDates.end) ? today : gaugeDates.end;
       renderElevationGauge(gaugeContainer, {

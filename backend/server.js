@@ -1391,18 +1391,42 @@ async function refreshAllTokens() {
  * weather.js pour la politique de verrouillage.
  *
  * Best-effort : une panne d'Open-Meteo ne doit jamais faire échouer un sync.
+ * Budget de temps borné : sous rate limit Open-Meteo (429 → 60 s d'attente par
+ * appel), l'enrichissement pouvait durer des heures et retarder d'autant le gel
+ * de 00h15, qui l'attend. Ce qui dépasse est repris au passage suivant.
+ *
+ * Seules les activités des rounds « pluie qui mouille » (round_configs.json)
+ * sont traitées : la météo ne sert qu'à cette règle. Sans round de ce type,
+ * aucun appel à Open-Meteo.
  */
+const WEATHER_BUDGET_MS = 3 * 60 * 1000;
+
+async function getRainRuleRounds() {
+  const configs = await roundConfigsModule.loadRoundConfigs();
+  return new Set(Object.entries(configs || {})
+    .filter(([, cfg]) => cfg?.specialRule === 'pluie_qui_mouille')
+    .map(([round]) => Number(round)));
+}
+
 async function enrichLeagueWeather(leagueId, options = {}) {
   const activitiesFile = currentEdition().paths.activities(leagueId);
   try {
+    const rainRounds = await getRainRuleRounds();
+    if (rainRounds.size === 0) return null;
+    // Même rattachement que le calcul des rounds : heure de FIN de l'activité
+    const inRainRound = a => rainRounds.has(getRoundNumberForDate(
+      new Date(a.start_date).getTime() + (a.elapsed_time || 0) * 1000));
+
+    const started = Date.now();
     const activities = await safeReadJSON(activitiesFile, []);
-    const stats = await weather.enrichActivities(activities, options);
+    const stats = await weather.enrichActivities(activities, { budgetMs: WEATHER_BUDGET_MS, filter: inRainRound, ...options });
 
     if (stats.changed) {
       await safeWriteJSON(activitiesFile, activities);
       console.log(
         `   🌦️ Météo: ${stats.processed} activité(s) traitée(s) — ` +
-        `${stats.ok} ok, ${stats.rainy} avec pluie, ${stats.noGeo} sans GPS, ${stats.errors} erreur(s)`
+        `${stats.ok} ok, ${stats.rainy} avec pluie, ${stats.noGeo} sans GPS, ${stats.errors} erreur(s)` +
+        `${stats.skipped ? `, ${stats.skipped} reportée(s) (budget atteint)` : ''} en ${Math.round((Date.now() - started) / 1000)} s`
       );
     }
     return stats;
@@ -2845,6 +2869,7 @@ cron.schedule('0 22 * * *', () => { console.log('🕐 Sync 22h'); autoSyncAllLea
 // (await) avant le freeze, donc la nouvelle saison démarre dès que les deux
 // sont finis (~00h15 + durée du sync).
 async function runAutoFreeze(reason, { sync } = { sync: true }) {
+  const started = Date.now();
   if (sync) {
     try {
       console.log(`🔄 [${reason}] Sync Strava avant auto-freeze...`);
@@ -2873,7 +2898,7 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activitiesForFreeze, leagueAthletes, jokerUsage, currentEdition().config
     );
-    console.log(`❄️ [${reason}] ${frozen.length} round(s) figé(s)`);
+    console.log(`❄️ [${reason}] ${frozen.length} round(s) figé(s) en ${Math.round((Date.now() - started) / 1000)} s (sync compris)`);
     if (frozen.length > 0) scheduleStandingsRefresh(`gel (${reason})`);
     return frozen;
   } catch (error) {

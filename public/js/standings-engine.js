@@ -1250,8 +1250,10 @@ if (frozenRound && frozenRound.frozen) {
       const useNewRules = globalRound >= CHALLENGE_CONFIG.zeroElevationRuleFromRound;
 
       if (isCurrentRoundFinale) {
-        // FINALE: éliminer tous sauf 1
-        eligibleForElimination.slice(1).forEach(entry => {
+        // FINALE: éliminer tous sauf 1, du dernier au 2e : l'ordre d'élimination
+        // donne la place (1er éliminé = dernière place), comme la règle normale.
+        // Dans l'ordre du classement, le 2e de la finale prenait les points du 4e.
+        eligibleForElimination.slice(1).reverse().forEach(entry => {
           toEliminate.push({
             ...entry.participant,
             zeroElimination: entry.totalElevation === 0
