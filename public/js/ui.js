@@ -278,7 +278,7 @@ export function renderActiveJokersSection(container, data) {
 // RENDU DU CLASSEMENT
 // ============================================
 
-function renderAthleteActivitiesPanel(athleteId, roundActivities, specialRule = null) {
+export function renderAthleteActivitiesPanel(athleteId, roundActivities, specialRule = null) {
   const isRainRule = specialRule === 'pluie_qui_mouille';
   const activities = filterByParticipant(roundActivities || [], athleteId)
     .slice()

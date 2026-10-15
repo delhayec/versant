@@ -517,6 +517,7 @@ module.exports = {
   ROUND_DURATIONS,
   ROUND_DURATION_LIMITS,
   SEASON_DEADLINES,
+  SEASON_TEAM_SETTINGS,
   getSeasonDeadline,
   isDeadlineSeason,
   getMainPointsMultiplier,

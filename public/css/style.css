@@ -1198,6 +1198,12 @@ body {
   animation: slideDown 0.3s ease;
 }
 
+/* Même panneau sous un membre d'équipe : bloc déjà en retrait, marges réduites */
+.team-members .athlete-activities-panel {
+  margin: 0 0 4px;
+  padding: 10px;
+}
+
 .athlete-activities-list {
   display: flex;
   flex-direction: column;

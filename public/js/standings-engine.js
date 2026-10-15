@@ -428,6 +428,14 @@ export function calculateRescapePointsForSeason(seasonNumber, frozenResultsCache
 
   if (seasonRoundNumbers.length === 0) return result;
 
+  // Pas de rescapé en saison Équipes (règle métier, comme computeRescapeInfo
+  // côté backend). Sans ce garde, le dernier « survivant » d'un round équipes
+  // recevait des points de rescapé (Da M, S4 : +2).
+  if (seasonRoundNumbers.some(n => {
+    const r = frozenResultsCache.rounds[String(n)];
+    return r?.seasonType === 'team' || r?.isTeamSeasonRound;
+  })) return result;
+
   // La saison n'est considérée "terminée" (donc son dernier round = la finale, sans
   // rescapé) que si le challenge des éliminés a été figé pour elle. Sinon (saison en
   // cours), on ne sait pas encore quel round sera la finale : tous les rounds figés
@@ -1722,13 +1730,13 @@ export function calculatePointsForSeason(seasonNumber, activities, currentDate, 
 
   if (!frozenResultsCache?.rounds || seasonNumber < 1) return pointsMap;
 
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  const seasonEndRound = seasonNumber * roundsPerSeason;
-
-  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-    const round = frozenResultsCache.rounds[String(roundNum)];
-    if (!round?.frozen || !round.ranking) continue;
+  // Rounds RÉELS de la saison (champ seasonNumber des rounds figés), comme le
+  // récap de saison. La formule « (saison - 1) × rounds par saison » supposait
+  // des saisons de durée fixe : avec des saisons de 6, 7 rounds ou en équipes,
+  // elle rattachait les rounds à la mauvaise saison (colonnes « Saisons préc. »
+  // et « Principal · Éliminé » fausses au classement général).
+  for (const round of Object.values(frozenResultsCache.rounds)) {
+    if (!round?.frozen || !round.ranking || Number(round.seasonNumber) !== Number(seasonNumber)) continue;
 
     for (const entry of round.ranking) {
       const id = String(entry.id);

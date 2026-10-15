@@ -253,6 +253,8 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
   // du rescapé (il a déjà bénéficié d'une protection forte ; cumuler bouclier +
   // bonus rescapé serait trop avantageux).
   const eliminatedIds = new Set(roundData.eliminations.map(e => String(e.id)));
+  // Un seul joueur encore en lice : c'est le vainqueur de la saison, pas un rescapé
+  if (roundData.ranking.filter(r => !eliminatedIds.has(String(r.id))).length <= 1) return null;
   const survivors = roundData.ranking.filter(r =>
     !eliminatedIds.has(String(r.id)) && !r.hasShield
   );
@@ -1270,6 +1272,9 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   const nbInactiveElims = eliminations.filter(e => e.reason === 'zero_elevation').length;
   const lastInactivePosition = nbInactiveElims > 0 ? activeAtRoundStart : null;
 
+  const survivorsAfterRound = ranking.filter(e => !eliminations.some(el => el.id === e.id)).length;
+  const endsSeasonNaturally = !effectiveIsFinale && eliminations.length > 0 && survivorsAfterRound === 1;
+
   ranking.forEach(entry => {
     const eliminationEntry = eliminations.find(e => e.id === entry.id);
     if (eliminationEntry) {
@@ -1285,7 +1290,9 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
         entry.mainPoints = mainPointsFor(Math.max(1, Math.min(position, totalParticipants)));
       }
       entry.eliminatedPosition = position;
-    } else if (effectiveIsFinale && ranking.filter(e => !eliminations.some(el => el.id === e.id)).length === 1) {
+    } else if ((effectiveIsFinale || endsSeasonNaturally) && survivorsAfterRound === 1) {
+      // Vainqueur : finale prévue, ou saison terminée par les éliminations d'un
+      // round ordinaire (S7 : 3 joueurs, 2 éliminés au R44 → vainqueur sans points)
       entry.mainPoints = mainPointsFor(1);
       entry.isWinner = true;
     } else if (effectiveIsFinale) {
