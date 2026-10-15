@@ -35,7 +35,8 @@ import {
   renderCombinedBanner, renderRanking,
   renderJokersGuide, renderArsenal, showNotification,
   showContextMenu, hideContextMenu, showTargetSelectionModal,
-  renderElevationGauge, renderElevationGaugeHistory
+  renderElevationGauge, renderElevationGaugeHistory,
+  renderAthleteActivitiesPanel
 } from './ui.js';
 
 import { getCurrentDate, setSimulatedDate, initDemoMode } from './demo.js';
@@ -656,10 +657,13 @@ async function renderAll() {
             const teamData = await resp.json();
             if (Array.isArray(teamData.teams) && teamData.teams.length > 0) {
               // Enrichir chaque équipe avec le D+ courant des membres si pas déjà figé
+              // Activités du round : D+ des membres (round non figé) et liste
+              // déroulante des activités de chaque joueur
+              const teamRoundDates = getRoundDates(currentRoundNumber);
+              const teamRoundEnd = today < new Date(teamRoundDates.end) ? today : teamRoundDates.end;
+              const teamRoundActivities = filterByPeriod(allActivities, teamRoundDates.start, teamRoundEnd);
               if (!teamData.frozen) {
-                const roundDates = getRoundDates(currentRoundNumber);
-                const endDate = today < new Date(roundDates.end) ? today : roundDates.end;
-                const roundActivities = filterByPeriod(allActivities, roundDates.start, endDate);
+                const roundActivities = teamRoundActivities;
                 teamData.teams = teamData.teams.map(team => {
                   const membersWithElev = team.members.map(m => {
                     const acts = roundActivities.filter(a =>
@@ -680,7 +684,9 @@ async function renderAll() {
                 seasonData,
                 currentSeasonNumber,
                 currentRoundNumber,
-                isFrozen: !!teamData.frozen
+                isFrozen: !!teamData.frozen,
+                roundActivities: teamRoundActivities,
+                specialRule: getSpecialRuleForRound(currentRoundNumber)
               });
             } else {
               rankingContainer.innerHTML = '<div class="empty-state"><p>En attente des données d\'équipe...</p></div>';
@@ -873,7 +879,7 @@ renderRanking(rankingContainer, {
 // ============================================
 
 function renderTeamRanking(container, data) {
-  const { teams, seasonData, currentSeasonNumber, currentRoundNumber, isFrozen } = data;
+  const { teams, seasonData, currentSeasonNumber, currentRoundNumber, isFrozen, roundActivities, specialRule } = data;
 
   if (!teams || teams.length === 0) {
     container.innerHTML = '<div class="empty-state"><p>Aucune équipe formée</p></div>';
@@ -945,10 +951,11 @@ function renderTeamRanking(container, data) {
           <div class="team-member-row ${isLastTeam ? 'in-danger' : ''}">
             <div class="team-member-info">
               <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${color},${color}88)">${initials}</div>
-              <span class="team-member-name">${name}</span>
+              <span class="team-member-name athlete-name-clickable" onclick="toggleAthleteActivities('${member.id}')">${name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${member.id}">▾</span></span>
             </div>
             <span class="team-member-elevation">${formatElevation(member.elevation || 0)}</span>
           </div>
+          ${renderAthleteActivitiesPanel(member.id, roundActivities, specialRule)}
       `;
     });
 
