@@ -52,7 +52,9 @@ app.use(express.json());
 // plus de joueur appliquant une règle de classement périmée après un déploiement.
 app.use(express.static(path.join(__dirname, '../public'), {
   setHeaders: (res, filePath) => {
-    if (/\.(js|css|mjs)$/i.test(filePath)) {
+    // HTML aussi : une app iOS « sur l'écran d'accueil » pouvait resservir une
+    // page d'accueil en cache heuristique (pas d'en-tête = cache à la discrétion du navigateur).
+    if (/\.(js|css|mjs|html)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');
     }
   }
@@ -1208,7 +1210,20 @@ app.get('/api/activities-status/:leagueId', async (req, res) => {
       lastActivity = { id: sorted[0].id, name: sorted[0].name, athlete_name: sorted[0].athlete_name, synced_at: sorted[0].synced_at };
     }
 
-    res.json({ count: activities.length, lastModified: stats?.mtime?.toISOString() || null, lastActivity });
+    // Signature des résultats figés : ne bouge qu'au gel / dégel d'un round ou du
+    // challenge éliminés (pas à l'écriture du snapshot du classement, qui touche
+    // le même fichier). Le navigateur se recharge quand elle change.
+    const frozen = await frozenResults.loadFrozenResultsRaw().catch(() => null);
+    const frozenRounds = Object.entries(frozen?.rounds || {}).filter(([, r]) => r?.frozen);
+    const lastFrozen = frozenRounds.sort((a, b) => Number(b[0]) - Number(a[0]))[0];
+    const frozenSignature = [
+      frozenRounds.length,
+      lastFrozen?.[0] || 0,
+      lastFrozen?.[1]?.frozenAt || '',
+      Object.keys(frozen?.eliminatedChallengeRankings || {}).sort().join(',')
+    ].join('|');
+
+    res.json({ count: activities.length, lastModified: stats?.mtime?.toISOString() || null, lastActivity, frozenSignature });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
   }

@@ -617,7 +617,12 @@ async function renderAll() {
     // Snapshot vers backend (non bloquant, débouncé en cas de re-render rapide).
     // Permet au backend (saison team) et au script de tests de connaître les
     // points exacts du classement général sans dupliquer la logique de calcul.
-    sendYearlyStandingsSnapshot(yearlyStandingsCache);
+    // Pas d'envoi tant qu'un round terminé n'est pas figé (entre minuit et le
+    // gel de 00h15, ou onglet ouvert depuis la veille) : le classement serait
+    // calculé sur un aperçu, et écraserait celui du serveur.
+    const previousRoundFrozen = currentRoundNumber <= 1
+      || frozenResultsCache?.rounds?.[String(currentRoundNumber - 1)]?.frozen === true;
+    if (previousRoundFrozen) sendYearlyStandingsSnapshot(yearlyStandingsCache);
 
     // Detect special rule for current round
     const bannerSpecialRule = getSpecialRuleForRound(currentRoundNumber);
@@ -2549,6 +2554,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
 // État du polling
 let lastActivitiesCount = 0;
 let lastModified = null;
+let frozenSignatureAtLoad = null; // cf. startAutoRefresh
 let pollingInterval = null;
 
 async function init() {
@@ -2578,6 +2584,11 @@ async function init() {
 
     // Charger les résultats figés AVANT tout calcul
     await loadFrozenResults();
+    // Repère pour détecter un gel survenu pendant que la page reste ouverte
+    fetch(`/api/activities-status/${CHALLENGE_CONFIG.leagueId}`, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(s => { if (s && frozenSignatureAtLoad === null) frozenSignatureAtLoad = s.frozenSignature; })
+      .catch(() => {});
     await loadRoundConfigs();
     // Charger les règles spéciales manuelles
     await loadSpecialRulesOverrides();
@@ -2632,14 +2643,27 @@ async function init() {
  */
 function startAutoRefresh() {
   const POLLING_INTERVAL = 180000; //3 min
+  let checking = false;
 
-
-  pollingInterval = setInterval(async () => {
+  const checkForUpdates = async () => {
+    if (checking) return;
+    checking = true;
     try {
-      const response = await fetch(`/api/activities-status/${CHALLENGE_CONFIG.leagueId}`);
+      const response = await fetch(`/api/activities-status/${CHALLENGE_CONFIG.leagueId}`, { cache: 'no-store' });
       if (!response.ok) return;
 
       const status = await response.json();
+
+      // Gel / dégel depuis l'affichage, ou round terminé depuis : la page
+      // entière est périmée (résultats figés, saison, équipes, classement).
+      // On recharge tout plutôt que de rafistoler les caches un par un.
+      // Typique : onglet ouvert la veille et rouvert le matin sur mobile.
+      if (frozenSignatureAtLoad === null) frozenSignatureAtLoad = status.frozenSignature;
+      const roundChanged = getGlobalRoundNumber(getCurrentDate()) !== currentRoundNumber;
+      if (status.frozenSignature !== frozenSignatureAtLoad || roundChanged) {
+        location.reload();
+        return;
+      }
 
       // Vérifier si les données ont changé
       if (status.count !== lastActivitiesCount || status.lastModified !== lastModified) {
@@ -2660,8 +2684,19 @@ function startAutoRefresh() {
       }
     } catch (error) {
       // Silencieux - on ne veut pas spammer la console
+    } finally {
+      checking = false;
     }
-  }, POLLING_INTERVAL);
+  };
+
+  pollingInterval = setInterval(checkForUpdates, POLLING_INTERVAL);
+
+  // Les minuteurs sont suspendus quand l'onglet est en arrière-plan (mobile) :
+  // vérifier dès que la page redevient visible ou sort du cache de navigation.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForUpdates();
+  });
+  window.addEventListener('pageshow', e => { if (e.persisted) checkForUpdates(); });
 }
 
 /**
