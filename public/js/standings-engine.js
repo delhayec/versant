@@ -1674,13 +1674,13 @@ export function calculatePointsForSeason(seasonNumber, activities, currentDate, 
 
   if (!frozenResultsCache?.rounds || seasonNumber < 1) return pointsMap;
 
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  const seasonEndRound = seasonNumber * roundsPerSeason;
-
-  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-    const round = frozenResultsCache.rounds[String(roundNum)];
-    if (!round?.frozen || !round.ranking) continue;
+  // Rounds RÉELS de la saison (champ seasonNumber des rounds figés), comme le
+  // récap de saison. La formule « (saison - 1) × rounds par saison » supposait
+  // des saisons de durée fixe : avec des saisons de 6, 7 rounds ou en équipes,
+  // elle rattachait les rounds à la mauvaise saison (colonnes « Saisons préc. »
+  // et « Principal · Éliminé » fausses au classement général).
+  for (const round of Object.values(frozenResultsCache.rounds)) {
+    if (!round?.frozen || !round.ranking || Number(round.seasonNumber) !== Number(seasonNumber)) continue;
 
     for (const entry of round.ranking) {
       const id = String(entry.id);

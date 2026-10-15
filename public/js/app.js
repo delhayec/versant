@@ -1203,9 +1203,8 @@ function renderEliminatedChallenge(container) {
   for (const eliminated of eliminatedList) {
     const effects = { gained: 0, lost: 0, details: [] };
     // Parcourir tous les rounds de la saison pour cumuler les effets par-round
-    const roundsPerSeason = getRoundsPerSeason();
-    const seasonStartRound = (currentSeasonNumber - 1) * roundsPerSeason + 1;
-    const seasonEndRound = currentSeasonNumber * roundsPerSeason;
+    // Bornes réelles de la saison (rounds figés), pas une formule à durée fixe
+    const { startRound: seasonStartRound, endRound: seasonEndRound } = getRealSeasonBounds(currentSeasonNumber);
     for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
       const roundEffects = getEphemeralBonusEffectsForEliminatedAthlete(eliminated.id, roundNum, bonusesCache, seasonBonusesCache);
       effects.gained += roundEffects.gained;
@@ -1310,14 +1309,11 @@ function renderEliminatedChallenge(container) {
  */
 function getBonusRecipientsForSeason(seasonNumber) {
   const recipients = new Set();
-  const roundsPerSeason = getRoundsPerSeason();
-  const seasonStartRound = (seasonNumber - 1) * roundsPerSeason + 1;
-  const seasonEndRound = seasonNumber * roundsPerSeason;
-
   if (!frozenResultsCache?.rounds) return recipients;
 
-  for (let roundNum = seasonStartRound; roundNum <= seasonEndRound; roundNum++) {
-    const roundData = frozenResultsCache.rounds[String(roundNum)];
+  // Rounds réels de la saison (cf. calculatePointsForSeason), pas une formule à durée fixe
+  for (const roundData of Object.values(frozenResultsCache.rounds)) {
+    if (Number(roundData?.seasonNumber) !== Number(seasonNumber)) continue;
     if (!roundData?.frozen || !roundData.eliminations || roundData.eliminations.length < 2) continue;
 
     // Trier les éliminés par D+ décroissant
@@ -1711,8 +1707,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
       if (!elimRound && seasonData?.eliminated) {
         const elimEntry = seasonData.eliminated.find(e => String(e.id) === String(athleteId));
         if (elimEntry) {
-          const roundsPerSeason2 = getRoundsPerSeason();
-          elimRound = (elimEntry.eliminatedSeason - 1) * roundsPerSeason2 + elimEntry.eliminatedRound;
+          elimRound = getSeasonStartRound(elimEntry.eliminatedSeason, frozenResultsCache) + elimEntry.eliminatedRound - 1;
         }
       }
       if (!elimRound) return "Aucune donnée d'élimination";
