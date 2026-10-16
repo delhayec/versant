@@ -15,9 +15,11 @@ const fs = require('fs').promises;
 const { safeReadJSON, safeWriteJSON } = require('../json-io');
 const { LEGACY_CONTEXT, currentEdition } = require('../edition-context');
 
+const { DEFAULT_EDITION } = require('../data-dir');
+
 const LEGACY_EDITION = Object.freeze({
-  leagueId: 'versant',
-  editionId: '2026',
+  leagueId: DEFAULT_EDITION.leagueId,
+  editionId: DEFAULT_EDITION.editionId,
   legacyId: LEGACY_CONTEXT.leagueId,
   context: LEGACY_CONTEXT
 });

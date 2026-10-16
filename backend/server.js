@@ -102,7 +102,7 @@ const STRAVA_SUBSCRIPTION_ID = process.env.STRAVA_SUBSCRIPTION_ID
   ? String(process.env.STRAVA_SUBSCRIPTION_ID).trim()
   : null;
 
-const { DATA_DIR } = require('./data-dir');
+const { DATA_DIR, STORE_LAYOUT, DEFAULT_EDITION } = require('./data-dir');
 const LEAGUES_DIR = path.join(DATA_DIR, 'leagues');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 // Fichiers propres à une édition (jokers, figés, activités…) : cf. edition-context.js
@@ -110,7 +110,6 @@ const { currentEdition } = require('./edition-context');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const FAILED_WEBHOOKS_FILE = path.join(DATA_DIR, 'failed_webhooks.json');
 const WEBHOOK_LOG_FILE = path.join(DATA_DIR, 'webhook_log.json');
-const SPECIAL_RULES_FILE = path.join(DATA_DIR, 'special_rules.json');
 
 // ============================================
 // UTILITAIRES
@@ -271,6 +270,11 @@ async function logWebhook(event, status, details = {}) {
 // INITIALISATION
 // ============================================
 async function initializeServer() {
+  // Organisation editions : les données doivent avoir été migrées, sinon le
+  // serveur démarrerait sur des dossiers vides
+  if (STORE_LAYOUT === 'editions' && !(await store.resolveEdition(DEFAULT_EDITION.legacyId))) {
+    throw new Error(`VERSANT_STORE_LAYOUT=editions mais édition ${DEFAULT_EDITION.leagueId}/${DEFAULT_EDITION.editionId} introuvable : lancer d'abord backend/scripts/migrate-editions.js aller`);
+  }
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.mkdir(LEAGUES_DIR, { recursive: true });
 
@@ -285,9 +289,9 @@ async function initializeServer() {
 
   // Initialiser special_rules.json en tant qu'objet (pas tableau)
   try {
-    await fs.access(SPECIAL_RULES_FILE);
+    await fs.access(currentEdition().paths.specialRules);
   } catch {
-    await fs.writeFile(SPECIAL_RULES_FILE, JSON.stringify({}, null, 2));
+    await fs.writeFile(currentEdition().paths.specialRules, JSON.stringify({}, null, 2));
   }
 
   // Migration: corriger le format de jokers_usage.json si nécessaire
@@ -395,7 +399,7 @@ app.get('/api/strava-client-id', (req, res) => {
 // GET public - retourne les overrides de règles spéciales {roundNumber: ruleId}
 app.get('/api/special-rules', async (req, res) => {
   try {
-    const rules = await safeReadJSON(SPECIAL_RULES_FILE, {});
+    const rules = await safeReadJSON(currentEdition().paths.specialRules, {});
     res.json(rules);
   } catch (error) {
     res.json({});
@@ -2974,6 +2978,7 @@ initializeServer().then(async () => {
     if (!ADMIN_PASSWORD) console.warn('⚠️  ADMIN_PASSWORD non défini : toutes les routes admin sont refusées');
     if (JOBS_DISABLED) console.log('⏸️  VERSANT_DISABLE_JOBS=1 : tâches planifiées et rattrapage du gel désactivés');
     if (process.env.VERSANT_DATA_DIR) console.log(`📁 Données : ${DATA_DIR}`);
+    if (STORE_LAYOUT !== 'legacy') console.log(`🗂️  Organisation des données : ${STORE_LAYOUT}`);
     scheduleStandingsRefresh('démarrage');
     console.log('');
   });

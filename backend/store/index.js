@@ -21,7 +21,7 @@ const LAYOUTS = {
   editions: () => createEditionsStore()
 };
 
-function createStore(layout = process.env.VERSANT_STORE_LAYOUT || 'legacy') {
+function createStore(layout = require('../data-dir').STORE_LAYOUT) {
   const factory = LAYOUTS[layout];
   if (!factory) throw new Error(`VERSANT_STORE_LAYOUT inconnu : ${layout} (attendu : ${Object.keys(LAYOUTS).join(', ')})`);
   return factory();

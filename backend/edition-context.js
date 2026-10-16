@@ -14,7 +14,7 @@
 
 const { AsyncLocalStorage } = require('node:async_hooks');
 const path = require('path');
-const { DATA_DIR } = require('./data-dir');
+const { DATA_DIR, DEFAULT_EDITION_DIR } = require('./data-dir');
 const { CHALLENGE_CONFIG, LEGACY_PLANNING, loadEditionPlanning } = require('./shared-config');
 
 /**
@@ -37,16 +37,20 @@ function createEditionContext({ leagueId, editionId = null, dataDir, config, pla
       pendingBonusChoices: path.join(dataDir, 'pending_bonus_choices.json'),
       seasonTeams: path.join(dataDir, 'season_teams.json'),
       roundConfigs: path.join(dataDir, 'round_configs.json'),
-      activities: id => path.join(dataDir, 'leagues', `${id}_activities.json`)
+      specialRules: path.join(dataDir, 'special_rules.json'),
+      // Organisation legacy uniquement (store/legacy.js) : activités de la ligue
+      activities: id => path.join(DATA_DIR, 'leagues', `${id}_activities.json`)
     })
   });
 }
 
-// versant-2026 tel qu'aujourd'hui : backend/data/ (ou VERSANT_DATA_DIR) et la
-// config partagée, même objet (même identité, mêmes consommateurs).
+// Édition par défaut, versant-2026 : ses fichiers à la racine de backend/data/
+// (organisation legacy) ou dans leagues/versant/editions/2026/ (organisation
+// editions, L32), et la config partagée, même objet (même identité, mêmes
+// consommateurs).
 const LEGACY_CONTEXT = createEditionContext({
   leagueId: CHALLENGE_CONFIG.leagueId,
-  dataDir: DATA_DIR,
+  dataDir: DEFAULT_EDITION_DIR,
   config: CHALLENGE_CONFIG,
   planning: LEGACY_PLANNING
 });

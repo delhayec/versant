@@ -6,6 +6,7 @@
  * Usage (serveur ARRÊTÉ, données sauvegardées) :
  *   node backend/scripts/migrate-editions.js aller    [--data <dossier>] [--force]
  *   node backend/scripts/migrate-editions.js verifier [--data <dossier>]
+ *   node backend/scripts/migrate-editions.js archiver [--data <dossier>]
  *   node backend/scripts/migrate-editions.js retour   [--data <dossier>]
  *
  * aller    : crée la nouvelle organisation à côté de l'ancienne (cf. store/editions.js).
@@ -13,6 +14,9 @@
  *            la vue reconstruite est identique, octet pour octet, à l'ancien fichier
  *            d'activités, et que les fichiers de l'édition sont des copies exactes.
  * verifier : compare les deux organisations (code de sortie 1 en cas d'écart).
+ * archiver : après vérification, déplace les anciens fichiers dans
+ *            avant-editions-<date>/ : plus aucun code ne peut les lire par erreur
+ *            (rien n'est supprimé ; retour les reconstruit).
  * retour   : réécrit les anciens fichiers à partir de la nouvelle organisation
  *            (après des écritures faites depuis la bascule) ; les fichiers écrasés
  *            sont d'abord copiés dans retour-sauvegarde-<date>/.
@@ -64,9 +68,21 @@ function fail(message) {
   process.exit(1);
 }
 
+/** Ancien fichier : à sa place, ou dans la dernière archive avant-editions-*. */
+function legacyPath(relative) {
+  const direct = path.join(dataDir, relative);
+  if (fs.existsSync(direct)) return direct;
+  const archives = fs.readdirSync(dataDir).filter(n => n.startsWith('avant-editions-')).sort();
+  for (const archive of archives.reverse()) {
+    const candidate = path.join(dataDir, archive, relative);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return direct;
+}
+
 async function compare() {
   const report = { activities: null, files: {} };
-  const original = fs.readFileSync(legacyActivitiesFile, 'utf8');
+  const original = fs.readFileSync(legacyPath(path.relative(dataDir, legacyActivitiesFile)), 'utf8');
   const rebuilt = JSON.stringify(await editionsView(), null, 2);
   report.activities = {
     identical: rebuilt === original,
@@ -74,7 +90,7 @@ async function compare() {
     count: JSON.parse(original).length
   };
   for (const name of EDITION_FILES) {
-    const flat = path.join(dataDir, name);
+    const flat = legacyPath(name);
     const copy = path.join(editionDir, name);
     if (!fs.existsSync(flat) && !fs.existsSync(copy)) continue;
     report.files[name] = fs.existsSync(flat) && fs.existsSync(copy) && sha256(flat) === sha256(copy)
@@ -189,9 +205,27 @@ async function retour() {
   else console.log(`✅ Retour : ${changed.length} fichier(s) réécrit(s) depuis la nouvelle organisation : ${changed.join(', ')}\n   anciennes versions : ${backupDir}`);
 }
 
-const commands = { aller, verifier, retour };
+async function archiver() {
+  const report = await compare();
+  printReport(report);
+  if (!report.identical) fail('les deux organisations diffèrent : archivage refusé');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const archiveDir = path.join(dataDir, `avant-editions-${stamp}`);
+  const moved = [];
+  for (const relative of [path.relative(dataDir, legacyActivitiesFile), ...EDITION_FILES]) {
+    const source = path.join(dataDir, relative);
+    if (!fs.existsSync(source)) continue;
+    const target = path.join(archiveDir, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.renameSync(source, target);
+    moved.push(relative);
+  }
+  console.log(`✅ Archivage : ${moved.length} ancien(s) fichier(s) déplacé(s) dans ${archiveDir}`);
+}
+
+const commands = { aller, verifier, archiver, retour };
 if (!commands[command]) {
-  console.log('Usage : node backend/scripts/migrate-editions.js <aller|verifier|retour> [--data <dossier>] [--force]');
+  console.log('Usage : node backend/scripts/migrate-editions.js <aller|verifier|archiver|retour> [--data <dossier>] [--force]');
   process.exit(command ? 1 : 0);
 }
 console.log(`📁 Données : ${dataDir}`);
