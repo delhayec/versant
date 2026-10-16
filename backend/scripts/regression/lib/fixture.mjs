@@ -42,6 +42,21 @@ export function migrateToEditions(repoRoot, dataDir) {
   if (!existsSync(script)) throw new Error('--layout editions : backend/scripts/migrate-editions.js absent du code testé');
   const res = spawnSync(process.execPath, [script, 'aller', '--data', dataDir, '--force'], { encoding: 'utf8' });
   if (res.status !== 0) throw new Error(`migration vers l'organisation editions échouée : ${res.stderr || res.stdout}`);
+  // L32 : anciens fichiers archivés, pour qu'aucun code ne puisse encore les lire
+  if (readFileSync(script, 'utf8').includes('async function archiver')) {
+    const archived = spawnSync(process.execPath, [script, 'archiver', '--data', dataDir], { encoding: 'utf8' });
+    if (archived.status !== 0) throw new Error(`archivage des anciens fichiers échoué : ${archived.stderr || archived.stdout}`);
+  }
+}
+
+/** Fichiers de l'édition : dans leagues/versant/editions/2026/ en organisation editions (L32). */
+export const EDITION_DATA_FILES = [
+  'frozen_results.json', 'jokers_usage.json', 'bonuses.json', 'pending_bonus_choices.json',
+  'round_configs.json', 'season_teams.json', 'special_rules.json', 'season_planning.json'
+];
+
+export function editionDataPath(rel, layout) {
+  return layout === 'editions' && EDITION_DATA_FILES.includes(rel) ? join('leagues', 'versant', 'editions', '2026', rel) : rel;
 }
 
 /** Charge la fixture : métadonnées + textes bruts des fichiers de données. */

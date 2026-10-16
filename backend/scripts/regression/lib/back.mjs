@@ -23,7 +23,7 @@ import { dirname, join } from 'node:path';
 import { canonicalize, slim } from './canonical.mjs';
 import { installFixedClock, setNow, RealDate } from './clock.mjs';
 import { captureConsole } from './console.mjs';
-import { buildServerHandlers, frozenRoundEnds, loadFixture, migrateToEditions } from './fixture.mjs';
+import { buildServerHandlers, editionDataPath, frozenRoundEnds, loadFixture, migrateToEditions } from './fixture.mjs';
 import { restoreMathRandom, seedMathRandom } from './prng.mjs';
 
 const WATCHED_FILES = ['bonuses.json', 'pending_bonus_choices.json'];
@@ -71,15 +71,17 @@ export async function runBack({ repoRoot, fixtureDir, layout = 'legacy' }) {
     const { CHALLENGE_CONFIG, getRoundDates } = require('./shared-config.js');
     const handlers = buildServerHandlers(fixture, repoRoot);
 
-    const readJSON = rel => JSON.parse(readFileSync(join(dataDir, rel), 'utf8'));
-    const writeJSON = (rel, value) => writeFileSync(join(dataDir, rel), JSON.stringify(value, null, 2));
+    // Fichiers de l'édition : à leur place selon l'organisation testée (L32)
+    const readJSON = rel => JSON.parse(readFileSync(join(dataDir, editionDataPath(rel, layout)), 'utf8'));
+    const writeJSON = (rel, value) => writeFileSync(join(dataDir, editionDataPath(rel, layout)), JSON.stringify(value, null, 2));
 
     // Entrées passées au gel, comme les fournit server.js (route freeze-round
     // et runAutoFreeze : server.js:2219-2234 et 2409-2421).
     const loadInputs = () => {
       const athletes = readJSON('athletes.json');
       return {
-        activities: readJSON(fixture.activitiesFile),
+        // Jamais modifiées par le gel : lues dans la fixture (l'ancien fichier est archivé en organisation editions)
+        activities: fixture.json(fixture.activitiesFile),
         leagueAthletes: athletes.filter(a => a.league_id === leagueId && a.active),
         jokerUsage: handlers.normalizeJokerUsage(readJSON('jokers_usage.json'))
       };
