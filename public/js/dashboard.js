@@ -14,7 +14,8 @@ import {
   getRoundInSeason, getRoundsPerSeason,
   getAthleteColor, getAthleteInitials,
   fetchWithTimeout, loadSeasonPlanning,
-  getDayInRound as getDayInRoundAt, getRoundDuration
+  getDayInRound as getDayInRoundAt, getRoundDuration,
+  setFrozenCache
 } from './config.js';
 import { formatDate, formatElevation } from './ui.js';
 
@@ -495,7 +496,10 @@ async function loadFrozenResults() {
   try {
     const res = await fetch(`${API_BASE}/frozen-results`);
     if (!res.ok) return {};
-    return await res.json();
+    const data = await res.json();
+    // Saisons réelles (durées variables) pour getSeasonNumber, getRoundInSeason…
+    setFrozenCache(data);
+    return data;
   } catch (error) {
     console.warn('Erreur chargement frozen results:', error);
     return {};
@@ -517,32 +521,29 @@ async function loadAllAthletes() {
 }
 
 /**
+ * Rounds figés de la saison en cours, [numéro global, données], dans l'ordre.
+ * Saison lue dans les rounds figés (champ seasonNumber), pas déduite d'un nombre
+ * fixe de rounds par saison : la formule (joueurs - 1) / 2 rattachait le R52
+ * (S9) à une « saison » R49-R56 et comptait les éliminés de la fin de S8.
+ */
+function getCurrentSeasonFrozenRounds(frozenResults) {
+  if (!frozenResults?.rounds) return [];
+  const currentSeason = getSeasonNumber(new Date(), frozenResults);
+  return Object.entries(frozenResults.rounds)
+    .filter(([, r]) => r?.frozen && Number(r.seasonNumber) === Number(currentSeason))
+    .map(([k, r]) => [parseInt(k), r])
+    .sort((a, b) => a[0] - b[0]);
+}
+
+/**
  * Détermine si un joueur est éliminé dans la saison en cours et à quel round
  */
-function getEliminationInfo(athleteId, frozenResults, allAthletes = []) {
+function getEliminationInfo(athleteId, frozenResults) {
   const aid = String(athleteId);
 
-  if (!frozenResults || !frozenResults.rounds) {
-    return { isEliminated: false, round: null };
-  }
-
-  // Calculer la saison en cours
-  const currentRound = getCurrentRound();
-  const totalAthletes = allAthletes.length || 15;
-  const roundsPerSeason = Math.ceil((totalAthletes - 1) / 2);
-  const currentSeason = Math.ceil(currentRound / roundsPerSeason);
-  const seasonStartRound = (currentSeason - 1) * roundsPerSeason + 1;
-  const seasonEndRound = currentSeason * roundsPerSeason;
-
-  for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
-    const rn = parseInt(roundNum);
-    if (rn < seasonStartRound || rn > seasonEndRound) continue;
-
-    if (roundData.eliminations) {
-      const eliminated = roundData.eliminations.find(e => String(e.id) === aid);
-      if (eliminated) {
-        return { isEliminated: true, round: rn, roundInSeason: ((rn - 1) % roundsPerSeason) + 1 };
-      }
+  for (const [rn, roundData] of getCurrentSeasonFrozenRounds(frozenResults)) {
+    if (roundData.eliminations?.some(e => String(e.id) === aid)) {
+      return { isEliminated: true, round: rn, roundInSeason: roundData.roundInSeason };
     }
   }
 
@@ -555,21 +556,9 @@ function getEliminationInfo(athleteId, frozenResults, allAthletes = []) {
 function getActiveAthletes(frozenResults, allAthletes) {
   const eliminatedIds = new Set();
 
-  if (frozenResults && frozenResults.rounds) {
-    // Calculer quelle saison on est
-    const currentRound = getCurrentRound();
-    const roundsPerSeason = Math.ceil((allAthletes.length - 1) / 2); // 2 éliminations par round
-    const currentSeason = Math.ceil(currentRound / roundsPerSeason);
-    const seasonStartRound = (currentSeason - 1) * roundsPerSeason + 1;
-    const seasonEndRound = currentSeason * roundsPerSeason;
-
-    // Ne compter que les éliminés de la saison en cours
-    for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
-      const rn = parseInt(roundNum);
-      if (rn >= seasonStartRound && rn <= seasonEndRound && roundData.eliminations) {
-        roundData.eliminations.forEach(e => eliminatedIds.add(String(e.id)));
-      }
-    }
+  // Ne compter que les éliminés de la saison en cours
+  for (const [, roundData] of getCurrentSeasonFrozenRounds(frozenResults)) {
+    (roundData.eliminations || []).forEach(e => eliminatedIds.add(String(e.id)));
   }
 
   return allAthletes.filter(a => !eliminatedIds.has(String(a.id)));
@@ -598,20 +587,7 @@ function calculateRankingFromActivities(activities, athletes) {
 function calculateEliminatedRanking(frozenResults, allActivities, allAthletes) {
   const eliminated = [];
 
-  if (!frozenResults || !frozenResults.rounds) return [];
-
-  // Calculer la saison en cours
-  const currentRound = getCurrentRound();
-  const totalAthletes = allAthletes.length || 15;
-  const roundsPerSeason = Math.ceil((totalAthletes - 1) / 2);
-  const currentSeason = Math.ceil(currentRound / roundsPerSeason);
-  const seasonStartRound = (currentSeason - 1) * roundsPerSeason + 1;
-  const seasonEndRound = currentSeason * roundsPerSeason;
-
-  for (const [roundNum, roundData] of Object.entries(frozenResults.rounds)) {
-    const rn = parseInt(roundNum);
-    if (rn < seasonStartRound || rn > seasonEndRound) continue;
-
+  for (const [rn, roundData] of getCurrentSeasonFrozenRounds(frozenResults)) {
     if (roundData.eliminations) {
       roundData.eliminations.forEach(e => {
         eliminated.push({

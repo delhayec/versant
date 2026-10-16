@@ -1082,21 +1082,21 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
         // Déterminer la saison du round visé.
         // On la lit en priorité sur le round figé correspondant ;
         // sinon on retombe sur un calcul (au cas où le round n'est pas encore figé).
+        // Round pas encore figé : saison du dernier round figé, +1 si cette saison
+        // est close (challenge des éliminés figé). La formule théorique à nombre
+        // de rounds fixe rattachait le R52 (S9) à la S7 et bloquait les éliminés de S7.
         let targetSeason = null;
         const targetRoundEntry = frozenData.rounds[String(round_number)];
         if (targetRoundEntry?.seasonNumber != null) {
           targetSeason = Number(targetRoundEntry.seasonNumber);
         } else {
-          try {
-            const athletes2 = await safeReadJSON(ATHLETES_FILE, []);
-            const totalParticipants = athletes2.filter(a =>
-              a.league_id === (req.body.leagueId || currentEdition().leagueId) && a.active
-            ).length;
-            if (totalParticipants >= 2) {
-              const { getSeasonNumber } = require('./shared-config');
-              targetSeason = getSeasonNumber(round_number, totalParticipants);
-            }
-          } catch {}
+          const previous = Object.entries(frozenData.rounds)
+            .filter(([k, r]) => r?.frozen && r.seasonNumber != null && Number(k) < Number(round_number))
+            .sort((x, y) => Number(y[0]) - Number(x[0]))[0];
+          if (previous) {
+            const s = Number(previous[1].seasonNumber);
+            targetSeason = frozenData.eliminatedChallengeRankings?.[String(s)] ? s + 1 : s;
+          }
         }
 
         // Ne tester l'élimination QUE sur les rounds de la saison cible.
