@@ -19,7 +19,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const { baseUrl, publicDir, at } = workerData;
+const { baseUrl, publicDir, at, edition } = workerData;
 const require = createRequire(import.meta.url);
 
 // Instant du calcul imposé (calcul « à une date », sans sauvegarde)
@@ -58,9 +58,15 @@ globalThis.localStorage = memoryStorage();
 globalThis.sessionStorage = memoryStorage();
 
 const realFetch = globalThis.fetch;
-globalThis.fetch = (input, init) => {
-  const url = typeof input === 'string' ? input : input.url;
-  return realFetch(new URL(url, baseUrl), init);
+// Édition autre que celle par défaut (L33) : en-têtes internes, la requête est
+// traitée par le serveur dans le contexte de cette édition
+const editionHeaders = edition ? { 'x-versant-edition': edition.key, 'x-versant-internal': edition.token } : {};
+globalThis.fetch = (input, init = {}) => {
+  let url = typeof input === 'string' ? input : input.url;
+  // Identifiant « ligue/édition » inséré tel quel par le front dans les chemins
+  // (/api/athletes/${leagueId}) : on l'encode pour qu'il reste un seul segment
+  if (edition?.key.includes('/')) url = url.split(`/${edition.key}`).join(`/${encodeURIComponent(edition.key)}`);
+  return realFetch(new URL(url, baseUrl), { ...init, headers: { ...(init.headers || {}), ...editionHeaders } });
 };
 
 const load = file => import(pathToFileURL(join(publicDir, 'js', file)).href);
@@ -69,6 +75,16 @@ try {
   const config = await load('config.js');
   const jokers = await load('jokers.js');
   const engine = await load('standings-engine.js');
+
+  // Édition autre que celle par défaut (L33) : les constantes du front portent
+  // les réglages de versant-2026 (identifiant, dates, planning par défaut avec
+  // saisons en équipes). On applique ceux de l'édition avant tout calcul, sur
+  // les mêmes objets ; son planning remplace entièrement celui par défaut.
+  if (edition) {
+    const editionConfig = await (await fetch('/api/config')).json();
+    Object.assign(config.CHALLENGE_CONFIG, editionConfig.challenge);
+    for (const season of Object.keys(config.SEASON_PLANNING)) delete config.SEASON_PLANNING[season];
+  }
 
   // ---- Chargement, dans l'ordre d'app.js init() ----
   await config.loadParticipants();

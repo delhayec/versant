@@ -58,6 +58,24 @@ const STANDINGS_NEUTRAL_WRITES = [
   '/api/auth/', '/api/webhook/', '/api/admin/login', '/api/admin/webhooks',
   '/api/admin/strava', '/api/admin/tokens', '/api/admin/reset-password'
 ];
+// Appels internes du moteur serveur pour une édition autre que celle par
+// défaut (L33) : en-tête X-Versant-Edition, authentifié par un jeton tiré au
+// démarrage et connu du seul processus. La requête est alors traitée dans le
+// contexte de cette édition par les routes historiques.
+const INTERNAL_TOKEN = crypto.randomBytes(32).toString('hex');
+app.use('/api', async (req, res, next) => {
+  const editionKey = req.headers['x-versant-edition'];
+  if (!editionKey) return next();
+  if (req.headers['x-versant-internal'] !== INTERNAL_TOKEN) return res.status(401).json({ error: 'Non autorisé' });
+  try {
+    const context = await store.editionContext(String(editionKey));
+    if (!context) return res.status(404).json({ error: 'Édition introuvable' });
+    withEdition(context, next);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use('/api', (req, res, next) => {
   if (req.method !== 'GET' && !STANDINGS_NEUTRAL_WRITES.some(prefix => req.originalUrl.startsWith(prefix))) {
     res.on('finish', () => {
@@ -106,7 +124,7 @@ const { DATA_DIR, STORE_LAYOUT, DEFAULT_EDITION } = require('./data-dir');
 const LEAGUES_DIR = path.join(DATA_DIR, 'leagues');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 // Fichiers propres à une édition (jokers, figés, activités…) : cf. edition-context.js
-const { currentEdition, withEdition } = require('./edition-context');
+const { currentEdition, withEdition, LEGACY_CONTEXT } = require('./edition-context');
 const { registerEditionRoutes } = require('./routes/editions');
 const { registerAccountRoutes } = require('./routes/accounts');
 const { registerLeagueRoutes } = require('./routes/leagues');
@@ -2384,8 +2402,14 @@ async function saveYearlyStandingsSnapshot(compact) {
 // action de jeu ou d'admin), en différé pour regrouper les déclenchements.
 const engineRunner = require('./engine-runner');
 const STANDINGS_REFRESH_DELAY_MS = 10000;
-let standingsRefreshTimer = null;
+const standingsRefreshTimers = new Map(); // un recalcul différé par édition
 let standingsRefreshChain = Promise.resolve();
+
+/** Édition de l'appel en cours : null pour l'édition par défaut (chemin inchangé). */
+function internalEdition() {
+  const context = currentEdition();
+  return context === LEGACY_CONTEXT ? null : { key: context.leagueId, token: INTERNAL_TOKEN };
+}
 
 function localApiBase() {
   return `http://127.0.0.1:${PORT}`;
@@ -2395,11 +2419,12 @@ function localApiBase() {
 function refreshYearlyStandings(reason) {
   const run = async () => {
     const started = Date.now();
-    const { standings } = await engineRunner.computeYearlyStandings({ baseUrl: localApiBase() });
+    const edition = internalEdition();
+    const { standings } = await engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), edition });
     const compact = compactStandings(standings);
     if (compact.length === 0) throw new Error('classement vide, rien enregistré');
     await saveYearlyStandingsSnapshot(compact);
-    console.log(`🏆 Classement annuel recalculé (${reason}) : ${compact.length} joueurs, ${Date.now() - started} ms`);
+    console.log(`🏆 Classement annuel recalculé${edition ? ` [${edition.key}]` : ''} (${reason}) : ${compact.length} joueurs, ${Date.now() - started} ms`);
     return compact;
   };
   const result = standingsRefreshChain.then(run, run);
@@ -2410,17 +2435,28 @@ function refreshYearlyStandings(reason) {
 /** Recalcul différé. Coupé en bac à sable (VERSANT_DISABLE_JOBS), comme les autres tâches. */
 function scheduleStandingsRefresh(reason) {
   if (JOBS_DISABLED) return;
-  clearTimeout(standingsRefreshTimer);
-  standingsRefreshTimer = setTimeout(() => {
-    refreshYearlyStandings(reason).catch(e => console.error('❌ Classement annuel :', e.message));
-  }, STANDINGS_REFRESH_DELAY_MS);
+  // Le minuteur garde le contexte d'édition de l'appel (AsyncLocalStorage)
+  const key = currentEdition().leagueId;
+  clearTimeout(standingsRefreshTimers.get(key));
+  standingsRefreshTimers.set(key, setTimeout(() => {
+    standingsRefreshTimers.delete(key);
+    refreshYearlyStandings(reason).catch(e => console.error(`❌ Classement annuel [${key}] :`, e.message));
+  }, STANDINGS_REFRESH_DELAY_MS));
+}
+
+/** Contexte d'une édition désignée par une route admin (body.edition), ou celui par défaut. */
+async function adminEditionContext(req) {
+  const key = req.body?.edition;
+  return key ? store.editionContext(String(key)) : LEGACY_CONTEXT;
 }
 
 // Admin : recalculer et enregistrer maintenant
 app.post('/api/admin/standings/refresh', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const compact = await refreshYearlyStandings('admin');
+    const context = await adminEditionContext(req);
+    if (!context) return res.status(404).json({ error: 'Édition introuvable' });
+    const compact = await withEdition(context, () => refreshYearlyStandings('admin'));
     res.json({ success: true, count: compact.length });
   } catch (error) {
     console.error('Erreur recalcul classement:', error);
@@ -2435,7 +2471,10 @@ app.post('/api/admin/standings/compute', async (req, res) => {
   try {
     const at = req.body?.at ? new Date(req.body.at) : null;
     if (at && isNaN(at.getTime())) return res.status(400).json({ error: 'date invalide' });
-    const result = await engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), at: at?.toISOString() });
+    const context = await adminEditionContext(req);
+    if (!context) return res.status(404).json({ error: 'Édition introuvable' });
+    const result = await withEdition(context, () =>
+      engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), at: at?.toISOString(), edition: internalEdition() }));
     res.json({ at: result.at, standings: compactStandings(result.standings) });
   } catch (error) {
     console.error('Erreur calcul classement:', error);
