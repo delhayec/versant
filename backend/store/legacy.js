@@ -15,7 +15,8 @@ const fs = require('fs').promises;
 const { safeReadJSON, safeWriteJSON } = require('../json-io');
 const { LEGACY_CONTEXT, currentEdition } = require('../edition-context');
 
-const { DEFAULT_EDITION } = require('../data-dir');
+const path = require('path');
+const { DATA_DIR, DEFAULT_EDITION } = require('../data-dir');
 
 const LEGACY_EDITION = Object.freeze({
   leagueId: DEFAULT_EDITION.leagueId,
@@ -45,6 +46,15 @@ function createLegacyStore() {
     /** Contexte d'édition (fichiers, config, planning) : ici, toujours le contexte par défaut. */
     async editionContext(id) {
       return (await this.resolveEdition(id)) ? LEGACY_CONTEXT : null;
+    },
+
+    /**
+     * Participants d'une édition : les fiches d'athletes.json de la ligue
+     * (identifiant historique), actives ou non, telles quelles.
+     */
+    async listParticipants(id) {
+      const athletes = await safeReadJSON(path.join(DATA_DIR, 'athletes.json'), []);
+      return athletes.filter(a => a.league_id === id);
     },
 
     /** Activités vues par une ligue (identifiant de ligue des routes actuelles), dans l'ordre stocké. */

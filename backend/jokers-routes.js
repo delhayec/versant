@@ -107,7 +107,7 @@ function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
 
       const jokerUsage = await readMergedJokerUsage();
 
-      const leagueAthletes = athletes.filter(a => a.league_id === leagueId);
+      const leagueAthletes = await require('./store').getStore().listParticipants(leagueId);
 
       const INITIAL_STOCK = 2;
 
@@ -305,7 +305,7 @@ function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
 
       const { leagueId } = req.params;
       const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
-      const leagueAthletes = athletes.filter(a => a.league_id === leagueId);
+      const leagueAthletes = await require('./store').getStore().listParticipants(leagueId);
 
       // Vider les usages de jokers pour cette ligue
       let jokerUsageRaw = [];

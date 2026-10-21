@@ -105,13 +105,17 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
   }
 
   /**
-   * Participants dont les activités forment la vue de l'édition. Jusqu'à L42,
-   * l'appartenance reste portée par athletes.json (league_id = identifiant
-   * historique), plus les anciens participants notés à la migration.
+   * Participants dont les activités forment la vue de l'édition : ses
+   * inscriptions (participants.json) ou, pour versant/2026, les fiches
+   * d'athletes.json de la ligue ; plus les anciens participants notés à la
+   * migration.
    */
   async function participantIds(edition) {
     const athletes = await safeReadJSON(path.join(dataDir, 'athletes.json'), []);
-    const ids = new Set(athletes.filter(a => a.league_id === edition.legacyId).map(a => String(a.id)));
+    const entries = await safeReadJSON(path.join(edition.dir, 'participants.json'), null);
+    const ids = new Set(Array.isArray(entries)
+      ? entries.map(e => String(e.id))
+      : athletes.filter(a => a.league_id === edition.legacyId).map(a => String(a.id)));
     for (const id of edition.info.formerParticipants || []) ids.add(String(id));
     return [...ids];
   }
@@ -168,6 +172,28 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
       if (!edition) return null;
       if (!contexts.has(edition.dir)) contexts.set(edition.dir, buildContext(edition));
       return contexts.get(edition.dir);
+    },
+
+    /**
+     * Participants d'une édition, au format des fiches d'athletes.json (actifs
+     * ou non). Édition avec participants.json (éditions créées à partir de L42) :
+     * ses inscriptions, jointes aux comptes. Sinon (versant/2026) : les fiches
+     * d'athletes.json de la ligue, comme avant. Identifiant inconnu : même filtre
+     * qu'avant sur league_id.
+     */
+    async listParticipants(id) {
+      const athletes = await safeReadJSON(path.join(dataDir, 'athletes.json'), []);
+      const edition = await findEdition(id);
+      if (!edition) return athletes.filter(a => a.league_id === id);
+      const entries = await safeReadJSON(path.join(edition.dir, 'participants.json'), null);
+      if (!Array.isArray(entries)) return athletes.filter(a => a.league_id === edition.legacyId);
+      const key = edition.legacyId || `${edition.leagueId}/${edition.editionId}`;
+      return entries
+        .map(entry => {
+          const account = athletes.find(a => String(a.id) === String(entry.id));
+          return account ? { ...account, ...entry, league_id: key } : null;
+        })
+        .filter(Boolean);
     },
 
     async readActivities(id) {

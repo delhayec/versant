@@ -382,10 +382,10 @@ registerEditionRoutes(app, {
   store,
   validateSession,
   isAdminRequest: req => !!ADMIN_PASSWORD && req.headers['x-admin-password'] === ADMIN_PASSWORD,
-  // Jusqu'à L42, l'appartenance est portée par athletes.json (league_id = identifiant historique)
+  // Participants de l'édition (store.listParticipants : athletes.json pour versant/2026)
   isParticipant: async (athleteId, edition) => {
-    const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    return athletes.some(a => normalizeId(a.id) === normalizeId(athleteId) && a.league_id === edition.legacyId);
+    const participants = await store.listParticipants(edition.legacyId || `${edition.leagueId}/${edition.editionId}`);
+    return participants.some(a => normalizeId(a.id) === normalizeId(athleteId));
   },
   withEdition
 });
@@ -531,7 +531,7 @@ app.get('/api/admin/season-plan', async (req, res) => {
   try {
     const leagueId = req.query.leagueId || currentEdition().leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
     const plan = await frozenResults.getSeasonPlan(leagueAthletes, currentEdition().config);
     res.json(plan);
   } catch (error) {
@@ -548,7 +548,7 @@ const { planDeadlineRounds } = require('./deadline-planner');
 
 async function getLeagueAthletes() {
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
-  return athletes.filter(a => a.league_id === currentEdition().leagueId && a.active);
+  return (await store.listParticipants(currentEdition().leagueId)).filter(a => a.active);
 }
 
 /** Replanifie la saison Deadline en cours (sans effet sinon). Jamais bloquant. */
@@ -956,10 +956,10 @@ app.post('/api/athletes/register', async (req, res) => {
 
 app.get('/api/athletes/:leagueId', async (req, res) => {
   try {
-    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const athletes = await store.listParticipants(req.params.leagueId);
     // Route publique : pas d'e-mail (la page admin a sa propre route)
     const leagueAthletes = athletes
-      .filter(a => a.league_id === req.params.leagueId && a.active)
+      .filter(a => a.active)
       .map(a => ({
         id: a.id,
         name: a.name,
@@ -1409,7 +1409,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   console.log(`🔄 Sync ${leagueId}: ${startDate} → ${endDate} (update=${updateExisting})`);
 
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
-  let leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+  let leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
 
   if (athleteIds) {
     const wanted = new Set(athleteIds.map(normalizeId));
@@ -2201,9 +2201,9 @@ app.get('/api/admin/athletes/download', async (req, res) => {
 app.get('/api/admin/athletes/:leagueId', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const athletes = await store.listParticipants(req.params.leagueId);
     res.json(athletes
-      .filter(a => a.league_id === req.params.leagueId && a.active)
+      .filter(a => a.active)
       .map(a => ({
         id: a.id,
         name: a.name,
@@ -2485,7 +2485,7 @@ app.get('/api/teams/round/:roundNumber', async (req, res) => {
     const activitiesLeague = leagueId;
     const activities = await store.readActivities(activitiesLeague);
     const athletesAll = await safeReadJSON(ATHLETES_FILE, []);
-    const leagueAthletes = athletesAll.filter(a => a.league_id === leagueId && a.active);
+    const leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
     const jokerUsage = await readJokerUsage();
 
     // Détecter la saison de ce round à partir des rounds figés précédents.
@@ -2693,7 +2693,7 @@ app.get('/api/frozen-results/check/:roundNumber', async (req, res) => {
 app.get('/api/frozen-results/standings/:leagueId', async (req, res) => {
   try {
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const leagueAthletes = athletes.filter(a => a.league_id === req.params.leagueId && a.active);
+    const leagueAthletes = (await store.listParticipants(req.params.leagueId)).filter(a => a.active);
     const standings = await frozenResults.calculateYearlyStandings(leagueAthletes);
     res.json(standings);
   } catch (error) {
@@ -2712,7 +2712,7 @@ app.post('/api/admin/freeze-round/:roundNumber', async (req, res) => {
 
     const activitiesLeague = leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
     const jokerUsage = await readJokerUsage();
 
     // Consolider la météo avant de figer (round gelé = définitif)
@@ -2743,7 +2743,7 @@ app.post('/api/admin/auto-freeze', async (req, res) => {
 
     const activitiesLeague = leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
     const jokerUsage = await readJokerUsage();
 
     // Consolider la météo avant de figer (round gelé = définitif)
@@ -2890,7 +2890,7 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
     const leagueId = currentEdition().leagueId;
     const activitiesLeague = leagueId;
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
-    const leagueAthletes = athletes.filter(a => a.league_id === leagueId && a.active);
+    const leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
     if (leagueAthletes.length === 0) {
       console.log(`[${reason}] aucun athlète actif, skip auto-freeze`);
       return [];
