@@ -1647,19 +1647,57 @@ app.post('/api/sync/:leagueId', async (req, res) => {
   }
 });
 
+// ============================================
+// ÉDITIONS EN COURS (L33)
+// ============================================
+const EDITION_GRACE_DAYS = 14; // après la fin : dernier gel, challenge des éliminés
+
+/**
+ * Éditions traitées par les tâches planifiées : l'édition par défaut, toujours
+ * (comme avant L33), et les autres une fois commencées, jusqu'à 14 jours après
+ * leur fin.
+ */
+async function activeEditions(now = new Date()) {
+  const today = now.toISOString().split('T')[0];
+  const editions = [];
+  for (const league of await store.listLeagues()) {
+    for (const edition of await store.listLeagueEditions(league.id)) {
+      const graceEnd = edition.endDate
+        ? new Date(new Date(`${edition.endDate}T00:00:00Z`).getTime() + EDITION_GRACE_DAYS * 86400000).toISOString().split('T')[0]
+        : null;
+      const isDefault = edition.key === DEFAULT_EDITION.legacyId;
+      const started = !edition.startDate || edition.startDate <= today;
+      const notOver = !graceEnd || today <= graceEnd;
+      if (isDefault || (started && notOver)) editions.push(edition);
+    }
+  }
+  return editions;
+}
+
+/** Exécute fn pour chaque édition en cours, dans son contexte ; une erreur n'arrête pas les autres. */
+async function forEachActiveEdition(label, fn) {
+  for (const edition of await activeEditions()) {
+    try {
+      const context = await store.editionContext(edition.key);
+      if (!context) continue;
+      await withEdition(context, () => fn(edition));
+    } catch (error) {
+      console.error(`❌ [${edition.key}] ${label} :`, error.message);
+    }
+  }
+}
+
 async function autoSyncAllLeagues() {
   console.log('🔄 Sync automatique...');
   await refreshAllTokens();
 
-  const athletes = await safeReadJSON(ATHLETES_FILE, []);
-  const leagues = [...new Set(athletes.map(a => a.league_id).filter(Boolean))];
-
   const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const end = new Date().toISOString().split('T')[0];
 
-  for (const leagueId of leagues) {
-    await syncLeague(leagueId, start, end);
-  }
+  // Une synchro par édition en cours. Un joueur inscrit à deux éditions qui se
+  // chevauchent (lancement anticipé) est interrogé deux fois : à regrouper par
+  // compte avec la gestion du quota d'API (L60).
+  await forEachActiveEdition('synchro', edition => syncLeague(edition.key, start, end));
 
   console.log('✅ Sync automatique terminée');
 }
@@ -1754,6 +1792,25 @@ function activityOwnerId(activity) {
   return normalizeId(activity.athlete_id ?? activity.athlete?.id);
 }
 
+/** Édition qui reçoit les activités d'un athlète par webhook (cf. processOneWebhook). */
+async function webhookEditionKey(athlete) {
+  if (athlete.league_id && await store.resolveEdition(athlete.league_id)) return athlete.league_id;
+  const mine = [];
+  for (const edition of await activeEditions()) {
+    const participants = await store.listParticipants(edition.key);
+    if (participants.some(p => normalizeId(p.id) === normalizeId(athlete.id))) mine.push(edition);
+  }
+  return mine.length ? mine[mine.length - 1].key : null;
+}
+
+/** Recalcul du classement de chaque édition en cours où l'athlète joue. */
+async function scheduleRefreshForAthlete(athleteId, reason) {
+  await forEachActiveEdition('classement', async edition => {
+    const participants = await store.listParticipants(edition.key);
+    if (participants.some(p => normalizeId(p.id) === normalizeId(athleteId))) scheduleStandingsRefresh(reason);
+  });
+}
+
 async function processOneWebhook(event) {
   const ownerId = normalizeId(event.owner_id);
   const objectId = event.object_id;
@@ -1790,7 +1847,16 @@ async function processOneWebhook(event) {
   }
 
   const athlete = athletes[athleteIndex];
-  const leagueId = athlete.league_id;
+  // Édition dont la vue reçoit l'activité (L33) : celle de la fiche (league_id,
+  // versant/2026), sinon la plus récente édition en cours dont l'athlète est
+  // participant. En organisation editions, l'activité est rangée une seule fois
+  // chez l'athlète : toutes ses éditions la voient.
+  const leagueId = await webhookEditionKey(athlete);
+  if (!leagueId) {
+    console.log('   → Ignoré (athlète sans édition en cours)');
+    await logWebhook(event, 'ignored', { reason: 'no_edition' });
+    return;
+  }
   const activitiesLeague = leagueId;
 
   console.log(`   → Athlète: ${athlete.name}`);
@@ -1929,7 +1995,7 @@ async function processOneWebhook(event) {
 
     console.log(`   ✅ Ajouté: ${stravaActivity.name} (+${stravaActivity.total_elevation_gain}m)`);
     await logWebhook(event, 'success', { name: stravaActivity.name, elevation: stravaActivity.total_elevation_gain });
-    scheduleStandingsRefresh('webhook Strava');
+    await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
 
   } else if (event.aspect_type === 'delete') {
     // Une activité n'est retirée que si elle appartient à l'émetteur de
@@ -1965,7 +2031,7 @@ async function processOneWebhook(event) {
       await store.writeActivities(activitiesLeague, activities);
       console.log(`   🗑️ Supprimé`);
       await logWebhook(event, 'deleted', {});
-      scheduleStandingsRefresh('webhook Strava');
+      await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
     }
   } else if (event.aspect_type === 'update') {
     // Activité modifiée sur Strava - la mettre à jour localement
@@ -2087,7 +2153,7 @@ async function processOneWebhook(event) {
 
       console.log(`   🔄 MAJ: ${changes.join(', ')}`);
       await logWebhook(event, 'updated', { changes, name: stravaActivity.name });
-      scheduleStandingsRefresh('webhook Strava');
+      await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
 
     } catch (error) {
       console.log(`   ❌ Erreur fetch update: ${error.message}`);
@@ -2988,6 +3054,16 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
       console.error(`⚠️ [${reason}] Sync avant freeze échoué, on fige avec les données existantes:`, e.message);
     }
   }
+  // Chaque édition en cours, dans son contexte (L33)
+  const frozenAll = [];
+  await forEachActiveEdition('gel', async () => {
+    frozenAll.push(...await freezeCurrentEdition(reason, started));
+  });
+  return frozenAll;
+}
+
+/** Gel des rounds terminés de l'édition en cours (contexte d'édition). */
+async function freezeCurrentEdition(reason, started) {
   try {
     const leagueId = currentEdition().leagueId;
     const activitiesLeague = leagueId;
@@ -3007,7 +3083,8 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
     const frozen = await frozenResults.autoFreezeCompletedRounds(
       activitiesForFreeze, leagueAthletes, jokerUsage, currentEdition().config
     );
-    console.log(`❄️ [${reason}] ${frozen.length} round(s) figé(s) en ${Math.round((Date.now() - started) / 1000)} s (sync compris)`);
+    const editionLabel = currentEdition() === LEGACY_CONTEXT ? '' : ` [${currentEdition().leagueId}]`;
+    console.log(`❄️ [${reason}]${editionLabel} ${frozen.length} round(s) figé(s) en ${Math.round((Date.now() - started) / 1000)} s (sync compris)`);
     if (frozen.length > 0) scheduleStandingsRefresh(`gel (${reason})`);
     return frozen;
   } catch (error) {
@@ -3069,7 +3146,11 @@ async function hasPendingRoundToFreeze() {
  * puisque le cas courant est « rien à figer » → aucun appel.
  */
 async function catchUpAutoFreezeOnStartup() {
-  const pending = await hasPendingRoundToFreeze();
+  // Une édition en cours avec un round terminé non figé suffit (L33)
+  let pending = false;
+  await forEachActiveEdition('rattrapage', async () => {
+    if (await hasPendingRoundToFreeze()) pending = true;
+  });
   if (!pending) {
     console.log('[startup] aucun round en retard, pas de freeze');
     return;
