@@ -87,11 +87,23 @@
         <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
         <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 24px;">Accès Administration</h2>
         <div id="loginError" class="err" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
+        <!-- Connexion avec un compte super-admin (L43) -->
         <form id="adminLoginForm">
-          <input type="password" id="adminPassword" placeholder="Mot de passe admin" required
+          <input type="email" id="adminEmail" placeholder="E-mail de ton compte" required autocomplete="username"
+            style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 12px; box-sizing: border-box;">
+          <input type="password" id="adminAccountPassword" placeholder="Mot de passe de ton compte" required autocomplete="current-password"
             style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 16px; box-sizing: border-box;">
           <button type="submit" class="btn btn-block" style="padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; font-size: 16px;">Connexion</button>
         </form>
+        <!-- Accès de secours : mot de passe admin, gardé pour la seule session du navigateur -->
+        <details style="margin-top: 20px; text-align: left;">
+          <summary style="cursor: pointer; color: rgba(255,255,255,0.5); font-size: 13px;">Accès de secours (mot de passe admin)</summary>
+          <form id="adminRescueForm" style="margin-top: 12px;">
+            <input type="password" id="adminPassword" placeholder="Mot de passe admin" required autocomplete="off"
+              style="width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 14px; margin-bottom: 12px; box-sizing: border-box;">
+            <button type="submit" class="btn btn-block" style="padding: 12px; background: rgba(255,255,255,0.1); color: white; font-size: 14px;">Connexion de secours</button>
+          </form>
+        </details>
       </div>
     </div>
   </section>
@@ -258,6 +270,6 @@
     </div>
   </footer>
 
-  <script src="js/admin.js?v=20261012a"></script>
+  <script src="js/admin.js?v=20261021a"></script>
 </body>
 </html>

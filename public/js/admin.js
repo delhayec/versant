@@ -1,6 +1,9 @@
 const API_BASE = '/api';
 const LEAGUE_ID = 'versant-2026';
-let adminPassword = null;
+// Authentification (L43) : session d'un compte super-admin (jeton Bearer), ou
+// mot de passe admin de secours, gardé pour la seule session du navigateur.
+let adminAuth = null; // { token } ou { password }
+const RESCUE_KEY = 'versant_admin_password'; // sessionStorage, base64
 let allActivities = [];
 let athletesCache = {}; // id -> athlète, pour résoudre les noms
 
@@ -18,11 +21,15 @@ function formatDate(value) {
 }
 
 /**
- * fetch vers l'API avec le mot de passe admin. Un 401 signifie que le mot de
- * passe stocké n'est plus valide : on renvoie vers l'écran de connexion.
+ * fetch vers l'API avec la session super-admin (ou le mot de passe de
+ * secours). Un 401 signifie que l'accès n'est plus valide : on renvoie vers
+ * l'écran de connexion.
  */
 async function adminFetch(path, options = {}) {
-  const headers = { 'X-Admin-Password': adminPassword, ...(options.headers || {}) };
+  const auth = adminAuth?.token
+    ? { Authorization: `Bearer ${adminAuth.token}` }
+    : { 'X-Admin-Password': adminAuth?.password ?? '' };
+  const headers = { ...auth, ...(options.headers || {}) };
   if (options.body && typeof options.body !== 'string') {
     headers['Content-Type'] = 'application/json';
     options = { ...options, body: JSON.stringify(options.body) };
@@ -73,19 +80,36 @@ function addLog(message) {
 // ============================================
 // AUTHENTIFICATION
 // ============================================
-function checkAuth() {
-  const stored = localStorage.getItem('versant_admin_password');
-  if (stored) {
+/** Compte connecté super-admin ? (rôles renvoyés par /api/me, L43) */
+async function isSuperAdminToken(token) {
+  try {
+    const response = await fetch(`${API_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) return false;
+    return (await response.json()).roles?.superAdmin === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function checkAuth() {
+  // L'ancienne version gardait le mot de passe admin dans le localStorage : on l'efface
+  localStorage.removeItem('versant_admin_password');
+
+  const token = localStorage.getItem('versant_token');
+  if (token && await isSuperAdminToken(token)) {
+    adminAuth = { token };
+    return showDashboard();
+  }
+  const rescue = sessionStorage.getItem(RESCUE_KEY);
+  if (rescue) {
     try {
-      adminPassword = atob(stored);
+      adminAuth = { password: atob(rescue) };
+      return showDashboard();
     } catch (e) {
-      // Ancien format (en clair) : migration
-      adminPassword = stored;
-      localStorage.setItem('versant_admin_password', btoa(stored));
+      sessionStorage.removeItem(RESCUE_KEY);
     }
   }
-  if (adminPassword) showDashboard();
-  else showLogin();
+  showLogin();
 }
 
 function showLogin() {
@@ -105,17 +129,51 @@ function showDashboard() {
   loadDashboardData();
 }
 
+/** Quitte l'administration ; la session de joueur éventuelle est conservée. */
 function logout() {
-  localStorage.removeItem('versant_admin_password');
-  adminPassword = null;
+  sessionStorage.removeItem(RESCUE_KEY);
+  adminAuth = null;
   showLogin();
 }
 
+function showLoginError(message) {
+  const errorBox = document.getElementById('loginError');
+  errorBox.textContent = message;
+  errorBox.style.display = 'block';
+}
+
+// Connexion avec un compte : il doit être super-admin (SUPER_ADMIN_EMAILS)
 document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const password = document.getElementById('adminPassword').value;
-  const errorBox = document.getElementById('loginError');
+  const email = document.getElementById('adminEmail').value.trim();
+  const password = document.getElementById('adminAccountPassword').value;
+  try {
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Identifiants incorrects');
+    // Même session que la connexion joueur (login.html)
+    localStorage.setItem('versant_token', data.token);
+    localStorage.setItem('versant_athlete_id', data.athlete.id);
+    if (!(await isSuperAdminToken(data.token))) {
+      throw new Error("Ce compte n'a pas les droits d'administration");
+    }
+    adminAuth = { token: data.token };
+    document.getElementById('loginError').style.display = 'none';
+    showDashboard();
+    addLog('✅ Connexion admin réussie');
+  } catch (error) {
+    showLoginError(error.message);
+  }
+});
 
+// Accès de secours : mot de passe admin, gardé pour la seule session du navigateur
+document.getElementById('adminRescueForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const password = document.getElementById('adminPassword').value;
   try {
     const response = await fetch(`${API_BASE}/admin/login`, {
       method: 'POST',
@@ -123,16 +181,14 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
       body: JSON.stringify({ password })
     });
     if (!response.ok) throw new Error('Mot de passe incorrect');
-
-    adminPassword = password;
-    // base64 = simple obfuscation dans le localStorage, pas une protection
-    localStorage.setItem('versant_admin_password', btoa(password));
-    errorBox.style.display = 'none';
+    adminAuth = { password };
+    // base64 : simple masquage, pas une protection ; effacé à la fermeture du navigateur
+    sessionStorage.setItem(RESCUE_KEY, btoa(password));
+    document.getElementById('loginError').style.display = 'none';
     showDashboard();
-    addLog('✅ Connexion admin réussie');
+    addLog('✅ Connexion admin (accès de secours)');
   } catch (error) {
-    errorBox.textContent = error.message;
-    errorBox.style.display = 'block';
+    showLoginError(error.message);
   }
 });
 

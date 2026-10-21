@@ -290,9 +290,11 @@
           throw new Error(data.error || 'Mot de passe incorrect');
         }
 
-        // Sauvegarder le token admin
-        localStorage.setItem('versant_admin_token', data.token);
-        localStorage.setItem('versant_admin_password', password);
+        // Accès de secours (L43) : mot de passe gardé pour la seule session du
+        // navigateur, masqué en base64 (même clé que admin.js) ; plus jamais en
+        // clair dans le localStorage
+        localStorage.removeItem('versant_admin_password');
+        sessionStorage.setItem('versant_admin_password', btoa(password));
 
         showSuccess('Accès admin accordé ! Redirection...');
 
