@@ -121,14 +121,20 @@ export function buildServerHandlers(fixture, repoRoot) {
   const routeMarker = "app.get('/api/athletes/:leagueId'";
   const routeEnd = 'res.json(leagueAthletes);';
   const route = extractBetween(server, routeMarker, routeEnd, file);
-  const bodyStartMarker = 'const athletes = await safeReadJSON(ATHLETES_FILE, []);';
-  const bodyStart = route.indexOf(bodyStartMarker);
+  // Avant L42 : lecture d'athletes.json ; depuis : participants par le stockage
+  const bodyStartMarkers = [
+    'const athletes = await safeReadJSON(ATHLETES_FILE, []);',
+    'const athletes = await store.listParticipants(req.params.leagueId);'
+  ];
+  const bodyStart = Math.max(...bodyStartMarkers.map(m => route.indexOf(m)));
   if (bodyStart < 0) throw new Error(`${file} : corps de la route /api/athletes/:leagueId introuvable`);
   const athletesRouteBody = route.slice(bodyStart, route.length - routeEnd.length);
 
   const listAthletes = leagueId => compileAsync(athletesRouteBody, 'leagueAthletes', {
     safeReadJSON: async () => fixture.json('athletes.json'),
     ATHLETES_FILE: 'athletes.json',
+    // Organisation legacy : les participants sont les athlètes de la ligue
+    store: { listParticipants: async id => fixture.json('athletes.json').filter(a => a.league_id === id) },
     req: { params: { leagueId } }
   });
 
