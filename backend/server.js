@@ -63,6 +63,23 @@ const STANDINGS_NEUTRAL_WRITES = [
 // démarrage et connu du seul processus. La requête est alors traitée dans le
 // contexte de cette édition par les routes historiques.
 const INTERNAL_TOKEN = crypto.randomBytes(32).toString('hex');
+
+// Session d'un super-admin (L43) : reconnue une fois pour toute la requête,
+// checkAdmin reste synchrone
+app.use('/api', async (req, res, next) => {
+  try {
+    if (req.headers.authorization && SUPER_ADMIN_EMAILS.length > 0) {
+      const account = await sessionAccount(req);
+      if (account) {
+        req.sessionAccount = account;
+        req.isSuperAdmin = isSuperAdminAccount(account);
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 app.use('/api', async (req, res, next) => {
   const editionKey = req.headers['x-versant-edition'];
   if (!editionKey) return next();
@@ -362,12 +379,53 @@ async function requireAuth(req, res, next) {
   next();
 }
 
+// ============================================
+// RÔLES (L43)
+// ============================================
+// - super-admin : compte dont l'e-mail figure dans SUPER_ADMIN_EMAILS (.env) ;
+//   tous les droits d'administration, sur toutes les ligues et l'instance ;
+// - admin de ligue : compte listé dans league.json (admins) ; droits limités à
+//   sa ligue, par les routes /api/leagues/:ligue/editions/:édition/admin/… ;
+// - mot de passe admin : accès de secours, équivalent au super-admin.
+const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS || '')
+  .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+function isAdminPassword(req) {
+  return !!ADMIN_PASSWORD && req.headers['x-admin-password'] === ADMIN_PASSWORD;
+}
+
+function isSuperAdminAccount(account) {
+  return !!account?.email && SUPER_ADMIN_EMAILS.includes(String(account.email).toLowerCase());
+}
+
+/** Compte de la session (jeton Bearer), ou null. */
+async function sessionAccount(req) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return null;
+  const athleteId = await validateSession(token);
+  if (!athleteId) return null;
+  const accounts = await safeReadJSON(ATHLETES_FILE, []);
+  return accounts.find(a => normalizeId(a.id) === normalizeId(athleteId)) || null;
+}
+
+/** Admin de la ligue : super-admin, mot de passe de secours, ou compte listé dans league.json. */
+async function isLeagueAdmin(req, leagueId) {
+  if (isAdminPassword(req) || req.isSuperAdmin) return true;
+  const account = req.sessionAccount || await sessionAccount(req);
+  if (!account) return false;
+  const league = await store.getLeague(leagueId);
+  return !!league && (league.admins || []).map(String).includes(String(account.id));
+}
+
+/**
+ * Droits d'administration de l'instance : mot de passe de secours,
+ * super-admin connecté, ou accès accordé par une route d'admin de ligue
+ * (req.adminGranted, posé côté serveur uniquement, cf. routes/editions.js).
+ */
 function checkAdmin(req, res) {
-  if (!ADMIN_PASSWORD || req.headers['x-admin-password'] !== ADMIN_PASSWORD) {
-    res.status(401).json({ error: 'Non autorisé' });
-    return false;
-  }
-  return true;
+  if (isAdminPassword(req) || req.isSuperAdmin || req.adminGranted) return true;
+  res.status(401).json({ error: 'Non autorisé' });
+  return false;
 }
 
 // Admin: Télécharger jokers_usage.json (format tableau, importable directement).
@@ -388,7 +446,7 @@ app.get('/api/admin/jokers/download', async (req, res) => {
 // Monter le router jokers
 const jokersRouter = createJokersRoutes({
   ATHLETES_FILE,
-  ADMIN_PASSWORD,
+  checkAdmin,
   requireAuth
 });
 app.use('/api', jokersRouter);
@@ -400,14 +458,18 @@ createBonusesRoutes(app, requireAuth, checkAdmin);
 registerAccountRoutes(app, {
   store,
   requireAuth,
-  checkAdmin,
+  isLeagueAdmin,
   readAccounts: () => safeReadJSON(ATHLETES_FILE, []),
   // Rattrapage des activités du nouvel arrivant, dans le contexte de son édition
   onJoin: backfillAfterJoin
 });
 
 // Ligues et éditions (L42c) : création, lancement d'édition, confirmations
-registerLeagueRoutes(app, { store, requireAuth, checkAdmin, onJoin: backfillAfterJoin });
+registerLeagueRoutes(app, {
+  store, requireAuth, checkAdmin, isLeagueAdmin,
+  readAccounts: () => safeReadJSON(ATHLETES_FILE, []),
+  onJoin: backfillAfterJoin
+});
 
 /** Rattrapage des activités d'un compte qui arrive dans une édition, dans son contexte. */
 async function backfillAfterJoin(editionKey, athleteId) {
@@ -432,7 +494,8 @@ registerEditionRoutes(app, {
     const participants = await store.listParticipants(edition.legacyId || `${edition.leagueId}/${edition.editionId}`);
     return participants.some(a => normalizeId(a.id) === normalizeId(athleteId));
   },
-  withEdition
+  withEdition,
+  isLeagueAdmin
 });
 
 // ============================================

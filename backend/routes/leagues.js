@@ -13,7 +13,10 @@
  * GET  /api/leagues/:leagueId/editions                 éditions de MA ligue, et ma participation
  * POST /api/leagues/:leagueId/editions/:editionId/confirm
  *
- * Administration par le mot de passe admin en attendant les rôles (L43).
+ * Création de ligue et désignation de ses admins : super-admin (ou mot de
+ * passe de secours). Lancement d'édition : admin de la ligue (L43).
+ *
+ * PUT  /api/admin/leagues/:leagueId/admins            { athleteIds } (super-admin)
  */
 
 const crypto = require('crypto');
@@ -36,10 +39,34 @@ const isPositiveInteger = v => Number.isInteger(v) && v > 0;
  * @param {Object} deps
  * @param {Object} deps.store
  * @param {Function} deps.requireAuth
- * @param {Function} deps.checkAdmin
+ * @param {Function} deps.checkAdmin - super-admin ou mot de passe de secours
+ * @param {Function} deps.isLeagueAdmin - (req, leagueId) → Promise<booléen> (L43)
+ * @param {Function} deps.readAccounts - () → Promise<athletes.json>
  * @param {Function} [deps.onJoin] - (cléÉdition, athleteId) après une confirmation
  */
-function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, onJoin }) {
+function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdmin, readAccounts, onJoin }) {
+  /** Admins d'une ligue (L43) : désignés par le super-admin parmi les comptes existants. */
+  app.put('/api/admin/leagues/:leagueId/admins', async (req, res) => {
+    if (!checkAdmin(req, res)) return;
+    try {
+      const { leagueId } = req.params;
+      const league = ID_PATTERN.test(leagueId) ? await store.getLeague(leagueId) : null;
+      if (!league) return res.status(404).json({ error: 'Ligue introuvable' });
+      const ids = req.body?.athleteIds;
+      if (!Array.isArray(ids)) return res.status(400).json({ error: 'athleteIds (tableau) requis' });
+      const accounts = await readAccounts();
+      const unknown = ids.filter(id => !accounts.some(a => String(a.id) === String(id)));
+      if (unknown.length) return res.status(400).json({ error: `Comptes inconnus : ${unknown.join(', ')}` });
+      league.admins = [...new Set(ids.map(String))];
+      await store.saveLeague(league);
+      console.log(`🛡️ Admins de la ligue ${leagueId} : ${league.admins.join(', ') || '(aucun)'}`);
+      res.json({ success: true, admins: league.admins });
+    } catch (error) {
+      console.error('Erreur admins de ligue:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+
   /** Création d'une ligue par le super-admin. */
   app.post('/api/admin/leagues', async (req, res) => {
     if (!checkAdmin(req, res)) return;
@@ -65,9 +92,9 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, onJoin }) {
    * désactivée sauf demande.
    */
   app.post('/api/admin/leagues/:leagueId/editions', async (req, res) => {
-    if (!checkAdmin(req, res)) return;
     try {
       const { leagueId } = req.params;
+      if (!(await isLeagueAdmin(req, leagueId))) return res.status(401).json({ error: 'Réservé aux admins de cette ligue' });
       const body = req.body || {};
       const editionId = String(body.editionId || '');
       if (!ID_PATTERN.test(leagueId) || !(await store.getLeague(leagueId))) return res.status(404).json({ error: 'Ligue introuvable' });

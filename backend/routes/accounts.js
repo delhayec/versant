@@ -10,7 +10,8 @@
  * GET  /api/admin/leagues/:leagueId                ligue + code (créé s'il manque)
  * POST /api/admin/leagues/:leagueId/invite-code    nouveau code (l'ancien ne marche plus)
  *
- * Administration par le mot de passe admin en attendant les rôles (L43).
+ * Administration : admin de la ligue ou super-admin (rôles, L43), ou mot de
+ * passe admin de secours.
  */
 
 const crypto = require('crypto');
@@ -31,11 +32,17 @@ const normalizeCode = code => String(code || '').toUpperCase().replace(/[^A-Z0-9
  * @param {Object} deps
  * @param {Object} deps.store - couche de stockage
  * @param {Function} deps.requireAuth - middleware de session
- * @param {Function} deps.checkAdmin - (req, res) → booléen (répond 401 sinon)
+ * @param {Function} deps.isLeagueAdmin - (req, leagueId) → Promise<booléen> (L43)
  * @param {Function} deps.readAccounts - () → Promise<athletes.json>
  * @param {Function} [deps.onJoin] - (cléÉdition, athleteId) après une adhésion (rattrapage des activités)
  */
-function registerAccountRoutes(app, { store, requireAuth, checkAdmin, readAccounts, onJoin }) {
+function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAccounts, onJoin }) {
+  async function requireLeagueAdmin(req, res, leagueId) {
+    if (await isLeagueAdmin(req, leagueId)) return true;
+    res.status(401).json({ error: 'Réservé aux admins de cette ligue' });
+    return false;
+  }
+
   /**
    * Ligue d'un compte (au plus une), sa dernière édition jouée, et les
    * éditions suivantes qu'il n'a pas encore confirmées (L42c).
@@ -64,9 +71,16 @@ function registerAccountRoutes(app, { store, requireAuth, checkAdmin, readAccoun
       const accounts = await readAccounts();
       const account = accounts.find(a => String(a.id) === String(req.athleteId));
       if (!account) return res.status(404).json({ error: 'Compte introuvable' });
+      const info = await membership(req.athleteId);
+      const league = info.league ? await store.getLeague(info.league.id) : null;
       res.json({
         athlete: { id: account.id, name: account.name, email: account.email },
-        ...(await membership(req.athleteId))
+        ...info,
+        // Rôles (L43) : super-admin (SUPER_ADMIN_EMAILS), admin de sa ligue (league.json)
+        roles: {
+          superAdmin: !!req.isSuperAdmin,
+          leagueAdmin: !!req.isSuperAdmin || (league?.admins || []).map(String).includes(String(account.id))
+        }
       });
     } catch (error) {
       console.error('Erreur /api/me:', error);
@@ -109,9 +123,9 @@ function registerAccountRoutes(app, { store, requireAuth, checkAdmin, readAccoun
 
   /** Ligue pour l'admin, avec son code d'invitation (créé à la première demande). */
   app.get('/api/admin/leagues/:leagueId', async (req, res) => {
-    if (!checkAdmin(req, res)) return;
     try {
       if (!ID_PATTERN.test(req.params.leagueId)) return res.status(404).json({ error: 'Ligue introuvable' });
+      if (!(await requireLeagueAdmin(req, res, req.params.leagueId))) return;
       const league = await store.getLeague(req.params.leagueId);
       if (!league) return res.status(404).json({ error: 'Ligue introuvable' });
       if (!league.inviteCode) {
@@ -127,9 +141,9 @@ function registerAccountRoutes(app, { store, requireAuth, checkAdmin, readAccoun
 
   /** Nouveau code d'invitation : l'ancien cesse de fonctionner. */
   app.post('/api/admin/leagues/:leagueId/invite-code', async (req, res) => {
-    if (!checkAdmin(req, res)) return;
     try {
       if (!ID_PATTERN.test(req.params.leagueId)) return res.status(404).json({ error: 'Ligue introuvable' });
+      if (!(await requireLeagueAdmin(req, res, req.params.leagueId))) return;
       const league = await store.getLeague(req.params.leagueId);
       if (!league) return res.status(404).json({ error: 'Ligue introuvable' });
       league.inviteCode = newInviteCode();

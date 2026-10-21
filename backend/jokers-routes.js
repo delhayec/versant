@@ -25,7 +25,7 @@ function createInitialJokersStock() {
   };
 }
 
-function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
+function createJokersRoutes({ ATHLETES_FILE, checkAdmin, requireAuth }) {
 
   /**
    * Compte les "admin refunds" (remboursements qui ajoutent +1 au stock).
@@ -96,10 +96,8 @@ function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
   // Retourne le stock calculé depuis les utilisations (jokers_usage + frozen_results)
   router.get('/admin/jokers/:leagueId', async (req, res) => {
     try {
-      const password = req.headers['x-admin-password'];
-      if (password !== ADMIN_PASSWORD) {
-        return res.status(401).json({ error: 'Non autorisé' });
-      }
+      // Mot de passe admin ou rôle (cf. checkAdmin dans server.js, L43)
+      if (!checkAdmin(req, res)) return;
 
       const { leagueId } = req.params;
       let athletes = [];
@@ -156,8 +154,7 @@ function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
   // Modifie le stock de jokers en ajoutant/supprimant des entrées dans jokers_usage.json
   router.put('/admin/jokers/:athleteId', async (req, res) => {
     try {
-      const password = req.headers['x-admin-password'];
-      if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Non autorisé' });
+      if (!checkAdmin(req, res)) return;
 
       const { athleteId } = req.params;
       const { jokerStock } = req.body;
@@ -300,8 +297,7 @@ function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
   // POST /api/admin/jokers/reset/:leagueId
   router.post('/admin/jokers/reset/:leagueId', async (req, res) => {
     try {
-      const password = req.headers['x-admin-password'];
-      if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Non autorisé' });
+      if (!checkAdmin(req, res)) return;
 
       const { leagueId } = req.params;
       const athletes = JSON.parse(await fs.readFile(ATHLETES_FILE, 'utf8'));
@@ -373,8 +369,7 @@ function createJokersRoutes({ ATHLETES_FILE, ADMIN_PASSWORD, requireAuth }) {
   // POST /api/admin/jokers/resolve/:usageId
   router.post('/admin/jokers/resolve/:usageId', async (req, res) => {
     try {
-      const password = req.headers['x-admin-password'];
-      if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Non autorisé' });
+      if (!checkAdmin(req, res)) return;
 
       const { usageId } = req.params;
       const { result } = req.body;
