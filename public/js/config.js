@@ -1519,3 +1519,45 @@ export function getAthleteInitials(id) {
     ? n[0][0] + n[1][0]
     : p.name.substring(0, 2).toUpperCase();
 }
+
+// ============================================
+// CONFIG DE L'ÉDITION AFFICHÉE (L33, L50)
+// ============================================
+/**
+ * Applique la config d'une édition (réponse de /api/config) sur les
+ * constantes ci-dessus. Celles-ci portent les réglages de versant-2026
+ * (identifiant, dates, planning par défaut avec saisons en équipes) : pour
+ * cette édition, rien ne change. Pour une autre, ses réglages remplacent ceux
+ * par défaut et son planning (chargé ensuite par loadSeasonPlanning) remplace
+ * entièrement celui par défaut.
+ * Source unique : moteur serveur (engine-worker.mjs) et navigateur.
+ */
+export function applyEditionConfig(editionConfig) {
+  const challenge = editionConfig?.challenge;
+  if (!challenge || challenge.leagueId === CHALLENGE_CONFIG.leagueId) return false;
+  Object.assign(CHALLENGE_CONFIG, challenge);
+  for (const season of Object.keys(SEASON_PLANNING)) delete SEASON_PLANNING[season];
+  return true;
+}
+
+/**
+ * Lance fn quand le DOM est prêt. Depuis L50, ce module attend la config de
+ * l'édition (ci-dessous) : les pages qui l'importent peuvent démarrer après
+ * l'événement DOMContentLoaded, qui ne se produirait alors plus pour elles.
+ */
+export function onDomReady(fn) {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
+  else fn();
+}
+
+// Navigateur (L50) : l'édition affichée est choisie par
+// shared/edition-session.js ; sa config est appliquée avant que les pages
+// (qui importent ce module) ne calculent quoi que ce soit.
+if (!IS_DEMO && typeof window !== "undefined" && window.VersantEdition) {
+  const edition = await window.VersantEdition.ready;
+  if (edition) {
+    const response = await fetch("/api/config");
+    if (!response.ok) throw new Error(`Config de l'édition indisponible (${response.status})`);
+    applyEditionConfig(await response.json());
+  }
+}

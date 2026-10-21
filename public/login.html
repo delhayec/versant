@@ -252,9 +252,9 @@
 
         showSuccess('Connexion réussie ! Redirection...');
 
-        // Rediriger vers le dashboard
+        // Retour à la page demandée (L50), sinon le dashboard
         setTimeout(() => {
-          window.location.href = 'dashboard.html';
+          window.location.href = nextPage();
         }, 1000);
 
       } catch (error) {
@@ -265,6 +265,17 @@
         submitBtn.style.opacity = '1';
       }
     });
+
+    /**
+     * Page à ouvrir après la connexion (L50) : ?next= posé par
+     * shared/edition-session.js (ou l'ancien ?redirect=). Uniquement une page
+     * du site, jamais une adresse extérieure.
+     */
+    function nextPage() {
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next') || params.get('redirect') || '';
+      return /^(index|stats|dashboard|rules)\.html(\?[\w=&%.-]*)?$/.test(next) ? next : 'dashboard.html';
+    }
 
     // Login admin
     adminForm.addEventListener('submit', async (e) => {
@@ -320,7 +331,7 @@
 
           if (response.ok) {
             // Déjà connecté, rediriger
-            window.location.href = 'dashboard.html';
+            window.location.href = nextPage();
           }
         } catch (error) {
           // Token invalide, rester sur la page de login

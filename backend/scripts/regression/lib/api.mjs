@@ -24,6 +24,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -118,7 +119,7 @@ export async function runApi({ repoRoot, fixtureDir, layout = 'legacy' }) {
 async function checkEditionRoutes(base, repoRoot, plan) {
   const file = join(repoRoot, 'backend', 'routes', 'editions.js');
   if (!existsSync(file)) return 'non applicable : code antérieur à L40';
-  const { READ_ROUTES } = await import(pathToFileURL(file).href);
+  const { READ_ROUTES, PLAYER_ROUTES } = await import(pathToFileURL(file).href);
   const E = '/api/leagues/versant/editions/2026';
   const member = { authorization: `Bearer harnais-${plan.owner}` };
   const raw = async (path, headers = {}) => {
@@ -140,7 +141,31 @@ async function checkEditionRoutes(base, repoRoot, plan) {
     editionInconnue: (await raw('/api/leagues/versant/editions/2027/activities', member)).status,
     identifiantInvalide: (await raw('/api/leagues/ver..sant/editions/2026/activities', member)).status
   };
-  return { routes, access };
+  return { routes, access, frontTable: checkFrontTable(repoRoot, READ_ROUTES, PLAYER_ROUTES, E) };
+}
+
+/**
+ * L50 : la table du front (public/shared/edition-session.js) doit être celle
+ * du serveur, et chaque route historique, telle que le front l'appelle, doit
+ * partir vers sa route d'édition (requête conservée, identifiant
+ * « ligue/édition » compris). Code sans ce fichier : non applicable.
+ */
+function checkFrontTable(repoRoot, READ_ROUTES, PLAYER_ROUTES, E) {
+  const file = join(repoRoot, 'public', 'shared', 'edition-session.js');
+  if (!existsSync(file)) return 'non applicable : code antérieur à L50';
+  const { EDITION_ROUTES, toEditionUrl } = createRequire(import.meta.url)(file);
+  const server = [...READ_ROUTES, ...(PLAYER_ROUTES || []).map(([, route, legacy]) => [route, legacy])];
+  const edition = { leagueId: 'versant', editionId: '2026' };
+  const translationErrors = [];
+  for (const [route, legacy] of server) {
+    for (const id of ['versant-2026', 'ligue/edition']) {
+      const from = legacy.replace('{id}', id).replace('{n}', '52') + '?_=1';
+      const to = E + route.replace(':n', '52') + '?_=1';
+      if (toEditionUrl(from, edition) !== to) translationErrors.push(from);
+    }
+  }
+  if (toEditionUrl('/api/me', edition) !== null) translationErrors.push('/api/me');
+  return { identical: JSON.stringify(EDITION_ROUTES) === JSON.stringify(server), routes: server.length, translationErrors };
 }
 
 /** Activités et athlètes utilisés par les sondes, choisis de façon stable dans la fixture. */

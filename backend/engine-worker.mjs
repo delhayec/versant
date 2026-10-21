@@ -79,12 +79,9 @@ try {
   // Édition autre que celle par défaut (L33) : les constantes du front portent
   // les réglages de versant-2026 (identifiant, dates, planning par défaut avec
   // saisons en équipes). On applique ceux de l'édition avant tout calcul, sur
-  // les mêmes objets ; son planning remplace entièrement celui par défaut.
-  if (edition) {
-    const editionConfig = await (await fetch('/api/config')).json();
-    Object.assign(config.CHALLENGE_CONFIG, editionConfig.challenge);
-    for (const season of Object.keys(config.SEASON_PLANNING)) delete config.SEASON_PLANNING[season];
-  }
+  // les mêmes objets ; son planning remplace entièrement celui par défaut
+  // (applyEditionConfig, la même fonction que dans le navigateur, L50).
+  if (edition) config.applyEditionConfig(await (await fetch('/api/config')).json());
 
   // ---- Chargement, dans l'ordre d'app.js init() ----
   await config.loadParticipants();

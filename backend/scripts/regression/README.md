@@ -79,6 +79,8 @@ La partie C exige `npm install` dans `backend/`. Sur un code antérieur à L01, 
 
 **Contrôle de fidélité.** La fixture contient le classement qu'un vrai navigateur a envoyé au serveur (`yearlyStandingsSnapshot`). À cet instant précis, le harnais doit retrouver exactement le même classement. Sinon, c'est le harnais qui est en défaut, pas le code testé.
 
+**Table du front (L50).** Les pages joueurs envoient leurs appels aux routes de l'édition affichée par `public/shared/edition-session.js`. Sa table doit être identique à `READ_ROUTES` + `PLAYER_ROUTES` (`backend/routes/editions.js`), et chaque route historique, telle que le front l'appelle (identifiant `versant-2026` ou `ligue/édition`, requête comprise), doit être traduite vers sa route d'édition. Résultat dans `api.editionRoutes.frontTable`.
+
 **Pas encore couvert :**
 - les routes d'écriture (testées par scénarios dans les livrables qui les touchent) ;
 - l'isolation entre ligues (partie D, à partir de L40) ;

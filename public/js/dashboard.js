@@ -15,7 +15,8 @@ import {
   getAthleteColor, getAthleteInitials,
   fetchWithTimeout, loadSeasonPlanning,
   getDayInRound as getDayInRoundAt, getRoundDuration,
-  setFrozenCache
+  setFrozenCache,
+  onDomReady
 } from './config.js';
 import { formatDate, formatElevation } from './ui.js';
 
@@ -1416,7 +1417,7 @@ window.handleBonusClick = handleBonusClick;
 // ============================================
 // DÉMARRAGE
 // ============================================
-document.addEventListener('DOMContentLoaded', async () => {
+onDomReady(async () => {
   const athleteId = getCurrentUserId();
   if (!athleteId) {
     window.location.href = 'login.html';

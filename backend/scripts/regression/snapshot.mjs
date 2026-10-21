@@ -251,6 +251,12 @@ function printSummary(output, outFile, logFile, text, elapsedMs) {
     console.log(different.length === 0
       ? `   Routes par édition : ${entries.length} identiques aux routes historiques ; accès ${Object.entries(editionRoutes.access).map(([k, v]) => `${k} ${v}`).join(', ')}`
       : `   ❌ Routes par édition différentes : ${different.join(', ')}`);
+    const table = editionRoutes.frontTable;
+    if (table && typeof table === 'object') {
+      console.log(table.identical && table.translationErrors.length === 0
+        ? `   Table du front (L50) : ${table.routes} routes, identique au serveur, traductions exactes`
+        : `   ❌ Table du front (L50) : ${table.identical ? '' : 'différente du serveur ; '}${table.translationErrors.length} traduction(s) fausse(s) — voir api.editionRoutes.frontTable`);
+    }
   }
   const parity = output.front?.capturedAt?.configParity;
   if (parity) {

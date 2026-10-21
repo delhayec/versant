@@ -44,8 +44,9 @@ import {
 const CHALLENGE_START = new Date(CHALLENGE_CONFIG.yearStartDate);
 const CHALLENGE_YEAR = CHALLENGE_CONFIG.dataYear;
 
-const CACHE_KEY = 'versant_stats_activities_v2';
-const CACHE_DATE_KEY = 'versant_stats_activities_date_v2';
+// Une entrée par édition (L50) : l'onglet peut passer d'une édition à l'autre
+const CACHE_KEY = `versant_stats_activities_v2_${CHALLENGE_CONFIG.leagueId}`;
+const CACHE_DATE_KEY = `versant_stats_activities_date_v2_${CHALLENGE_CONFIG.leagueId}`;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 // Sports exclus (jamais affichés même si l'API les renvoie)

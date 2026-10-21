@@ -21,7 +21,8 @@ import {
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
   getSeasonRosterSize,
-  formBalancedTeams, loadSpecialRulesOverrides, getSpecialRuleForRound
+  formBalancedTeams, loadSpecialRulesOverrides, getSpecialRuleForRound,
+  onDomReady
 } from './config.js';
 
 import {
@@ -2892,7 +2893,7 @@ function updateTickerWithNewActivity(activity) {
 // ÉVÉNEMENTS DOM
 // ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
+onDomReady(() => {
   init();
 
   document.getElementById('loginBtn')?.addEventListener('click', () => {

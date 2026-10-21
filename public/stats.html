@@ -2,6 +2,8 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
+  <script src="shared/edition-session.js?v=20261021a"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stats — Challenge Versant 2026</title>
 
@@ -391,17 +393,6 @@
           crossorigin=""></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
 
-  <!-- Redirection si non connecté -->
-  <script>
-    (function() {
-      const token = localStorage.getItem('versant_token');
-      const athleteId = localStorage.getItem('versant_athlete_id');
-      if (!token && !athleteId) {
-        window.location.href = 'login.html?redirect=stats.html';
-      }
-    })();
-  </script>
-
   <!-- Safety timeout du loader -->
   <script>
     setTimeout(function() {
@@ -426,6 +417,6 @@
 
   <!-- Module principal -->
   <script src="shared/team-formation.js?v=20260417"></script>
-  <script type="module" src="js/stats.js?v=20261011b"></script>
+  <script type="module" src="js/stats.js?v=20261021a"></script>
 </body>
 </html>

@@ -4,15 +4,15 @@
  * ============================================
  * /api/leagues/:leagueId/editions/:editionId/…
  *
- * Accès : participant de l'édition connecté (jeton de session), ou admin
- * (mot de passe admin, en attendant les rôles de L43). Les routes du joueur
+ * Accès : participant de l'édition connecté (jeton de session), admin de la
+ * ligue ou super-admin connecté (L50), ou mot de passe admin. Les routes du joueur
  * (ses jokers, ses bonus) exigent sa session ; la cible d'un joker ou d'un
  * bonus doit être participante de la même édition.
  *
  * Chaque route délègue à la route historique équivalente, exécutée dans le
  * contexte de l'édition (withEdition) : mêmes réponses, aucune recopie des
- * traitements. Les routes historiques ne changent pas (le front actuel les
- * utilise encore, jusqu'à L50).
+ * traitements. Les routes historiques ne changent pas ; depuis L50, le front
+ * passe par celles-ci (public/shared/edition-session.js, même table).
  */
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
@@ -111,7 +111,8 @@ function registerEditionRoutes(app, { store, validateSession, isAdminRequest, is
       const athleteId = token ? await validateSession(token) : null;
       const admin = isAdminRequest(req);
       if (athleteId) {
-        if (!admin && !(await isParticipant(athleteId, edition))) {
+        // Non participant : accepté s'il administre la ligue, ou super-admin (L50)
+        if (!admin && !(await isParticipant(athleteId, edition)) && !(await isLeagueAdmin(req, edition.leagueId))) {
           return res.status(403).json({ error: 'Accès réservé aux participants de cette édition' });
         }
         req.athleteId = athleteId;
