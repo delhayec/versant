@@ -195,7 +195,34 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
       return (await loadEditions())
         .filter(e => e.leagueId === leagueId)
         .sort((a, b) => String(a.editionId).localeCompare(String(b.editionId)))
-        .map(e => ({ leagueId: e.leagueId, editionId: e.editionId, legacyId: e.legacyId, key: e.legacyId || `${e.leagueId}/${e.editionId}` }));
+        .map(e => {
+          // Dates : config de l'édition, sinon (versant/2026) la config partagée
+          const config = { ...require('../shared-config').CHALLENGE_CONFIG, ...(e.info.config || {}) };
+          return {
+            leagueId: e.leagueId, editionId: e.editionId, legacyId: e.legacyId,
+            key: e.legacyId || `${e.leagueId}/${e.editionId}`,
+            startDate: config.yearStartDate, endDate: config.yearEndDate
+          };
+        });
+    },
+
+    /**
+     * Crée une édition (dossier, edition.json, participants.json vide) dans une
+     * ligue existante. Les autres fichiers (gel, jokers, bonus…) sont créés au
+     * premier usage, avec leurs valeurs par défaut.
+     */
+    async createEdition(leagueId, editionId, info) {
+      if (!ID_PATTERN.test(String(leagueId)) || !ID_PATTERN.test(String(editionId))) {
+        throw new Error("identifiant de ligue ou d'édition invalide");
+      }
+      if (!(await this.getLeague(leagueId))) throw new Error(`ligue inconnue : ${leagueId}`);
+      const dir = path.join(leaguesDir, String(leagueId), 'editions', String(editionId));
+      if (await fs.stat(dir).catch(() => null)) throw new Error(`l'édition ${leagueId}/${editionId} existe déjà`);
+      await fs.mkdir(dir, { recursive: true });
+      await safeWriteJSON(path.join(dir, 'edition.json'), { id: String(editionId), legacyId: null, ...info });
+      await safeWriteJSON(path.join(dir, 'participants.json'), []);
+      await safeWriteJSON(path.join(dir, 'exclusions.json'), {});
+      return { leagueId: String(leagueId), editionId: String(editionId), legacyId: null, key: `${leagueId}/${editionId}` };
     },
 
     /** Ligues dont un athlète est participant (au plus une, cf. décision du 21/10). */

@@ -109,6 +109,7 @@ const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 const { currentEdition, withEdition } = require('./edition-context');
 const { registerEditionRoutes } = require('./routes/editions');
 const { registerAccountRoutes } = require('./routes/accounts');
+const { registerLeagueRoutes } = require('./routes/leagues');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const FAILED_WEBHOOKS_FILE = path.join(DATA_DIR, 'failed_webhooks.json');
 const WEBHOOK_LOG_FILE = path.join(DATA_DIR, 'webhook_log.json');
@@ -384,17 +385,23 @@ registerAccountRoutes(app, {
   checkAdmin,
   readAccounts: () => safeReadJSON(ATHLETES_FILE, []),
   // Rattrapage des activités du nouvel arrivant, dans le contexte de son édition
-  onJoin: async (editionKey, athleteId) => {
-    try {
-      const context = await store.editionContext(editionKey);
-      const accounts = await safeReadJSON(ATHLETES_FILE, []);
-      const name = accounts.find(a => normalizeId(a.id) === normalizeId(athleteId))?.name || athleteId;
-      await withEdition(context, () => backfillNewParticipant(editionKey, normalizeId(athleteId), name));
-    } catch (e) {
-      console.error('⚠️ Rattrapage après adhésion échoué:', e.message);
-    }
-  }
+  onJoin: backfillAfterJoin
 });
+
+// Ligues et éditions (L42c) : création, lancement d'édition, confirmations
+registerLeagueRoutes(app, { store, requireAuth, checkAdmin, onJoin: backfillAfterJoin });
+
+/** Rattrapage des activités d'un compte qui arrive dans une édition, dans son contexte. */
+async function backfillAfterJoin(editionKey, athleteId) {
+  try {
+    const context = await store.editionContext(editionKey);
+    const accounts = await safeReadJSON(ATHLETES_FILE, []);
+    const name = accounts.find(a => normalizeId(a.id) === normalizeId(athleteId))?.name || athleteId;
+    await withEdition(context, () => backfillNewParticipant(editionKey, normalizeId(athleteId), name));
+  } catch (e) {
+    console.error('⚠️ Rattrapage après adhésion échoué:', e.message);
+  }
+}
 
 // Routes par édition (L40) : /api/leagues/:ligue/editions/:édition/…, réservées
 // aux participants connectés (ou à l'admin) ; elles délèguent aux routes ci-dessus.

@@ -69,7 +69,13 @@ function createLegacyStore() {
     async listLeagueEditions(leagueId) {
       if (leagueId !== LEGACY_EDITION.leagueId) return [];
       const { leagueId: l, editionId, legacyId } = LEGACY_EDITION;
-      return [{ leagueId: l, editionId, legacyId, key: legacyId }];
+      const { yearStartDate, yearEndDate } = LEGACY_CONTEXT.config;
+      return [{ leagueId: l, editionId, legacyId, key: legacyId, startDate: yearStartDate, endDate: yearEndDate }];
+    },
+
+    /** Organisation actuelle : une seule édition, versant/2026. */
+    async createEdition() {
+      throw new Error("créer une édition demande l'organisation « editions » (VERSANT_STORE_LAYOUT=editions)");
     },
 
     /** Ligues dont un athlète est participant (au plus une, cf. décision du 21/10). */

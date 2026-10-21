@@ -36,16 +36,26 @@ const normalizeCode = code => String(code || '').toUpperCase().replace(/[^A-Z0-9
  * @param {Function} [deps.onJoin] - (cléÉdition, athleteId) après une adhésion (rattrapage des activités)
  */
 function registerAccountRoutes(app, { store, requireAuth, checkAdmin, readAccounts, onJoin }) {
-  /** Ligue et édition en cours d'un compte (au plus une ligue). */
+  /**
+   * Ligue d'un compte (au plus une), sa dernière édition jouée, et les
+   * éditions suivantes qu'il n'a pas encore confirmées (L42c).
+   */
   async function membership(athleteId) {
     const [leagueId] = await store.leaguesOf(athleteId);
-    if (!leagueId) return { league: null, edition: null };
+    if (!leagueId) return { league: null, edition: null, editionsToConfirm: [] };
     const league = await store.getLeague(leagueId);
     const editions = await store.listLeagueEditions(leagueId);
-    const current = editions[editions.length - 1] || null;
+    const mine = [];
+    for (const edition of editions) {
+      const participants = await store.listParticipants(edition.key);
+      if (participants.some(p => String(p.id) === String(athleteId))) mine.push(edition);
+    }
+    const current = mine[mine.length - 1] || null;
+    const currentIndex = current ? editions.findIndex(e => e.key === current.key) : -1;
     return {
       league: league ? { id: league.id, name: league.name } : { id: leagueId, name: leagueId },
-      edition: current
+      edition: current,
+      editionsToConfirm: editions.slice(currentIndex + 1)
     };
   }
 
