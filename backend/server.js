@@ -106,7 +106,8 @@ const { DATA_DIR, STORE_LAYOUT, DEFAULT_EDITION } = require('./data-dir');
 const LEAGUES_DIR = path.join(DATA_DIR, 'leagues');
 const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 // Fichiers propres à une édition (jokers, figés, activités…) : cf. edition-context.js
-const { currentEdition } = require('./edition-context');
+const { currentEdition, withEdition } = require('./edition-context');
+const { registerEditionRoutes } = require('./routes/editions');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const FAILED_WEBHOOKS_FILE = path.join(DATA_DIR, 'failed_webhooks.json');
 const WEBHOOK_LOG_FILE = path.join(DATA_DIR, 'webhook_log.json');
@@ -374,6 +375,20 @@ app.use('/api', jokersRouter);
 
 // Initialiser les routes bonus éphémères
 createBonusesRoutes(app, requireAuth, checkAdmin);
+
+// Routes par édition (L40) : /api/leagues/:ligue/editions/:édition/…, réservées
+// aux participants connectés (ou à l'admin) ; elles délèguent aux routes ci-dessus.
+registerEditionRoutes(app, {
+  store,
+  validateSession,
+  isAdminRequest: req => !!ADMIN_PASSWORD && req.headers['x-admin-password'] === ADMIN_PASSWORD,
+  // Jusqu'à L42, l'appartenance est portée par athletes.json (league_id = identifiant historique)
+  isParticipant: async (athleteId, edition) => {
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    return athletes.some(a => normalizeId(a.id) === normalizeId(athleteId) && a.league_id === edition.legacyId);
+  },
+  withEdition
+});
 
 // ============================================
 // CONFIG ROUTE (publique)

@@ -118,6 +118,23 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
 
   const lockKey = edition => path.join(edition.dir, '#activities');
 
+  // Un contexte par édition, gardé en mémoire : son planning est modifiable (admin)
+  const contexts = new Map();
+  function buildContext(edition) {
+    const { LEGACY_CONTEXT, createEditionContext } = require('../edition-context');
+    const { DEFAULT_EDITION_DIR } = require('../data-dir');
+    // L'édition par défaut garde le contexte par défaut (même config, même planning)
+    if (path.resolve(edition.dir) === path.resolve(DEFAULT_EDITION_DIR)) return LEGACY_CONTEXT;
+    const { CHALLENGE_CONFIG } = require('../shared-config');
+    const id = edition.legacyId || `${edition.leagueId}/${edition.editionId}`;
+    return createEditionContext({
+      leagueId: id,
+      editionId: edition.editionId,
+      dataDir: edition.dir,
+      config: { ...CHALLENGE_CONFIG, ...(edition.info.config || {}), leagueId: id }
+    });
+  }
+
   async function buildView(edition) {
     const exclusions = await safeReadJSON(path.join(edition.dir, 'exclusions.json'), {});
     const entries = [];
@@ -144,6 +161,13 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
     async resolveEdition(id) {
       const edition = await findEdition(id);
       return edition ? { leagueId: edition.leagueId, editionId: edition.editionId, legacyId: edition.legacyId } : null;
+    },
+
+    async editionContext(id) {
+      const edition = await findEdition(id);
+      if (!edition) return null;
+      if (!contexts.has(edition.dir)) contexts.set(edition.dir, buildContext(edition));
+      return contexts.get(edition.dir);
     },
 
     async readActivities(id) {

@@ -42,6 +42,11 @@ function createLegacyStore() {
       return match ? LEGACY_EDITION : null;
     },
 
+    /** Contexte d'édition (fichiers, config, planning) : ici, toujours le contexte par défaut. */
+    async editionContext(id) {
+      return (await this.resolveEdition(id)) ? LEGACY_CONTEXT : null;
+    },
+
     /** Activités vues par une ligue (identifiant de ligue des routes actuelles), dans l'ordre stocké. */
     async readActivities(leagueId) {
       return safeReadJSON(activitiesFile(leagueId), []);
