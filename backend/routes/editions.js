@@ -1,11 +1,13 @@
 /**
  * ============================================
- * VERSANT - ROUTES PAR ÉDITION (L40, lecture)
+ * VERSANT - ROUTES PAR ÉDITION (L40 lecture, L41 écriture)
  * ============================================
  * /api/leagues/:leagueId/editions/:editionId/…
  *
  * Accès : participant de l'édition connecté (jeton de session), ou admin
- * (mot de passe admin, en attendant les rôles de L43).
+ * (mot de passe admin, en attendant les rôles de L43). Les routes du joueur
+ * (ses jokers, ses bonus) exigent sa session ; la cible d'un joker ou d'un
+ * bonus doit être participante de la même édition.
  *
  * Chaque route délègue à la route historique équivalente, exécutée dans le
  * contexte de l'édition (withEdition) : mêmes réponses, aucune recopie des
@@ -37,6 +39,16 @@ const READ_ROUTES = [
   ['/bonuses/active', '/api/bonuses/active']
 ];
 
+// Routes du joueur (L41) : [méthode, chemin sous l'édition, route historique, cible vérifiée]
+const PLAYER_ROUTES = [
+  ['get', '/jokers/my', '/api/jokers/my', false],
+  ['post', '/jokers/use', '/api/jokers/use', true],
+  ['get', '/bonuses/my', '/api/bonuses/my', false],
+  ['get', '/bonuses/choices', '/api/bonuses/choices', false],
+  ['post', '/bonuses/assign', '/api/bonuses/assign', false],
+  ['post', '/bonuses/use', '/api/bonuses/use', true]
+];
+
 const BASE = '/api/leagues/:leagueId/editions/:editionId';
 
 /**
@@ -60,14 +72,17 @@ function registerEditionRoutes(app, { store, validateSession, isAdminRequest, is
       const edition = await store.resolveEdition(key);
       if (!edition) return res.status(404).json({ error: 'Édition introuvable' });
 
-      if (!isAdminRequest(req)) {
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        const athleteId = await validateSession(token);
-        if (!athleteId) return res.status(401).json({ error: 'Non authentifié' });
-        if (!(await isParticipant(athleteId, edition))) {
+      // Session du joueur d'abord ; le mot de passe admin ne sert que de repli
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      const athleteId = token ? await validateSession(token) : null;
+      const admin = isAdminRequest(req);
+      if (athleteId) {
+        if (!admin && !(await isParticipant(athleteId, edition))) {
           return res.status(403).json({ error: 'Accès réservé aux participants de cette édition' });
         }
         req.athleteId = athleteId;
+      } else if (!admin) {
+        return res.status(401).json({ error: 'Non authentifié' });
       }
 
       req.edition = edition;
@@ -79,8 +94,9 @@ function registerEditionRoutes(app, { store, validateSession, isAdminRequest, is
     }
   }
 
-  for (const [route, legacy] of READ_ROUTES) {
-    app.get(BASE + route, editionAccess, (req, res, next) => {
+  /** Transmet la requête à la route historique, dans le contexte de l'édition. */
+  function delegate(legacy) {
+    return (req, res, next) => {
       const id = req.edition.legacyId || `${req.edition.leagueId}/${req.edition.editionId}`;
       const target = legacy
         .replace('{id}', encodeURIComponent(id))
@@ -88,8 +104,36 @@ function registerEditionRoutes(app, { store, validateSession, isAdminRequest, is
       const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
       req.url = target + query;
       withEdition(req.editionContext, () => app.handle(req, res, next));
-    });
+    };
+  }
+
+  /** Routes du joueur : sa propre session, même si un mot de passe admin est présent. */
+  function requirePlayer(req, res, next) {
+    if (!req.athleteId) return res.status(401).json({ error: 'Session de joueur requise' });
+    next();
+  }
+
+  /** Cible d'un joker ou d'un bonus : participante de la même édition. */
+  async function requireTargetInEdition(req, res, next) {
+    try {
+      const targetId = req.body?.target_athlete_id;
+      if (targetId != null && targetId !== '' && !(await isParticipant(targetId, req.edition))) {
+        return res.status(400).json({ error: 'La cible doit participer à cette édition' });
+      }
+      next();
+    } catch (error) {
+      console.error('Erreur vérification de cible:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  }
+
+  for (const [route, legacy] of READ_ROUTES) {
+    app.get(BASE + route, editionAccess, delegate(legacy));
+  }
+  for (const [method, route, legacy, checksTarget] of PLAYER_ROUTES) {
+    const guards = checksTarget ? [requirePlayer, requireTargetInEdition] : [requirePlayer];
+    app[method](BASE + route, editionAccess, ...guards, delegate(legacy));
   }
 }
 
-module.exports = { registerEditionRoutes, READ_ROUTES };
+module.exports = { registerEditionRoutes, READ_ROUTES, PLAYER_ROUTES };
