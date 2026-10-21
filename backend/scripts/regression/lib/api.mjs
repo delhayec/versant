@@ -27,6 +27,7 @@ import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { canonicalize } from './canonical.mjs';
 import { frozenRoundEnds, loadFixture, migrateToEditions } from './fixture.mjs';
 
@@ -75,6 +76,8 @@ export async function runApi({ repoRoot, fixtureDir, layout = 'legacy' }) {
       method: 'POST', body: { at: fixture.meta.capturedAt }, raw: true
     });
     const serverEngine = engine.status === 200 ? { at: engine.body.at, standings: engine.body.standings } : { status: engine.status };
+    // Routes par édition (L40) : mêmes réponses que les routes historiques ; contrôle d'accès
+    const editionRoutes = await checkEditionRoutes(server.base, repoRoot, plan);
     const probes = await runProbes(server.base, leagueId, plan, sandbox);
     await server.stop();
     server = null;
@@ -98,12 +101,46 @@ export async function runApi({ repoRoot, fixtureDir, layout = 'legacy' }) {
       await bare.stop();
     }
 
-    return { result: { responses, probes, serverEngine }, logs };
+    return { result: { responses, probes, serverEngine, editionRoutes }, logs };
   } finally {
     if (server) await server.stop();
     await strava.stop();
     rmSync(sandbox, { recursive: true, force: true });
   }
+}
+
+/**
+ * Routes /api/leagues/versant/editions/2026/… (L40) : chaque réponse doit être
+ * identique, octet pour octet, à celle de la route historique équivalente
+ * (session d'un participant). Puis les refus attendus. Code sans ces routes :
+ * non applicable.
+ */
+async function checkEditionRoutes(base, repoRoot, plan) {
+  const file = join(repoRoot, 'backend', 'routes', 'editions.js');
+  if (!existsSync(file)) return 'non applicable : code antérieur à L40';
+  const { READ_ROUTES } = await import(pathToFileURL(file).href);
+  const E = '/api/leagues/versant/editions/2026';
+  const member = { authorization: `Bearer harnais-${plan.owner}` };
+  const raw = async (path, headers = {}) => {
+    const res = await fetch(base + path, { headers });
+    return { status: res.status, text: await res.text() };
+  };
+  const routes = {};
+  for (const [route, legacy] of READ_ROUTES) {
+    const r = route.replace(':n', '52');
+    const neu = await raw(E + r, member);
+    const old = await raw(legacy.replace('{id}', 'versant-2026').replace('{n}', '52'));
+    routes[r] = { status: neu.status, identical: neu.status === old.status && neu.text === old.text };
+  }
+  const access = {
+    sansSession: (await raw(E + '/activities')).status,
+    jetonInconnu: (await raw(E + '/activities', { authorization: 'Bearer inconnu' })).status,
+    admin: (await raw(E + '/activities', { 'x-admin-password': ADMIN_PASSWORD })).status,
+    mauvaisMotDePasseAdmin: (await raw(E + '/activities', { 'x-admin-password': 'faux' })).status,
+    editionInconnue: (await raw('/api/leagues/versant/editions/2027/activities', member)).status,
+    identifiantInvalide: (await raw('/api/leagues/ver..sant/editions/2026/activities', member)).status
+  };
+  return { routes, access };
 }
 
 /** Activités et athlètes utilisés par les sondes, choisis de façon stable dans la fixture. */

@@ -244,6 +244,14 @@ function printSummary(output, outFile, logFile, text, elapsedMs) {
       ? `   Moteur serveur : classement identique à la partie A (${engineCheck.players} joueurs)`
       : `   ❌ Moteur serveur : classement différent de la partie A — voir api.serverEngine`);
   }
+  const editionRoutes = output.api?.editionRoutes;
+  if (editionRoutes && typeof editionRoutes === 'object') {
+    const entries = Object.values(editionRoutes.routes);
+    const different = Object.entries(editionRoutes.routes).filter(([, v]) => !v.identical).map(([k]) => k);
+    console.log(different.length === 0
+      ? `   Routes par édition : ${entries.length} identiques aux routes historiques ; accès ${Object.entries(editionRoutes.access).map(([k, v]) => `${k} ${v}`).join(', ')}`
+      : `   ❌ Routes par édition différentes : ${different.join(', ')}`);
+  }
   const parity = output.front?.capturedAt?.configParity;
   if (parity) {
     console.log(parity.differences.length === 0
