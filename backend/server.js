@@ -108,6 +108,7 @@ const ATHLETES_FILE = path.join(DATA_DIR, 'athletes.json');
 // Fichiers propres à une édition (jokers, figés, activités…) : cf. edition-context.js
 const { currentEdition, withEdition } = require('./edition-context');
 const { registerEditionRoutes } = require('./routes/editions');
+const { registerAccountRoutes } = require('./routes/accounts');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const FAILED_WEBHOOKS_FILE = path.join(DATA_DIR, 'failed_webhooks.json');
 const WEBHOOK_LOG_FILE = path.join(DATA_DIR, 'webhook_log.json');
@@ -375,6 +376,25 @@ app.use('/api', jokersRouter);
 
 // Initialiser les routes bonus éphémères
 createBonusesRoutes(app, requireAuth, checkAdmin);
+
+// Compte et adhésion à une ligue (L42) : /api/me, /api/leagues/join, code d'invitation
+registerAccountRoutes(app, {
+  store,
+  requireAuth,
+  checkAdmin,
+  readAccounts: () => safeReadJSON(ATHLETES_FILE, []),
+  // Rattrapage des activités du nouvel arrivant, dans le contexte de son édition
+  onJoin: async (editionKey, athleteId) => {
+    try {
+      const context = await store.editionContext(editionKey);
+      const accounts = await safeReadJSON(ATHLETES_FILE, []);
+      const name = accounts.find(a => normalizeId(a.id) === normalizeId(athleteId))?.name || athleteId;
+      await withEdition(context, () => backfillNewParticipant(editionKey, normalizeId(athleteId), name));
+    } catch (e) {
+      console.error('⚠️ Rattrapage après adhésion échoué:', e.message);
+    }
+  }
+});
 
 // Routes par édition (L40) : /api/leagues/:ligue/editions/:édition/…, réservées
 // aux participants connectés (ou à l'admin) ; elles délèguent aux routes ci-dessus.
@@ -881,11 +901,32 @@ async function getCurrentSeasonContext() {
   }
 }
 
+/**
+ * Backfill de l'historique d'un nouvel arrivant, en tâche de fond : le cron ne
+ * balaie qu'une fenêtre glissante de 7 jours, il resterait sinon à 0 D+. On
+ * remonte au début de la saison en cours — il n'entre normalement qu'à la
+ * suivante, mais cela couvre le cas d'une entrée anticipée (active_from_round).
+ * Dates en AAAA-MM-JJ LOCAL : getRoundDates ancre à minuit local
+ * (Europe/Paris), toISOString() reculerait d'un jour.
+ */
+async function backfillNewParticipant(leagueId, athleteId, name) {
+  const { startRound } = await getCurrentSeasonContext();
+  const toLocalDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString().split('T')[0];
+  const backfillStart = toLocalDay(frozenResults.getRoundDates(startRound, currentEdition().config).start);
+  const backfillEnd = toLocalDay(new Date());
+  syncLeague(leagueId, backfillStart, backfillEnd, { athleteIds: [athleteId] })
+    .then(r => console.log(`📥 Backfill ${name}: ${r.totalNew} activité(s) depuis ${backfillStart}`))
+    .catch(e => console.error(`⚠️ Backfill ${name} échoué:`, e.message));
+}
+
 app.post('/api/athletes/register', async (req, res) => {
   try {
     const { athlete_id, name, email, password, strava_data, access_token, refresh_token, expires_at, league_id } = req.body;
 
-    if (!athlete_id || !name || !league_id || !password || !email) {
+    // league_id est facultatif depuis L42 : un compte peut exister sans ligue
+    // et en rejoindre une ensuite avec son code (POST /api/leagues/join)
+    if (!athlete_id || !name || !password || !email) {
       return res.status(400).json({ error: 'Données manquantes' });
     }
 
@@ -907,6 +948,10 @@ app.post('/api/athletes/register', async (req, res) => {
     if (athletes.find(a => normalizeId(a.id) === normalizedId && a.league_id === league_id)) {
       return res.status(400).json({ error: 'Déjà inscrit' });
     }
+    // Un seul compte par athlète Strava
+    if (!league_id && athletes.find(a => normalizeId(a.id) === normalizedId)) {
+      return res.status(400).json({ error: 'Compte déjà existant' });
+    }
 
     athletes.push({
       id: normalizedId,
@@ -914,7 +959,7 @@ app.post('/api/athletes/register', async (req, res) => {
       email,
       password_hash: hashPassword(password),
       password_scrypt: passwordScrypt,
-      league_id,
+      league_id: league_id || null,
       strava_profile: strava_data,
       registered_at: new Date().toISOString(),
       tokens: { access_token, refresh_token, expires_at },
@@ -927,21 +972,9 @@ app.post('/api/athletes/register', async (req, res) => {
 
     // Règle globale : on n'écrit PAS active_from_round. Son absence signifie
     // « entre à la saison suivante » (cf. isAthleteInRound dans frozen-results).
-    const { seasonNumber, startRound } = await getCurrentSeasonContext();
+    const { seasonNumber } = await getCurrentSeasonContext();
 
-    // Backfill de l'historique en tâche de fond : le cron ne balaie qu'une
-    // fenêtre glissante de 7 jours, un nouvel inscrit resterait sinon à 0 D+.
-    // On remonte au début de la saison en cours — il n'entre normalement qu'à la
-    // suivante, mais cela couvre le cas d'une entrée anticipée (active_from_round).
-    // Dates en AAAA-MM-JJ LOCAL : getRoundDates ancre à minuit local
-    // (Europe/Paris), toISOString() reculerait d'un jour.
-    const toLocalDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-      .toISOString().split('T')[0];
-    const backfillStart = toLocalDay(frozenResults.getRoundDates(startRound, currentEdition().config).start);
-    const backfillEnd = toLocalDay(new Date());
-    syncLeague(league_id, backfillStart, backfillEnd, { athleteIds: [normalizedId] })
-      .then(r => console.log(`📥 Backfill ${name}: ${r.totalNew} activité(s) depuis ${backfillStart}`))
-      .catch(e => console.error(`⚠️ Backfill ${name} échoué:`, e.message));
+    if (league_id) await backfillNewParticipant(league_id, normalizedId, name);
 
     res.json({
       success: true,

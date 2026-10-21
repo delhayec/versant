@@ -27,7 +27,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const { DATA_DIR } = require('../data-dir');
-const { acquireLock, releaseLock, safeReadJSON, safeWriteJSON } = require('../json-io');
+const { acquireLock, releaseLock, safeReadJSON, safeWriteJSON, safeModifyJSON } = require('../json-io');
 
 const EXCLUSION_KEYS = ['excluded', 'excluded_at', 'excluded_reason'];
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
@@ -165,6 +165,77 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
     async resolveEdition(id) {
       const edition = await findEdition(id);
       return edition ? { leagueId: edition.leagueId, editionId: edition.editionId, legacyId: edition.legacyId } : null;
+    },
+
+    /** Ligue (league.json : id, nom, code d'invitation), ou null. */
+    async getLeague(id) {
+      if (!ID_PATTERN.test(String(id))) return null;
+      return safeReadJSON(path.join(leaguesDir, String(id), 'league.json'), null);
+    },
+
+    async saveLeague(league) {
+      if (!ID_PATTERN.test(String(league.id))) throw new Error(`identifiant de ligue invalide : ${league.id}`);
+      const file = path.join(leaguesDir, league.id, 'league.json');
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await safeWriteJSON(file, league);
+    },
+
+    async listLeagues() {
+      const dirs = await fs.readdir(leaguesDir, { withFileTypes: true }).catch(() => []);
+      const leagues = [];
+      for (const dir of dirs.filter(d => d.isDirectory())) {
+        const league = await this.getLeague(dir.name);
+        if (league) leagues.push(league);
+      }
+      return leagues;
+    },
+
+    /** Éditions d'une ligue, de la plus ancienne à la plus récente. */
+    async listLeagueEditions(leagueId) {
+      return (await loadEditions())
+        .filter(e => e.leagueId === leagueId)
+        .sort((a, b) => String(a.editionId).localeCompare(String(b.editionId)))
+        .map(e => ({ leagueId: e.leagueId, editionId: e.editionId, legacyId: e.legacyId, key: e.legacyId || `${e.leagueId}/${e.editionId}` }));
+    },
+
+    /** Ligues dont un athlète est participant (au plus une, cf. décision du 21/10). */
+    async leaguesOf(athleteId) {
+      const leagues = new Set();
+      for (const e of await loadEditions()) {
+        const key = e.legacyId || `${e.leagueId}/${e.editionId}`;
+        if ((await this.listParticipants(key)).some(a => String(a.id) === String(athleteId))) leagues.add(e.leagueId);
+      }
+      return [...leagues];
+    },
+
+    /**
+     * Inscrit un compte existant à une édition : dans participants.json, ou
+     * (versant/2026) sur sa fiche d'athletes.json. registered_at = date
+     * d'arrivée, qui décide de l'entrée en jeu (saison suivante).
+     */
+    async addParticipant(id, athleteId, joinedAt) {
+      const edition = await requireEdition(id);
+      const file = path.join(edition.dir, 'participants.json');
+      const entries = await safeReadJSON(file, null);
+      if (Array.isArray(entries)) {
+        await safeModifyJSON(file, list => {
+          if (!Array.isArray(list)) throw new Error('participants.json illisible');
+          if (!list.some(e => String(e.id) === String(athleteId))) {
+            list.push({ id: String(athleteId), registered_at: joinedAt, active: true, confirmed_at: joinedAt });
+          }
+          return list;
+        }, null);
+        return;
+      }
+      await safeModifyJSON(path.join(dataDir, 'athletes.json'), athletes => {
+        if (!Array.isArray(athletes)) throw new Error('athletes.json illisible');
+        const account = athletes.find(a => String(a.id) === String(athleteId));
+        if (!account) throw new Error(`compte inconnu : ${athleteId}`);
+        account.league_id = edition.legacyId;
+        account.registered_at = joinedAt;
+        account.active = true;
+        return athletes;
+      }, null);
     },
 
     async editionContext(id) {

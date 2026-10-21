@@ -12,7 +12,7 @@
  */
 
 const fs = require('fs').promises;
-const { safeReadJSON, safeWriteJSON } = require('../json-io');
+const { safeReadJSON, safeWriteJSON, safeModifyJSON } = require('../json-io');
 const { LEGACY_CONTEXT, currentEdition } = require('../edition-context');
 
 const path = require('path');
@@ -46,6 +46,54 @@ function createLegacyStore() {
     /** Contexte d'édition (fichiers, config, planning) : ici, toujours le contexte par défaut. */
     async editionContext(id) {
       return (await this.resolveEdition(id)) ? LEGACY_CONTEXT : null;
+    },
+
+    /** Ligue (league.json : nom, code d'invitation) ; ici, seulement versant. */
+    async getLeague(id) {
+      if (id !== LEGACY_EDITION.leagueId) return null;
+      const stored = await safeReadJSON(path.join(DATA_DIR, 'leagues', id, 'league.json'), {});
+      return { id, name: 'Versant', ...stored };
+    },
+
+    async saveLeague(league) {
+      const file = path.join(DATA_DIR, 'leagues', league.id, 'league.json');
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await safeWriteJSON(file, league);
+    },
+
+    async listLeagues() {
+      return [await this.getLeague(LEGACY_EDITION.leagueId)];
+    },
+
+    /** Éditions d'une ligue, de la plus ancienne à la plus récente. */
+    async listLeagueEditions(leagueId) {
+      if (leagueId !== LEGACY_EDITION.leagueId) return [];
+      const { leagueId: l, editionId, legacyId } = LEGACY_EDITION;
+      return [{ leagueId: l, editionId, legacyId, key: legacyId }];
+    },
+
+    /** Ligues dont un athlète est participant (au plus une, cf. décision du 21/10). */
+    async leaguesOf(athleteId) {
+      const participants = await this.listParticipants(LEGACY_EDITION.legacyId);
+      return participants.some(a => String(a.id) === String(athleteId)) ? [LEGACY_EDITION.leagueId] : [];
+    },
+
+    /**
+     * Inscrit un compte existant à une édition. versant/2026 : l'appartenance
+     * est portée par la fiche (league_id) ; registered_at prend la date
+     * d'arrivée dans la ligue, qui décide de l'entrée en jeu (saison suivante).
+     */
+    async addParticipant(id, athleteId, joinedAt) {
+      if (id !== LEGACY_EDITION.legacyId) throw new Error(`édition inconnue : ${id}`);
+      await safeModifyJSON(path.join(DATA_DIR, 'athletes.json'), athletes => {
+        if (!Array.isArray(athletes)) throw new Error('athletes.json illisible');
+        const account = athletes.find(a => String(a.id) === String(athleteId));
+        if (!account) throw new Error(`compte inconnu : ${athleteId}`);
+        account.league_id = LEGACY_EDITION.legacyId;
+        account.registered_at = joinedAt;
+        account.active = true;
+        return athletes;
+      }, null);
     },
 
     /**
