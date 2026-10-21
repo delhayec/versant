@@ -1311,12 +1311,32 @@ async function refreshStravaToken(athlete) {
   return { success: false, reason: 'refresh_failed' };
 }
 
+/**
+ * Enregistre des tokens Strava rafraîchis sans réécrire le reste du fichier :
+ * lecture, modification et écriture sous verrou, sur la version à jour.
+ * Réécrire un tableau lu AVANT les appels à Strava effaçait les comptes créés
+ * ou modifiés entre-temps (inscription, réinitialisation de mot de passe…).
+ * @param {Map<string, Object>} updates - identifiant normalisé → tokens
+ */
+async function saveAthleteTokens(updates) {
+  if (updates.size === 0) return;
+  await safeModifyJSON(ATHLETES_FILE, accounts => {
+    if (!Array.isArray(accounts)) throw new Error('athletes.json illisible');
+    for (const account of accounts) {
+      const tokens = updates.get(normalizeId(account.id));
+      if (tokens) account.tokens = tokens;
+    }
+    return accounts;
+  }, null);
+}
+
 async function refreshAllTokens() {
   console.log('🔄 Refresh préventif des tokens...');
 
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
   const now = Date.now() / 1000;
   let refreshed = 0;
+  const tokenUpdates = new Map();
 
   for (let i = 0; i < athletes.length; i++) {
     const athlete = athletes[i];
@@ -1330,6 +1350,7 @@ async function refreshAllTokens() {
           refresh_token: result.refresh_token,
           expires_at: result.expires_at
         };
+        tokenUpdates.set(normalizeId(athlete.id), athletes[i].tokens);
         refreshed++;
       }
       await sleep(500); // Pause entre chaque refresh
@@ -1337,7 +1358,7 @@ async function refreshAllTokens() {
   }
 
   if (refreshed > 0) {
-    await safeWriteJSON(ATHLETES_FILE, athletes);
+    await saveAthleteTokens(tokenUpdates);
     console.log(`   ✅ ${refreshed} tokens rafraîchis`);
   }
 }
@@ -1423,6 +1444,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   let totalNew = 0;
   let totalUpdated = 0;
   const errors = [];
+  const tokenUpdates = new Map();
 
   for (let i = 0; i < leagueAthletes.length; i++) {
     const athlete = leagueAthletes[i];
@@ -1453,6 +1475,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
         const realIndex = athletes.findIndex(a => normalizeId(a.id) === athleteId);
         if (realIndex >= 0) {
           athletes[realIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
+          tokenUpdates.set(athleteId, athletes[realIndex].tokens);
         }
       }
 
@@ -1534,7 +1557,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
     }
   }
 
-  await safeWriteJSON(ATHLETES_FILE, athletes);
+  await saveAthleteTokens(tokenUpdates);
   await store.writeActivities(activitiesLeague, activities);
 
   console.log(`   ✅ Total: ${totalNew} nouvelles, ${totalUpdated} mises à jour`);
@@ -1655,7 +1678,7 @@ async function checkActivityOnStrava(athletes, athleteIndex, objectId) {
     if (!result.success) return 'unknown';
     accessToken = result.access_token;
     athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
-    await safeWriteJSON(ATHLETES_FILE, athletes);
+    await saveAthleteTokens(new Map([[normalizeId(athletes[athleteIndex].id), athletes[athleteIndex].tokens]]));
   }
 
   try {
@@ -1739,7 +1762,7 @@ async function processOneWebhook(event) {
 
       accessToken = result.access_token;
       athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
-      await safeWriteJSON(ATHLETES_FILE, athletes);
+      await saveAthleteTokens(new Map([[normalizeId(athletes[athleteIndex].id), athletes[athleteIndex].tokens]]));
     }
 
     // Fetch activité avec retry et délais
@@ -1923,7 +1946,7 @@ async function processOneWebhook(event) {
       }
       accessToken = result.access_token;
       athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
-      await safeWriteJSON(ATHLETES_FILE, athletes);
+      await saveAthleteTokens(new Map([[normalizeId(athletes[athleteIndex].id), athletes[athleteIndex].tokens]]));
     }
 
     try {
