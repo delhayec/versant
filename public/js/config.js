@@ -47,8 +47,11 @@ export const CHALLENGE_CONFIG = {
   // Miroirs de backend/shared-config.js::CHALLENGE_CONFIG (paramètres d'édition) :
   // règle 0 D+ à partir de ce round (avant le R7 : ancien règlement de 2026) ;
   zeroElevationRuleFromRound: 7,
-  // premier round où la jauge collective rapporte des points (null : pas de jauge).
+  // premier round où la jauge collective rapporte des points (null : pas de jauge) ;
   elevationGaugeStartRound: 52,
+  // dernière saison avec le rescapé (L44 : mécanique retirée ; 0 pour une
+  // nouvelle édition, null : sans limite).
+  rescapeLastSeason: 8,
   mainMetric: "elevation",
   mainMetricLabel: "Dénivelé positif",
   mainMetricUnit: "m",
@@ -191,6 +194,15 @@ export function getMainPointsMultiplier(seasonNumber) {
   return getSeasonType(seasonNumber)?.mainPointsMultiplier || 1;
 }
 
+/**
+ * Le rescapé compte-t-il pour cette saison ? (L44 : mécanique retirée après
+ * CHALLENGE_CONFIG.rescapeLastSeason ; miroir de computeRescapeInfo du backend)
+ */
+export function isRescapeActive(seasonNumber) {
+  const last = CHALLENGE_CONFIG.rescapeLastSeason;
+  return last == null || Number(seasonNumber) <= last;
+}
+
 export function getSeasonType(seasonNumber) {
   const typeId = SEASON_PLANNING[seasonNumber] || "standard";
   return SEASON_TYPES[typeId];
@@ -249,41 +261,42 @@ export const getEliminatedChallengePoints = (pos) =>
 // ⚠️ Garder synchronisé avec backend/shared-config.js (ELEVATION_GAUGE) :
 // le backend fige le résultat (frozen_results.rounds[n].elevationGauge).
 // Le round de départ est un paramètre d'édition : CHALLENGE_CONFIG.elevationGaugeStartRound.
+// L44 : objectif (100 %) = seuil du neutre, paliers ronds (cf. shared-config).
 export const ELEVATION_GAUGE = {
   objectivePerPlayer: [
-    { minPlayers: 14, objective: 1100 },
-    { minPlayers: 11, objective: 1300 },
-    { minPlayers: 9, objective: 1500 },
-    { minPlayers: 7, objective: 1750 },
-    { minPlayers: 5, objective: 2100 },
-    { minPlayers: 3, objective: 2700 },
-    { minPlayers: 0, objective: 3000 },
+    { minPlayers: 14, objective: 825 },
+    { minPlayers: 11, objective: 975 },
+    { minPlayers: 9, objective: 1125 },
+    { minPlayers: 7, objective: 1312.5 },
+    { minPlayers: 5, objective: 1575 },
+    { minPlayers: 3, objective: 2025 },
+    { minPlayers: 0, objective: 2250 },
   ],
   tiers: [
     {
       id: "critical_success",
-      minRatio: 1.5,
+      minRatio: 2,
       points: 2,
       beneficiary: "main",
       label: "Réussite critique",
     },
     {
       id: "success",
-      minRatio: 1.3,
+      minRatio: 1.75,
       points: 1,
       beneficiary: "main",
       label: "Réussite",
     },
     {
       id: "neutral",
-      minRatio: 0.75,
+      minRatio: 1,
       points: 0,
       beneficiary: null,
-      label: "Neutre",
+      label: "Objectif atteint",
     },
     {
       id: "failure",
-      minRatio: 0.55,
+      minRatio: 0.75,
       points: 1,
       beneficiary: "eliminated",
       label: "Échec",

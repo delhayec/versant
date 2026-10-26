@@ -22,7 +22,7 @@ import {
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
   getSeasonRosterSize,
   formBalancedTeams, loadSpecialRulesOverrides, getSpecialRuleForRound,
-  onDomReady
+  onDomReady, isRescapeActive
 } from './config.js';
 
 import {
@@ -1847,7 +1847,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
   const rankingHtml = rankingWithEffects.map((entry, idx) => {
     const isEliminated = roundEliminated.some(e => e.id === entry.participant.id);
     const position = idx + 1;
-    const isRescape = (idx === rescapeIdx) && !isFinale && roundEliminated.length > 0;
+    const isRescape = (idx === rescapeIdx) && !isFinale && roundEliminated.length > 0 && isRescapeActive(currentSeasonNumber);
 
     // Calculer les points pour les éliminés
     let mainPts = 0;

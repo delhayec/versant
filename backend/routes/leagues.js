@@ -153,7 +153,9 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
         yearStartDate: body.startDate,
         yearEndDate: body.endDate,
         zeroElevationRuleFromRound: 1,
-        elevationGaugeStartRound: null
+        elevationGaugeStartRound: null,
+        // Mécanique du rescapé retirée (L44) : jamais pour une nouvelle édition
+        rescapeLastSeason: 0
       };
       for (const key of ['roundDurationDays', 'eliminationsPerRound', 'finalistsCount', 'zeroElevationRuleFromRound']) {
         if (body[key] === undefined) continue;

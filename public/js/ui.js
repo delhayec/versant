@@ -1277,8 +1277,16 @@ export function showTargetSelectionModal(options = {}) {
 // JAUGE DE D+ COLLECTIVE
 // ============================================
 
-// Échelle de la barre : 0 → GAUGE_SCALE_MAX × objectif (au-delà, barre pleine)
-const GAUGE_SCALE_MAX = 1.75;
+// Échelle de la barre : 0 → GAUGE_SCALE_MAX × objectif (au-delà, barre pleine) ;
+// L44 : objectif = 100 % (neutre), réussite critique à 200 %
+const GAUGE_SCALE_MAX = 2.25;
+
+/** Palier suivant et D+ qui manque pour l'atteindre (null au palier le plus haut). */
+function nextGaugeStep(gauge) {
+  const next = [...ELEVATION_GAUGE.tiers].reverse().find(t => t.minRatio > gauge.ratio);
+  if (!next) return null;
+  return { tier: next, missing: Math.max(0, Math.ceil(next.minRatio * gauge.objective - gauge.total)) };
+}
 
 function describeGaugeEffect(tier, nbBeneficiaries = null) {
   if (!tier.points) return 'aucun point';
@@ -1321,7 +1329,7 @@ function renderGaugeInfoPopover() {
           <thead><tr><th>Palier</th><th>Jauge</th><th>Effet</th></tr></thead>
           <tbody>${tierRows}</tbody>
         </table>
-        <span class="gauge-info-text gauge-info-geek">Pour les geeks : le D+ moyen visé est l'arrondi de <code>5 700 × n<sup>-0,6</sup></code>, avec n = nombre de joueurs en lice.</span>
+        <span class="gauge-info-text gauge-info-geek">Pour les geeks : le D+ moyen visé vaut 0,75 × l'arrondi de <code>5 700 × n<sup>-0,6</sup></code>, avec n = nombre de joueurs en lice.</span>
       </span>
     </span>`;
 }
@@ -1367,6 +1375,11 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
   const status = isLive
     ? `Si le round s'arrêtait maintenant : <strong>${tier.label}</strong> · ${describeGaugeEffect(tier)}`
     : `Aperçu : la jauge rapporte des points à partir du round ${gaugeStartRound}. Actuellement : ${tier.label}`;
+  // Compte à rebours vers le palier suivant (L44)
+  const step = nextGaugeStep(gauge);
+  const stepHtml = step
+    ? `<div class="gauge-status">⏳ Prochain palier : <strong>${step.tier.label}</strong> (${Math.round(step.tier.minRatio * 100)} %) dans <strong>${formatElevation(step.missing)}</strong> · ${describeGaugeEffect(step.tier)}</div>`
+    : '<div class="gauge-status">🏆 Palier le plus haut atteint</div>';
 
   container.innerHTML = `
     <div class="elevation-gauge tier-${tier.id}${isLive ? '' : ' is-preview'}">
@@ -1381,6 +1394,7 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
       </div>
       <div class="gauge-ticks">${ticks}</div>
       <div class="gauge-status">${status}</div>
+      ${stepHtml}
       <div class="gauge-sub">${gauge.nbPlayers} joueurs en lice · objectif ${formatElevation(gauge.objectivePerPlayer)} de D+ moyen${projectionHtml}</div>
     </div>`;
 }

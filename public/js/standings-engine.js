@@ -47,7 +47,7 @@ import {
   formBalancedTeams, getTeamSettings, getTeamBalanceMap,
   getSpecialRuleForRound, getEffectiveNbEliminations,
   getActivityElevation, isRainyActivity, isValidSport,
-  getGaugeObjectivePerPlayer, getGaugeTier
+  getGaugeObjectivePerPlayer, getGaugeTier, isRescapeActive
 } from './config.js';
 
 import { applyJokerEffects } from './jokers.js';
@@ -384,6 +384,8 @@ export function getRescapeFromPreviousRound(currentRoundNumber, frozenResultsCac
   if (!frozenRound || !frozenRound.ranking || frozenRound.ranking.length < 4) {
     return null;
   }
+  // Rescapé retiré après CHALLENGE_CONFIG.rescapeLastSeason (L44)
+  if (!isRescapeActive(frozenRound.seasonNumber)) return null;
 
   // Exclure les éliminés ET les joueurs ayant utilisé un bouclier
   const eliminatedIds = new Set((frozenRound.eliminations || []).map(e => String(e.id)));
@@ -415,6 +417,8 @@ export function calculateRescapePointsForSeason(seasonNumber, frozenResultsCache
   });
 
   if (!frozenResultsCache?.rounds) return result;
+  // Rescapé retiré après CHALLENGE_CONFIG.rescapeLastSeason (L44)
+  if (!isRescapeActive(seasonNumber)) return result;
 
   // Bornes RÉELLES de la saison (issues des rounds figés), pas la formule théorique
   // (nombre de rounds/saison fixe) qui se trompe dès qu'une saison a une durée

@@ -243,6 +243,11 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
     return null;
   }
 
+  // Rescapé retiré après CHALLENGE_CONFIG.rescapeLastSeason (L44 ; miroir de
+  // isRescapeActive du front)
+  const rescapeLastSeason = currentEdition().config.rescapeLastSeason;
+  if (rescapeLastSeason != null && Number(roundData.seasonNumber) > rescapeLastSeason) return null;
+
   // Pas de rescapé en finale. La finale est celle réellement jouée (le nombre de
   // rounds d'une saison varie : règles spéciales, saisons Deadline…).
   if (roundData.isFinalePrincipale) return null;
@@ -2689,6 +2694,7 @@ async function getSeasonPlan(athletes, config, now = new Date()) {
 
 module.exports = {
   computeElevationGauge,
+  computeRescapeInfo,
   getSeasonPlan,
   replanDeadlineSeason,
   purgeClosedSeasonBonuses,

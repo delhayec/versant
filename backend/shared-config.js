@@ -26,7 +26,11 @@ const CHALLENGE_CONFIG = {
   zeroElevationRuleFromRound: 7,
   // Premier round où la jauge collective de D+ rapporte des points
   // (cf. ELEVATION_GAUGE). null : pas de jauge.
-  elevationGaugeStartRound: 52
+  elevationGaugeStartRound: 52,
+  // Dernière saison avec le rescapé (L44, décision du 26/10 : mécanique
+  // retirée). versant-2026 : jusqu'à la saison 8 (la 9 est en équipes, sans
+  // rescapé) ; 0 pour une nouvelle édition ; null : sans limite.
+  rescapeLastSeason: 8
 };
 
 // ============================================
@@ -113,26 +117,31 @@ const getEliminatedPoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? 0;
 // une jauge dont l'objectif dépend du nombre de joueurs en lice (le D+ moyen
 // grimpe mécaniquement au fil de la saison, seuls les plus forts restant).
 // Barème calibré sur les rounds 1→48 de 2026 (~60 % de rounds neutres).
+// L44 (décision du 26/10) : l'objectif affiché (100 %) est le seuil du neutre
+// (0,75 × l'ancien objectif) et les paliers sont ronds (75, 100, 175, 200 %).
+// En D+ réel, le neutre et la réussite critique ne bougent pas ; l'échec
+// critique passe de 0,55 à 0,5625 et la réussite de 1,30 à 1,3125 de
+// l'ancien objectif. Aucun round figé n'avait encore de jauge.
 // ⚠️ Garder synchronisé avec public/js/config.js (ELEVATION_GAUGE).
 // Le round de départ est un paramètre d'édition : CHALLENGE_CONFIG.elevationGaugeStartRound.
 const ELEVATION_GAUGE = {
   // Objectif de D+ MOYEN par joueur, selon le nombre de joueurs en lice
-  // (arrondi de la courbe 5 700 × n^-0,6 ajustée sur l'historique)
+  // (0,75 × l'arrondi de la courbe 5 700 × n^-0,6 ajustée sur l'historique)
   objectivePerPlayer: [
-    { minPlayers: 14, objective: 1100 },
-    { minPlayers: 11, objective: 1300 },
-    { minPlayers: 9, objective: 1500 },
-    { minPlayers: 7, objective: 1750 },
-    { minPlayers: 5, objective: 2100 },
-    { minPlayers: 3, objective: 2700 },
-    { minPlayers: 0, objective: 3000 }
+    { minPlayers: 14, objective: 825 },
+    { minPlayers: 11, objective: 975 },
+    { minPlayers: 9, objective: 1125 },
+    { minPlayers: 7, objective: 1312.5 },
+    { minPlayers: 5, objective: 1575 },
+    { minPlayers: 3, objective: 2025 },
+    { minPlayers: 0, objective: 2250 }
   ],
   // Paliers en % de l'objectif (minRatio inclus), du plus haut au plus bas
   tiers: [
-    { id: 'critical_success', minRatio: 1.50, points: 2, beneficiary: 'main' },
-    { id: 'success', minRatio: 1.30, points: 1, beneficiary: 'main' },
-    { id: 'neutral', minRatio: 0.75, points: 0, beneficiary: null },
-    { id: 'failure', minRatio: 0.55, points: 1, beneficiary: 'eliminated' },
+    { id: 'critical_success', minRatio: 2, points: 2, beneficiary: 'main' },
+    { id: 'success', minRatio: 1.75, points: 1, beneficiary: 'main' },
+    { id: 'neutral', minRatio: 1, points: 0, beneficiary: null },
+    { id: 'failure', minRatio: 0.75, points: 1, beneficiary: 'eliminated' },
     { id: 'critical_failure', minRatio: 0, points: 2, beneficiary: 'eliminated' }
   ]
 };
