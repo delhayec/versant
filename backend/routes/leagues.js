@@ -17,6 +17,7 @@
  * passe de secours). Lancement d'édition : admin de la ligue (L43).
  *
  * PUT  /api/admin/leagues/:leagueId/admins            { athleteIds } (super-admin)
+ * GET  /api/admin/leagues                              toutes les ligues (super-admin, L51)
  */
 
 const crypto = require('crypto');
@@ -63,6 +64,52 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
       res.json({ success: true, admins: league.admins });
     } catch (error) {
       console.error('Erreur admins de ligue:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+
+  /**
+   * Toutes les ligues, pour le super-admin (L51) : éditions et nombre de
+   * participants, édition en cours, membres (participants d'au moins une
+   * édition, parmi lesquels on désigne les admins), admins ; et les comptes
+   * qui n'ont rejoint aucune ligue.
+   */
+  app.get('/api/admin/leagues', async (req, res) => {
+    if (!checkAdmin(req, res)) return;
+    try {
+      const accounts = await readAccounts();
+      const nameOf = id => accounts.find(a => String(a.id) === String(id))?.name || String(id);
+      const today = new Date().toLocaleDateString('sv-SE'); // AAAA-MM-JJ, heure de Paris (TZ du serveur)
+      const inSomeLeague = new Set();
+      const leagues = [];
+      for (const league of await store.listLeagues()) {
+        const editions = [];
+        const members = new Map();
+        for (const edition of await store.listLeagueEditions(league.id)) {
+          const participants = await store.listParticipants(edition.key);
+          for (const p of participants) {
+            members.set(String(p.id), p.name || nameOf(p.id));
+            inSomeLeague.add(String(p.id));
+          }
+          editions.push({ editionId: edition.editionId, startDate: edition.startDate, endDate: edition.endDate, participants: participants.length });
+        }
+        const started = editions.filter(e => !e.startDate || e.startDate <= today);
+        leagues.push({
+          id: league.id,
+          name: league.name,
+          createdAt: league.createdAt || null,
+          editions,
+          currentEditionId: (started[started.length - 1] || editions[0])?.editionId || null,
+          admins: (league.admins || []).map(id => ({ id: String(id), name: nameOf(id) })),
+          members: [...members].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+        });
+      }
+      const withoutLeague = accounts
+        .filter(a => !inSomeLeague.has(String(a.id)))
+        .map(a => ({ id: String(a.id), name: a.name, email: a.email || null, registeredAt: a.registered_at || null }));
+      res.json({ leagues: leagues.sort((a, b) => a.name.localeCompare(b.name)), withoutLeague });
+    } catch (error) {
+      console.error('Erreur liste des ligues:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
   });

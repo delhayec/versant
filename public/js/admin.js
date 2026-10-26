@@ -115,8 +115,10 @@ function chooseManagedEdition() {
   const edition = params.get('edition');
   const me = adminAuth.me;
   if (league && !isSuperAdmin() && league !== me?.league?.id) return "Tu n'administres pas cette ligue";
-  if (league && edition) {
-    managed = { leagueId: league, editionId: edition };
+  if (league) {
+    // Sans édition dans l'adresse : celle du compte s'il s'agit de sa ligue,
+    // sinon aucune (ligue sans édition : seule « Ma ligue » est utilisable)
+    managed = { leagueId: league, editionId: edition || (league === me?.league?.id ? me.edition?.editionId : null) || null };
   } else if (me?.league) {
     // Ligue sans édition : seule la rubrique « Ma ligue » est utilisable
     managed = { leagueId: me.league.id, editionId: me.edition?.editionId || null };
@@ -173,6 +175,7 @@ function showDashboard() {
     : `Ligue ${managed.leagueId} · ${role}`;
   document.getElementById('editionSections').hidden = !managed.editionId;
   document.getElementById('editionMissing').hidden = !!managed.editionId;
+  document.getElementById('maintenanceEdition').hidden = !managed.editionId;
 
   const today = new Date();
   const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
@@ -180,6 +183,7 @@ function showDashboard() {
   document.getElementById('syncStartDate').value = weekAgo.toISOString().split('T')[0];
 
   loadLeague();
+  if (superAdmin) loadLeagues();
   if (managed.editionId) loadDashboardData();
 }
 
@@ -1275,6 +1279,177 @@ document.getElementById('leagueContent').addEventListener('submit', async (e) =>
   } catch (error) {
     result.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
     addLog(`❌ Erreur lancement: ${error.message}`);
+  }
+});
+
+// ============================================
+// TOUTES LES LIGUES (super-admin, L51c) : liste, création, admins
+// ============================================
+let leaguesCache = [];
+
+async function loadLeagues() {
+  const container = document.getElementById('leaguesContent');
+  try {
+    const { leagues, withoutLeague } = await adminJson('/admin/leagues');
+    leaguesCache = leagues;
+    container.innerHTML = renderLeagues(leagues, withoutLeague);
+  } catch (error) {
+    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
+    addLog(`❌ Erreur liste des ligues: ${error.message}`);
+  }
+}
+
+function renderLeagues(leagues, withoutLeague) {
+  const rows = leagues.map(league => {
+    const current = league.editions.find(e => e.editionId === league.currentEditionId);
+    const editions = league.editions.length
+      ? league.editions.map(e => `${escapeHtml(e.editionId)} <span class="hint">(${e.participants})</span>`).join(', ')
+      : '<span class="muted">aucune</span>';
+    const manageLink = `admin.html?ligue=${encodeURIComponent(league.id)}${current ? `&edition=${encodeURIComponent(current.editionId)}` : ''}`;
+    const isManaged = league.id === managed.leagueId;
+    const admins = league.admins.length ? league.admins.map(a => escapeHtml(a.name)).join(', ') : '<span class="muted">aucun</span>';
+    const checkboxes = league.members.length
+      ? league.members.map(m => `
+          <label style="display: inline-flex; gap: 6px; align-items: center; margin: 0 12px 6px 0; font-size: 13px;">
+            <input type="checkbox" value="${escapeHtml(m.id)}" ${league.admins.some(a => a.id === m.id) ? 'checked' : ''}> ${escapeHtml(m.name)}
+          </label>`).join('')
+        + `<div><button class="btn btn-primary btn-sm" data-save-admins="${escapeHtml(league.id)}">💾 Enregistrer les admins</button></div>`
+      : '<p class="hint">Aucun membre : lance une édition et envoie le code d\'invitation, puis reviens nommer l\'admin.</p>';
+    return `
+      <tr class="${isManaged ? 'is-current' : ''}">
+        <td><strong>${escapeHtml(league.name)}</strong><div class="hint" style="margin: 0;">${escapeHtml(league.id)}</div></td>
+        <td>${editions}</td>
+        <td>
+          ${admins}
+          <details style="margin-top: 6px;" data-admins-of="${escapeHtml(league.id)}">
+            <summary class="hint" style="cursor: pointer; margin: 0;">Modifier</summary>
+            <div style="margin-top: 8px;">${checkboxes}</div>
+          </details>
+        </td>
+        <td class="center">${isManaged ? '<span class="hint">gérée ici</span>' : `<a href="${manageLink}" style="color: #22d3ee;">Gérer</a>`}</td>
+      </tr>`;
+  }).join('');
+
+  const orphans = withoutLeague.length
+    ? `<p class="hint" style="margin-top: 12px;">👤 Comptes sans ligue (${withoutLeague.length}) : ${withoutLeague.map(a => escapeHtml(a.name || a.id)).join(', ')}</p>`
+    : '';
+
+  return `
+    <table class="admin-table">
+      <thead><tr><th>Ligue</th><th>Éditions <span class="hint">(participants)</span></th><th>Admins</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4" class="muted">Aucune ligue</td></tr>'}</tbody>
+    </table>
+    ${orphans}`;
+}
+
+document.getElementById('leaguesContent').addEventListener('click', async (e) => {
+  const leagueId = e.target.dataset?.saveAdmins;
+  if (!leagueId) return;
+  const box = document.querySelector(`[data-admins-of="${CSS.escape(leagueId)}"]`);
+  const athleteIds = [...box.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
+  const league = leaguesCache.find(l => l.id === leagueId);
+  const names = league.members.filter(m => athleteIds.includes(m.id)).map(m => m.name).join(', ') || 'aucun';
+  if (!confirm(`Admins de « ${league.name} » : ${names} ?`)) return;
+  try {
+    await adminJson(`/admin/leagues/${encodeURIComponent(leagueId)}/admins`, { method: 'PUT', body: { athleteIds } });
+    addLog(`🛡️ Admins de ${league.name} : ${names}`);
+    loadLeagues();
+  } catch (error) {
+    addLog(`❌ Erreur admins: ${error.message}`);
+    alert('Erreur: ' + error.message);
+  }
+});
+
+document.getElementById('createLeagueForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('newLeagueName');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!confirm(`Créer la ligue « ${name} » ?`)) return;
+  try {
+    const { league } = await adminJson('/admin/leagues', { method: 'POST', body: { name } });
+    addLog(`🏔️ Ligue créée : ${league.name} (${league.id}), code ${league.inviteCode}`);
+    input.value = '';
+    document.getElementById('createLeagueResult').innerHTML =
+      `✅ Ligue <strong>${escapeHtml(league.name)}</strong> créée. <a href="admin.html?ligue=${encodeURIComponent(league.id)}" style="color: #22d3ee;">La gérer pour lancer sa première édition →</a>`;
+    loadLeagues();
+  } catch (error) {
+    addLog(`❌ Erreur création de ligue: ${error.message}`);
+    alert('Erreur: ' + error.message);
+  }
+});
+
+// ============================================
+// MAINTENANCE (super-admin) : challenge des éliminés, Strava, diagnostic
+// ============================================
+function getSeasonInput() {
+  const seasonNumber = parseInt(document.getElementById('elimSeasonNumber').value, 10);
+  if (!seasonNumber || seasonNumber < 1) {
+    alert('Veuillez entrer un numéro de saison valide');
+    return null;
+  }
+  return seasonNumber;
+}
+
+document.getElementById('freezeElimBtn').addEventListener('click', async () => {
+  const seasonNumber = getSeasonInput();
+  if (!seasonNumber) return;
+  if (!confirm(`Figer le classement du challenge des éliminés de la saison ${seasonNumber} ?`)) return;
+  try {
+    await adminJson(ed(`/admin/freeze-elim-challenge/${seasonNumber}`), { method: 'POST', body: {} });
+    addLog(`❄️ Challenge des éliminés S${seasonNumber} figé`);
+    alert(`✅ Challenge des éliminés de la saison ${seasonNumber} figé`);
+    refreshAfterFreezeChange();
+  } catch (error) {
+    addLog(`❌ Erreur: ${error.message}`);
+    alert('Erreur: ' + error.message);
+  }
+});
+
+document.getElementById('unfreezeElimBtn').addEventListener('click', async () => {
+  const seasonNumber = getSeasonInput();
+  if (!seasonNumber) return;
+  if (!confirm(`⚠️ Défiger le challenge des éliminés de la saison ${seasonNumber} ?`)) return;
+  try {
+    const data = await adminJson(ed(`/admin/unfreeze-elim-challenge/${seasonNumber}`), { method: 'POST' });
+    if (!data.success) throw new Error(`Le challenge des éliminés de la saison ${seasonNumber} n'était pas figé`);
+    addLog(`🔓 Challenge des éliminés S${seasonNumber} défigé`);
+    alert(`✅ Challenge des éliminés de la saison ${seasonNumber} défigé`);
+    refreshAfterFreezeChange();
+  } catch (error) {
+    addLog(`❌ Erreur: ${error.message}`);
+    alert('Erreur: ' + error.message);
+  }
+});
+
+document.getElementById('stravaStatusBtn').addEventListener('click', async () => {
+  const box = document.getElementById('stravaStatus');
+  box.innerHTML = '<span class="warn">⏳ Interrogation de Strava...</span>';
+  try {
+    const data = await adminJson('/admin/strava/status');
+    const sub = data.subscriptions?.[0];
+    box.innerHTML = data.active
+      ? `<span class="ok">✅ Abonnement actif</span> <span class="hint">n° ${escapeHtml(sub?.id)} → ${escapeHtml(sub?.callback_url)}</span>`
+      : '<span class="err">❌ Aucun abonnement aux webhooks : les activités n\'arrivent que par les synchros planifiées</span>';
+  } catch (error) {
+    box.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
+  }
+});
+
+document.getElementById('diagnosticBtn').addEventListener('click', async () => {
+  const box = document.getElementById('diagnosticResult');
+  box.innerHTML = '<span class="warn">⏳ ...</span>';
+  try {
+    const d = await adminJson('/admin/diagnostic');
+    const a = d.athletes;
+    const w = d.webhooks;
+    box.innerHTML = `
+      <div>👤 ${a.total} comptes · ${a.withToken} reliés à Strava ${a.expired ? `· <span class="warn">${a.expired} token(s) expiré(s)</span>` : ''}</div>
+      <div>🔐 ${a.passwordScrypt} mot(s) de passe au nouveau format ${a.passwordLegacyOnly ? `· <span class="warn">${a.passwordLegacyOnly} à l'ancien format seulement</span>` : ''}</div>
+      <div>📨 Webhooks sur 24 h : ${w.last24h} (${w.success} réussis${w.failed ? `, <span class="err">${w.failed} en échec</span>` : ''})${w.pendingRetry ? ` · <span class="warn">${w.pendingRetry} à rejouer</span>` : ''}</div>
+      <div class="hint">au ${new Date(d.timestamp).toLocaleString('fr-FR')}</div>`;
+  } catch (error) {
+    box.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
   }
 });
 

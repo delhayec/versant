@@ -123,6 +123,21 @@
         <p class="section-desc" id="adminScope">Chargement...</p>
       </div>
 
+      <!-- Toutes les ligues (super-admin, L51c) : liste, création, admins -->
+      <div class="admin-box" id="leaguesBox" data-super-only style="margin-bottom: 24px;">
+        <h3>🌍 Toutes les ligues</h3>
+        <div id="leaguesContent" class="scroll"><p class="muted">Chargement...</p></div>
+        <h4>➕ Créer une ligue</h4>
+        <form id="createLeagueForm" class="row" style="margin-bottom: 4px;">
+          <input id="newLeagueName" placeholder="Nom de la ligue (ex. Les Grimpeurs du Vercors)" required maxlength="80">
+          <button type="submit" class="btn btn-warn">Créer</button>
+        </form>
+        <p class="hint" id="createLeagueResult">
+          Ensuite : « Gérer » → lancer sa première édition → envoyer le code d'invitation à l'organisateur →
+          le nommer admin ici une fois qu'il a rejoint la ligue.
+        </p>
+      </div>
+
       <!-- Ma ligue (L51) : code d'invitation, éditions, confirmations, lancement -->
       <div class="admin-box" id="leagueBox" style="margin-bottom: 24px;">
         <h3>🏔️ Ma ligue</h3>
@@ -163,32 +178,11 @@
 
       <div class="admin-grid">
 
-        <!-- Synchronisation (super-admin, décision du 21/10 : à revoir en L60) -->
-        <div class="admin-box" data-super-only>
-          <h3>🔄 Synchronisation Strava</h3>
-          <p class="desc">Automatique à 6h, 10h, 14h, 18h, 20h et 22h (+ 00h15 avant le gel). Forcer ici une synchro sur une période.</p>
-          <div class="row">
-            <input type="date" id="syncStartDate">
-            <input type="date" id="syncEndDate">
-          </div>
-          <button id="syncBtn" class="btn btn-primary btn-block">Lancer la synchronisation</button>
-          <div id="syncResult" style="margin-top: 12px; font-size: 14px;"></div>
-        </div>
-
         <!-- Résultats figés -->
         <div class="admin-box">
           <h3>❄️ Résultats figés</h3>
           <p class="desc">Les rounds terminés sont figés automatiquement chaque nuit à 00h15 (après une synchro).</p>
           <div id="frozenStatus" class="status-box"><span class="warn">Chargement...</span></div>
-          <!-- Gel et défigement : super-admin seul (décision du 21/10) -->
-          <div class="stack" data-super-only>
-            <button id="autoFreezeBtn" class="btn btn-primary btn-block">❄️ Figer les rounds terminés</button>
-            <div class="row" style="margin: 0;">
-              <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1">
-              <button id="freezeRoundBtn" class="btn btn-success">Figer</button>
-              <button id="unfreezeRoundBtn" class="btn btn-warn">Défiger</button>
-            </div>
-          </div>
         </div>
 
         <!-- Téléchargements -->
@@ -259,6 +253,57 @@
       </div>
       </div><!-- /editionSections -->
 
+      <!-- Maintenance (super-admin, décision du 21/10) : outils rarement utiles, repliés -->
+      <details class="admin-box" id="maintenanceBox" data-super-only style="margin-bottom: 24px;">
+        <summary style="cursor: pointer; color: #f97316; font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;">🛠️ Maintenance</summary>
+        <p class="desc" style="margin-top: 12px;">Synchro et gel sont automatiques : ces outils ne servent qu'en cas de problème.</p>
+        <div class="admin-grid" style="margin-bottom: 0;">
+          <div id="maintenanceEdition" class="stack">
+            <div class="sub-box">
+              <label>🔄 Synchronisation Strava de l'édition</label>
+              <p class="hint" style="margin: 0 0 8px;">Automatique à 6h, 10h, 14h, 18h, 20h et 22h (+ 00h15 avant le gel).</p>
+              <div class="row">
+                <input type="date" id="syncStartDate">
+                <input type="date" id="syncEndDate">
+              </div>
+              <button id="syncBtn" class="btn btn-primary btn-block">Lancer la synchronisation</button>
+              <div id="syncResult" style="margin-top: 12px; font-size: 14px;"></div>
+            </div>
+            <div class="sub-box">
+              <label>❄️ Gel des rounds</label>
+              <div class="stack">
+                <button id="autoFreezeBtn" class="btn btn-primary btn-block">❄️ Figer les rounds terminés</button>
+                <div class="row" style="margin: 0;">
+                  <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1">
+                  <button id="freezeRoundBtn" class="btn btn-success">Figer</button>
+                  <button id="unfreezeRoundBtn" class="btn btn-warn">Défiger</button>
+                </div>
+              </div>
+            </div>
+            <div class="sub-box">
+              <label>🏅 Challenge des éliminés</label>
+              <div class="row" style="margin: 0;">
+                <input type="number" id="elimSeasonNumber" placeholder="N° saison" min="1">
+                <button id="freezeElimBtn" class="btn btn-success">Figer</button>
+                <button id="unfreezeElimBtn" class="btn btn-warn">Défiger</button>
+              </div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="sub-box">
+              <label>📡 Statut Strava</label>
+              <button id="stravaStatusBtn" class="btn btn-ghost btn-sm">Vérifier l'abonnement aux webhooks</button>
+              <div id="stravaStatus" style="margin-top: 8px; font-size: 14px;"></div>
+            </div>
+            <div class="sub-box">
+              <label>🩺 Diagnostic</label>
+              <button id="diagnosticBtn" class="btn btn-ghost btn-sm">Lancer le diagnostic</button>
+              <div id="diagnosticResult" style="margin-top: 8px; font-size: 14px;"></div>
+            </div>
+          </div>
+        </div>
+      </details>
+
       <div class="admin-grid">
         <!-- Journal -->
         <div class="admin-box wide">
@@ -277,6 +322,6 @@
     </div>
   </footer>
 
-  <script src="js/admin.js?v=20261026a"></script>
+  <script src="js/admin.js?v=20261026b"></script>
 </body>
 </html>
