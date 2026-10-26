@@ -1,9 +1,12 @@
 const API_BASE = '/api';
-const LEAGUE_ID = 'versant-2026';
-// Authentification (L43) : session d'un compte super-admin (jeton Bearer), ou
-// mot de passe admin de secours, gardé pour la seule session du navigateur.
-let adminAuth = null; // { token } ou { password }
+// Authentification (L43, L51) : session d'un compte super-admin ou admin de
+// ligue (jeton Bearer), ou mot de passe admin de secours, gardé pour la seule
+// session du navigateur (droits de super-admin).
+let adminAuth = null; // { token, me } ou { password }
 const RESCUE_KEY = 'versant_admin_password'; // sessionStorage, base64
+// Édition gérée (L51) : ?ligue=…&edition=… dans l'adresse, sinon l'édition en
+// cours de la ligue du compte ; accès de secours sans paramètre : versant/2026.
+let managed = { leagueId: null, editionId: null };
 let allActivities = [];
 let athletesCache = {}; // id -> athlète, pour résoudre les noms
 
@@ -18,6 +21,16 @@ function escapeHtml(value) {
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleDateString('fr-FR') : '-';
+}
+
+/** Super-admin (compte listé dans SUPER_ADMIN_EMAILS) ou accès de secours. */
+function isSuperAdmin() {
+  return !!adminAuth?.password || adminAuth?.me?.roles?.superAdmin === true;
+}
+
+/** Chemin d'une route de l'édition gérée (/api/leagues/:ligue/editions/:édition/…). */
+function ed(path) {
+  return `/leagues/${encodeURIComponent(managed.leagueId)}/editions/${encodeURIComponent(managed.editionId)}${path}`;
 }
 
 /**
@@ -80,15 +93,37 @@ function addLog(message) {
 // ============================================
 // AUTHENTIFICATION
 // ============================================
-/** Compte connecté super-admin ? (rôles renvoyés par /api/me, L43) */
-async function isSuperAdminToken(token) {
+/** Compte connecté et ses rôles (/api/me, L43) ; null si la session n'est pas valide. */
+async function fetchMe(token) {
   try {
     const response = await fetch(`${API_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!response.ok) return false;
-    return (await response.json()).roles?.superAdmin === true;
+    return response.ok ? await response.json() : null;
   } catch (e) {
-    return false;
+    return null;
   }
+}
+
+const hasAdminRole = me => me?.roles?.superAdmin === true || me?.roles?.leagueAdmin === true;
+
+/**
+ * Édition gérée : celle de l'adresse, sinon celle du compte. Un admin de ligue
+ * ne gère que la sienne. Renvoie un message d'erreur, ou null.
+ */
+function chooseManagedEdition() {
+  const params = new URLSearchParams(window.location.search);
+  const league = params.get('ligue');
+  const edition = params.get('edition');
+  const me = adminAuth.me;
+  if (league && !isSuperAdmin() && league !== me?.league?.id) return "Tu n'administres pas cette ligue";
+  if (league && edition) {
+    managed = { leagueId: league, editionId: edition };
+  } else if (me?.league) {
+    // Ligue sans édition : seule la rubrique « Ma ligue » est utilisable
+    managed = { leagueId: me.league.id, editionId: me.edition?.editionId || null };
+  } else {
+    managed = { leagueId: 'versant', editionId: '2026' };
+  }
+  return null;
 }
 
 async function checkAuth() {
@@ -96,8 +131,9 @@ async function checkAuth() {
   localStorage.removeItem('versant_admin_password');
 
   const token = localStorage.getItem('versant_token');
-  if (token && await isSuperAdminToken(token)) {
-    adminAuth = { token };
+  const me = token ? await fetchMe(token) : null;
+  if (hasAdminRole(me)) {
+    adminAuth = { token, me };
     return showDashboard();
   }
   const rescue = sessionStorage.getItem(RESCUE_KEY);
@@ -118,15 +154,33 @@ function showLogin() {
 }
 
 function showDashboard() {
+  const refused = chooseManagedEdition();
+  if (refused) {
+    adminAuth = null;
+    showLogin();
+    showLoginError(refused);
+    return;
+  }
   document.getElementById('loginSection').style.display = 'none';
   document.getElementById('adminDashboard').style.display = 'block';
+
+  // Rubriques du super-admin (décision du 21/10) : masquées pour un admin de ligue
+  const superAdmin = isSuperAdmin();
+  document.querySelectorAll('[data-super-only]').forEach(el => { el.hidden = !superAdmin; });
+  const role = superAdmin ? (adminAuth.password ? 'accès de secours' : 'super-admin') : 'admin de la ligue';
+  document.getElementById('adminScope').textContent = managed.editionId
+    ? `Ligue ${managed.leagueId} · édition ${managed.editionId} · ${role}`
+    : `Ligue ${managed.leagueId} · ${role}`;
+  document.getElementById('editionSections').hidden = !managed.editionId;
+  document.getElementById('editionMissing').hidden = !!managed.editionId;
 
   const today = new Date();
   const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
   document.getElementById('syncEndDate').value = today.toISOString().split('T')[0];
   document.getElementById('syncStartDate').value = weekAgo.toISOString().split('T')[0];
 
-  loadDashboardData();
+  loadLeague();
+  if (managed.editionId) loadDashboardData();
 }
 
 /** Quitte l'administration ; la session de joueur éventuelle est conservée. */
@@ -142,7 +196,7 @@ function showLoginError(message) {
   errorBox.style.display = 'block';
 }
 
-// Connexion avec un compte : il doit être super-admin (SUPER_ADMIN_EMAILS)
+// Connexion avec un compte : super-admin (SUPER_ADMIN_EMAILS) ou admin de sa ligue
 document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('adminEmail').value.trim();
@@ -158,10 +212,11 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
     // Même session que la connexion joueur (login.html)
     localStorage.setItem('versant_token', data.token);
     localStorage.setItem('versant_athlete_id', data.athlete.id);
-    if (!(await isSuperAdminToken(data.token))) {
+    const me = await fetchMe(data.token);
+    if (!hasAdminRole(me)) {
       throw new Error("Ce compte n'a pas les droits d'administration");
     }
-    adminAuth = { token: data.token };
+    adminAuth = { token: data.token, me };
     document.getElementById('loginError').style.display = 'none';
     showDashboard();
     addLog('✅ Connexion admin réussie');
@@ -204,8 +259,8 @@ async function loadDashboardData() {
   try {
     const [athletesRes, activitiesRes] = await Promise.all([
       // Route admin : elle seule fournit les e-mails
-      adminFetch(`/admin/athletes/${LEAGUE_ID}`),
-      fetch(`${API_BASE}/activities/${LEAGUE_ID}`)
+      adminFetch(ed('/admin/athletes')),
+      adminFetch(ed('/activities'))
     ]);
     const athletes = await athletesRes.json();
     allActivities = await activitiesRes.json();
@@ -218,7 +273,7 @@ async function loadDashboardData() {
     updateExcludedCount();
 
     renderAthletesList(athletes);
-    renderResetPasswordOptions(athletes);
+    if (isSuperAdmin()) renderResetPasswordOptions(athletes);
     renderActivitiesList();
 
     addLog(`📊 ${athletes.length} athlètes, ${allActivities.length} activités`);
@@ -299,13 +354,13 @@ async function loadSeasonVisualizer() {
   container.innerHTML = '<p class="muted">Chargement...</p>';
 
   try {
-    const plan = await adminJson(`/admin/season-plan?leagueId=${LEAGUE_ID}`);
+    const plan = await adminJson(ed('/admin/season-plan'));
 
     // Couverture météo : best-effort, sert à vérifier la règle « pluie qui mouille »
     // avant que le round ne soit figé.
     let weatherCoverage = {};
     try {
-      const covRes = await fetch(`${API_BASE}/weather-coverage/${LEAGUE_ID}`);
+      const covRes = await adminFetch(ed('/weather-coverage'));
       if (covRes.ok) weatherCoverage = await covRes.json();
     } catch (e) {
       console.warn('Couverture météo indisponible:', e.message);
@@ -431,7 +486,7 @@ async function saveRoundConfigFromUI(roundNumber) {
   }
 
   try {
-    await adminJson(`/admin/round-configs/${roundNumber}`, { method: 'POST', body });
+    await adminJson(ed(`/admin/round-configs/${roundNumber}`), { method: 'POST', body });
     addLog(`💾 Config R${roundNumber} : type=${type}, règle=${specialRule}, élim=${body.nbEliminations ?? 'défaut'}`);
     loadSeasonVisualizer();
   } catch (error) {
@@ -443,7 +498,7 @@ async function saveRoundConfigFromUI(roundNumber) {
 async function deleteRoundConfigFromUI(roundNumber) {
   if (!confirm(`Supprimer la config personnalisée du R${roundNumber} ?`)) return;
   try {
-    await adminJson(`/admin/round-configs/${roundNumber}`, { method: 'DELETE' });
+    await adminJson(ed(`/admin/round-configs/${roundNumber}`), { method: 'DELETE' });
     addLog(`🗑️ Config R${roundNumber} supprimée`);
     loadSeasonVisualizer();
   } catch (error) {
@@ -473,7 +528,7 @@ function renderDeadlinePlan(rounds) {
 async function loadSeasonPlanning() {
   const container = document.getElementById('seasonPlanningContent');
   try {
-    const { seasons, types } = await adminJson('/admin/season-planning');
+    const { seasons, types } = await adminJson(ed('/admin/season-planning'));
     const typeLabel = id => types.find(t => t.id === id)?.name || id;
     const deadlineTypes = new Set(types.filter(t => t.hasDeadline).map(t => t.id));
 
@@ -553,7 +608,7 @@ async function saveSeasonType(seasonNumber) {
     return;
   }
   try {
-    const result = await adminJson(`/admin/season-planning/${seasonNumber}`, { method: 'POST', body });
+    const result = await adminJson(ed(`/admin/season-planning/${seasonNumber}`), { method: 'POST', body });
     addLog(`🗓️ Saison ${seasonNumber} → ${label}${summary}`);
     if (result.replan?.planned && result.replan.seasonNumber === seasonNumber) {
       addLog(`⏳ Rounds replanifiés R${result.replan.fromRound}→R${result.replan.toRound}${result.replan.warning ? ` (⚠️ ${result.replan.warning})` : ''}`);
@@ -584,7 +639,7 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
   result.innerHTML = '<span class="warn">⏳ En cours...</span>';
 
   try {
-    const data = await adminJson(`/sync/${LEAGUE_ID}`, { method: 'POST', body: { startDate, endDate } });
+    const data = await adminJson(ed('/admin/sync'), { method: 'POST', body: { startDate, endDate } });
     const newCount = data.totalNew || 0;
     const updatedCount = data.totalUpdated || 0;
     const errorCount = data.errors?.length || 0;
@@ -612,7 +667,7 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
 async function loadFrozenStatus() {
   const statusDiv = document.getElementById('frozenStatus');
   try {
-    const response = await fetch(`${API_BASE}/frozen-results`);
+    const response = await adminFetch(ed('/frozen-results'));
     const data = await response.json();
     const rounds = Object.keys(data.rounds || {})
       .filter(k => data.rounds[k]?.frozen)
@@ -652,7 +707,7 @@ document.getElementById('autoFreezeBtn').addEventListener('click', async () => {
   btn.textContent = '⏳ Figement en cours...';
 
   try {
-    const data = await adminJson('/admin/auto-freeze', { method: 'POST', body: { leagueId: LEAGUE_ID } });
+    const data = await adminJson(ed('/admin/auto-freeze'), { method: 'POST', body: {} });
     const count = data.frozenCount || 0;
     addLog(`❄️ Auto-freeze: ${count} round(s) figé(s)`);
     alert(count ? `✅ ${count} round(s) figé(s)` : 'ℹ️ Aucun round terminé à figer.');
@@ -672,7 +727,7 @@ document.getElementById('freezeRoundBtn').addEventListener('click', async () => 
   if (!confirm(`Figer le round ${roundNumber} avec les données actuelles ?`)) return;
 
   try {
-    const data = await adminJson(`/admin/freeze-round/${roundNumber}`, { method: 'POST', body: { leagueId: LEAGUE_ID } });
+    const data = await adminJson(ed(`/admin/freeze-round/${roundNumber}`), { method: 'POST', body: {} });
     addLog(`❄️ Round ${roundNumber} figé: ${data.round?.eliminations?.length || 0} éliminé(s)`);
     alert(`✅ Round ${roundNumber} figé`);
     refreshAfterFreezeChange();
@@ -688,7 +743,7 @@ document.getElementById('unfreezeRoundBtn').addEventListener('click', async () =
   if (!confirm(`⚠️ Défiger le round ${roundNumber} ?\n\nIl sera recalculé au prochain gel.`)) return;
 
   try {
-    const data = await adminJson(`/admin/unfreeze-round/${roundNumber}`, { method: 'POST' });
+    const data = await adminJson(ed(`/admin/unfreeze-round/${roundNumber}`), { method: 'POST' });
     if (!data.success) throw new Error(`Le round ${roundNumber} n'était pas figé`);
     addLog(`🔓 Round ${roundNumber} défigé`);
     alert(`✅ Round ${roundNumber} défigé`);
@@ -699,65 +754,17 @@ document.getElementById('unfreezeRoundBtn').addEventListener('click', async () =
   }
 });
 
-document.getElementById('resetFrozenBtn').addEventListener('click', async () => {
-  if (!confirm('⚠️ Réinitialiser TOUS les résultats figés ?\n\nCette action est IRRÉVERSIBLE.')) return;
-  if (!confirm('🚨 DERNIÈRE CONFIRMATION\n\nTous les résultats seront perdus. Continuer ?')) return;
-
-  try {
-    await adminJson('/admin/reset-frozen', { method: 'POST' });
-    addLog('🗑️ Tous les résultats figés supprimés');
-    alert('✅ Tous les résultats ont été réinitialisés');
-    refreshAfterFreezeChange();
-  } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
-    alert('Erreur: ' + error.message);
-  }
-});
-
-document.getElementById('importFrozenBtn').addEventListener('click', () => {
-  document.getElementById('importFrozenFile').click();
-});
-
-document.getElementById('importFrozenFile').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  try {
-    const data = JSON.parse(await file.text());
-    if (!data.rounds || typeof data.rounds !== 'object') {
-      throw new Error('Format invalide : le fichier doit contenir un objet "rounds"');
-    }
-
-    const roundCount = Object.keys(data.rounds).length;
-    const mode = document.getElementById('importMode').value;
-    const effect = mode === 'replace' ? 'ÉCRASER toutes les données existantes' : 'ajouter les rounds manquants';
-    if (!confirm(`📥 Importer ${roundCount} round(s) ?\n\nCette action va ${effect}.`)) return;
-
-    const result = await adminJson('/admin/import-frozen-results', {
-      method: 'POST',
-      body: { data, merge: mode === 'merge' }
-    });
-
-    addLog(`✅ Import: ${result.imported} importé(s), ${result.skipped} ignoré(s)`);
-    alert(`✅ Import réussi\n\n• ${result.imported} round(s) importé(s)\n• ${result.skipped} ignoré(s) (déjà existants)\n• Total : ${result.totalRounds} round(s)`);
-    refreshAfterFreezeChange();
-  } catch (error) {
-    addLog(`❌ Erreur import: ${error.message}`);
-    alert('❌ Erreur: ' + error.message);
-  } finally {
-    e.target.value = '';
-  }
-});
-
 // ============================================
 // TÉLÉCHARGEMENTS
 // ============================================
+const editionSlug = () => `${managed.leagueId}-${managed.editionId}`;
 const DOWNLOADS = {
-  ranking: () => [`/admin/ranking/${LEAGUE_ID}/export`, `classement-${LEAGUE_ID}-${new Date().toISOString().split('T')[0]}.json`],
+  ranking: () => [ed('/admin/ranking/export'), `classement-${editionSlug()}-${new Date().toISOString().split('T')[0]}.json`],
+  activities: () => [ed('/admin/activities/download'), `${editionSlug()}_activities.json`],
+  // Fichiers bruts (super-admin)
   athletes: () => ['/admin/athletes/download', 'athletes.json'],
-  activities: () => [`/admin/activities/${LEAGUE_ID}/download`, `${LEAGUE_ID}_activities.json`],
-  jokers: () => ['/admin/jokers/download', 'jokers_usage.json'],
-  frozen: () => ['/frozen-results', 'frozen_results.json']
+  jokers: () => [ed('/admin/jokers/download'), `${editionSlug()}_jokers_usage.json`],
+  frozen: () => [ed('/frozen-results'), `${editionSlug()}_frozen_results.json`]
 };
 
 document.querySelectorAll('.download-btn').forEach(btn => {
@@ -904,7 +911,7 @@ function renderActivitiesList() {
 
 async function toggleActivityExclusion(activityId, exclude) {
   try {
-    const data = await adminJson(`/admin/activities/${LEAGUE_ID}/${activityId}/exclude`, {
+    const data = await adminJson(ed(`/admin/activities/${encodeURIComponent(activityId)}/exclude`), {
       method: 'POST',
       body: { exclude }
     });
@@ -941,7 +948,7 @@ let jokerIds = Object.keys(JOKER_DISPLAY);
 async function loadJokersData() {
   const container = document.getElementById('jokersManagementTable');
   try {
-    const data = await adminJson(`/admin/jokers/${LEAGUE_ID}`);
+    const data = await adminJson(ed('/admin/jokers'));
     // La liste des jokers vient du backend (JOKER_CONFIG)
     if (data.config) jokerIds = Object.keys(data.config);
     renderJokersManagement(data.athletes || []);
@@ -1009,7 +1016,7 @@ async function adjustJoker(athleteId, jokerType, delta) {
 
   // On n'envoie que le joker modifié : le backend ne touche pas aux autres
   try {
-    await adminJson(`/admin/jokers/${athleteId}`, {
+    await adminJson(ed(`/admin/jokers/${encodeURIComponent(athleteId)}`), {
       method: 'PUT',
       body: { jokerStock: { [jokerType]: newValue } }
     });
@@ -1029,7 +1036,7 @@ document.getElementById('resetAllJokersBtn').addEventListener('click', async () 
   if (!confirm('⚠️ Remettre le stock de jokers de TOUS les athlètes à sa valeur de départ ?\n\nLes jokers en attente sur le round en cours sont annulés. Action irréversible.')) return;
 
   try {
-    const data = await adminJson(`/admin/jokers/reset/${LEAGUE_ID}`, { method: 'POST' });
+    const data = await adminJson(ed('/admin/jokers/reset'), { method: 'POST' });
     addLog(`🔄 Jokers réinitialisés pour ${data.count} athlètes (${data.refundsAdded || 0} usages figés compensés)`);
     loadJokersData();
   } catch (error) {
@@ -1061,7 +1068,7 @@ function describeBonusResult(bonus) {
 async function loadBonusesAdmin() {
   const container = document.getElementById('bonusesAdmin');
   try {
-    const data = await adminJson('/admin/bonuses');
+    const data = await adminJson(ed('/admin/bonuses'));
     const pending = Object.entries(data.pending || {})
       .sort((a, b) => Number(b[1].elimination_round) - Number(a[1].elimination_round));
     const current = (data.bonuses || [])
@@ -1107,6 +1114,169 @@ async function loadBonusesAdmin() {
     addLog(`❌ Erreur bonus: ${error.message}`);
   }
 }
+
+// ============================================
+// MA LIGUE (L51) : code d'invitation, éditions, confirmations, lancement
+// ============================================
+// « 1er septembre 2027 », « 2 février 2026 »
+const formatDay = day => (day
+  ? new Date(`${day}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/^1 /, '1er ')
+  : '—');
+const todayInParis = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+let leagueState = null; // { league, editions, participants }
+
+async function loadLeague() {
+  const container = document.getElementById('leagueContent');
+  try {
+    const { league, editions } = await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}`);
+    // Participants de chaque édition (route de lecture, ouverte aux admins de la ligue)
+    const participants = {};
+    await Promise.all(editions.map(async edition => {
+      const response = await adminFetch(`/leagues/${encodeURIComponent(edition.leagueId)}/editions/${encodeURIComponent(edition.editionId)}/participants`);
+      participants[edition.editionId] = response.ok ? await response.json() : [];
+    }));
+    leagueState = { league, editions, participants };
+    container.innerHTML = renderLeague(leagueState);
+  } catch (error) {
+    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
+    addLog(`❌ Erreur ligue: ${error.message}`);
+  }
+}
+
+function editionStatus(edition, today) {
+  if (edition.startDate && edition.startDate > today) return '<span class="info">📅 À venir</span>';
+  if (edition.endDate && edition.endDate < today) return '<span class="muted">✔️ Terminée</span>';
+  return '<span class="warn">⏳ En cours</span>';
+}
+
+/** Identifiant proposé pour l'édition suivante : année suivante si les identifiants sont des années. */
+function suggestEditionId(editions) {
+  const last = editions[editions.length - 1]?.editionId;
+  return /^\d{4}$/.test(String(last || '')) ? String(Number(last) + 1) : '';
+}
+
+function renderLeague({ league, editions, participants }) {
+  const today = todayInParis();
+  const origin = window.location.origin;
+  const code = league.inviteCode || '';
+  const signupLink = `${origin}/inscription.html?invitation=${encodeURIComponent(code)}`;
+  const memberLink = `${origin}/index.html?invitation=${encodeURIComponent(code)}`;
+
+  const editionRows = editions.map(e => {
+    const isManaged = e.editionId === managed.editionId;
+    const link = `admin.html?ligue=${encodeURIComponent(e.leagueId)}&edition=${encodeURIComponent(e.editionId)}`;
+    return `
+      <tr class="${isManaged ? 'is-current' : ''}">
+        <td><strong>${escapeHtml(e.editionId)}</strong></td>
+        <td>${formatDay(e.startDate)} → ${formatDay(e.endDate)}</td>
+        <td>${editionStatus(e, today)}</td>
+        <td class="center num">${(participants[e.editionId] || []).length}</td>
+        <td class="center">${isManaged ? '<span class="hint">gérée ici</span>' : `<a href="${link}" style="color: #22d3ee;">Gérer</a>`}</td>
+      </tr>`;
+  }).join('');
+
+  // Confirmations : éditions après celle gérée, comparées à ses participants
+  const managedIndex = editions.findIndex(e => e.editionId === managed.editionId);
+  const current = participants[managed.editionId] || [];
+  const confirmations = managedIndex < 0 ? '' : editions.slice(managedIndex + 1).map(next => {
+    const confirmed = participants[next.editionId] || [];
+    const confirmedIds = new Set(confirmed.map(p => String(p.id)));
+    const pending = current.filter(p => !confirmedIds.has(String(p.id)));
+    const names = list => list.map(p => escapeHtml(p.name || p.id)).sort((a, b) => a.localeCompare(b)).join(', ') || '<span class="muted">personne</span>';
+    return `
+      <h4>✅ Confirmations pour l'édition ${escapeHtml(next.editionId)} : ${confirmed.length} confirmé(s), ${pending.length} en attente</h4>
+      <p style="font-size: 14px; margin: 0 0 6px;"><span class="ok">Confirmé :</span> ${names(confirmed)}</p>
+      <p style="font-size: 14px; margin: 0;"><span class="warn">En attente :</span> ${names(pending)}</p>`;
+  }).join('');
+
+  return `
+    <div class="admin-grid" style="margin-bottom: 0;">
+      <div>
+        <p style="margin: 0 0 4px;"><strong>${escapeHtml(league.name)}</strong> <span class="hint">(${escapeHtml(league.id)})</span></p>
+        <p class="desc" style="margin-bottom: 4px;">Code d'invitation :</p>
+        <div class="invite-code" id="inviteCode">${escapeHtml(code || '—')}</div>
+        <div class="stack">
+          <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(signupLink)}">📋 Copier le lien d'inscription (nouveau joueur)</button>
+          <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(memberLink)}">📋 Copier le lien pour un compte existant</button>
+          <button class="btn btn-danger btn-sm" id="regenerateInviteBtn">🔄 Nouveau code (l'ancien ne marchera plus)</button>
+        </div>
+      </div>
+      <div>
+        <p class="desc" style="margin-bottom: 8px;">Lancer l'édition suivante : chaque membre confirme ensuite sa participation depuis son dashboard. Tu peux la lancer en avance, à la date de ton choix.</p>
+        <form id="launchEditionForm">
+          <div class="row">
+            <label class="field">Édition <input id="launchEditionId" required pattern="[A-Za-z0-9_-]{1,64}" value="${escapeHtml(suggestEditionId(editions))}" placeholder="2027"></label>
+            <label class="field">Début <input type="date" id="launchStartDate" required></label>
+            <label class="field">Fin <input type="date" id="launchEndDate" required></label>
+          </div>
+          <details style="margin-bottom: 12px;">
+            <summary class="muted" style="cursor: pointer; font-size: 13px;">Réglages (facultatif)</summary>
+            <div class="row" style="margin-top: 8px;">
+              <label class="field">Jours par round <input type="number" id="launchRoundDays" min="1" placeholder="5"></label>
+              <label class="field">Éliminations par round <input type="number" id="launchEliminations" min="1" placeholder="2"></label>
+              <label class="field">Finalistes <input type="number" id="launchFinalists" min="1" placeholder="4"></label>
+            </div>
+          </details>
+          <button type="submit" class="btn btn-warn">🚀 Lancer l'édition</button>
+          <span id="launchEditionResult" style="margin-left: 8px; font-size: 14px;"></span>
+        </form>
+      </div>
+    </div>
+    <h4>📚 Éditions</h4>
+    <table class="admin-table">
+      <thead><tr><th>Édition</th><th>Dates</th><th>Statut</th><th class="center">Participants</th><th></th></tr></thead>
+      <tbody>${editionRows || '<tr><td colspan="5" class="muted">Aucune édition</td></tr>'}</tbody>
+    </table>
+    ${confirmations}`;
+}
+
+document.getElementById('leagueContent').addEventListener('click', async (e) => {
+  const copy = e.target.closest('[data-copy]');
+  if (copy) {
+    try {
+      await navigator.clipboard.writeText(copy.dataset.copy);
+      addLog('📋 Lien copié');
+    } catch {
+      window.prompt('Copie ce lien :', copy.dataset.copy);
+    }
+    return;
+  }
+  if (e.target.id === 'regenerateInviteBtn') {
+    if (!confirm("Créer un nouveau code d'invitation ?\n\nL'ancien code et les liens déjà envoyés ne marcheront plus.")) return;
+    try {
+      const data = await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/invite-code`, { method: 'POST' });
+      addLog(`🔄 Nouveau code d'invitation : ${data.inviteCode || data.league?.inviteCode || ''}`);
+      loadLeague();
+    } catch (error) {
+      addLog(`❌ Erreur code d'invitation: ${error.message}`);
+      alert('Erreur: ' + error.message);
+    }
+  }
+});
+
+document.getElementById('leagueContent').addEventListener('submit', async (e) => {
+  if (e.target.id !== 'launchEditionForm') return;
+  e.preventDefault();
+  const value = id => document.getElementById(id).value.trim();
+  const body = { editionId: value('launchEditionId'), startDate: value('launchStartDate'), endDate: value('launchEndDate') };
+  for (const [field, id] of [['roundDurationDays', 'launchRoundDays'], ['eliminationsPerRound', 'launchEliminations'], ['finalistsCount', 'launchFinalists']]) {
+    if (value(id) !== '') body[field] = parseInt(value(id), 10);
+  }
+  const result = document.getElementById('launchEditionResult');
+  if (!(body.endDate > body.startDate)) {
+    result.innerHTML = '<span class="err">La fin doit être après le début</span>';
+    return;
+  }
+  if (!confirm(`Lancer l'édition ${body.editionId}, du ${formatDay(body.startDate)} au ${formatDay(body.endDate)} ?\n\nLes membres seront invités à confirmer leur participation.`)) return;
+  try {
+    await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions`, { method: 'POST', body });
+    addLog(`🚀 Édition ${body.editionId} lancée (${body.startDate} → ${body.endDate})`);
+    loadLeague();
+  } catch (error) {
+    result.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
+    addLog(`❌ Erreur lancement: ${error.message}`);
+  }
+});
 
 // ============================================
 // INIT

@@ -50,9 +50,11 @@ const PLAYER_ROUTES = [
 ];
 
 // Administration de l'édition par l'admin de SA ligue (L43) :
-// [méthode, chemin sous l'édition, route historique] ; {id} = édition, {x} = paramètre :x.
-// Les routes d'instance (webhooks, tokens, diagnostic, comptes, remises à zéro
-// globales) restent réservées au super-admin, sur leurs routes /api/admin/….
+// [méthode, chemin sous l'édition, route historique, super-admin seul] ;
+// {id} = édition, {x} = paramètre :x.
+// Super-admin seul (décision du 21/10, L51) : gel, défigement, synchro, fichier
+// brut des jokers. Les routes d'instance (webhooks, tokens, diagnostic,
+// comptes, remises à zéro globales) restent sur leurs routes /api/admin/….
 const ADMIN_ROUTES = [
   ['post', '/admin/round-configs/:n', '/api/admin/round-configs/{n}'],
   ['delete', '/admin/round-configs/:n', '/api/admin/round-configs/{n}'],
@@ -63,11 +65,11 @@ const ADMIN_ROUTES = [
   ['get', '/admin/athletes', '/api/admin/athletes/{id}'],
   ['get', '/admin/activities/download', '/api/admin/activities/{id}/download'],
   ['post', '/admin/activities/:activityId/exclude', '/api/admin/activities/{id}/{activityId}/exclude'],
-  ['post', '/admin/freeze-round/:n', '/api/admin/freeze-round/{n}'],
-  ['post', '/admin/unfreeze-round/:n', '/api/admin/unfreeze-round/{n}'],
-  ['post', '/admin/auto-freeze', '/api/admin/auto-freeze'],
-  ['post', '/admin/freeze-elim-challenge/:n', '/api/admin/freeze-elim-challenge/{n}'],
-  ['post', '/admin/unfreeze-elim-challenge/:n', '/api/admin/unfreeze-elim-challenge/{n}'],
+  ['post', '/admin/freeze-round/:n', '/api/admin/freeze-round/{n}', true],
+  ['post', '/admin/unfreeze-round/:n', '/api/admin/unfreeze-round/{n}', true],
+  ['post', '/admin/auto-freeze', '/api/admin/auto-freeze', true],
+  ['post', '/admin/freeze-elim-challenge/:n', '/api/admin/freeze-elim-challenge/{n}', true],
+  ['post', '/admin/unfreeze-elim-challenge/:n', '/api/admin/unfreeze-elim-challenge/{n}', true],
   ['get', '/admin/jokers', '/api/admin/jokers/{id}'],
   ['put', '/admin/jokers/:athleteId', '/api/admin/jokers/{athleteId}'],
   ['post', '/admin/jokers/reset', '/api/admin/jokers/reset/{id}'],
@@ -76,10 +78,11 @@ const ADMIN_ROUTES = [
   ['post', '/admin/bonuses/auto-apply/:n', '/api/admin/bonuses/auto-apply/{n}'],
   ['post', '/admin/bonuses/generate-choices', '/api/bonuses/generate-choices'],
   ['post', '/admin/bonuses/apply-effect', '/api/bonuses/apply-effect'],
-  ['post', '/admin/sync', '/api/sync/{id}'],
+  ['post', '/admin/sync', '/api/sync/{id}', true],
   ['post', '/admin/standings/refresh', '/api/admin/standings/refresh'],
   ['post', '/admin/standings/compute', '/api/admin/standings/compute'],
-  ['get', '/admin/ranking/export', '/api/admin/ranking/{id}/export']
+  ['get', '/admin/ranking/export', '/api/admin/ranking/{id}/export'],
+  ['get', '/admin/jokers/download', '/api/admin/jokers/download', true]
 ];
 
 const BASE = '/api/leagues/:leagueId/editions/:editionId';
@@ -175,6 +178,7 @@ function registerEditionRoutes(app, { store, validateSession, isAdminRequest, is
       const edition = await store.resolveEdition(`${leagueId}/${editionId}`);
       if (!edition) return res.status(404).json({ error: 'Édition introuvable' });
       if (!(await isLeagueAdmin(req, edition.leagueId))) return res.status(401).json({ error: 'Réservé aux admins de cette ligue' });
+      if (req.superAdminOnly && !(req.isSuperAdmin || isAdminRequest(req))) return res.status(403).json({ error: 'Réservé au super-admin' });
       const key = edition.legacyId || `${edition.leagueId}/${edition.editionId}`;
       if (req.body && typeof req.body === 'object') {
         if ('leagueId' in req.body) req.body.leagueId = key;
@@ -199,8 +203,9 @@ function registerEditionRoutes(app, { store, validateSession, isAdminRequest, is
   for (const [route, legacy] of READ_ROUTES) {
     app.get(BASE + route, editionAccess, delegate(legacy));
   }
-  for (const [method, route, legacy] of ADMIN_ROUTES) {
-    app[method](BASE + route, adminAccess, delegate(legacy));
+  for (const [method, route, legacy, superAdminOnly] of ADMIN_ROUTES) {
+    const mark = (req, res, next) => { req.superAdminOnly = !!superAdminOnly; next(); };
+    app[method](BASE + route, mark, adminAccess, delegate(legacy));
   }
   for (const [method, route, legacy, checksTarget] of PLAYER_ROUTES) {
     const guards = checksTarget ? [requirePlayer, requireTargetInEdition] : [requirePlayer];

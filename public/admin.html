@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Administration - Versant 2026</title>
+  <title>Administration - Versant</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,6 +60,10 @@
     .joker-cell span { min-width: 24px; font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 600; transition: transform 0.2s; }
     #logsContainer { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; font-family: 'Space Mono', monospace; font-size: 13px; max-height: 200px; overflow-y: auto; }
     #logsContainer div { margin-bottom: 8px; }
+    [hidden] { display: none !important; }
+    .invite-code { font-family: 'Space Mono', monospace; font-size: 28px; letter-spacing: 0.15em; color: #f97316; margin: 4px 0 12px; }
+    .admin-box h4 { margin: 20px 0 8px; font-size: 15px; }
+    .admin-box label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: rgba(255,255,255,0.7); flex: 1; min-width: 140px; }
     @media (max-width: 600px) {
       .admin-wrap { padding: 0 16px; }
       .admin-grid { grid-template-columns: 1fr; }
@@ -86,8 +90,9 @@
       <div class="admin-box" style="padding: 40px; text-align: center;">
         <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
         <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 24px;">Accès Administration</h2>
+        <p class="muted" style="font-size: 13px; margin: -12px 0 20px;">Pour le super-admin et les admins de ligue</p>
         <div id="loginError" class="err" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
-        <!-- Connexion avec un compte super-admin (L43) -->
+        <!-- Connexion avec un compte : super-admin ou admin de ligue (L43, L51) -->
         <form id="adminLoginForm">
           <input type="email" id="adminEmail" placeholder="E-mail de ton compte" required autocomplete="username"
             style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 12px; box-sizing: border-box;">
@@ -115,8 +120,17 @@
       <div class="section-header" style="margin-bottom: 32px;">
         <span class="section-number">🔧</span>
         <h2 class="section-title">Panneau d'Administration</h2>
-        <p class="section-desc">Gérer la ligue Versant 2026</p>
+        <p class="section-desc" id="adminScope">Chargement...</p>
       </div>
+
+      <!-- Ma ligue (L51) : code d'invitation, éditions, confirmations, lancement -->
+      <div class="admin-box" id="leagueBox" style="margin-bottom: 24px;">
+        <h3>🏔️ Ma ligue</h3>
+        <div id="leagueContent"><p class="muted">Chargement...</p></div>
+      </div>
+
+      <div id="editionMissing" class="alert" hidden>Cette ligue n'a pas encore d'édition : lance la première ci-dessus.</div>
+      <div id="editionSections">
 
       <div class="stats-grid">
         <div class="admin-box stat"><div class="value" style="color: #f97316;" id="statAthletes">-</div><div class="label">Athlètes actifs</div></div>
@@ -149,8 +163,8 @@
 
       <div class="admin-grid">
 
-        <!-- Synchronisation -->
-        <div class="admin-box">
+        <!-- Synchronisation (super-admin, décision du 21/10 : à revoir en L60) -->
+        <div class="admin-box" data-super-only>
           <h3>🔄 Synchronisation Strava</h3>
           <p class="desc">Automatique à 6h, 10h, 14h, 18h, 20h et 22h (+ 00h15 avant le gel). Forcer ici une synchro sur une période.</p>
           <div class="row">
@@ -166,44 +180,33 @@
           <h3>❄️ Résultats figés</h3>
           <p class="desc">Les rounds terminés sont figés automatiquement chaque nuit à 00h15 (après une synchro).</p>
           <div id="frozenStatus" class="status-box"><span class="warn">Chargement...</span></div>
-          <div class="stack">
+          <!-- Gel et défigement : super-admin seul (décision du 21/10) -->
+          <div class="stack" data-super-only>
             <button id="autoFreezeBtn" class="btn btn-primary btn-block">❄️ Figer les rounds terminés</button>
             <div class="row" style="margin: 0;">
               <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1">
               <button id="freezeRoundBtn" class="btn btn-success">Figer</button>
               <button id="unfreezeRoundBtn" class="btn btn-warn">Défiger</button>
             </div>
-            <div class="sub-box">
-              <label>📥 Importer frozen_results.json</label>
-              <input type="file" id="importFrozenFile" accept=".json" style="display: none;">
-              <div class="row" style="margin: 0;">
-                <button id="importFrozenBtn" class="btn btn-primary" style="flex: 1;">📂 Choisir fichier</button>
-                <select id="importMode">
-                  <option value="merge">Fusionner</option>
-                  <option value="replace">Remplacer tout</option>
-                </select>
-              </div>
-              <p class="hint">Fusionner = garde les rounds existants et ajoute les nouveaux · Remplacer = écrase tout</p>
-            </div>
-            <button id="resetFrozenBtn" class="btn btn-danger btn-block">🗑️ Réinitialiser TOUS les résultats</button>
           </div>
         </div>
 
         <!-- Téléchargements -->
         <div class="admin-box">
           <h3>📥 Télécharger les données</h3>
-          <p class="desc">Exporter les fichiers JSON du serveur.</p>
+          <p class="desc">Exporter les données de l'édition.</p>
           <div class="stack">
             <button class="btn btn-ghost download-btn" data-file="ranking">🏆 Classement annuel</button>
-            <button class="btn btn-ghost download-btn" data-file="athletes">📋 athletes.json</button>
-            <button class="btn btn-ghost download-btn" data-file="activities">🏃 activities.json</button>
-            <button class="btn btn-ghost download-btn" data-file="jokers">🃏 jokers_usage.json</button>
-            <button class="btn btn-ghost download-btn" data-file="frozen">❄️ frozen_results.json</button>
+            <button class="btn btn-ghost download-btn" data-file="activities">🏃 Activités</button>
+            <!-- Fichiers bruts : super-admin seul -->
+            <button class="btn btn-ghost download-btn" data-file="athletes" data-super-only>📋 athletes.json (comptes, toutes ligues)</button>
+            <button class="btn btn-ghost download-btn" data-file="jokers" data-super-only>🃏 jokers_usage.json</button>
+            <button class="btn btn-ghost download-btn" data-file="frozen" data-super-only>❄️ frozen_results.json</button>
           </div>
         </div>
 
-        <!-- Reset mot de passe -->
-        <div class="admin-box">
+        <!-- Reset mot de passe : super-admin seul -->
+        <div class="admin-box" data-super-only>
           <h3>🔑 Reset mot de passe</h3>
           <p class="desc">Réinitialiser le mot de passe d'un joueur qui l'a oublié.</p>
           <div class="stack">
@@ -232,7 +235,7 @@
 
         <!-- Athlètes -->
         <div class="admin-box wide">
-          <h3>👥 Athlètes actifs</h3>
+          <h3>👥 Participants</h3>
           <div id="athletesList" class="scroll" style="max-height: 400px;"><p class="muted">Chargement...</p></div>
         </div>
 
@@ -253,6 +256,10 @@
           <div id="bonusesAdmin" class="scroll"><p class="muted">Chargement...</p></div>
         </div>
 
+      </div>
+      </div><!-- /editionSections -->
+
+      <div class="admin-grid">
         <!-- Journal -->
         <div class="admin-box wide">
           <h3>📜 Journal des actions</h3>
@@ -270,6 +277,6 @@
     </div>
   </footer>
 
-  <script src="js/admin.js?v=20261021a"></script>
+  <script src="js/admin.js?v=20261026a"></script>
 </body>
 </html>
