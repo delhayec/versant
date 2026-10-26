@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
-  <script src="shared/edition-session.js?v=20261021a"></script>
+  <script src="shared/edition-session.js?v=20261026a"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Versant - Challenge à Élimination </title>
   
@@ -191,6 +191,13 @@
   // Fonction pour vérifier les notifications dashboard
   async function checkDashboardNotifications(authToken, badgeEl) {
     try {
+      // Nouvelle édition de la ligue à confirmer (L51)
+      const meRes = await fetch('/api/me', {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      });
+      const me = meRes.ok ? await meRes.json() : null;
+      const editionToConfirm = (me?.editionsToConfirm?.length || 0) > 0;
+
       // Vérifier s'il y a des choix de bonus en attente
       const choicesRes = await fetch('/api/bonuses/choices', {
         headers: { 'Authorization': 'Bearer ' + authToken }
@@ -221,6 +228,13 @@
           badgeEl.title = 'Tu as un bonus à utiliser !';
           return;
         }
+      }
+
+      if (editionToConfirm) {
+        badgeEl.textContent = '📅';
+        badgeEl.style.display = 'inline-flex';
+        badgeEl.title = 'Nouvelle édition : confirme ta participation !';
+        return;
       }
 
       // Pas de notification

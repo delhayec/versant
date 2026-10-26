@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
-  <script src="shared/edition-session.js?v=20261021a"></script>
+  <script src="shared/edition-session.js?v=20261026a"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard - Challenge Versant 2026</title>
   
@@ -961,6 +961,12 @@
       </button>
     </div>
 
+    <!-- Ma ligue (L51) : ligue, édition en cours, confirmation de l'édition suivante -->
+    <div class="dashboard-card" id="leagueSection" style="margin-bottom: 40px; display: none;">
+      <h2 class="card-title">🏔️ Ma ligue</h2>
+      <div id="leagueContent"></div>
+    </div>
+
     <!-- Stats Grid -->
     <div class="dashboard-grid">
       <!-- Statistiques personnelles -->
@@ -1082,6 +1088,6 @@
   </footer>
 
   <script src="shared/team-formation.js?v=20260505c"></script>
-  <script type="module" src="js/dashboard.js?v=20261021a"></script>
+  <script type="module" src="js/dashboard.js?v=20261026a"></script>
 </body>
 </html>

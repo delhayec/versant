@@ -17,6 +17,20 @@ const STRAVA_CONFIG = {
 let athleteData = null;
 let stravaTokens = null;
 
+// Code d'invitation (L51) : lien inscription.html?invitation=ABCD-EFGH. Gardé
+// le temps de l'aller-retour vers Strava, qui ne renvoie que ses paramètres.
+const INVITE_KEY = 'versant_invite_code';
+function rememberInviteCode() {
+  const code = new URLSearchParams(window.location.search).get('invitation');
+  try {
+    if (code) sessionStorage.setItem(INVITE_KEY, code);
+    return sessionStorage.getItem(INVITE_KEY) || '';
+  } catch {
+    return code || '';
+  }
+}
+const pendingInviteCode = rememberInviteCode();
+
 // ============================================
 // INITIALISATION
 // ============================================
@@ -131,6 +145,7 @@ function displayRegistrationForm() {
   `;
 
   document.getElementById('athleteName').value = `${athleteData.firstname} ${athleteData.lastname.charAt(0)}`;
+  document.getElementById('inviteCode').value = pendingInviteCode;
 }
 
 // ============================================
@@ -169,6 +184,7 @@ async function handleSubmit() {
   const password = document.getElementById('athletePassword').value;
   const passwordConfirm = document.getElementById('athletePasswordConfirm').value;
   const acceptTerms = document.getElementById('acceptTerms').checked;
+  const inviteCode = document.getElementById('inviteCode').value.trim();
 
   // Validations
   if (!athleteName) {
@@ -225,8 +241,8 @@ async function handleSubmit() {
         strava_data: athleteData,
         access_token: stravaTokens.access_token,
         refresh_token: stravaTokens.refresh_token,
-        expires_at: stravaTokens.expires_at,
-        league_id: 'versant-2026'
+        expires_at: stravaTokens.expires_at
+        // Plus de ligue imposée (L51) : la ligue se rejoint avec son code
       })
     });
 
@@ -243,11 +259,32 @@ async function handleSubmit() {
       localStorage.setItem('versant_athlete_id', result.athlete_id);
     }
     
+    // Ligue rejointe avec le code d'invitation, s'il y en a un
+    let joined = null;
+    let joinError = null;
+    if (inviteCode && result.token) {
+      try {
+        const joinResponse = await fetch(`${API_BASE_URL}/leagues/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${result.token}` },
+          body: JSON.stringify({ code: inviteCode })
+        });
+        const joinData = await joinResponse.json().catch(() => ({}));
+        if (joinResponse.ok) joined = joinData;
+        else joinError = joinData.error || `Erreur ${joinResponse.status}`;
+      } catch (e) {
+        joinError = e.message;
+      }
+    }
+    try { sessionStorage.removeItem(INVITE_KEY); } catch { /* sans stockage */ }
+
     // Afficher succès. Le backend ne renvoie pas de `message` : on garde un
     // texte par défaut plutôt que d'afficher « undefined ».
     showSuccess(
       result.message || 'Votre compte Versant est créé et votre Strava est connecté.',
-      result.active_from_season
+      // Saison d'entrée : calculée sur le calendrier de versant-2026 (édition historique)
+      joined?.edition?.legacyId ? result.active_from_season : null,
+      { joined, joinError }
     );
 
   } catch (error) {
@@ -273,7 +310,9 @@ function showError(message) {
   }, 5000);
 }
 
-function showSuccess(message, seasonNumber) {
+const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function showSuccess(message, seasonNumber, { joined = null, joinError = null } = {}) {
   document.getElementById('registrationForm').style.display = 'none';
   
   const successDiv = document.getElementById('successMessage');
@@ -282,6 +321,14 @@ function showSuccess(message, seasonNumber) {
     <h3>🎉 Inscription réussie !</h3>
     <p>${message}</p>
   `;
+
+  if (joined?.league) {
+    html += `<p style="margin-top: 16px;">Tu fais maintenant partie de la ligue <strong>${escapeHtml(joined.league.name)}</strong>.</p>`;
+  } else if (joinError) {
+    html += `<p style="margin-top: 16px; color: #f87171;">Le code d'invitation n'a pas fonctionné : ${escapeHtml(joinError)}. Tu pourras le saisir à nouveau sur la page suivante.</p>`;
+  } else {
+    html += `<p style="margin-top: 16px;">Il te reste à rejoindre une ligue : sur la page suivante, entre le code d'invitation que t'a donné son admin.</p>`;
+  }
   
   if (seasonNumber > 1) {
     html += `
@@ -294,8 +341,8 @@ function showSuccess(message, seasonNumber) {
   
   html += `
     <p style="margin-top: 24px;">
-      <a href="dashboard.html" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-        Accéder à mon dashboard
+      <a href="${joined?.league ? 'dashboard.html' : 'index.html'}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+        ${joined?.league ? 'Accéder à mon dashboard' : 'Continuer'}
       </a>
     </p>
   `;

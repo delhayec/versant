@@ -114,25 +114,65 @@
       location.replace(`login.html?next=${encodeURIComponent(next || 'index.html')}`);
     }
 
-    /** Remplace la page par un message (aucune donnée affichable). */
-    function block(message) {
+    /**
+     * Remplace la page par un message (aucune donnée affichable) ;
+     * withJoinForm : formulaire du code d'invitation (compte sans ligue, L51).
+     */
+    function block(message, withJoinForm = false) {
       if (blocked) return;
       blocked = true;
       const show = () => {
         const box = document.createElement('div');
         box.id = 'editionBlocked';
         box.setAttribute('style', 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;text-align:center');
-        box.innerHTML = '<div style="max-width:460px"><p style="font-size:1.1rem;line-height:1.5;margin:0 0 20px"></p>'
+        box.innerHTML = '<div style="max-width:460px;width:100%"><p style="font-size:1.1rem;line-height:1.5;margin:0 0 20px"></p>'
+          + (withJoinForm
+            ? '<form id="joinLeagueForm" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 12px">'
+              + '<input id="joinLeagueCode" autocomplete="off" autocapitalize="characters" placeholder="ABCD-EFGH" aria-label="Code d’invitation" required '
+              + 'style="flex:1 1 160px;min-width:0;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.3);color:inherit;font-size:1rem;letter-spacing:.1em;text-align:center">'
+              + '<button type="submit" style="padding:12px 20px;border:0;border-radius:8px;background:linear-gradient(135deg,#f97316,#f43f5e);color:#fff;font-weight:600;font-size:1rem;cursor:pointer">Rejoindre</button>'
+              + '</form><p id="joinLeagueError" role="alert" style="color:#f87171;min-height:1.5em;margin:0 0 12px"></p>'
+            : '')
           + '<a href="login.html" style="color:#f97316">Se connecter avec un autre compte</a></div>';
         box.querySelector('p').textContent = message;
         box.querySelector('a').addEventListener('click', () => {
           localStorage.removeItem('versant_token');
           localStorage.removeItem('versant_athlete_id');
         });
+        if (withJoinForm) setupJoinForm(box);
         document.body.appendChild(box);
       };
       if (document.body) show();
       else document.addEventListener('DOMContentLoaded', show);
+    }
+
+    /** Code d'invitation (prérempli par ?invitation=) : adhésion, puis la page se recharge. */
+    function setupJoinForm(box) {
+      const form = box.querySelector('#joinLeagueForm');
+      const input = box.querySelector('#joinLeagueCode');
+      const error = box.querySelector('#joinLeagueError');
+      if (params.get('invitation')) input.value = params.get('invitation');
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = form.querySelector('button');
+        button.disabled = true;
+        error.textContent = '';
+        try {
+          const res = await realFetch('/api/leagues/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ code: input.value })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+          const clean = new URLSearchParams(location.search);
+          clean.delete('invitation');
+          location.replace(location.pathname + (clean.toString() ? `?${clean}` : ''));
+        } catch (e) {
+          error.textContent = e.message;
+          button.disabled = false;
+        }
+      });
     }
 
     function chooseEdition(me) {
@@ -145,7 +185,7 @@
       }
       if (me.edition) return { leagueId: me.edition.leagueId, editionId: me.edition.editionId };
       if (optional) return null;
-      block("Tu ne fais partie d'aucune ligue pour l'instant. Demande son code d'invitation à l'admin de la ligue.");
+      block("Tu ne fais partie d'aucune ligue pour l'instant. Entre le code d'invitation que t'a donné l'admin de la ligue.", true);
       return never;
     }
 

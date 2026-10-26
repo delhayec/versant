@@ -44,12 +44,14 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
   }
 
   /**
-   * Ligue d'un compte (au plus une), sa dernière édition jouée, et les
-   * éditions suivantes qu'il n'a pas encore confirmées (L42c).
+   * Ligue d'un compte (au plus une) ; son édition en cours, c'est-à-dire la
+   * plus récente déjà commencée parmi les siennes (sinon la première à venir) ;
+   * l'édition suivante qu'il a confirmée sans qu'elle ait commencé (L51) ; et
+   * les éditions suivantes qu'il n'a pas encore confirmées (L42c).
    */
   async function membership(athleteId) {
     const [leagueId] = await store.leaguesOf(athleteId);
-    if (!leagueId) return { league: null, edition: null, editionsToConfirm: [] };
+    if (!leagueId) return { league: null, edition: null, nextEdition: null, editionsToConfirm: [] };
     const league = await store.getLeague(leagueId);
     const editions = await store.listLeagueEditions(leagueId);
     const mine = [];
@@ -57,12 +59,16 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
       const participants = await store.listParticipants(edition.key);
       if (participants.some(p => String(p.id) === String(athleteId))) mine.push(edition);
     }
-    const current = mine[mine.length - 1] || null;
-    const currentIndex = current ? editions.findIndex(e => e.key === current.key) : -1;
+    const today = new Date().toLocaleDateString('sv-SE'); // AAAA-MM-JJ, heure de Paris (TZ du serveur)
+    const started = mine.filter(e => !e.startDate || e.startDate <= today);
+    const current = started[started.length - 1] || mine[0] || null;
+    const latest = mine[mine.length - 1] || null;
+    const latestIndex = latest ? editions.findIndex(e => e.key === latest.key) : -1;
     return {
       league: league ? { id: league.id, name: league.name } : { id: leagueId, name: leagueId },
       edition: current,
-      editionsToConfirm: editions.slice(currentIndex + 1)
+      nextEdition: latest && latest !== current ? latest : null,
+      editionsToConfirm: editions.slice(latestIndex + 1)
     };
   }
 

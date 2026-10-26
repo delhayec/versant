@@ -1393,9 +1393,77 @@ async function init() {
     renderJokers();
     renderBonus();
     renderActivities();
+    await renderLeague();
 
   } catch (error) {
     console.error('❌ Erreur initialisation dashboard:', error);
+  }
+}
+
+// ============================================
+// MA LIGUE (L51)
+// ============================================
+const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// « 1er septembre 2027 », « 2 février 2026 »
+const formatDay = day => (day
+  ? new Date(`${day}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/^1 /, '1er ')
+  : '');
+
+/**
+ * Ligue du joueur, édition en cours, édition suivante déjà confirmée, et
+ * éditions lancées par l'admin qu'il n'a pas encore confirmées (/api/me).
+ * Confirmation tardive : il entre en jeu à la saison suivante (règle actuelle).
+ */
+async function renderLeague() {
+  const section = document.getElementById('leagueSection');
+  const content = document.getElementById('leagueContent');
+  if (!section || !content) return;
+  try {
+    const res = await authFetch(`${API_BASE}/me?_=${Date.now()}`);
+    if (!res.ok) return;
+    const me = await res.json();
+    if (!me.league) return;
+
+    const today = new Date().toLocaleDateString('sv-SE');
+    let html = `<p style="font-size: 1.1rem; margin-bottom: 8px;"><strong>${escapeHtml(me.league.name)}</strong></p>`;
+    if (me.edition) {
+      html += `<p style="color: rgba(255,255,255,0.7);">Édition ${escapeHtml(me.edition.editionId)}`
+        + `${me.edition.startDate ? `, du ${formatDay(me.edition.startDate)} au ${formatDay(me.edition.endDate)}` : ''}</p>`;
+    }
+    if (me.nextEdition) {
+      html += `<p style="margin-top: 12px;">✅ Tu participes à l'édition ${escapeHtml(me.nextEdition.editionId)}, qui commence le ${formatDay(me.nextEdition.startDate)}.</p>`;
+    }
+    for (const edition of me.editionsToConfirm || []) {
+      const started = edition.startDate && edition.startDate <= today;
+      html += `<div style="margin-top: 16px; padding: 16px; border-radius: 12px; background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3);">
+        <p style="margin-bottom: 12px;">📅 <strong>Nouvelle édition ${escapeHtml(edition.editionId)}</strong>, à partir du ${formatDay(edition.startDate)}.
+        ${started ? "Elle a déjà commencé : tu entreras en jeu à la saison suivante." : 'Confirme ta participation pour être de la partie dès le départ.'}</p>
+        <button type="button" data-confirm-edition="${escapeHtml(edition.editionId)}" style="padding: 10px 20px; border: 0; border-radius: 8px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; font-weight: 600; cursor: pointer;">Je participe</button>
+        <span role="alert" style="margin-left: 12px; color: #f87171;"></span>
+      </div>`;
+    }
+    content.innerHTML = html;
+    section.style.display = '';
+
+    for (const button of content.querySelectorAll('[data-confirm-edition]')) {
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        const error = button.nextElementSibling;
+        error.textContent = '';
+        try {
+          const editionId = button.dataset.confirmEdition;
+          const r = await authFetch(`${API_BASE}/leagues/${encodeURIComponent(me.league.id)}/editions/${encodeURIComponent(editionId)}/confirm`, { method: 'POST' });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(data.error || `Erreur ${r.status}`);
+          await renderLeague();
+        } catch (e) {
+          error.textContent = e.message;
+          button.disabled = false;
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ Ma ligue indisponible :', error.message);
   }
 }
 
