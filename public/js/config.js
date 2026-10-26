@@ -57,6 +57,8 @@ export const CHALLENGE_CONFIG = {
   mainMetricUnit: "m",
   specialRuleFrequency: 4,
   dataYear: CURRENT_YEAR,
+  // Identifiant d'édition affiché (L52) ; nom de la ligue : name
+  editionId: String(CURRENT_YEAR),
   dateLocale: "fr-FR",
   isDemo: IS_DEMO,
 };
@@ -1550,7 +1552,34 @@ export function applyEditionConfig(editionConfig) {
   if (!challenge || challenge.leagueId === CHALLENGE_CONFIG.leagueId) return false;
   Object.assign(CHALLENGE_CONFIG, challenge);
   for (const season of Object.keys(SEASON_PLANNING)) delete SEASON_PLANNING[season];
+  // Libellés (L52) : nom de la ligue et de l'édition, année de départ
+  if (challenge.leagueName) CHALLENGE_CONFIG.name = challenge.leagueName;
+  CHALLENGE_CONFIG.editionId = String(challenge.editionId || CHALLENGE_CONFIG.editionId);
+  CHALLENGE_CONFIG.fullName = `Challenge ${CHALLENGE_CONFIG.name} ${CHALLENGE_CONFIG.editionId}`;
+  CHALLENGE_CONFIG.dataYear = Number(String(CHALLENGE_CONFIG.yearStartDate).slice(0, 4));
   return true;
+}
+
+/**
+ * Libellés de l'édition dans la page (L52) : éléments marqués
+ * data-edition="fullName" (« Challenge Versant 2026 »), "name" (nom de la
+ * ligue), "editionId" (« 2026 ») ou "startDate" (« 2 février 2026 ») ; titre
+ * de l'onglet. Pour versant-2026, les textes sont ceux déjà écrits dans les pages.
+ */
+export function applyEditionLabels(doc = document) {
+  const start = new Date(`${CHALLENGE_CONFIG.yearStartDate}T12:00:00`)
+    .toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    .replace(/^1 /, "1er ");
+  const values = {
+    fullName: CHALLENGE_CONFIG.fullName,
+    name: CHALLENGE_CONFIG.name,
+    editionId: CHALLENGE_CONFIG.editionId,
+    startDate: start,
+  };
+  for (const el of doc.querySelectorAll("[data-edition]")) {
+    if (values[el.dataset.edition] != null) el.textContent = values[el.dataset.edition];
+  }
+  doc.title = doc.title.replace(/Challenge Versant 2026/, CHALLENGE_CONFIG.fullName);
 }
 
 /**
@@ -1573,4 +1602,5 @@ if (!IS_DEMO && typeof window !== "undefined" && window.VersantEdition) {
     if (!response.ok) throw new Error(`Config de l'édition indisponible (${response.status})`);
     applyEditionConfig(await response.json());
   }
+  onDomReady(() => applyEditionLabels());
 }

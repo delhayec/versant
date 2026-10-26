@@ -86,7 +86,7 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
         const dir = path.join(leagueDir, 'editions', edition.name);
         const info = await safeReadJSON(path.join(dir, 'edition.json'), null);
         if (!info) continue;
-        editions.push({ leagueId: leagueInfo.id, editionId: info.id, legacyId: info.legacyId || null, dir, info });
+        editions.push({ leagueId: leagueInfo.id, leagueName: leagueInfo.name || leagueInfo.id, editionId: info.id, legacyId: info.legacyId || null, dir, info });
       }
     }
     return editions;
@@ -135,7 +135,8 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
       leagueId: id,
       editionId: edition.editionId,
       dataDir: edition.dir,
-      config: { ...CHALLENGE_CONFIG, ...(edition.info.config || {}), leagueId: id }
+      // Nom de la ligue et de l'édition : libellés des pages (L52)
+      config: { ...CHALLENGE_CONFIG, ...(edition.info.config || {}), leagueId: id, leagueName: edition.leagueName, editionId: String(edition.editionId) }
     });
   }
 

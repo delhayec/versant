@@ -247,7 +247,18 @@ export function showJumpToDateModal(onDateSelect) {
  */
 export function initDemoMode(options = {}) {
   const { onDateChange, showSlider = true, enableRightClick = true } = options;
-  
+
+  // Date réelle hors de l'année des données (2025) : même jour de l'année, en
+  // 2025, pour que la démo s'ouvre sur une saison en cours (L52)
+  const now = new Date();
+  const yearStart = new Date(CHALLENGE_CONFIG.yearStartDate);
+  const yearEnd = new Date(`${CHALLENGE_CONFIG.yearEndDate}T23:59:59`);
+  if (!isDemoMode() && (now < yearStart || now > yearEnd)) {
+    const sameDay = new Date(now);
+    sameDay.setFullYear(CHALLENGE_CONFIG.dataYear);
+    setSimulatedDate(sameDay);
+  }
+
   // Slider de date
   if (showSlider) {
     initDateSlider(onDateChange);

@@ -268,7 +268,7 @@ function renderWaitingScreen(startDate) {
   const waitingHtml = `
     <div class="waiting-screen">
       <div class="waiting-icon">◭️</div>
-      <h2 class="waiting-title">Challenge Versant ${CHALLENGE_CONFIG.dataYear}</h2>
+      <h2 class="waiting-title">${CHALLENGE_CONFIG.fullName}</h2>
       <div class="waiting-countdown">
         <span class="countdown-number">${daysUntilStart}</span>
         <span class="countdown-label">jour${daysUntilStart > 1 ? 's' : ''} avant le départ</span>
@@ -297,7 +297,7 @@ function renderWaitingScreen(startDate) {
     banner.innerHTML = `
       <div class="banner-waiting">
         <span class="banner-icon"></span>
-        <span class="banner-text">Challenge ${CHALLENGE_CONFIG.dataYear} • Début le ${startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
+        <span class="banner-text">Challenge ${CHALLENGE_CONFIG.editionId} • Début le ${startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
         <span class="banner-countdown">${daysUntilStart}j</span>
       </div>
     `;

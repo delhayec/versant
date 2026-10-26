@@ -49,6 +49,18 @@ const CACHE_KEY = `versant_stats_activities_v2_${CHALLENGE_CONFIG.leagueId}`;
 const CACHE_DATE_KEY = `versant_stats_activities_date_v2_${CHALLENGE_CONFIG.leagueId}`;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+// Comparaison avec les activités de versant en 2025 (section 10) : sans objet
+// pour une autre ligue, la section est masquée (L52)
+const HAS_2025_COMPARISON = CHALLENGE_CONFIG.leagueId === 'versant-2026';
+if (!HAS_2025_COMPARISON) {
+  const hideComparison = () => {
+    const section = document.getElementById('compareSection');
+    if (section) section.style.display = 'none';
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hideComparison);
+  else hideComparison();
+}
+
 // Sports exclus (jamais affichés même si l'API les renvoie)
 const EXCLUDED_SPORTS = new Set(SPORT_SETTINGS.excludedSports);
 
@@ -2304,6 +2316,7 @@ function buildCumulativeSeries(byDate) {
 async function renderCompareChart() {
   const dom = document.getElementById('compareChart');
   if (!dom) return;
+  if (!HAS_2025_COMPARISON) return;
 
   const data2025 = await loadElevation2025();
   const data2026 = getFilteredData(); // activités 2026 (déjà filtrées par athlète si sélection)
