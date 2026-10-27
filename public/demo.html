@@ -63,26 +63,6 @@
     .odo-strip > span { height: 1.25em; line-height: 1.25em; text-align: center; }
     .odo-sep { display: inline-block; width: 0.3em; }
 
-    /* Le joueur suivi : « Toi » */
-    .tour-row.tour-me {
-      background: rgba(34, 211, 238, 0.07);
-      box-shadow: inset 3px 0 0 var(--accent-secondary);
-    }
-    .tour-row.tour-me .athlete-name { color: var(--accent-secondary); }
-    .tour-me-tag {
-      display: inline-block;
-      margin-left: 6px;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-family: var(--font-mono);
-      font-size: 0.62rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      vertical-align: middle;
-      color: var(--bg-primary);
-      background: var(--accent-secondary);
-    }
-
     /* Ligne qui se détache pour remonter, lignes repoussées comme par un aimant */
     .tour-row.tour-lifted {
       z-index: 5;
@@ -90,12 +70,32 @@
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(249, 115, 22, 0.55);
       transition: background 0.3s ease, box-shadow 0.3s ease;
     }
-    .tour-row.tour-me.tour-lifted {
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(34, 211, 238, 0.7), inset 3px 0 0 var(--accent-secondary);
-    }
     .tour-row.tour-magnet {
       transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25), background 0.4s ease;
     }
+
+    /* Classement général : Rang, Athlète, Principal, Éliminés, Total */
+    .tour-standings .standings-header,
+    .tour-standings .standings-row {
+      grid-template-columns: 50px 1fr 90px 90px 80px;
+      padding: 10px 16px;
+    }
+    .tour-standings .standings-header > *,
+    .tour-standings .standings-row > * { display: block !important; }
+    .tour-standings .standings-header > *:nth-child(n+3),
+    .tour-standings .standings-row > *:nth-child(n+3) { text-align: right; }
+    .tour-standings .standings-athlete { display: flex !important; flex-wrap: nowrap; min-width: 0; }
+    .tour-standings .tour-name-line { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; }
+    .tour-standings .standings-points { font-weight: 700; }
+    .tour-standings .tour-main { color: #10b981; }
+    .tour-standings .tour-elim { color: #a855f7; }
+    .tour-standings .standings-total {
+      background: none;
+      -webkit-text-fill-color: currentColor;
+      color: var(--text-primary);
+    }
+    .tour-standings .standings-points,
+    .tour-standings .standings-total { font-family: var(--font-mono); }
 
     /* Barre de progression façon vidéo, un chapitre par étape */
     .tour-progress {
@@ -141,9 +141,9 @@
       pointer-events: none;
       animation: tour-bubble 2.6s var(--ease-out-expo) forwards;
     }
-    .tour-bubble-bonus { background: var(--accent-tertiary); }
-    .tour-bubble-points { background: var(--accent-warning); color: var(--bg-primary); }
-    [data-screen][hidden] { display: none; }
+    .tour-bubble-bonus { background: #3b82f6; }
+    .tour-bubble-main { background: #10b981; }  /* points du challenge principal */
+    .tour-bubble-elim { background: #a855f7; }  /* points du challenge des éliminés */
     .athlete-info:has(.tour-bubble) .athlete-status { display: none; }
     @keyframes tour-bubble {
       0% { opacity: 0; transform: translateX(-12px) scale(0.6); }
@@ -152,6 +152,7 @@
       100% { opacity: 0; transform: translateY(-18px); }
     }
 
+    .tour-gift[hidden] { display: none !important; }
     .tour-pop { animation: tour-pop 0.6s var(--ease-out-expo); display: inline-block; }
     @keyframes tour-pop {
       0% { transform: scale(0.3); }
@@ -196,6 +197,18 @@
       text-transform: uppercase;
       letter-spacing: 0.1em;
     }
+    .tour-legend::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin: 0 5px 1px 10px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .tour-legends { white-space: nowrap; }
+    .tour-legend-main { color: #10b981; }
+    .tour-legend-elim { color: #a855f7; }
     .tour-elim-head strong {
       font-family: var(--font-display);
       font-size: 1.4rem;
@@ -250,6 +263,12 @@
       .tour-table .ranking-row { grid-template-columns: 36px 1fr 96px; padding: 10px 12px; }
       .tour-table.with-points .ranking-header,
       .tour-table.with-points .ranking-row { grid-template-columns: 30px 1fr 84px 56px; }
+      .tour-standings .standings-header,
+      .tour-standings .standings-row { grid-template-columns: 26px 1fr 50px 50px 50px; padding: 10px 10px; gap: 4px; }
+      .tour-standings .standings-header { font-size: 0.55rem; letter-spacing: 0.04em; }
+      .tour-standings .athlete-avatar-small { display: none; }
+      .tour-standings .standings-points,
+      .tour-standings .standings-total { font-size: 0.95rem; }
       .tour-table .ranking-athlete { gap: 10px; }
       .tour-bubble { font-size: 0.72rem; padding: 3px 8px; }
       .tour-row .long { display: none; }
@@ -369,19 +388,35 @@
   <section class="tour-step" data-scene="season">
     <div class="section-header">
       <span class="section-number">04</span>
-      <h2 class="section-title">Une saison, des points, et tout le monde revient</h2>
+      <h2 class="section-title">Une finale, puis tout le monde revient</h2>
       <p class="section-desc">
-        La saison se termine par une finale à deux. Chacun marque alors des points au classement général
-        selon sa place, au challenge principal comme chez les éliminés. Puis une nouvelle saison commence :
-        tout le monde revient en course.
+        La saison se termine par une finale à deux : le vainqueur est couronné et chacun marque des points
+        au classement général selon sa place. Puis une nouvelle saison commence : tout le monde revient en course.
       </p>
     </div>
     <div class="tour-elim-head">
       <span data-tour="label">Saison 1 · Finale</span>
-      <span data-screen="main"><strong data-tour="active">2</strong>en course</span>
+      <span><strong data-tour="active">2</strong>en course</span>
     </div>
-    <div data-screen="main"><div class="ranking-container tour-table"></div></div>
-    <div data-screen="general" hidden><div class="ranking-container tour-table"></div></div>
+    <div class="ranking-container tour-table"></div>
+    <p class="tour-caption" aria-live="polite"></p>
+  </section>
+
+  <!-- 5. Classement général -->
+  <section class="tour-step" data-scene="general">
+    <div class="section-header">
+      <span class="section-number">05</span>
+      <h2 class="section-title">Le classement général</h2>
+      <p class="section-desc">
+        À chaque fin de saison, tu marques des points au challenge principal selon ta place finale,
+        et au challenge des éliminés si tu as été éliminé. Ils s'additionnent saison après saison.
+      </p>
+    </div>
+    <div class="tour-elim-head">
+      <span>Points</span>
+      <span class="tour-legends"><span class="tour-legend tour-legend-main">Principal</span> <span class="tour-legend tour-legend-elim">Éliminés</span></span>
+    </div>
+    <div class="standings-container tour-standings"></div>
     <p class="tour-caption" aria-live="polite"></p>
   </section>
 
@@ -406,6 +441,6 @@
     </div>
   </footer>
 
-  <script src="js/demo-tour.js?v=20261027c"></script>
+  <script src="js/demo-tour.js?v=20261027d"></script>
 </body>
 </html>

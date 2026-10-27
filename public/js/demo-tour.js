@@ -2,16 +2,17 @@
  * ============================================
  * VERSANT - DÉMO ANIMÉE
  * ============================================
- * Trois tableaux animés, aux couleurs des vrais classements, pour expliquer
+ * Cinq tableaux animés, aux couleurs des vrais classements, pour expliquer
  * les règles principales à un nouveau joueur :
  *   1. une activité Strava fait grimper un compteur et remonte un joueur ;
  *   2. fin du round : les 2 derniers sortent, les compteurs repartent de zéro ;
- *   3. challenge des éliminés : nouveaux arrivants, compteurs, cadeaux ;
- *   4. finale, points de la saison au classement général, nouvelle saison.
- * Le joueur suivi (« Toi ») est Sarah, d'une scène à l'autre.
- * Joueurs et chiffres fictifs, aucun appel au serveur. Chaque scène est une
- * suite d'étapes de durée fixe (les chapitres de la barre de progression) et
- * tourne en boucle tant qu'elle est visible à l'écran.
+ *   3. challenge des éliminés : arrivées, bonus du meilleur des 2, embuscade ;
+ *   4. finale, couronne, points, puis tout le monde revient en course ;
+ *   5. classement général : points du principal et des éliminés.
+ * Joueurs et chiffres fictifs (même histoire d'une scène à l'autre), aucun
+ * appel au serveur. Chaque scène est une suite d'étapes de durée fixe (les
+ * chapitres de la barre de progression) et tourne en boucle tant qu'elle est
+ * visible à l'écran.
  */
 (function () {
   'use strict';
@@ -24,7 +25,6 @@
   const fmt = n => Math.round(n).toLocaleString('fr-FR');
   const easeInOut = k => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
   const ELIM_POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
-  const ME = 'sarah';
 
   const PLAYERS = {
     lea: { name: 'Léa M.', color: '#f97316' },
@@ -36,6 +36,10 @@
     zoe: { name: 'Zoé L.', color: '#60a5fa' }
   };
   const initials = name => name.split(/[\s.]+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const avatar = (id, cls = 'athlete-avatar') => {
+    const p = PLAYERS[id];
+    return `<div class="${cls}" style="background:linear-gradient(135deg,${p.color},${p.color}88)">${initials(p.name)}</div>`;
+  };
 
   // Interpolation sur `ms` millisecondes : onFrame(k), k de 0 à 1
   function tween(ms, onFrame) {
@@ -58,6 +62,7 @@
       this.el = el;
       this.el.classList.add('odo');
       this.cols = [];
+      this.value = value;
       this.set(value);
     }
 
@@ -80,6 +85,7 @@
 
     set(value) {
       const v = Math.max(0, value);
+      this.value = v;
       const digits = Math.max(1, String(Math.floor(v)).length);
       this.ensure(digits);
       this.cols.forEach((col, k) => {
@@ -92,13 +98,52 @@
         col.strip.style.transform = `translateY(${(-pos * 100) / 11}%)`;
       });
     }
+
+    // Défilement jusqu'à la valeur cible
+    to(target, ms) {
+      const start = this.value;
+      return tween(ms, k => this.set(k < 1 ? start + (target - start) * easeInOut(k) : target));
+    }
   }
 
-  // ---------- Tableau ----------
+  // Bulle après le nom (activité Strava, bonus ou points gagnés)
+  function bubble(row, html, kind = 'activity') {
+    const b = document.createElement('span');
+    b.className = `tour-bubble tour-bubble-${kind}`;
+    b.innerHTML = html;
+    row.querySelector('.tour-name-line').appendChild(b);
+    setTimeout(() => b.remove(), 2600);
+  }
+
+  /**
+   * Remise en ordre (valeurs décroissantes) : chaque ligne glisse de son
+   * ancienne place à la nouvelle, celles qui montent détachées du tableau.
+   */
+  async function reorder(body, valueOf) {
+    const order = [...body.children];
+    const before = new Map(order.map(r => [r, r.getBoundingClientRect().top]));
+    order.sort((a, b) => valueOf(b) - valueOf(a)).forEach(r => body.appendChild(r));
+    const risers = [];
+    for (const r of order) {
+      const dy = before.get(r) - r.getBoundingClientRect().top;
+      r.style.transition = 'none';
+      r.style.transform = `translateY(${dy}px)`;
+      if (dy > 0) { risers.push(r); r.classList.add('tour-lifted'); }
+    }
+    body.offsetHeight;
+    for (const r of order) {
+      r.style.transition = 'transform 1.6s cubic-bezier(0.45, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease';
+      r.style.transform = '';
+    }
+    await sleep(1700);
+    for (const r of order) r.style.transition = '';
+    risers.forEach(r => r.classList.remove('tour-lifted'));
+  }
+
+  // ---------- Tableau de round (et des éliminés) ----------
   class Table {
-    constructor(el, { header, points = false, medals = true, dangerCount = 0, unit = 'm' }) {
+    constructor(el, { header, points = false, medals = true, dangerCount = 0 }) {
       this.el = el;
-      this.unit = unit;
       this.points = points;
       this.medals = medals;
       this.dangerCount = dangerCount;
@@ -115,19 +160,18 @@
     }
 
     add(id, elev, { from } = {}) {
-      const p = PLAYERS[id];
       const row = document.createElement('div');
-      row.className = 'ranking-row tour-row' + (id === ME ? ' tour-me' : '');
+      row.className = 'ranking-row tour-row';
       row.innerHTML = `
         <div class="ranking-position"></div>
         <div class="ranking-athlete">
-          <div class="athlete-avatar" style="background:linear-gradient(135deg,${p.color},${p.color}88)">${initials(p.name)}</div>
-          <div class="athlete-info">
-            <span class="athlete-name">${p.name}${id === ME ? '<span class="tour-me-tag">Toi</span>' : ''}<span class="tour-gift" hidden></span></span>
+          ${avatar(id)}
+          <div class="athlete-info tour-name-line">
+            <span class="athlete-name">${PLAYERS[id].name}<span class="tour-gift" hidden></span></span>
             <span class="athlete-status danger" hidden>⚠️<span class="long"> Zone danger</span></span>
           </div>
         </div>
-        <div class="ranking-elevation"><span class="tour-num"></span> <span class="elevation-unit">${this.unit}</span></div>
+        <div class="ranking-elevation"><span class="tour-num"></span> <span class="elevation-unit">m</span></div>
         ${this.points ? '<div class="ranking-points"><span class="points-badge"></span></div>' : ''}`;
       row.dataset.elev = elev;
       row.odo = new Odometer(row.querySelector('.tour-num'), elev);
@@ -160,22 +204,13 @@
     // Compteur seul (sans changement de place) : remise à zéro par exemple
     async count(id, target, ms = 1200) {
       const row = this.rows.get(id);
-      const start = Number(row.dataset.elev);
       row.dataset.elev = target;
       row.classList.add('tour-counting');
-      await tween(ms, k => row.odo.set(k < 1 ? start + (target - start) * easeInOut(k) : target));
+      await row.odo.to(target, ms);
       row.classList.remove('tour-counting');
     }
 
-    // Bulle après le nom (activité Strava, bonus ou points gagnés)
-    bubble(id, html, kind = 'activity') {
-      const row = this.rows.get(id);
-      const b = document.createElement('span');
-      b.className = `tour-bubble tour-bubble-${kind}`;
-      b.innerHTML = html;
-      row.querySelector('.athlete-info').appendChild(b);
-      setTimeout(() => b.remove(), 2600);
-    }
+    bubble(id, html, kind) { bubble(this.rows.get(id), html, kind); }
 
     /**
      * Gain de D+ : le compteur défile et, dès qu'il dépasse celui d'un joueur
@@ -248,35 +283,6 @@
       this.refresh();
     }
 
-    /**
-     * Tout le monde marque en même temps : bulles et compteurs ensemble,
-     * puis le classement se remet en ordre, les lignes qui montent détachées.
-     */
-    async gainAll(gains, ms = 2000) {
-      for (const [id, amount] of Object.entries(gains)) this.bubble(id, `+${fmt(amount)} ${this.unit}`, 'points');
-      await sleep(400);
-      await Promise.all(Object.entries(gains).map(([id, amount]) => this.count(id, this.elev(id) + amount, ms)));
-      const order = [...this.body.children];
-      const before = new Map(order.map(r => [r, r.getBoundingClientRect().top]));
-      order.sort((a, b) => Number(b.dataset.elev) - Number(a.dataset.elev)).forEach(r => this.body.appendChild(r));
-      const risers = [];
-      for (const r of order) {
-        const dy = before.get(r) - r.getBoundingClientRect().top;
-        r.style.transition = 'none';
-        r.style.transform = `translateY(${dy}px)`;
-        if (dy > 0) { risers.push(r); r.classList.add('tour-lifted'); }
-      }
-      this.body.offsetHeight;
-      for (const r of order) {
-        r.style.transition = 'transform 1.6s cubic-bezier(0.45, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease';
-        r.style.transform = '';
-      }
-      this.refresh();
-      await sleep(1700);
-      for (const r of order) r.style.transition = '';
-      risers.forEach(r => r.classList.remove('tour-lifted'));
-    }
-
     gift(id, emoji = '🎁') {
       const g = this.rows.get(id).querySelector('.tour-gift');
       g.textContent = ` ${emoji}`;
@@ -285,6 +291,8 @@
       g.offsetHeight;
       g.classList.add('tour-pop');
     }
+
+    ungift(id) { this.rows.get(id).querySelector('.tour-gift').hidden = true; }
 
     async remove(id, to = 'right') {
       const row = this.rows.get(id);
@@ -295,6 +303,70 @@
       await sleep(450);
       row.remove();
       this.rows.delete(id);
+    }
+  }
+
+  // ---------- Classement général : principal, éliminés, total ----------
+  class Standings {
+    constructor(el) {
+      this.el = el;
+      this.el.innerHTML = `
+        <div class="standings-header">
+          <div>Rang</div><div>Athlète</div>
+          <div><span class="header-main">Principal</span></div>
+          <div><span class="header-elim">Éliminés</span></div>
+          <div>Total</div>
+        </div>
+        <div class="tour-rows"></div>`;
+      this.body = this.el.querySelector('.tour-rows');
+      this.rows = new Map();
+    }
+
+    reset(entries) {
+      this.body.innerHTML = '';
+      this.rows.clear();
+      for (const [id, main, elim] of entries) {
+        const row = document.createElement('div');
+        row.className = 'standings-row tour-row';
+        row.innerHTML = `
+          <div class="standings-rank"></div>
+          <div class="standings-athlete">
+            ${avatar(id, 'athlete-avatar-small')}
+            <span class="tour-name-line"><span>${PLAYERS[id].name}</span></span>
+          </div>
+          <div class="standings-points tour-main"></div>
+          <div class="standings-points tour-elim"></div>
+          <div class="standings-total"><span class="tour-total"></span></div>`;
+        row.main = new Odometer(row.querySelector('.tour-main'), main);
+        row.elim = new Odometer(row.querySelector('.tour-elim'), elim);
+        row.total = new Odometer(row.querySelector('.tour-total'), main + elim);
+        this.body.appendChild(row);
+        this.rows.set(id, row);
+      }
+      this.refresh();
+    }
+
+    refresh() {
+      [...this.body.children].forEach((row, i) => { row.querySelector('.standings-rank').textContent = i + 1; });
+    }
+
+    // Points d'un challenge pour plusieurs joueurs : bulles de sa couleur,
+    // puis sa colonne et le total défilent ensemble
+    async score(kind, gains, ms = 1800) {
+      for (const [id, pts] of Object.entries(gains)) bubble(this.rows.get(id), `+${pts} pts`, kind);
+      await sleep(500);
+      await Promise.all(Object.entries(gains).map(([id, pts]) => {
+        const row = this.rows.get(id);
+        const col = kind === 'main' ? row.main : row.elim;
+        row.classList.add('tour-counting');
+        return Promise.all([col.to(col.value + pts, ms), row.total.to(row.total.value + pts, ms)])
+          .then(() => row.classList.remove('tour-counting'));
+      }));
+    }
+
+    async reorder() {
+      await reorder(this.body, r => r.total.value);
+      this.refresh();
     }
   }
 
@@ -317,12 +389,12 @@
     return {
       setup: () => table.reset([['lea', 1840], ['hugo', 1520], ['sarah', 1210], ['tom', 980], ['ines', 760]]),
       steps: [
-        [2800, 'Round en cours. Toi, c\'est Sarah : 3ᵉ, juste au-dessus de la zone danger.'],
+        [2800, 'Round en cours : les 2 derniers sont en zone danger.'],
         [3800, 'Léa enregistre une sortie trail sur Strava : son compteur grimpe.',
           () => table.gain('lea', 564, ['🏃', 'Trail'], 'activity', 2200)],
         [5600, 'Inès, en zone danger, part à vélo : +612 m. Elle remonte…',
           () => table.gain('ines', 612, ['🚴', 'Vélo'], 'activity', 3600)],
-        [3800, 'Inès t\'a doublée : te voilà en zone danger avec Tom. Il reste du temps pour réagir !']
+        [3800, 'Inès double Sarah et Tom : ce sont eux qui passent en zone danger. Il reste du temps pour réagir !']
       ]
     };
   }
@@ -349,7 +421,7 @@
         [5400, 'Dernières secondes du round…', async () => {
           for (let s = 4; s >= 0; s--) { await sleep(1000); setTimer([0, 0, 0, s]); }
         }],
-        [2600, 'Fin du round : les 2 derniers sont éliminés. Tom et toi sortez.', async () => {
+        [2600, 'Fin du round : les 2 derniers, Sarah et Tom, sont éliminés.', async () => {
           timer.classList.add('countdown-ended');
           root.classList.add('tour-flash');
           await sleep(700);
@@ -372,6 +444,8 @@
   }
 
   // ---------- Scène 3 : challenge des éliminés ----------
+  // Seul le meilleur des 2 éliminés du round (le plus de D+ pendant ce
+  // round) reçoit un bonus : Sarah (1 210 m contre 980 pour Tom).
   function sceneEliminated(root) {
     const table = new Table(root.querySelector('.tour-table'), { header: ['Pos.', 'Éliminé', 'D+ cumulé', 'Points'], points: true, medals: false });
     const count = root.querySelector('[data-tour="count"]');
@@ -382,7 +456,7 @@
       },
       steps: [
         [2600, 'Les éliminés de la saison continuent dans leur propre challenge.'],
-        [2400, 'Tom et toi venez d\'être éliminés : vous rejoignez le challenge.', async () => {
+        [2400, 'Sarah et Tom viennent d\'être éliminés : ils rejoignent le challenge.', async () => {
           table.add('sarah', 0, { from: 'left' });
           await sleep(200);
           table.add('tom', 0, { from: 'left' });
@@ -392,69 +466,72 @@
           count.parentElement.offsetHeight;
           count.parentElement.classList.add('tour-pop');
         }],
+        [3000, '🎁 Sarah a fait mieux que Tom pendant le round (1 210 m contre 980) : la meilleure des 2 éliminés reçoit un bonus.',
+          () => table.gift('sarah')],
         [4600, 'Tom part en VTT : +720 m, il prend la tête.',
           () => table.gain('tom', 720, ['🚵', 'VTT'], 'activity', 3400)],
-        [2200, '🎁 Meilleur éliminé du round : Tom gagne un bonus.', () => table.gift('tom')],
-        [4000, 'Tu sors courir : +410 m, tu doubles Zoé.',
-          () => table.gain('sarah', 410, ['🏃', 'Course'], 'activity', 2800)],
-        [4000, 'Zoé joue son bonus : une embuscade, 150 m volés à un joueur encore en course. Elle te repasse devant !',
-          () => { table.gift('zoe'); return table.gain('zoe', 150, ['🏹', 'Embuscade'], 'bonus', 2400); }],
-        [3600, 'Les points des éliminés comptent aussi au classement général.']
+        [3600, 'Sarah sort courir : +300 m.',
+          () => table.gain('sarah', 300, ['🏃', 'Course'], 'activity', 2000)],
+        [4400, 'Sarah joue son bonus : une embuscade, 150 m volés à un joueur encore en course. Elle double Zoé !',
+          () => table.gain('sarah', 150, ['🏹', 'Embuscade'], 'bonus', 2400)],
+        [3400, 'Les points des éliminés comptent aussi au classement général.']
       ]
     };
   }
 
-  // ---------- Scène 4 : finale, points de la saison, nouvelle saison ----------
-  // Points de la saison = place au challenge principal (24, 21, 18, 15, 12,
-  // 10, 8) + place au challenge des éliminés (10, 8, 6, 5, 4), vrai barème.
+  // ---------- Scène 4 : finale et nouvelle saison ----------
   function sceneSeason(root) {
-    const screens = {
-      main: root.querySelectorAll('[data-screen="main"]'),
-      general: root.querySelectorAll('[data-screen="general"]')
-    };
-    const main = new Table(root.querySelector('[data-screen="main"] .tour-table'), { header: ['Pos.', 'Athlète', 'D+ du round'] });
-    const general = new Table(root.querySelector('[data-screen="general"] .tour-table'), { header: ['Pos.', 'Athlète', 'Général'], unit: 'pts' });
+    const table = new Table(root.querySelector('.tour-table'), { header: ['Pos.', 'Athlète', 'D+ du round'] });
     const label = root.querySelector('[data-tour="label"]');
     const active = root.querySelector('[data-tour="active"]');
-    const show = name => {
-      for (const [key, els] of Object.entries(screens)) {
-        for (const el of els) {
-          el.hidden = key !== name;
-          if (key === name) { el.classList.remove('tour-caption-in'); el.offsetHeight; el.classList.add('tour-caption-in'); }
-        }
-      }
-    };
     return {
       setup: () => {
-        main.reset([['lea', 1650], ['ines', 1480]]);
-        general.reset([['hugo', 58], ['paul', 51], ['sarah', 50], ['lea', 47], ['zoe', 45], ['tom', 40], ['ines', 36]]);
+        table.reset([['lea', 1650], ['ines', 1480]]);
         label.textContent = 'Saison 1 · Finale';
         active.textContent = '2';
-        show('main');
       },
       steps: [
         [2600, 'Finale de la saison : il ne reste que Léa et Inès.'],
         [5000, 'Dernier jour : Inès sort une grosse rando et passe devant !',
-          () => main.gain('ines', 320, ['🥾', 'Rando'], 'activity', 3200)],
-        [2600, 'Fin de la finale : Inès remporte la saison 👑', () => main.gift('ines', '👑')],
-        [3000, 'Fin de saison : chacun marque des points selon sa place, au challenge principal et chez les éliminés.', () => {
-          label.textContent = 'Classement général';
-          show('general');
+          () => table.gain('ines', 320, ['🥾', 'Rando'], 'activity', 3200)],
+        [2600, 'Fin de la finale : Inès remporte la saison 👑', () => table.gift('ines', '👑')],
+        [3200, 'Au classement général : 24 pts pour la championne, 21 pour la finaliste. Les autres marquent aussi, selon leur place.', () => {
+          table.bubble('ines', '+24 pts', 'main');
+          table.bubble('lea', '+21 pts', 'main');
         }],
-        [4800, 'Championne 24 pts, finaliste 21, puis 18, 15… et les points du challenge des éliminés en plus.',
-          () => general.gainAll({ ines: 24, lea: 21, hugo: 22, sarah: 20, tom: 22, paul: 18, zoe: 14 })],
-        [4000, 'Toi : 15 pts (4ᵉ du principal) + 5 pts (4ᵉ des éliminés) = +20. Tu doubles Paul : 2ᵉ du général !'],
-        [4600, 'Nouvelle saison : tout le monde revient en course, compteurs à zéro. Le général, lui, continue de cumuler.', async () => {
+        [4800, 'Nouvelle saison : tout le monde revient en course, compteurs à zéro.', async () => {
           label.textContent = 'Saison 2 · Round 1';
-          main.reset([]);
-          show('main');
+          table.ungift('ines');
+          await Promise.all(['ines', 'lea'].map(id => table.count(id, 0, 1200)));
           active.textContent = '7';
-          for (const id of ['lea', 'hugo', 'sarah', 'tom', 'ines', 'paul', 'zoe']) {
-            main.add(id, 0, { from: 'left' });
-            main.refresh();
-            await sleep(120);
+          for (const id of ['hugo', 'sarah', 'tom', 'paul', 'zoe']) {
+            table.add(id, 0, { from: 'left' });
+            table.refresh();
+            await sleep(150);
           }
         }]
+      ]
+    };
+  }
+
+  // ---------- Scène 5 : classement général ----------
+  // Principal : place finale de la saison (24, 21, 18, 15, 12, 10, 8).
+  // Éliminés : place au challenge des éliminés (10, 8, 6, 5, 4).
+  function sceneGeneral(root) {
+    const standings = new Standings(root.querySelector('.tour-standings'));
+    return {
+      setup: () => standings.reset([
+        ['hugo', 44, 14], ['paul', 35, 16], ['sarah', 38, 12], ['lea', 39, 8],
+        ['zoe', 31, 14], ['tom', 30, 10], ['ines', 28, 8]
+      ]),
+      steps: [
+        [3000, 'Le classement général additionne les points de chaque saison.'],
+        [4200, 'Challenge principal : des points selon la place finale. Championne 24, finaliste 21, puis 18, 15…',
+          () => standings.score('main', { ines: 24, lea: 21, hugo: 18, sarah: 15, tom: 12, paul: 10, zoe: 8 })],
+        [4200, 'Challenge des éliminés : 10, 8, 6, 5… selon le D+ cumulé depuis l\'élimination.',
+          () => standings.score('elim', { tom: 10, paul: 8, sarah: 6, zoe: 5, hugo: 4 })],
+        [3000, 'Le classement se met à jour : Sarah double Paul, Tom et Inès doublent Zoé.', () => standings.reorder()],
+        [3400, 'Les points s\'accumulent saison après saison, jusqu\'à la fin du challenge.']
       ]
     };
   }
@@ -526,7 +603,13 @@
   }
 
   function init() {
-    const scenes = { activity: sceneActivity, 'round-end': sceneRoundEnd, eliminated: sceneEliminated, season: sceneSeason };
+    const scenes = {
+      activity: sceneActivity,
+      'round-end': sceneRoundEnd,
+      eliminated: sceneEliminated,
+      season: sceneSeason,
+      general: sceneGeneral
+    };
     document.querySelectorAll('[data-scene]').forEach(root => play(root, scenes[root.dataset.scene]));
     setupJoin();
   }
