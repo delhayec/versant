@@ -54,6 +54,67 @@
       transition: color 0.3s ease;
     }
     .tour-counting .ranking-elevation .tour-num { color: var(--text-primary); }
+
+    /* Compteur à rouleaux : une bande 0-9 par chiffre */
+    .odo { display: inline-flex; vertical-align: bottom; }
+    .tour-row .ranking-elevation .odo span { font-size: inherit; color: inherit; }
+    .odo-col { display: inline-block; height: 1.25em; overflow: hidden; }
+    .odo-strip { display: flex; flex-direction: column; will-change: transform; }
+    .odo-strip > span { height: 1.25em; line-height: 1.25em; text-align: center; }
+    .odo-sep { display: inline-block; width: 0.3em; }
+
+    /* Le joueur suivi : « Toi » */
+    .tour-row.tour-me {
+      background: rgba(34, 211, 238, 0.07);
+      box-shadow: inset 3px 0 0 var(--accent-secondary);
+    }
+    .tour-row.tour-me .athlete-name { color: var(--accent-secondary); }
+    .tour-me-tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      vertical-align: middle;
+      color: var(--bg-primary);
+      background: var(--accent-secondary);
+    }
+
+    /* Ligne qui se détache pour remonter, lignes repoussées comme par un aimant */
+    .tour-row.tour-lifted {
+      z-index: 5;
+      background: var(--bg-card-hover);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(249, 115, 22, 0.55);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    .tour-row.tour-me.tour-lifted {
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(34, 211, 238, 0.7), inset 3px 0 0 var(--accent-secondary);
+    }
+    .tour-row.tour-magnet {
+      transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25), background 0.4s ease;
+    }
+
+    /* Barre de progression façon vidéo, un chapitre par étape */
+    .tour-progress {
+      display: flex;
+      gap: 3px;
+      margin-top: 10px;
+    }
+    .tour-chapter {
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+    .tour-fill {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--accent-primary);
+    }
     .tour-enter-left { transform: translateX(-110%); opacity: 0; }
     .tour-leave-right { transform: translateX(110%) !important; opacity: 0; }
     .tour-collapse {
@@ -81,6 +142,8 @@
       animation: tour-bubble 2.6s var(--ease-out-expo) forwards;
     }
     .tour-bubble-bonus { background: var(--accent-tertiary); }
+    .tour-bubble-points { background: var(--accent-warning); color: var(--bg-primary); }
+    [data-screen][hidden] { display: none; }
     .athlete-info:has(.tour-bubble) .athlete-status { display: none; }
     @keyframes tour-bubble {
       0% { opacity: 0; transform: translateX(-12px) scale(0.6); }
@@ -174,8 +237,10 @@
     .tour-join .tour-more { font-size: 0.85rem; color: var(--text-muted); }
     .tour-join .tour-more a { color: var(--text-secondary); }
 
+    /* « Réduire les animations » (souvent activé dans Windows) : compteurs et
+       déplacements des lignes conservés, car ce sont eux qui expliquent les
+       règles ; seuls les effets décoratifs sont retirés. */
     @media (prefers-reduced-motion: reduce) {
-      .tour-row, .tour-row * { transition: none !important; }
       .tour-bubble { animation: none; }
       .tour-pop, .tour-caption-in, .tour-flash .ranking-container { animation: none; }
     }
@@ -187,7 +252,7 @@
       .tour-table.with-points .ranking-row { grid-template-columns: 30px 1fr 84px 56px; }
       .tour-table .ranking-athlete { gap: 10px; }
       .tour-bubble { font-size: 0.72rem; padding: 3px 8px; }
-      .tour-bubble .long { display: none; }
+      .tour-row .long { display: none; }
       .tour-join form { flex-direction: column; }
       .tour-banner .banner-block { padding: 10px 12px; min-width: 0; }
       .tour-banner .banner-separator { display: none; }
@@ -300,6 +365,26 @@
     <p class="tour-caption" aria-live="polite"></p>
   </section>
 
+  <!-- 4. Fin de saison -->
+  <section class="tour-step" data-scene="season">
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <h2 class="section-title">Une saison, des points, et tout le monde revient</h2>
+      <p class="section-desc">
+        La saison se termine par une finale à deux. Chacun marque alors des points au classement général
+        selon sa place, au challenge principal comme chez les éliminés. Puis une nouvelle saison commence :
+        tout le monde revient en course.
+      </p>
+    </div>
+    <div class="tour-elim-head">
+      <span data-tour="label">Saison 1 · Finale</span>
+      <span data-screen="main"><strong data-tour="active">2</strong>en course</span>
+    </div>
+    <div data-screen="main"><div class="ranking-container tour-table"></div></div>
+    <div data-screen="general" hidden><div class="ranking-container tour-table"></div></div>
+    <p class="tour-caption" aria-live="polite"></p>
+  </section>
+
   <!-- Inscription -->
   <section class="tour-join" id="rejoindre">
     <h2>Prêt à grimper ?</h2>
@@ -321,6 +406,6 @@
     </div>
   </footer>
 
-  <script src="js/demo-tour.js?v=20261027a"></script>
+  <script src="js/demo-tour.js?v=20261027c"></script>
 </body>
 </html>
