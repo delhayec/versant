@@ -108,10 +108,10 @@ async function loadRoundConfigs() {
     const res = await fetch('/api/round-configs');
     if (res.ok) {
       roundConfigsCache = await res.json();
-      console.log('✅ Round configs chargées:', Object.keys(roundConfigsCache).length, 'config(s)');
+      console.log('Round configs chargées:', Object.keys(roundConfigsCache).length, 'config(s)');
     }
   } catch (e) {
-    console.warn('⚠️ Impossible de charger round-configs:', e.message);
+    console.warn('Impossible de charger round-configs:', e.message);
     roundConfigsCache = {};
   }
 }
@@ -155,7 +155,7 @@ async function loadFrozenResults() {
       setFrozenCache(frozenResultsCache);
     }
   } catch (error) {
-    console.warn('⚠️ Impossible de charger les résultats figés:', error);
+    console.warn('Impossible de charger les résultats figés:', error);
     frozenResultsCache = { rounds: {} };
     setFrozenCache(frozenResultsCache);
   }
@@ -171,7 +171,7 @@ async function loadBonuses() {
       bonusesCache = await response.json();
     }
   } catch (error) {
-    console.warn('⚠️ Impossible de charger les bonus:', error);
+    console.warn('Impossible de charger les bonus:', error);
     bonusesCache = [];
   }
 }
@@ -296,7 +296,6 @@ function renderWaitingScreen(startDate) {
   if (banner) {
     banner.innerHTML = `
       <div class="banner-waiting">
-        <span class="banner-icon"></span>
         <span class="banner-text">Challenge ${CHALLENGE_CONFIG.editionId} • Début le ${startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
         <span class="banner-countdown">${daysUntilStart}j</span>
       </div>
@@ -347,10 +346,10 @@ async function loadActivities() {
         }
         return allActivities;
       } else {
-        console.error(`❌ Fichier démo introuvable: ${dataFile}`);
+        console.error(`Fichier démo introuvable: ${dataFile}`);
       }
     } catch (e) {
-      console.error('❌ Erreur chargement fichier démo:', e);
+      console.error('Erreur chargement fichier démo:', e);
     }
     return allActivities;
   }
@@ -376,22 +375,22 @@ async function loadActivities() {
         return d >= roundStart;
       });
     } else {
-      console.warn('⚠️ Aucune activité dans la réponse API');
+      console.warn('Aucune activité dans la réponse API');
     }
 
     return allActivities;
   } catch (error) {
-    console.warn('⚠️ Erreur chargement API:', error.message);
-    console.warn('⚠️ Tentative fichier local: /data/classement.json');
+    console.warn('Erreur chargement API:', error.message);
+    console.warn('Tentative fichier local: /data/classement.json');
     try {
       const localResponse = await fetch('/data/classement.json');
       if (localResponse.ok) {
         const localData = await localResponse.json();
         allActivities = parseActivitiesData(localData);
-        console.warn('⚠️ ATTENTION: Données locales utilisées, pas l\'API!');
+        console.warn('ATTENTION: Données locales utilisées, pas l\'API!');
       }
     } catch (e) {
-      console.error('❌ Impossible de charger les données:', e);
+      console.error('Impossible de charger les données:', e);
     }
     return allActivities;
   }
@@ -629,7 +628,7 @@ async function renderAll() {
       // DEBUG: Si pas d'activités, montrer pourquoi
       if (roundActivities.length === 0 && allActivities.length > 0) {
         const sampleDates = allActivities.slice(0, 5).map(a => a.start_date?.substring(0,10));
-        console.warn('⚠️ Aucune activité dans la période! Exemples de dates disponibles:', sampleDates);
+        console.warn('Aucune activité dans la période! Exemples de dates disponibles:', sampleDates);
       }
 
       // La règle du round est lue AVANT le calcul : 'pluie_qui_mouille' pondère
@@ -777,16 +776,16 @@ renderRanking(rankingContainer, {
         loadingScreen.style.pointerEvents = 'none';
       }, 600);
     } else {
-      console.warn('⚠️ loadingScreen non trouvé');
+      console.warn('loadingScreen non trouvé');
     }
 
   } catch (error) {
-    console.error('❌ Erreur renderAll:', error);
+    console.error('Erreur renderAll:', error);
 
     // Afficher l'erreur dans le loader
     const loadingScreen = document.getElementById('loadingScreen');
     if (loadingScreen) {
-      loadingScreen.innerHTML = '<div class="loading-content"><div class="loading-icon" style="font-size:64px">⚠️</div><div class="loading-title">Erreur</div><div class="loading-text">'+error.message+'</div></div>';
+      loadingScreen.innerHTML = '<div class="loading-content"><div class="loading-title">Erreur</div><div class="loading-text">'+error.message+'</div></div>';
     }
   }
 }
@@ -812,8 +811,8 @@ function renderTeamRanking(container, data) {
   // Détecter le type de round (finale principale = 2 équipes restantes)
   const isFinalePrincipale = sortedTeams.length === 2;
   const headerLabel = isFinalePrincipale
-    ? `🏆 Finale Saison Équipes`
-    : `🤝 Saison Équipes — Round ${getRoundInSeason(getCurrentDate())}`;
+    ? `Finale Saison Équipes`
+    : `Saison Équipes — Round ${getRoundInSeason(getCurrentDate())}`;
 
   let html = `
     <div class="team-ranking">
@@ -841,10 +840,10 @@ function renderTeamRanking(container, data) {
       ? (isFrozen
           ? (isFinalePrincipale
               ? '<span class="team-danger-badge">FINALISTE VAINCU</span>'
-              : '<span class="team-danger-badge">⛔ ÉLIMINÉE</span>')
-          : '<span class="team-danger-badge">⚠️ Zone d\'élimination</span>')
+              : '<span class="team-danger-badge">ÉLIMINÉE</span>')
+          : '<span class="team-danger-badge">Zone d\'élimination</span>')
       : (isFinalePrincipale && teamPosition === 0 && isFrozen
-          ? '<span class="team-winner-badge">🏆 VAINQUEUR</span>'
+          ? '<span class="team-winner-badge">VAINQUEUR</span>'
           : '');
 
     html += `
@@ -1037,7 +1036,7 @@ for (let rn = startRound; rn <= endRound; rn++) {
   let html = `
     <div class="team-ranking">
       <div class="team-ranking-header">
-        <span>👻 Challenge des éliminés — Saison ${currentSeasonNumber}</span>
+        <span>Challenge des éliminés — Saison ${currentSeasonNumber}</span>
       </div>
   `;
 
@@ -1317,7 +1316,7 @@ function renderFinalStandings(container) {
 
   enrichedStandings.forEach(e => {
     const isActive = activeIds.has(e.participant.id);
-    const wins = e.wins > 0 ? `<span class="wins-badge">🏆×${e.wins}</span>` : '';
+    const wins = e.wins > 0 ? `<span class="wins-badge">×${e.wins}</span>` : '';
     const isCurrentSeasonEliminated = seasonData?.eliminated?.some(el => el.id === e.participant.id);
 
     let statusBadge = '';
@@ -1719,7 +1718,7 @@ function renderHistorySection(container) {
     <label>Saison : </label>
     <select id="seasonSelect" class="season-select">
       <option value="current">Saison ${currentSeasonNumber} (en cours)</option>
-      ${completedSeasons.map(s => `<option value="${s.seasonNumber}">Saison ${s.seasonNumber} - ${s.winner?.name || 'N/A'} 🏆</option>`).join('')}
+      ${completedSeasons.map(s => `<option value="${s.seasonNumber}">Saison ${s.seasonNumber} - ${s.winner?.name || 'N/A'}</option>`).join('')}
     </select>
   </div>
   <div id="historyContent"></div>`;
@@ -1871,12 +1870,12 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
         const streak = rescapeInfo.consecutive;
         const rescPts = rescapeInfo.points;
         if (streak === 1) {
-          pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">🎫 rescapé</span>`;
+          pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">rescapé</span>`;
         } else {
-          pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">🎫 rescapé ×${streak} (+${rescPts})</span>`;
+          pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">rescapé ×${streak} (+${rescPts})</span>`;
         }
       } else {
-        pointsBadges += `<span class="history-rescape-badge">🎫 rescapé</span>`;
+        pointsBadges += `<span class="history-rescape-badge">rescapé</span>`;
       }
     }
 
@@ -1907,7 +1906,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
         }
       }).join(', ')}
     </div>
-    ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité (0 D+)</div>` : ''}`;
+    ${zeroElimCount > 0 ? `<div class="history-zero-warning">${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité (0 D+)</div>` : ''}`;
 
   // Afficher les jokers utilisés
   if (activeJokers.length > 0) {
@@ -1948,13 +1947,13 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
 
   // Note indiquant que ce sont des données recalculées
   html += `<div class="history-note" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; font-style: italic;">
-    ⚡ Données recalculées (round non figé)
+    Données recalculées (round non figé)
   </div>`;
 
   // Ajouter le dropdown du classement (caché par défaut)
   html += `
     <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">📊 Classement du round</div>
+      <div class="history-ranking-title">Classement du round</div>
       <div class="history-ranking-list">
         ${rankingHtml}
       </div>
@@ -1977,7 +1976,7 @@ function renderCompletedEliminatedChallenge(summary) {
   let html = `
     <div class="history-item history-eliminated-challenge">
       <div class="history-round-header" onclick="toggleRoundDetails('eliminated-s${seasonNumber}')">
-        <div class="history-round">👻 Challenge des Éliminés - Classement Final</div>
+        <div class="history-round">Challenge des Éliminés - Classement Final</div>
         <span class="history-toggle-icon">▼</span>
       </div>
       <div class="history-ranking-dropdown" id="ranking-eliminated-s${seasonNumber}" style="display: block;">
@@ -2067,7 +2066,7 @@ function renderCompletedSeasonHistory(container, summary) {
   const roundsPerSeason = getRoundsPerSeason();
 
 
-  let html = `<div class="history-season-summary"><h3>🏆 Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
+  let html = `<div class="history-season-summary"><h3>Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
 
   summary.rounds.forEach(r => {
     const globalRound = r.globalRound;
@@ -2092,7 +2091,7 @@ function renderCompletedSeasonHistory(container, summary) {
             <span class="history-label">Éliminé(s) :</span> ${r.eliminated.join(', ')}
           </div>
           <div class="history-note" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
-            ⚠️ Détails non disponibles (round non figé)
+            Détails non disponibles (round non figé)
           </div>
         </div>`;
       }
@@ -2171,7 +2170,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
 
   let html = `<div class="history-item" data-round="${globalRound}">
     <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
-      <div class="history-round">🤝 Round ${roundInSeason}</div>
+      <div class="history-round">Round ${roundInSeason}</div>
       <span class="history-toggle-icon">▼</span>
     </div>
     <div class="history-eliminated">
@@ -2181,7 +2180,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
     </div>
     ${renderElevationGaugeHistory(frozenRound.elevationGauge)}
     <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">📊 Classement des équipes</div>
+      <div class="history-ranking-title">Classement des équipes</div>
       <div class="history-ranking-list">
         ${rankingHtml}
       </div>
@@ -2234,14 +2233,14 @@ function renderFrozenTeamEliminatedChallengeHistory(roundInSeason, frozenRound) 
 
   return `<div class="history-item" data-round="${globalRound}">
     <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
-      <div class="history-round">🎖️ Round ${roundInSeason} — Classement des éliminés par équipe</div>
+      <div class="history-round">Round ${roundInSeason} — Classement des éliminés par équipe</div>
       <span class="history-toggle-icon">▼</span>
     </div>
     <div class="history-eliminated">
       <span class="history-label">Round bonus : classement final du challenge des éliminés (D+ cumulé depuis l'élimination de chaque équipe)</span>
     </div>
     <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">🎖️ Classement des équipes éliminées</div>
+      <div class="history-ranking-title">Classement des équipes éliminées</div>
       <div class="history-ranking-list">
         ${teamsHtml}
       </div>
@@ -2336,12 +2335,12 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
       const streak = rescapeInfo.consecutive;
       const rescPts = rescapeInfo.points;
       if (streak === 1) {
-        pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">🎫 rescapé</span>`;
+        pointsBadges += `<span class="history-rescape-badge" title="1er jeton rescapé (pas de points encore)">rescapé</span>`;
       } else {
-        pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">🎫 rescapé ×${streak} (+${rescPts})</span>`;
+        pointsBadges += `<span class="history-rescape-badge has-points" title="Rescapé ×${streak} consécutif : +${rescPts} pts">rescapé ×${streak} (+${rescPts})</span>`;
       }
     } else if (isRescape) {
-      pointsBadges += `<span class="history-rescape-badge">🎫 rescapé</span>`;
+      pointsBadges += `<span class="history-rescape-badge">rescapé</span>`;
     }
 
     // Calculer les pilules de bonus éphémères pour ce joueur
@@ -2387,12 +2386,12 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   // Construire le HTML complet
   let html = `<div class="history-item" data-round="${globalRound}">
     <div class="history-round-header" onclick="toggleRoundDetails(${globalRound})">
-      <div class="history-round">${isFinaleNoElim ? '🏆 ' : ''}Round ${roundInSeason}${isFinaleNoElim ? ' — Finale' : ''}</div>
+      <div class="history-round">Round ${roundInSeason}${isFinaleNoElim ? ' — Finale' : ''}</div>
       <span class="history-toggle-icon">▼</span>
     </div>
     ${isFinaleNoElim ? `
     <div class="history-eliminated">
-      <span class="history-label">🏆 Finale — classement final (plusieurs finalistes, aucune élimination ce round)</span>
+      <span class="history-label">Finale — classement final (plusieurs finalistes, aucune élimination ce round)</span>
     </div>` : `
     <div class="history-eliminated">
       <span class="history-label">Éliminé(s) :</span>
@@ -2404,7 +2403,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
         }
       }).join(', ')}
     </div>`}
-    ${zeroElimCount > 0 ? `<div class="history-zero-warning">⚠️ ${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité</div>` : ''}
+    ${zeroElimCount > 0 ? `<div class="history-zero-warning">${zeroElimCount} joueur${zeroElimCount > 1 ? 's' : ''} éliminé${zeroElimCount > 1 ? 's' : ''} pour inactivité</div>` : ''}
     ${renderElevationGaugeHistory(frozenRound.elevationGauge)}`;
 
   // Afficher les jokers utilisés
@@ -2454,7 +2453,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   // Ajouter le dropdown du classement (caché par défaut)
   html += `
     <div class="history-ranking-dropdown" id="ranking-${globalRound}" style="display: none;">
-      <div class="history-ranking-title">${isFinaleNoElim ? '🏆 Classement final' : '📊 Classement du round'}</div>
+      <div class="history-ranking-title">${isFinaleNoElim ? 'Classement final' : 'Classement du round'}</div>
       <div class="history-ranking-list">
         ${rankingHtml}
       </div>
@@ -2487,11 +2486,10 @@ async function init() {
     await loadParticipants();
 
     if (PARTICIPANTS.length === 0) {
-      console.error('❌ Aucun participant chargé !');
+      console.error('Aucun participant chargé !');
       if (loadingScreen) {
         loadingScreen.innerHTML = `
           <div class="loading-content">
-            <div class="loading-icon">⚠️</div>
             <div class="loading-title">Aucun participant</div>
             <div class="loading-text">Aucun participant inscrit pour le moment.<br>Inscrivez-vous sur la page d'inscription.</div>
             <a href="inscription.html" style="margin-top:20px;color:var(--accent-primary);text-decoration:none;padding:10px 20px;border:1px solid var(--accent-primary);border-radius:8px;">→ S'inscrire</a>
@@ -2545,11 +2543,10 @@ async function init() {
 
 
   } catch (error) {
-    console.error('❌ Erreur d\'initialisation:', error);
+    console.error('Erreur d\'initialisation:', error);
     if (loadingScreen) {
       loadingScreen.innerHTML = `
         <div class="loading-content">
-          <div class="loading-icon">❌</div>
           <div class="loading-title">Erreur de connexion</div>
           <div class="loading-text">Impossible de charger les données.<br>Vérifiez votre connexion internet.</div>
           <button onclick="location.reload()" style="margin-top:20px;background:var(--accent-primary);border:none;color:white;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;">↻ Réessayer</button>
@@ -2709,23 +2706,22 @@ function truncateText(text, maxLength) {
 }
 
 /**
- * Retourne l'icône correspondant au type de sport
- * Modifie cette fonction pour changer les emojis
+ * Retourne le libellé court du type de sport
  */
 function getSportIcon(sportType) {
   const icons = {
-    'Run': '👟',
-    'TrailRun': '⛰️',
-    'Hike': '🥾',
-    'Walk': '🚶',
-    'Ride': '🚴',
-    'MountainBikeRide': '🚵',
-    'GravelRide': '🚴',
-    'BackcountrySki': '⛷️',
-    'NordicSki': '🎿',
-    'Snowshoe': '❄️'
+    'Run': 'Course',
+    'TrailRun': 'Trail',
+    'Hike': 'Rando',
+    'Walk': 'Marche',
+    'Ride': 'Vélo',
+    'MountainBikeRide': 'VTT',
+    'GravelRide': 'Gravel',
+    'BackcountrySki': 'Ski rando',
+    'NordicSki': 'Ski de fond',
+    'Snowshoe': 'Raquettes'
   };
-  return icons[sportType] || '👟';
+  return icons[sportType] || 'Activité';
 }
 
 /**
@@ -3060,10 +3056,10 @@ function renderSeasonRecap(panel, seasonNumber, frozen) {
       ${renderBiggestActivityCard(recap.biggestActivity)}
 
       <!-- Total points -->
-      ${renderAchievementCard('💯', 'Total points saison', recap.topTotalPoints, '', 'pts')}
+      ${renderAchievementCard('', 'Total points saison', recap.topTotalPoints, '', 'pts')}
 
       <!-- Top D+ saison -->
-      ${renderAchievementCard('🏔️', 'Top D+ saison', recap.topElevation, 'm')}
+      ${renderAchievementCard('', 'Top D+ saison', recap.topElevation, 'm')}
 
       <!-- Efficacité D+/pts -->
       ${renderEfficiencyCard(recap.topEfficiency, recap.flopEfficiency)}
@@ -3078,10 +3074,10 @@ function renderSeasonRecap(panel, seasonNumber, frozen) {
       ${renderAchievementCard('🎯', 'Plus ciblé par jokers/bonus', recap.topTargeted, '', 'fois')}
 
       <!-- Surperformance -->
-      ${renderAchievementCard('📈', 'Plus grosse surperformance', recap.topSurperf, '', 'pl.', true)}
+      ${renderAchievementCard('', 'Plus grosse surperformance', recap.topSurperf, '', 'pl.', true)}
 
       <!-- Sous-performance -->
-      ${renderAchievementCard('📉', 'Plus grosse sous-performance', recap.topSousperf, '', 'pl.', true)}
+      ${renderAchievementCard('', 'Plus grosse sous-performance', recap.topSousperf, '', 'pl.', true)}
     </div>
   `;
 }
@@ -3090,7 +3086,7 @@ function renderSeasonRecap(panel, seasonNumber, frozen) {
 function renderIndividualFinalePodium(podium) {
   return `
     <div class="recap-card recap-card-finale">
-      <h3 class="recap-card-title">🏆 Podium finale principale</h3>
+      <h3 class="recap-card-title">Podium finale principale</h3>
       <ol class="recap-podium">
         ${podium.map((p, i) => `
           <li class="recap-podium-row ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}">
@@ -3108,13 +3104,13 @@ function renderIndividualFinalePodium(podium) {
 function renderTeamFinalePodium(finaleTeams) {
   if (!finaleTeams || finaleTeams.length === 0) {
     return `<div class="recap-card recap-card-finale">
-      <h3 class="recap-card-title">🏆 Podium finale principale</h3>
+      <h3 class="recap-card-title">Podium finale principale</h3>
       <div class="recap-empty">Aucune équipe finaliste</div>
     </div>`;
   }
   return `
     <div class="recap-card recap-card-finale">
-      <h3 class="recap-card-title">🏆 Finale principale (équipes)</h3>
+      <h3 class="recap-card-title">Finale principale (équipes)</h3>
       <div class="recap-team-finale">
         ${finaleTeams.map((t, i) => `
           <div class="recap-team-block ${i === 0 ? 'winner' : 'loser'}" style="border-left-color:${t.color?.border || '#fbbf24'};">
@@ -3142,7 +3138,7 @@ function renderTeamFinalePodium(finaleTeams) {
 function renderIndividualEliminatedRanking(ranking) {
   return `
     <div class="recap-card recap-card-eliminated">
-      <h3 class="recap-card-title">👻 Challenge éliminés</h3>
+      <h3 class="recap-card-title">Challenge éliminés</h3>
       <ol class="recap-list">
         ${ranking.map((e, i) => `
           <li class="recap-list-row">
@@ -3160,13 +3156,13 @@ function renderIndividualEliminatedRanking(ranking) {
 function renderTeamEliminatedRanking(teams) {
   if (!teams || teams.length === 0) {
     return `<div class="recap-card">
-      <h3 class="recap-card-title">👻 Challenge éliminés (équipes)</h3>
+      <h3 class="recap-card-title">Challenge éliminés (équipes)</h3>
       <div class="recap-empty">Aucune équipe éliminée</div>
     </div>`;
   }
   return `
     <div class="recap-card">
-      <h3 class="recap-card-title">👻 Challenge éliminés (équipes)</h3>
+      <h3 class="recap-card-title">Challenge éliminés (équipes)</h3>
       <ol class="recap-team-list">
         ${teams.map((t, i) => `
           <li class="recap-team-row" style="border-left-color:${t.color?.border || '#888'};">
@@ -3193,7 +3189,7 @@ function renderTeamEliminatedRanking(teams) {
 function renderAchievementCard(icon, title, leaderboard, unitBefore = '', unitAfter = '', isPosition = false) {
   if (!leaderboard || leaderboard.length === 0) {
     return `<div class="recap-card">
-      <h3 class="recap-card-title">${icon} ${title}</h3>
+      <h3 class="recap-card-title">${icon ? icon + ' ' : ''}${title}</h3>
       <div class="recap-empty">Aucune donnée</div>
     </div>`;
   }
@@ -3209,7 +3205,7 @@ function renderAchievementCard(icon, title, leaderboard, unitBefore = '', unitAf
 
   return `
     <div class="recap-card recap-achievement" tabindex="0">
-      <h3 class="recap-card-title">${icon} ${title}</h3>
+      <h3 class="recap-card-title">${icon ? icon + ' ' : ''}${title}</h3>
       <div class="recap-top1">
         <span class="recap-top1-name">${top1.name}</span>
         <span class="recap-top1-value">${formatVal(top1.value)}</span>
@@ -3238,10 +3234,10 @@ function renderAchievementCard(icon, title, leaderboard, unitBefore = '', unitAf
 function renderLeagueStatsCard(stats, seasonNumber) {
   if (!stats) return '';
   const cmp = stats.comparison;
-  const deltaIcon = cmp ? (cmp.deltaTotal > 0 ? '📈' : cmp.deltaTotal < 0 ? '📉' : '➡️') : '';
+  const deltaIcon = cmp ? (cmp.deltaTotal > 0 ? '↑' : cmp.deltaTotal < 0 ? '↓' : '=') : '';
   return `
     <div class="recap-card">
-      <h3 class="recap-card-title">🌍 D+ ligue saison</h3>
+      <h3 class="recap-card-title">D+ ligue saison</h3>
       <div class="recap-league-stats">
         <div class="recap-league-row">
           <span class="recap-league-label">Total</span>
@@ -3308,7 +3304,7 @@ function renderHottestRoundCard(byElev, byActs) {
 function renderBiggestActivityCard(act) {
   if (!act) {
     return `<div class="recap-card">
-      <h3 class="recap-card-title">⛰️ Plus grosse activité</h3>
+      <h3 class="recap-card-title">Plus grosse activité</h3>
       <div class="recap-empty">Aucune donnée</div>
     </div>`;
   }
@@ -3316,7 +3312,7 @@ function renderBiggestActivityCard(act) {
   const dateStr = isNaN(date.getTime()) ? '' : date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
   return `
     <div class="recap-card">
-      <h3 class="recap-card-title">⛰️ Plus grosse activité</h3>
+      <h3 class="recap-card-title">Plus grosse activité</h3>
       <div class="recap-biggest-act">
         <div class="recap-biggest-elev">${formatElevation(act.elevation, false)} m</div>
         <div class="recap-biggest-name">${act.name}</div>
@@ -3330,30 +3326,30 @@ function renderBiggestActivityCard(act) {
 function renderTopSportsCard(sports) {
   if (!sports || sports.length === 0) {
     return `<div class="recap-card">
-      <h3 class="recap-card-title">🏃 Sport préféré</h3>
+      <h3 class="recap-card-title">Sport préféré</h3>
       <div class="recap-empty">Aucune donnée</div>
     </div>`;
   }
   const total = sports.reduce((s, x) => s + x.value, 0);
   // Mapping des noms anglais → français + emoji
   const sportLabels = {
-    Ride: '🚴 Vélo route',
-    MountainBikeRide: '🚵 VTT',
-    GravelRide: '🚲 Gravel',
-    EBikeRide: '🚴‍♂️ E-Bike',
-    EMountainBikeRide: '🚵 E-VTT',
-    VirtualRide: '🎮 Home trainer',
-    Run: '🏃 Course',
-    TrailRun: '🏃‍♂️ Trail',
-    Hike: '🥾 Rando',
-    Walk: '🚶 Marche',
-    BackcountrySki: '⛷️ Ski rando',
-    NordicSki: '🎿 Ski nordique',
-    Snowshoe: '❄️ Raquettes'
+    Ride: 'Vélo route',
+    MountainBikeRide: 'VTT',
+    GravelRide: 'Gravel',
+    EBikeRide: 'E-Bike',
+    EMountainBikeRide: 'E-VTT',
+    VirtualRide: 'Home trainer',
+    Run: 'Course',
+    TrailRun: 'Trail',
+    Hike: 'Rando',
+    Walk: 'Marche',
+    BackcountrySki: 'Ski rando',
+    NordicSki: 'Ski nordique',
+    Snowshoe: 'Raquettes'
   };
   return `
     <div class="recap-card">
-      <h3 class="recap-card-title">🏃 Sport le plus pratiqué</h3>
+      <h3 class="recap-card-title">Sport le plus pratiqué</h3>
       <ol class="recap-sport-list">
         ${sports.slice(0, 5).map(s => {
           const pct = total > 0 ? Math.round(s.value / total * 100) : 0;
@@ -3371,13 +3367,13 @@ function renderTopSportsCard(sports) {
 function renderEfficiencyCard(top3, flop3) {
   if ((!top3 || top3.length === 0) && (!flop3 || flop3.length === 0)) {
     return `<div class="recap-card">
-      <h3 class="recap-card-title">⚖️ Efficacité D+/pts</h3>
+      <h3 class="recap-card-title">Efficacité D+/pts</h3>
       <div class="recap-empty">Aucune donnée</div>
     </div>`;
   }
   return `
     <div class="recap-card">
-      <h3 class="recap-card-title">⚖️ Efficacité D+/pts</h3>
+      <h3 class="recap-card-title">Efficacité D+/pts</h3>
       <div class="recap-efficiency">
         ${top3.length > 0 ? `
           <div class="recap-eff-group">
@@ -3393,7 +3389,7 @@ function renderEfficiencyCard(top3, flop3) {
         ` : ''}
         ${flop3.length > 0 ? `
           <div class="recap-eff-group">
-            <div class="recap-eff-title">💪 Travailleurs (gros D+ / peu de pts)</div>
+            <div class="recap-eff-title">Travailleurs (gros D+ / peu de pts)</div>
             <ol class="recap-eff-list">
               ${flop3.map((e, i) => `
                 <li><span>${i+1}. ${e.name}</span>

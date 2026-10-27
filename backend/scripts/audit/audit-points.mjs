@@ -125,7 +125,7 @@ fs.writeFileSync(process.argv[5] || 'audit-result.json', JSON.stringify(out, nul
 console.log('Joueur'.padEnd(14), 'A(indép.)', 'B(moteur)', 'snapshot', 'écart');
 for (const p of out.players) {
   const d = (p.B?.total ?? 0) - p.totalA;
-  console.log(p.name.padEnd(14), String(p.totalA).padStart(9), String(p.B?.total ?? '-').padStart(9), String(p.snapshot ?? '-').padStart(8), d ? `  ⚠️ ${d > 0 ? '+' : ''}${d}` : '');
+  console.log(p.name.padEnd(14), String(p.totalA).padStart(9), String(p.B?.total ?? '-').padStart(9), String(p.snapshot ?? '-').padStart(8), d ? `  ${d > 0 ? '+' : ''}${d}` : '');
 }
 console.log('\nÉcarts par saison (A indépendant vs B colonnes par saison du moteur) :');
 for (const p of out.players) {

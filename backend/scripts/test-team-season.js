@@ -33,7 +33,7 @@ const DATA_DIR = path.join(ROOT, 'data');
   try {
     activitiesRaw = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'leagues', `${CHALLENGE_CONFIG.leagueId}_activities.json`), 'utf8'));
   } catch {
-    console.warn('⚠️ Activities file not found, tests will be skipped');
+    console.warn('Activities file not found, tests will be skipped');
     process.exit(0);
   }
 
@@ -97,10 +97,10 @@ const DATA_DIR = path.join(ROOT, 'data');
   const fakePoints = {}; fakeAthletes.forEach(a => { fakePoints[a.id] = 0; });
   const teams = teamUtils.formBalancedTeams(fakeAthletes, fakePoints, 100, 3);
   if (teams.length === 5 && teams.every(t => t.members.length === 3)) {
-    console.log('✅ formBalancedTeams: 15 joueurs → 5 équipes de 3');
+    console.log('formBalancedTeams: 15 joueurs → 5 équipes de 3');
     results.passed++;
   } else {
-    console.log(`❌ formBalancedTeams: 15 joueurs → ${teams.length} équipes (attendu 5)`);
+    console.log(`formBalancedTeams: 15 joueurs → ${teams.length} équipes (attendu 5)`);
     results.failed++;
   }
 
@@ -109,10 +109,10 @@ const DATA_DIR = path.join(ROOT, 'data');
   const animalIds = teamsWithAnimal.map(t => t.animal?.id);
   const uniqueAnimals = new Set(animalIds);
   if (animalIds.length === 5 && uniqueAnimals.size === 5) {
-    console.log('✅ assignTeamAnimals: 5 animaux uniques attribués');
+    console.log('assignTeamAnimals: 5 animaux uniques attribués');
     results.passed++;
   } else {
-    console.log(`❌ assignTeamAnimals: ${uniqueAnimals.size}/5 uniques`);
+    console.log(`assignTeamAnimals: ${uniqueAnimals.size}/5 uniques`);
     results.failed++;
   }
 
@@ -121,10 +121,10 @@ const DATA_DIR = path.join(ROOT, 'data');
   const teams2 = teamUtils.assignTeamAnimals(teams, used, 200);
   const collision = teams2.some(t => used.has(t.animal?.id));
   if (!collision) {
-    console.log('✅ assignTeamAnimals: respecte usedAnimalIds');
+    console.log('assignTeamAnimals: respecte usedAnimalIds');
     results.passed++;
   } else {
-    console.log('❌ assignTeamAnimals: collision avec usedAnimalIds');
+    console.log('assignTeamAnimals: collision avec usedAnimalIds');
     results.failed++;
   }
 
@@ -140,12 +140,12 @@ const DATA_DIR = path.join(ROOT, 'data');
   for (const [tr, p, expected] of cases) {
     const got = getTeamEliminatedPoints(tr, p);
     if (got !== expected) {
-      console.log(`❌ getTeamEliminatedPoints(${tr},${p}): got ${got} expected ${expected}`);
+      console.log(`getTeamEliminatedPoints(${tr},${p}): got ${got} expected ${expected}`);
       scaleOK = false;
     }
   }
   if (scaleOK) {
-    console.log(`✅ Barème TEAM_ELIMINATED_POINTS: ${cases.length} cases vérifiées`);
+    console.log(`Barème TEAM_ELIMINATED_POINTS: ${cases.length} cases vérifiées`);
     results.passed++;
   } else {
     results.failed++;
@@ -156,12 +156,12 @@ const DATA_DIR = path.join(ROOT, 'data');
   let itsOK = true;
   for (const [s, expected] of itsCases) {
     if (isTeamSeason(s) !== expected) {
-      console.log(`❌ isTeamSeason(${s}): got ${isTeamSeason(s)} expected ${expected}`);
+      console.log(`isTeamSeason(${s}): got ${isTeamSeason(s)} expected ${expected}`);
       itsOK = false;
     }
   }
   if (itsOK) {
-    console.log('✅ isTeamSeason: 6 cas vérifiés (1-3 et 5+ = standard, 4 = team)');
+    console.log('isTeamSeason: 6 cas vérifiés (1-3 et 5+ = standard, 4 = team)');
     results.passed++;
   } else {
     results.failed++;
@@ -210,7 +210,7 @@ const DATA_DIR = path.join(ROOT, 'data');
     points: realPointsMap[String(a.id)] || 0
   })).sort((a, b) => b.points - a.points);
 
-  console.log(`📊 Classement annuel actuel (${realAthletes.length} joueurs) — source: ${pointsSource}`);
+  console.log(`Classement annuel actuel (${realAthletes.length} joueurs) — source: ${pointsSource}`);
   realAthletes.forEach((a, i) => {
     console.log(`   ${(i + 1).toString().padStart(2)}. ${a.name.padEnd(14)} ${a.points.toString().padStart(3)} pts`);
   });
@@ -237,7 +237,7 @@ const DATA_DIR = path.join(ROOT, 'data');
     console.log(`━━━ R${r} (round global ${globalRound}) — ${activeForSimulation.length} joueurs actifs, ${teamsWithAnimal.length} équipes (écart-type: ${stdDev.toFixed(1)}) ━━━`);
     teamsWithAnimal.forEach((t, idx) => {
       const isLast = idx === teamsWithAnimal.length - 1;
-      const tag = r === 4 ? '🏆 FINALE' : (isLast ? '⚠️  ÉLIMINÉE' : '');
+      const tag = r === 4 ? 'FINALE' : (isLast ? 'ÉLIMINÉE' : '');
       console.log(`   ${t.animal.emoji}  Équipe ${t.animal.name.padEnd(10)} (${t.color.name.padEnd(6)}) — ${t.totalPoints} pts ${tag}`);
       t.members.forEach(m => {
         console.log(`        └ ${m.name.padEnd(14)} (${m.points} pts annuels)`);
@@ -266,7 +266,7 @@ const DATA_DIR = path.join(ROOT, 'data');
     console.log(`   ${idx + 1}. ${t.animal.emoji}  ${t.animal.name.padEnd(10)} (${t.color.name.padEnd(6)}) — ${t.members.map(m => m.name).join(', ')}`);
   });
   console.log();
-  console.log(`📋 Animaux utilisés sur la saison : ${usedAnimals.size}/15 (sur 18 disponibles)`);
+  console.log(`Animaux utilisés sur la saison : ${usedAnimals.size}/15 (sur 18 disponibles)`);
   console.log();
 
   // Récap
@@ -276,11 +276,11 @@ const DATA_DIR = path.join(ROOT, 'data');
   console.log(`Skipped: ${results.skipped}`);
 
   if (results.failed > 0) {
-    console.log('\n❌ DES TESTS ONT ÉCHOUÉ');
+    console.log('\nDES TESTS ONT ÉCHOUÉ');
     process.exit(1);
   }
-  console.log('\n✅ TOUS LES TESTS PASSENT');
+  console.log('\nTOUS LES TESTS PASSENT');
 })().catch(e => {
-  console.error('💥 Erreur fatale:', e);
+  console.error('Erreur fatale:', e);
   process.exit(2);
 });

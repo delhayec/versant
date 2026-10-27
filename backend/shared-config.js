@@ -122,7 +122,7 @@ const getEliminatedPoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? 0;
 // En D+ réel, le neutre et la réussite critique ne bougent pas ; l'échec
 // critique passe de 0,55 à 0,5625 et la réussite de 1,30 à 1,3125 de
 // l'ancien objectif. Aucun round figé n'avait encore de jauge.
-// ⚠️ Garder synchronisé avec public/js/config.js (ELEVATION_GAUGE).
+// Garder synchronisé avec public/js/config.js (ELEVATION_GAUGE).
 // Le round de départ est un paramètre d'édition : CHALLENGE_CONFIG.elevationGaugeStartRound.
 const ELEVATION_GAUGE = {
   // Objectif de D+ MOYEN par joueur, selon le nombre de joueurs en lice
@@ -201,7 +201,7 @@ try {
   fillRoundDurations(ROUND_DURATIONS, JSON.parse(require('fs').readFileSync(
     require('path').join(require('./data-dir').DEFAULT_EDITION_DIR, 'round_configs.json'), 'utf8')));
 } catch (e) {
-  if (e.code !== 'ENOENT') console.warn('⚠️ round_configs.json illisible (durées de round):', e.message);
+  if (e.code !== 'ENOENT') console.warn('round_configs.json illisible (durées de round):', e.message);
 }
 
 function getRoundDuration(roundNumber, config = editionConfig()) {
@@ -369,7 +369,7 @@ const LEGACY_PLANNING = {
 try {
   applyPlanningOverrides(LEGACY_PLANNING, JSON.parse(require('fs').readFileSync(SEASON_PLANNING_FILE, 'utf8')));
 } catch (e) {
-  if (e.code !== 'ENOENT') console.warn('⚠️ season_planning.json illisible:', e.message);
+  if (e.code !== 'ENOENT') console.warn('season_planning.json illisible:', e.message);
 }
 
 /**
@@ -384,7 +384,7 @@ function loadEditionPlanning(dataDir) {
     try {
       return JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8'));
     } catch (e) {
-      if (e.code !== 'ENOENT') console.warn(`⚠️ ${name} illisible (${dataDir}):`, e.message);
+      if (e.code !== 'ENOENT') console.warn(`${name} illisible (${dataDir}):`, e.message);
       return null;
     }
   };

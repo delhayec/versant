@@ -197,7 +197,7 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
       }
 
       await store.addParticipant(edition.key, req.athleteId, new Date().toISOString());
-      console.log(`🤝 ${req.athleteId} rejoint la ligue ${league.id} (édition ${edition.editionId})`);
+      console.log(`${req.athleteId} rejoint la ligue ${league.id} (édition ${edition.editionId})`);
       if (onJoin) onJoin(edition.key, req.athleteId);
 
       res.json({ success: true, league: { id: league.id, name: league.name }, edition });
@@ -284,7 +284,7 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
       if (!league) return res.status(404).json({ error: 'Ligue introuvable' });
       league.inviteCode = newInviteCode();
       await store.saveLeague(league);
-      console.log(`🔑 Nouveau code d'invitation pour la ligue ${league.id}`);
+      console.log(`Nouveau code d'invitation pour la ligue ${league.id}`);
       res.json({ success: true, inviteCode: league.inviteCode });
     } catch (error) {
       console.error('Erreur code d\'invitation:', error);

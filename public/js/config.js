@@ -160,7 +160,7 @@ export function loadSeasonPlanning() {
         return SEASON_PLANNING;
       })
       .catch((e) => {
-        console.warn("⚠️ Planning des saisons indisponible, valeurs par défaut:", e);
+        console.warn("Planning des saisons indisponible, valeurs par défaut:", e);
         return SEASON_PLANNING;
       });
   }
@@ -260,7 +260,7 @@ export const getEliminatedChallengePoints = (pos) =>
 // ============================================
 // À chaque round, le D+ RÉEL cumulé des joueurs du challenge principal remplit
 // une jauge dont l'objectif dépend du nombre de joueurs en lice.
-// ⚠️ Garder synchronisé avec backend/shared-config.js (ELEVATION_GAUGE) :
+// Garder synchronisé avec backend/shared-config.js (ELEVATION_GAUGE) :
 // le backend fige le résultat (frozen_results.rounds[n].elevationGauge).
 // Le round de départ est un paramètre d'édition : CHALLENGE_CONFIG.elevationGaugeStartRound.
 // L44 : objectif (100 %) = seuil du neutre, paliers ronds (cf. shared-config).
@@ -412,7 +412,7 @@ export const BONUS_TYPES = {
     effect:
       "Choisis un joueur actif. Une de ses activités (+20min) est tirée au sort : son D+ lui est retiré et t'est transféré dans le challenge des éliminés.",
     timing:
-      "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
+      "Activation : 3 premiers jours du round · Effet : fin du round",
     category: "offensif",
     requiresTarget: true,
     targetType: "active",
@@ -432,7 +432,7 @@ export const BONUS_TYPES = {
     effect:
       "Choisis un joueur actif. Une de tes activités (+20min) est tirée au sort : son D+ lui est ajouté en bonus. Tu conserves aussi ce D+ dans ton total.",
     timing:
-      "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
+      "Activation : 3 premiers jours du round · Effet : fin du round",
     category: "soutien",
     requiresTarget: true,
     targetType: "active",
@@ -452,7 +452,7 @@ export const BONUS_TYPES = {
     effect:
       "Tu défies automatiquement l'autre joueur éliminé en même temps que toi. À la fin de la saison, celui avec le plus de D+ (depuis l'élimination) gagne +1 point au classement général. Égalité = aucun point.",
     timing:
-      "⏰ Activation : automatique dès le choix · ⚡ Effet : fin de saison",
+      "Activation : automatique dès le choix · Effet : fin de saison",
     category: "competitif",
     requiresTarget: false,
     targetType: "co_eliminated",
@@ -469,7 +469,7 @@ export const BONUS_TYPES = {
     effect:
       "Tu te caches ! Ton D+ est masqué : tu apparais dernier du classement des éliminés pour tous. Seul toi vois ton vrai D+ dans ton dashboard. Révélation à la fin de la saison.",
     timing:
-      "⏰ Activation : dans les 48h après élimination · ⚡ Effet : fin de saison",
+      "Activation : dans les 48h après élimination · Effet : fin de saison",
     category: "defensif",
     requiresTarget: false,
     targetType: "self",
@@ -486,7 +486,7 @@ export const BONUS_TYPES = {
     effect:
       "Le 1er jour d'un round, marque un joueur actif. S'il termine dans les 2 dernières places (éliminé) à la fin du round, tu gagnes +1 point au classement général. Sinon, le bonus est perdu.",
     timing:
-      "⏰ Activation : jour 1 du round uniquement · ⚡ Effet : fin du round",
+      "Activation : jour 1 du round uniquement · Effet : fin du round",
     category: "pari",
     requiresTarget: true,
     targetType: "active",
@@ -503,7 +503,7 @@ export const BONUS_TYPES = {
     effect:
       "Piège passif qui reste actif. Quand un joueur est éliminé en dernière position, tu récupères le D+ de sa dernière activité du round (copie, pas vol). Le piège se désactive après déclenchement.",
     timing:
-      "⏰ Activation : automatique dès réception · ⚡ Effet : au prochain éliminé dernier",
+      "Activation : automatique dès réception · Effet : au prochain éliminé dernier",
     category: "piege",
     requiresTarget: false,
     targetType: "passive",
@@ -520,7 +520,7 @@ export const BONUS_TYPES = {
     effect:
       "Récompense la régularité ! À la fin de la saison, ton activité avec le D+ le plus faible (depuis ton élimination) compte double dans ton total.",
     timing:
-      "⏰ Activation : automatique dès réception · ⚡ Effet : fin de saison",
+      "Activation : automatique dès réception · Effet : fin de saison",
     category: "boost",
     requiresTarget: false,
     targetType: "self",
@@ -537,7 +537,7 @@ export const BONUS_TYPES = {
     effect:
       "Tu perds 25% de ton D+ du round, mais ta cible (joueur actif de ton choix) perd aussi 25% de son D+ du round. Sacrifice mutuel !",
     timing:
-      "⏰ Activation : 3 premiers jours du round · ⚡ Effet : fin du round",
+      "Activation : 3 premiers jours du round · Effet : fin du round",
     category: "offensif",
     requiresTarget: true,
     targetType: "active",
@@ -557,7 +557,7 @@ export const BONUS_TYPES = {
     effect:
       "Tu maudis un joueur parmi les 3 juste au-dessus de toi lors de ton élimination. À chaque fin de round, 10% de son D+ lui est volé et ajouté à ton total. L'effet cesse quand il est éliminé.",
     timing:
-      "⏰ Activation : automatique dès le choix · ⚡ Effet : chaque fin de round",
+      "Activation : automatique dès le choix · Effet : chaque fin de round",
     category: "offensif",
     requiresTarget: true,
     targetType: "eliminator", // les 3 joueurs au-dessus lors de l'élimination
@@ -642,7 +642,7 @@ export const ROUND_RULES = {
   standard: {
     id: "standard",
     name: "Standard",
-    icon: "📊",
+    icon: "",
     description: "Classique",
     fullDescription: "Round classique : D+ cumulé.",
     isSpecial: false,
@@ -651,10 +651,10 @@ export const ROUND_RULES = {
   handicap: {
     id: "handicap",
     name: "Handicap",
-    icon: "⚖️",
+    icon: "",
     description: "Top 10 malus, 5 derniers bonus, 4 éliminés",
     fullDescription:
-      "Top 10 du classement général avec malus dégressif (1ᵉʳ : -50%, 2ᵉ : -40%, …, 10ᵉ : -5%). Les 5 derniers bénéficient de +10%. ⚠️ 4 éliminés au lieu de 2 !",
+      "Top 10 du classement général avec malus dégressif (1ᵉʳ : -50%, 2ᵉ : -40%, …, 10ᵉ : -5%). Les 5 derniers bénéficient de +10%. 4 éliminés au lieu de 2 !",
     isSpecial: true,
     notInFirstSeason: true,
     parameters: {
@@ -678,7 +678,7 @@ export const ROUND_RULES = {
   pluie_qui_mouille: {
     id: "pluie_qui_mouille",
     name: "La pluie qui mouille",
-    icon: "🌧️",
+    icon: "",
     description: "D+ ×1,5 sur les activités sous la pluie",
     fullDescription:
       "Toute activité pendant laquelle il a plu au moins 15 minutes voit son D+ multiplié par 1,5. La neige ne compte pas. Les activités sans GPS (indoor, home trainer, saisie manuelle) ne peuvent pas être créditées.",
@@ -692,7 +692,7 @@ export const ROUND_RULES = {
   combinado: {
     id: "combinado",
     name: "Combiné",
-    icon: "🔄",
+    icon: "",
     description: "D+ doublé si 2 sports différents/jour",
     fullDescription: "Métrique ×2 les jours avec 2 sports différents.",
     isSpecial: true,
@@ -701,7 +701,7 @@ export const ROUND_RULES = {
   pentes_raides: {
     id: "pentes_raides",
     name: "Pentes Raides",
-    icon: "📐",
+    icon: "",
     description: "Seul le D+ sur pentes >15% compte",
     fullDescription: "Seul le dénivelé sur segments avec pente >15%.",
     isSpecial: true,
@@ -711,7 +711,7 @@ export const ROUND_RULES = {
   hors_bitume: {
     id: "hors_bitume",
     name: "Hors Bitume",
-    icon: "🌲",
+    icon: "",
     description: "Seul le D+ hors route compte",
     fullDescription: "Seul le dénivelé hors routes goudronnées.",
     isSpecial: true,
@@ -720,7 +720,7 @@ export const ROUND_RULES = {
   double_weekend: {
     id: "double_weekend",
     name: "Double Weekend",
-    icon: "📅",
+    icon: "",
     description: "D+ doublé samedi et dimanche",
     fullDescription: "Le D+ des samedis et dimanches est doublé.",
     isSpecial: true,
@@ -761,7 +761,7 @@ export const SPORT_SETTINGS = {
     Hike: "#10b981",
     Ski: "#22d3ee",
   },
-  sportIcons: { Run: "🏃", Bike: "🚴", Hike: "🥾", Ski: "⛷️" },
+  sportIcons: { Run: "", Bike: "", Hike: "", Ski: "" },
 };
 
 export const isValidSport = (type) => type in SPORT_SETTINGS.validSports;
@@ -769,7 +769,7 @@ export const getSportCategory = (type) =>
   SPORT_SETTINGS.validSports[type] || null;
 export const getSportIcon = (type) => {
   const category = getSportCategory(type);
-  return SPORT_SETTINGS.sportIcons[category] || "🏋️";
+  return SPORT_SETTINGS.sportIcons[category] || "";
 };
 
 // ============================================
@@ -878,7 +878,7 @@ export async function loadParticipants() {
       invalidateRosterCache();
     } else {
       console.warn(
-        "⚠️ Aucun participant dans athletes.json, tentative d'extraction depuis les activités...",
+        "Aucun participant dans athletes.json, tentative d'extraction depuis les activités...",
       );
       await loadParticipantsFromActivities();
     }
@@ -886,7 +886,7 @@ export async function loadParticipants() {
     await planningLoaded;
     return PARTICIPANTS;
   } catch (error) {
-    console.error("❌ Erreur chargement participants:", error);
+    console.error("Erreur chargement participants:", error);
     // Tenter de charger depuis les activités en cas d'erreur
     await loadParticipantsFromActivities();
     await planningLoaded;
@@ -934,7 +934,7 @@ async function loadParticipantsFromActivities() {
       invalidateRosterCache();
     }
   } catch (error) {
-    console.error("❌ Erreur extraction participants depuis activités:", error);
+    console.error("Erreur extraction participants depuis activités:", error);
   }
 }
 
@@ -1351,7 +1351,7 @@ export async function loadSpecialRulesOverrides() {
       }
     }
   } catch (e) {
-    console.warn("⚠️ Impossible de charger les règles spéciales:", e);
+    console.warn("Impossible de charger les règles spéciales:", e);
   }
 }
 

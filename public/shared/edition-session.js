@@ -217,7 +217,7 @@
           return chooseEdition(await res.json());
         })
         .catch(error => {
-          console.error('❌ Session :', error);
+          console.error('Session :', error);
           if (optional) return null;
           block('Serveur injoignable. Réessaie dans un instant.');
           return never;

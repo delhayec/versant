@@ -43,7 +43,7 @@ async function loadRoundConfigs() {
       roundConfigsCache = await res.json();
     }
   } catch (e) {
-    console.warn('⚠️ Impossible de charger round-configs:', e.message);
+    console.warn('Impossible de charger round-configs:', e.message);
     roundConfigsCache = {};
   }
 }
@@ -66,9 +66,9 @@ function getRoundTypeLabel(roundNumber) {
   const config = getRoundConfig(roundNumber);
   if (!config?.type || config.type === 'standard') return null;
   const labels = {
-    finale: '🏆 Finale',
+    finale: 'Finale',
     bonus_round: '🎁 Round bonus',
-    no_eliminations: '🛑 Sans élimination'
+    no_eliminations: 'Sans élimination'
   };
   return labels[config.type] || null;
 }
@@ -77,9 +77,9 @@ function getRoundSpecialRuleLabel(roundNumber) {
   const config = getRoundConfig(roundNumber);
   if (!config?.specialRule || config.specialRule === 'standard') return null;
   const labels = {
-    handicap: '⚖️ Handicap',
-    no_bonus: '🚫 Sans bonus (D+ pur)',
-    pluie_qui_mouille: '🌧️ La pluie qui mouille'
+    handicap: 'Handicap',
+    no_bonus: 'Sans bonus (D+ pur)',
+    pluie_qui_mouille: 'La pluie qui mouille'
   };
   return labels[config.specialRule] || config.specialRule;
 }
@@ -131,7 +131,7 @@ async function authFetch(url, options = {}) {
  * Gère l'expiration de session : nettoie et redirige
  */
 function handleSessionExpired() {
-  console.warn('⚠️ Session expirée, redirection vers login...');
+  console.warn('Session expirée, redirection vers login...');
   localStorage.removeItem('versant_athlete_id');
   localStorage.removeItem('versant_token');
 
@@ -186,7 +186,7 @@ async function loadJokersFromServer() {
   try {
     const res = await fetchWithTimeout(`${API_BASE}/jokers/all`);
     if (!res.ok) {
-      console.warn('⚠️ Impossible de charger les jokers');
+      console.warn('Impossible de charger les jokers');
       return [];
     }
     const data = await res.json();
@@ -195,7 +195,7 @@ async function loadJokersFromServer() {
       (data && Array.isArray(data.usage)) ? data.usage : [];
     return jokerUsageCache;
   } catch (error) {
-    console.error('❌ Erreur chargement jokers:', error);
+    console.error('Erreur chargement jokers:', error);
     return [];
   }
 }
@@ -211,7 +211,7 @@ async function loadBonusFromServer() {
     });
 
     if (!res.ok) {
-      console.warn('⚠️ Impossible de charger le bonus');
+      console.warn('Impossible de charger le bonus');
       return null;
     }
 
@@ -221,7 +221,7 @@ async function loadBonusFromServer() {
   } catch (error) {
     // Si c'est une erreur de session, authFetch a déjà géré la redirection
     if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
-      console.error('❌ Erreur chargement bonus:', error);
+      console.error('Erreur chargement bonus:', error);
     }
     return null;
   }
@@ -247,7 +247,7 @@ async function loadBonusChoices() {
   } catch (error) {
     // Si c'est une erreur de session, authFetch a déjà géré la redirection
     if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
-      console.error('❌ Erreur chargement choix bonus:', error);
+      console.error('Erreur chargement choix bonus:', error);
     }
     return null;
   }
@@ -391,11 +391,11 @@ async function renderStats() {
   if (challengeStatusEl) {
     if (isEliminated) {
       challengeStatusEl.innerHTML = `
-        <span style="color: #a855f7;">👻 Éliminés</span>
+        <span style="color: #a855f7;">Éliminés</span>
         <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">(R${eliminationInfo.round})</span>
       `;
     } else {
-      challengeStatusEl.innerHTML = `<span style="color: #10b981;">🏆 Principal</span>`;
+      challengeStatusEl.innerHTML = `<span style="color: #10b981;">Principal</span>`;
     }
   }
 
@@ -482,7 +482,7 @@ function renderCurrentRound() {
 
   const ruleEl = document.getElementById('nextRoundRule');
   if (ruleEl) {
-    ruleEl.textContent = '📊 Standard';
+    ruleEl.textContent = 'Standard';
   }
 }
 
@@ -676,7 +676,6 @@ function renderJokers() {
   if (isPlayerEliminated) {
     grid.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: rgba(255,255,255,0.5);">
-        <div style="font-size: 2rem; margin-bottom: 12px;">👻</div>
         <div style="font-size: 0.9rem;">Les joueurs éliminés ne peuvent pas utiliser de jokers.</div>
         <div style="font-size: 0.8rem; margin-top: 8px; color: rgba(255,255,255,0.3);">Concentre-toi sur le challenge des éliminés et tes bonus éphémères !</div>
       </div>
@@ -710,15 +709,15 @@ const isDisabledByTeam = isTeamMode && id === 'bouclier';
     if (isDisabledByNoBonus) {
       statusClass = 'disabled-nobonus';
       statusText = 'Round au D+ pur';
-      statusIcon = '🚫';
+      statusIcon = '';
     } else if (isDisabledByTeam) {
       statusClass = 'disabled-team';
       statusText = 'Désactivé en saison Équipes';
-      statusIcon = '🤝';
+      statusIcon = '';
     } else if (isPending) {
       statusClass = 'pending';
       statusText = 'Programmé';
-      statusIcon = '⏳';
+      statusIcon = '';
     } else if (isAvailable) {
       statusClass = 'available';
       statusText = `disponible${count > 1 ? 's' : ''}`;
@@ -776,7 +775,7 @@ function renderBonus() {
         <div class="bonus-icon">🎁</div>
         <div class="bonus-name">Choisis ton bonus !</div>
         <div class="bonus-desc">Tu es le meilleur des 2 éliminés - Clique pour choisir ton bonus parmi 2 options</div>
-        <div class="bonus-status">⏳ En attente de choix</div>
+        <div class="bonus-status">En attente de choix</div>
       </div>
     `;
     return;
@@ -801,7 +800,7 @@ function renderBonus() {
         <div class="bonus-desc">${bonusType.effect}</div>
         ${bonusType.timing ? `<div class="bonus-timing">${bonusType.timing}</div>` : ''}
         <div class="bonus-status ${isUsed ? 'used' : ''}">
-          ${isUsed ? '✓ Utilisé' : (canUse ? '🎯 Cliquez pour utiliser' : (isAutomatic ? '✨ Actif automatiquement' : '⏳ Pas encore activable'))}
+          ${isUsed ? '✓ Utilisé' : (canUse ? '🎯 Cliquez pour utiliser' : (isAutomatic ? 'Actif automatiquement' : 'Pas encore activable'))}
         </div>
         ${bonusData.target_athlete_name ? `
           <div class="bonus-target">
@@ -810,16 +809,16 @@ function renderBonus() {
         ` : ''}
         ${!canUse && !isUsed && !isAutomatic ? `
           <div class="bonus-timing-info">
-            ℹ️ ${getBonusTimingInfo(bonusData.bonus_id)}
+            ${getBonusTimingInfo(bonusData.bonus_id)}
           </div>
         ` : ''}
       </div>
       ${!isUsed ? `
         <div class="bonus-help-text">
-          <p>💡 <strong>Ton bonus est disponible jusqu'à la fin de la saison.</strong> Après, il disparaîtra.</p>
+          <p><strong>Ton bonus est disponible jusqu'à la fin de la saison.</strong> Après, il disparaîtra.</p>
           <p>${isAutomatic
-            ? '✨ Ce bonus s\'active automatiquement, tu n\'as rien à faire !'
-            : '🎮 Tu peux l\'utiliser maintenant ou le garder pour le moment idéal.'}</p>
+            ? 'Ce bonus s\'active automatiquement, tu n\'as rien à faire !'
+            : 'Tu peux l\'utiliser maintenant ou le garder pour le moment idéal.'}</p>
         </div>
       ` : ''}
     `;
@@ -891,12 +890,12 @@ function showBonusChoiceModal() {
     // Catégorie avec icône
     const categoryMap = {
       'offensif': '⚔️ Offensif',
-      'soutien': '🤝 Soutien',
-      'competitif': '🏆 Compétitif',
+      'soutien': 'Soutien',
+      'competitif': 'Compétitif',
       'defensif': '🛡️ Défensif',
-      'pari': '🎲 Pari',
+      'pari': 'Pari',
       'piege': '🪤 Piège',
-      'boost': '⚡ Boost'
+      'boost': 'Boost'
     };
     const categoryLabel = categoryMap[bonus.category] || '';
 
@@ -1057,7 +1056,7 @@ function showBonusConfirmModal(bonusId, bonusType) {
         <div class="modal-section">
           <div style="padding: 20px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 12px;">
             <p style="color: rgba(255,255,255,0.9); font-size: 1rem; margin: 0; line-height: 1.6;">
-              <strong style="color: #a855f7;">💡 Effet :</strong><br>
+              <strong style="color: #a855f7;">Effet :</strong><br>
               ${bonusType.effect}
             </p>
           </div>
@@ -1139,7 +1138,7 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
 if (canActivateNow) {
     timingOptionsHtml = `
       <div class="timing-card selected" data-timing="now" data-round="${currentRound}">
-        <div class="timing-card-label">⚡ Round actuel</div>
+        <div class="timing-card-label">Round actuel</div>
         <div class="timing-card-value">${roundInSeason} / ${roundsPerSeason}</div>
         ${(() => {
           const typeLabel = getRoundTypeLabel(currentRound);
@@ -1152,7 +1151,7 @@ if (canActivateNow) {
         })()}
       </div>
       <div class="timing-card" data-timing="next" data-round="${currentRound + 1}">
-        <div class="timing-card-label">⏳ Prochain round</div>
+        <div class="timing-card-label">Prochain round</div>
         <div class="timing-card-value">Round ${currentRound + 1}</div>
         <div class="timing-card-hint">Programmé</div>
       </div>
@@ -1161,11 +1160,11 @@ if (canActivateNow) {
     // Après jour 3, uniquement round suivant
     timingOptionsHtml = `
       <div class="timing-card selected" data-timing="next" data-round="${currentRound + 1}">
-        <div class="timing-card-label">⏳ Prochain round</div>
+        <div class="timing-card-label">Prochain round</div>
         <div class="timing-card-value">Round ${currentRound + 1}</div>
       </div>
       <div class="timing-card disabled" title="Activation immédiate possible uniquement les 3 premiers jours">
-        <div class="timing-card-label">⚡ Round actuel</div>
+        <div class="timing-card-label">Round actuel</div>
         <div class="timing-card-value">Non disponible</div>
         <div class="timing-card-hint">Jours 1-3 uniquement</div>
       </div>
@@ -1184,7 +1183,7 @@ if (canActivateNow) {
       </div>
       <div class="modal-body">
         <div class="modal-section">
-          <div class="modal-section-title">⏰ Quand activer ?</div>
+          <div class="modal-section-title">Quand activer ?</div>
           <div class="timing-options-grid">
             ${timingOptionsHtml}
           </div>
@@ -1193,7 +1192,7 @@ if (canActivateNow) {
         <div class="modal-section">
           <div style="padding: 16px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); border-radius: 12px;">
             <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;">
-              <strong style="color: #22d3ee;">💡 Effet :</strong> ${joker.effect || joker.description}
+              <strong style="color: #22d3ee;">Effet :</strong> ${joker.effect || joker.description}
             </p>
           </div>
         </div>
@@ -1396,7 +1395,7 @@ async function init() {
     await renderLeague();
 
   } catch (error) {
-    console.error('❌ Erreur initialisation dashboard:', error);
+    console.error('Erreur initialisation dashboard:', error);
   }
 }
 
@@ -1431,12 +1430,12 @@ async function renderLeague() {
         + `${me.edition.startDate ? `, du ${formatDay(me.edition.startDate)} au ${formatDay(me.edition.endDate)}` : ''}</p>`;
     }
     if (me.nextEdition) {
-      html += `<p style="margin-top: 12px;">✅ Tu participes à l'édition ${escapeHtml(me.nextEdition.editionId)}, qui commence le ${formatDay(me.nextEdition.startDate)}.</p>`;
+      html += `<p style="margin-top: 12px;">Tu participes à l'édition ${escapeHtml(me.nextEdition.editionId)}, qui commence le ${formatDay(me.nextEdition.startDate)}.</p>`;
     }
     for (const edition of me.editionsToConfirm || []) {
       const started = edition.startDate && edition.startDate <= today;
       html += `<div style="margin-top: 16px; padding: 16px; border-radius: 12px; background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3);">
-        <p style="margin-bottom: 12px;">📅 <strong>Nouvelle édition ${escapeHtml(edition.editionId)}</strong>, à partir du ${formatDay(edition.startDate)}.
+        <p style="margin-bottom: 12px;"><strong>Nouvelle édition ${escapeHtml(edition.editionId)}</strong>, à partir du ${formatDay(edition.startDate)}.
         ${started ? "Elle a déjà commencé : tu entreras en jeu à la saison suivante." : 'Confirme ta participation pour être de la partie dès le départ.'}</p>
         <button type="button" data-confirm-edition="${escapeHtml(edition.editionId)}" style="padding: 10px 20px; border: 0; border-radius: 8px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; font-weight: 600; cursor: pointer;">Je participe</button>
         <span role="alert" style="margin-left: 12px; color: #f87171;"></span>
@@ -1463,7 +1462,7 @@ async function renderLeague() {
       });
     }
   } catch (error) {
-    console.warn('⚠️ Ma ligue indisponible :', error.message);
+    console.warn('Ma ligue indisponible :', error.message);
   }
 }
 

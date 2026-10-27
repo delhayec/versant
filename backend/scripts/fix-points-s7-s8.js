@@ -51,7 +51,7 @@ if (String(r47?.rescapeInfo?.athleteId) === MARIANA && String(r48?.rescapeInfo?.
     r48.rescapeInfo.points = 2;
   }
 } else {
-  console.warn('⚠️ R47/R48 : rescapé attendu (Mariana S) non trouvé, correction ignorée');
+  console.warn('R47/R48 : rescapé attendu (Mariana S) non trouvé, correction ignorée');
 }
 
 if (changes.length === 0) {
@@ -67,4 +67,4 @@ const backup = `${FILE}.bak-${Date.now()}`;
 fs.copyFileSync(FILE, backup);
 data.lastUpdated = new Date().toISOString();
 fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-console.log(`✅ Corrigé (sauvegarde : ${path.basename(backup)})`);
+console.log(`Corrigé (sauvegarde : ${path.basename(backup)})`);

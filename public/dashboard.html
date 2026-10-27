@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
-  <script src="shared/edition-session.js?v=20261027a"></script>
+  <script src="shared/edition-session.js?v=20261027b"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard - Challenge Versant 2026</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260918b">
+  <link rel="stylesheet" href="css/style.css?v=20261027a">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
 
   <style>
@@ -957,13 +957,13 @@
         gap: 8px;
       " onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.borderColor='rgba(239,68,68,0.4)'; this.style.color='#ef4444';"
          onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.color='rgba(255,255,255,0.7)';">
-        🚪 Se déconnecter
+        Se déconnecter
       </button>
     </div>
 
     <!-- Ma ligue (L51) : ligue, édition en cours, confirmation de l'édition suivante -->
     <div class="dashboard-card" id="leagueSection" style="margin-bottom: 40px; display: none;">
-      <h2 class="card-title">🏔️ Ma ligue</h2>
+      <h2 class="card-title">Ma ligue</h2>
       <div id="leagueContent"></div>
     </div>
 
@@ -971,7 +971,7 @@
     <div class="dashboard-grid">
       <!-- Statistiques personnelles -->
       <div class="dashboard-card">
-        <h2 class="card-title">📊 Mes Statistiques</h2>
+        <h2 class="card-title">Mes Statistiques</h2>
         <div id="statsContent">
           <!-- Statut du challenge -->
           <div class="stat-row" style="border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 16px; margin-bottom: 8px;">
@@ -1073,7 +1073,7 @@
 
     <!-- Mes dernières activités -->
     <div class="dashboard-card">
-      <h2 class="card-title">🏃 Mes Dernières Activités</h2>
+      <h2 class="card-title">Mes Dernières Activités</h2>
       <div class="activities-list" id="activitiesList">
         <!-- Rempli par JavaScript -->
       </div>
@@ -1088,6 +1088,6 @@
   </footer>
 
   <script src="shared/team-formation.js?v=20260505c"></script>
-  <script type="module" src="js/dashboard.js?v=20261026d"></script>
+  <script type="module" src="js/dashboard.js?v=20261027a"></script>
 </body>
 </html>

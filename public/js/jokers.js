@@ -44,7 +44,7 @@ export async function loadJokersFromServer() {
   try {
     const response = await fetchWithTimeout(`${API_BASE}/jokers/all`);
     if (!response.ok) {
-      console.warn('⚠️ Impossible de charger les jokers depuis le serveur');
+      console.warn('Impossible de charger les jokers depuis le serveur');
       return jokerUsageCache;
     }
 
@@ -56,7 +56,7 @@ export async function loadJokersFromServer() {
 
     return jokerUsageCache;
   } catch (error) {
-    console.error('❌ Erreur chargement jokers:', error);
+    console.error('Erreur chargement jokers:', error);
     return jokerUsageCache;
   }
 }
@@ -255,7 +255,7 @@ export async function useJoker(participantId, jokerId, currentRoundNumber, curre
     };
 
   } catch (error) {
-    console.error('❌ Erreur utilisation joker:', error);
+    console.error('Erreur utilisation joker:', error);
     return { success: false, error: error.message };
   }
 }
@@ -484,17 +484,17 @@ modifiedRanking.forEach(entry => {
  */
 
 export function addJoker(participantId, jokerId) {
-  console.warn('⚠️ addJoker: Utilisez l\'API admin pour modifier les jokers de façon permanente');
+  console.warn('addJoker: Utilisez l\'API admin pour modifier les jokers de façon permanente');
   return false;
 }
 
 export function removeJoker(participantId, jokerId) {
-  console.warn('⚠️ removeJoker: Utilisez l\'API admin pour modifier les jokers de façon permanente');
+  console.warn('removeJoker: Utilisez l\'API admin pour modifier les jokers de façon permanente');
   return false;
 }
 
 function resetJokers(participantId) {
-  console.warn('⚠️ resetJokers: Utilisez l\'API admin /api/admin/jokers/reset-all');
+  console.warn('resetJokers: Utilisez l\'API admin /api/admin/jokers/reset-all');
   return false;
 }
 
@@ -565,14 +565,14 @@ async function loadBonusesFromServer() {
     const response = await fetchWithTimeout(`${API_BASE}/bonuses/all`);
 
     if (!response.ok) {
-      console.warn('⚠️ Impossible de charger les bonus depuis le serveur');
+      console.warn('Impossible de charger les bonus depuis le serveur');
       return bonusCache;
     }
 
     bonusCache = await response.json();
     return bonusCache;
   } catch (error) {
-    console.error('❌ Erreur chargement bonus:', error);
+    console.error('Erreur chargement bonus:', error);
     return bonusCache;
   }
 }
@@ -747,7 +747,7 @@ export async function useBonus(participantId, bonusId, options = {}) {
     };
 
   } catch (error) {
-    console.error('❌ Erreur utilisation bonus:', error);
+    console.error('Erreur utilisation bonus:', error);
     return { success: false, error: error.message };
   }
 }
@@ -794,7 +794,7 @@ async function assignBonus(participantId, bonusId, roundNumber) {
     };
 
   } catch (error) {
-    console.error('❌ Erreur attribution bonus:', error);
+    console.error('Erreur attribution bonus:', error);
     return { success: false, error: error.message };
   }
 }

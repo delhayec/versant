@@ -64,7 +64,7 @@ async function editionsView() {
 }
 
 function fail(message) {
-  console.error(`❌ ${message}`);
+  console.error(`${message}`);
   process.exit(1);
 }
 
@@ -104,7 +104,7 @@ async function compare() {
 function printReport(report) {
   const a = report.activities;
   console.log(`   activités : ${a.count}, vue reconstruite ${a.identical ? 'identique octet pour octet' : 'DIFFÉRENTE'} de l'ancien fichier`);
-  if (!a.originalCanonical) console.log('   ⚠️ l\'ancien fichier n\'est pas au format JSON indenté habituel : comparaison stricte impossible');
+  if (!a.originalCanonical) console.log('   l\'ancien fichier n\'est pas au format JSON indenté habituel : comparaison stricte impossible');
   for (const [name, state] of Object.entries(report.files)) console.log(`   ${state === 'identique' ? '✓' : '✗'} ${name} : ${state}`);
 }
 
@@ -157,19 +157,19 @@ async function aller() {
     if (fs.existsSync(flat)) fs.copyFileSync(flat, path.join(editionDir, name));
   }
 
-  console.log(`✅ Aller : ${activities.length} activités réparties sur ${byUser.size} utilisateurs, ${Object.keys(exclusions).length} exclusion(s)`);
+  console.log(`Aller : ${activities.length} activités réparties sur ${byUser.size} utilisateurs, ${Object.keys(exclusions).length} exclusion(s)`);
   if (formerParticipants.length) console.log(`   anciens participants (absents d'athletes.json) : ${formerParticipants.join(', ')}`);
   const report = await compare();
   printReport(report);
   if (!report.identical) fail('vérification échouée : ne pas basculer');
-  console.log('   ✅ vérification réussie');
+  console.log('   vérification réussie');
 }
 
 async function verifier() {
   const report = await compare();
   printReport(report);
   if (!report.identical) process.exit(1);
-  console.log('✅ Les deux organisations sont identiques');
+  console.log('Les deux organisations sont identiques');
 }
 
 async function retour() {
@@ -201,8 +201,8 @@ async function retour() {
     fs.copyFileSync(copy, flat);
     changed.push(name);
   }
-  if (changed.length === 0) console.log('✅ Retour : les anciens fichiers étaient déjà à jour');
-  else console.log(`✅ Retour : ${changed.length} fichier(s) réécrit(s) depuis la nouvelle organisation : ${changed.join(', ')}\n   anciennes versions : ${backupDir}`);
+  if (changed.length === 0) console.log('Retour : les anciens fichiers étaient déjà à jour');
+  else console.log(`Retour : ${changed.length} fichier(s) réécrit(s) depuis la nouvelle organisation : ${changed.join(', ')}\n   anciennes versions : ${backupDir}`);
 }
 
 async function archiver() {
@@ -220,7 +220,7 @@ async function archiver() {
     fs.renameSync(source, target);
     moved.push(relative);
   }
-  console.log(`✅ Archivage : ${moved.length} ancien(s) fichier(s) déplacé(s) dans ${archiveDir}`);
+  console.log(`Archivage : ${moved.length} ancien(s) fichier(s) déplacé(s) dans ${archiveDir}`);
 }
 
 const commands = { aller, verifier, archiver, retour };
@@ -228,5 +228,5 @@ if (!commands[command]) {
   console.log('Usage : node backend/scripts/migrate-editions.js <aller|verifier|archiver|retour> [--data <dossier>] [--force]');
   process.exit(command ? 1 : 0);
 }
-console.log(`📁 Données : ${dataDir}`);
+console.log(`Données : ${dataDir}`);
 commands[command]().catch(error => fail(error.stack || error.message));

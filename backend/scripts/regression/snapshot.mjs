@@ -41,7 +41,7 @@ try {
   if (args.worker) await runWorker(args);
   else await main(args);
 } catch (error) {
-  console.error(`❌ ${error?.stack || error}`);
+  console.error(`${error?.stack || error}`);
   process.exit(1);
 }
 
@@ -209,7 +209,7 @@ function serverEngineCheck(output) {
 
 function printSummary(output, outFile, logFile, text, elapsedMs) {
   const sha = createHash('sha256').update(text).digest('hex');
-  console.log(`✅ Capture écrite : ${outFile}`);
+  console.log(`Capture écrite : ${outFile}`);
   console.log(`   empreinte sha256 ${sha.slice(0, 16)}… — ${(text.length / 1024).toFixed(0)} Ko — ${(elapsedMs / 1000).toFixed(1)} s`);
   console.log(`   code testé : ${output.meta.repo.commit ?? '?'}${output.meta.repo.dirty ? ' (avec modifications non commitées)' : ''}`);
   for (const [label, front] of Object.entries(output.front)) {
@@ -236,13 +236,13 @@ function printSummary(output, outFile, logFile, text, elapsedMs) {
   if (check && typeof check === 'object') {
     console.log(check.identical
       ? `   Fidélité : classement identique au snapshot navigateur du ${check.snapshotDate} (${check.players} joueurs)`
-      : `   ⚠️ Fidélité : ${check.mismatches.length} écart(s) avec le snapshot navigateur du ${check.snapshotDate} — voir checks.navigatorSnapshot`);
+      : `   Fidélité : ${check.mismatches.length} écart(s) avec le snapshot navigateur du ${check.snapshotDate} — voir checks.navigatorSnapshot`);
   }
   const engineCheck = output.checks.serverEngine;
   if (engineCheck && typeof engineCheck === 'object') {
     console.log(engineCheck.identical
       ? `   Moteur serveur : classement identique à la partie A (${engineCheck.players} joueurs)`
-      : `   ❌ Moteur serveur : classement différent de la partie A — voir api.serverEngine`);
+      : `   Moteur serveur : classement différent de la partie A — voir api.serverEngine`);
   }
   const editionRoutes = output.api?.editionRoutes;
   if (editionRoutes && typeof editionRoutes === 'object') {
@@ -250,19 +250,19 @@ function printSummary(output, outFile, logFile, text, elapsedMs) {
     const different = Object.entries(editionRoutes.routes).filter(([, v]) => !v.identical).map(([k]) => k);
     console.log(different.length === 0
       ? `   Routes par édition : ${entries.length} identiques aux routes historiques ; accès ${Object.entries(editionRoutes.access).map(([k, v]) => `${k} ${v}`).join(', ')}`
-      : `   ❌ Routes par édition différentes : ${different.join(', ')}`);
+      : `   Routes par édition différentes : ${different.join(', ')}`);
     const table = editionRoutes.frontTable;
     if (table && typeof table === 'object') {
       console.log(table.identical && table.translationErrors.length === 0
         ? `   Table du front (L50) : ${table.routes} routes, identique au serveur, traductions exactes`
-        : `   ❌ Table du front (L50) : ${table.identical ? '' : 'différente du serveur ; '}${table.translationErrors.length} traduction(s) fausse(s) — voir api.editionRoutes.frontTable`);
+        : `   Table du front (L50) : ${table.identical ? '' : 'différente du serveur ; '}${table.translationErrors.length} traduction(s) fausse(s) — voir api.editionRoutes.frontTable`);
     }
   }
   const parity = output.front?.capturedAt?.configParity;
   if (parity) {
     console.log(parity.differences.length === 0
       ? `   Parité config front / backend : ${parity.comparedNames.length} constantes identiques`
-      : `   ⚠️ Parité config front / backend : ${parity.differences.length} écart(s) (${[...new Set(parity.differences.map(d => d.path.split(/[.[]/)[0]))].join(', ')}) — voir front.capturedAt.configParity`);
+      : `   Parité config front / backend : ${parity.differences.length} écart(s) (${[...new Set(parity.differences.map(d => d.path.split(/[.[]/)[0]))].join(', ')}) — voir front.capturedAt.configParity`);
   }
   console.log(`   journal : ${logFile}`);
 }

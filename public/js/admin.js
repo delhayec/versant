@@ -228,7 +228,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
     adminAuth = { token: data.token, me };
     document.getElementById('loginError').style.display = 'none';
     showDashboard();
-    addLog('✅ Connexion admin réussie');
+    addLog('Connexion admin réussie');
   } catch (error) {
     showLoginError(error.message);
   }
@@ -250,7 +250,7 @@ document.getElementById('adminRescueForm').addEventListener('submit', async (e) 
     sessionStorage.setItem(RESCUE_KEY, btoa(password));
     document.getElementById('loginError').style.display = 'none';
     showDashboard();
-    addLog('✅ Connexion admin (accès de secours)');
+    addLog('Connexion admin (accès de secours)');
   } catch (error) {
     showLoginError(error.message);
   }
@@ -285,10 +285,10 @@ async function loadDashboardData() {
     if (isSuperAdmin()) renderResetPasswordOptions(athletes);
     renderActivitiesList();
 
-    addLog(`📊 ${athletes.length} athlètes, ${allActivities.length} activités`);
+    addLog(`${athletes.length} athlètes, ${allActivities.length} activités`);
   } catch (error) {
     console.error('Erreur chargement:', error);
-    addLog(`❌ Erreur chargement: ${error.message}`);
+    addLog(`Erreur chargement: ${error.message}`);
   }
 
   loadSeasonVisualizer();
@@ -325,10 +325,10 @@ const SEASON_TYPE_TAGS = {
 };
 
 const STATUS_LABELS = {
-  frozen: '<span class="ok">❄️ Figé</span>',
-  pending_freeze: '<span class="err">⚠️ Terminé, à figer</span>',
-  ongoing: '<span class="warn">⏳ En cours</span>',
-  upcoming: '<span class="muted">📅 À venir</span>'
+  frozen: '<span class="ok">Figé</span>',
+  pending_freeze: '<span class="err">Terminé, à figer</span>',
+  ongoing: '<span class="warn">En cours</span>',
+  upcoming: '<span class="muted">À venir</span>'
 };
 
 const ELIM_SOURCE_LABELS = {
@@ -350,11 +350,11 @@ function renderOptions(labels, current) {
 }
 
 function renderWeatherCoverage(coverage) {
-  if (!coverage) return '<div class="hint">🌧️ aucune activité</div>';
+  if (!coverage) return '<div class="hint">aucune activité</div>';
   const unusable = coverage.total - coverage.ok;
   const title = `${coverage.noGeo} sans GPS, ${coverage.missing} météo non calculée, ${coverage.error} en erreur`;
   return `<div class="hint ${unusable > 0 ? 'warn' : 'ok'}" title="${title}">
-    🌧️ ${coverage.rainy}/${coverage.ok} sous la pluie${unusable > 0 ? ` · ⚠️ ${unusable} sans météo` : ''}
+    ${coverage.rainy}/${coverage.ok} sous la pluie${unusable > 0 ? ` · ${unusable} sans météo` : ''}
   </div>`;
 }
 
@@ -378,8 +378,8 @@ async function loadSeasonVisualizer() {
     container.innerHTML = renderSeasonPlan(plan, weatherCoverage);
   } catch (error) {
     console.error('Erreur visualisateur saison:', error);
-    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
-    addLog(`❌ Erreur visualisateur: ${error.message}`);
+    container.innerHTML = `<p class="err">${escapeHtml(error.message)}</p>`;
+    addLog(`Erreur visualisateur: ${error.message}`);
   }
 }
 
@@ -390,14 +390,14 @@ function renderSeasonPlan(plan, weatherCoverage) {
 
   let alerts = '';
   if (pending.length) {
-    alerts += `<div class="alert">⚠️ ${pending.map(r => 'R' + r.roundNumber).join(', ')} terminé(s) mais pas encore figé(s) — gel auto à 00h15, ou bouton « Figer les rounds terminés ».</div>`;
+    alerts += `<div class="alert">${pending.map(r => 'R' + r.roundNumber).join(', ')} terminé(s) mais pas encore figé(s) — gel auto à 00h15, ou bouton « Figer les rounds terminés ».</div>`;
   }
   if (!isTeam && finale && finale.status !== 'frozen' && finale.activeAtStart !== plan.finalistsCount) {
-    alerts += `<div class="alert">ℹ️ Avec la config actuelle, la finale R${finale.roundNumber} se jouerait à ${finale.activeAtStart} au lieu de ${plan.finalistsCount}.</div>`;
+    alerts += `<div class="alert">Avec la config actuelle, la finale R${finale.roundNumber} se jouerait à ${finale.activeAtStart} au lieu de ${plan.finalistsCount}.</div>`;
   }
   if (!finale) {
     const last = plan.rounds[plan.rounds.length - 1];
-    alerts += `<div class="alert">ℹ️ La saison se termine en R${last.roundNumber} faute de joueurs, sans round de finale.</div>`;
+    alerts += `<div class="alert">La saison se termine en R${last.roundNumber} faute de joueurs, sans round de finale.</div>`;
   }
 
   const rows = plan.rounds.map(r => {
@@ -423,11 +423,11 @@ function renderSeasonPlan(plan, weatherCoverage) {
 
     const currentType = cfg.type || 'standard';
     const typeCell = planned
-      ? `${r.isFinale ? '🏆 Finale' : 'Standard'}<div class="hint">planifié (deadline)</div>`
+      ? `${r.isFinale ? 'Finale' : 'Standard'}<div class="hint">planifié (deadline)</div>`
       : editable
       ? `<select id="config-type-${r.roundNumber}">${renderOptions(ROUND_TYPE_LABELS, currentType)}</select>
          ${r.isFinale && currentType !== 'finale' ? '<div class="hint info">finale (calculée)</div>' : ''}`
-      : (r.isFinale ? '🏆 Finale' : 'Standard');
+      : (r.isFinale ? 'Finale' : 'Standard');
 
     const currentRule = cfg.specialRule || 'standard';
     const ruleCell = editable
@@ -438,7 +438,7 @@ function renderSeasonPlan(plan, weatherCoverage) {
       : '';
 
     const actions = editable
-      ? `<button class="btn btn-primary btn-sm" onclick="saveRoundConfigFromUI(${r.roundNumber})" title="Enregistrer">💾</button>
+      ? `<button class="btn btn-primary btn-sm" onclick="saveRoundConfigFromUI(${r.roundNumber})" title="Enregistrer">Enregistrer</button>
          ${r.config ? `<button class="btn btn-danger btn-sm" onclick="deleteRoundConfigFromUI(${r.roundNumber})" title="Revenir au comportement par défaut">✕</button>` : ''}`
       : '<span class="hint">verrouillé</span>';
 
@@ -496,10 +496,10 @@ async function saveRoundConfigFromUI(roundNumber) {
 
   try {
     await adminJson(ed(`/admin/round-configs/${roundNumber}`), { method: 'POST', body });
-    addLog(`💾 Config R${roundNumber} : type=${type}, règle=${specialRule}, élim=${body.nbEliminations ?? 'défaut'}`);
+    addLog(`Config R${roundNumber} : type=${type}, règle=${specialRule}, élim=${body.nbEliminations ?? 'défaut'}`);
     loadSeasonVisualizer();
   } catch (error) {
-    addLog(`❌ Erreur sauvegarde config: ${error.message}`);
+    addLog(`Erreur sauvegarde config: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 }
@@ -508,10 +508,10 @@ async function deleteRoundConfigFromUI(roundNumber) {
   if (!confirm(`Supprimer la config personnalisée du R${roundNumber} ?`)) return;
   try {
     await adminJson(ed(`/admin/round-configs/${roundNumber}`), { method: 'DELETE' });
-    addLog(`🗑️ Config R${roundNumber} supprimée`);
+    addLog(`Config R${roundNumber} supprimée`);
     loadSeasonVisualizer();
   } catch (error) {
-    addLog(`❌ Erreur suppression config: ${error.message}`);
+    addLog(`Erreur suppression config: ${error.message}`);
   }
 }
 
@@ -523,9 +523,9 @@ document.getElementById('refreshSeasonVisualizerBtn').addEventListener('click', 
 // PLANNING DES SAISONS
 // ============================================
 const SEASON_STATUS_LABELS = {
-  closed: '<span class="muted">✔️ Terminée</span>',
-  current: '<span class="warn">⏳ En cours</span>',
-  upcoming: '<span class="info">📅 À venir</span>'
+  closed: '<span class="muted">Terminée</span>',
+  current: '<span class="warn">En cours</span>',
+  upcoming: '<span class="info">À venir</span>'
 };
 
 function renderDeadlinePlan(rounds) {
@@ -552,7 +552,7 @@ async function loadSeasonPlanning() {
             ? `<select id="season-type-${s.seasonNumber}" onchange="onSeasonTypeChange(${s.seasonNumber})">
                  ${types.map(t => `<option value="${t.id}" ${t.id === s.type ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
                </select>`
-            : `${s.type === 'team' ? '👥 ' : ''}${escapeHtml(typeLabel(s.type))}`;
+            : `${escapeHtml(typeLabel(s.type))}`;
 
           const showDeadline = deadlineTypes.has(s.type);
           const deadlineInput = deadlineEditable
@@ -561,13 +561,13 @@ async function loadSeasonPlanning() {
                </span>`
             : (s.deadline ? `Fin le ${formatDate(s.deadline + 'T12:00:00')}` : '');
           const saveBtn = editable || deadlineEditable
-            ? ` <button class="btn btn-primary btn-sm" onclick="saveSeasonType(${s.seasonNumber})">💾</button>`
+            ? ` <button class="btn btn-primary btn-sm" onclick="saveSeasonType(${s.seasonNumber})">Enregistrer</button>`
             : '';
 
           let detail = deadlineInput;
           if (s.preview) {
             detail += `<div class="hint">Aperçu (${seasons.length && s.startRound ? `dès R${s.startRound}, ` : ''}estimé avec tous les joueurs actifs) :<br>${renderDeadlinePlan(s.preview.rounds)}</div>`;
-            if (s.preview.warning) detail += `<div class="hint warn">⚠️ ${escapeHtml(s.preview.warning)}</div>`;
+            if (s.preview.warning) detail += `<div class="hint warn">${escapeHtml(s.preview.warning)}</div>`;
           }
           if (s.type === 'double_points') detail += '<span class="hint">Points du challenge principal ×2</span>';
 
@@ -583,8 +583,8 @@ async function loadSeasonPlanning() {
       <p class="hint">Saison Deadline : rounds de 3 à 7 jours et 1 à 4 éliminations, recalculés après chaque gel pour finir le jour choisi.</p>`;
     container.dataset.deadlineTypes = [...deadlineTypes].join(',');
   } catch (error) {
-    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
-    addLog(`❌ Erreur planning saisons: ${error.message}`);
+    container.innerHTML = `<p class="err">${escapeHtml(error.message)}</p>`;
+    addLog(`Erreur planning saisons: ${error.message}`);
   }
 }
 
@@ -618,14 +618,14 @@ async function saveSeasonType(seasonNumber) {
   }
   try {
     const result = await adminJson(ed(`/admin/season-planning/${seasonNumber}`), { method: 'POST', body });
-    addLog(`🗓️ Saison ${seasonNumber} → ${label}${summary}`);
+    addLog(`Saison ${seasonNumber} → ${label}${summary}`);
     if (result.replan?.planned && result.replan.seasonNumber === seasonNumber) {
-      addLog(`⏳ Rounds replanifiés R${result.replan.fromRound}→R${result.replan.toRound}${result.replan.warning ? ` (⚠️ ${result.replan.warning})` : ''}`);
+      addLog(`Rounds replanifiés R${result.replan.fromRound}→R${result.replan.toRound}${result.replan.warning ? ` (${result.replan.warning})` : ''}`);
     }
     loadSeasonPlanning();
     loadSeasonVisualizer();
   } catch (error) {
-    addLog(`❌ Erreur planning saison ${seasonNumber}: ${error.message}`);
+    addLog(`Erreur planning saison ${seasonNumber}: ${error.message}`);
     alert('Erreur: ' + error.message);
     loadSeasonPlanning();
   }
@@ -645,7 +645,7 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
 
   btn.disabled = true;
   btn.textContent = 'Synchronisation...';
-  result.innerHTML = '<span class="warn">⏳ En cours...</span>';
+  result.innerHTML = '<span class="warn">En cours...</span>';
 
   try {
     const data = await adminJson(ed('/admin/sync'), { method: 'POST', body: { startDate, endDate } });
@@ -654,16 +654,16 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
     const errorCount = data.errors?.length || 0;
 
     let message = newCount || updatedCount
-      ? `✅ ${newCount} nouvelle(s), ${updatedCount} mise(s) à jour`
+      ? `${newCount} nouvelle(s), ${updatedCount} mise(s) à jour`
       : '✓ Aucune modification';
-    if (errorCount) message += ` · ⚠️ ${errorCount} erreur(s)`;
+    if (errorCount) message += ` · ${errorCount} erreur(s)`;
 
     result.innerHTML = `<span class="${errorCount ? 'warn' : 'ok'}">${message}</span>`;
-    addLog(`🔄 Sync: ${newCount} nouvelles, ${updatedCount} MAJ, ${errorCount} erreurs`);
+    addLog(`Sync: ${newCount} nouvelles, ${updatedCount} MAJ, ${errorCount} erreurs`);
     loadDashboardData();
   } catch (error) {
-    result.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
-    addLog(`❌ Sync erreur: ${error.message}`);
+    result.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
+    addLog(`Sync erreur: ${error.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Lancer la synchronisation';
@@ -685,11 +685,11 @@ async function loadFrozenStatus() {
 
     document.getElementById('statFrozen').textContent = rounds.length;
     statusDiv.innerHTML = rounds.length
-      ? `<div class="info">❄️ ${rounds.length} round(s) figé(s), dernier : R${rounds[rounds.length - 1]}</div>
+      ? `<div class="info">${rounds.length} round(s) figé(s), dernier : R${rounds[rounds.length - 1]}</div>
          ${data.lastUpdated ? `<div class="hint">Mis à jour le ${new Date(data.lastUpdated).toLocaleString('fr-FR')}</div>` : ''}`
-      : '<span class="warn">⚠️ Aucun round figé</span>';
+      : '<span class="warn">Aucun round figé</span>';
   } catch (error) {
-    statusDiv.innerHTML = '<span class="err">❌ Erreur chargement</span>';
+    statusDiv.innerHTML = '<span class="err">Erreur chargement</span>';
   }
 }
 
@@ -713,16 +713,16 @@ document.getElementById('autoFreezeBtn').addEventListener('click', async () => {
   const btn = document.getElementById('autoFreezeBtn');
   const label = btn.textContent;
   btn.disabled = true;
-  btn.textContent = '⏳ Figement en cours...';
+  btn.textContent = 'Figement en cours...';
 
   try {
     const data = await adminJson(ed('/admin/auto-freeze'), { method: 'POST', body: {} });
     const count = data.frozenCount || 0;
-    addLog(`❄️ Auto-freeze: ${count} round(s) figé(s)`);
-    alert(count ? `✅ ${count} round(s) figé(s)` : 'ℹ️ Aucun round terminé à figer.');
+    addLog(`Auto-freeze: ${count} round(s) figé(s)`);
+    alert(count ? `${count} round(s) figé(s)` : 'Aucun round terminé à figer.');
     refreshAfterFreezeChange();
   } catch (error) {
-    addLog(`❌ Erreur auto-freeze: ${error.message}`);
+    addLog(`Erreur auto-freeze: ${error.message}`);
     alert('Erreur: ' + error.message);
   } finally {
     btn.disabled = false;
@@ -737,11 +737,11 @@ document.getElementById('freezeRoundBtn').addEventListener('click', async () => 
 
   try {
     const data = await adminJson(ed(`/admin/freeze-round/${roundNumber}`), { method: 'POST', body: {} });
-    addLog(`❄️ Round ${roundNumber} figé: ${data.round?.eliminations?.length || 0} éliminé(s)`);
-    alert(`✅ Round ${roundNumber} figé`);
+    addLog(`Round ${roundNumber} figé: ${data.round?.eliminations?.length || 0} éliminé(s)`);
+    alert(`Round ${roundNumber} figé`);
     refreshAfterFreezeChange();
   } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
+    addLog(`Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 });
@@ -749,16 +749,16 @@ document.getElementById('freezeRoundBtn').addEventListener('click', async () => 
 document.getElementById('unfreezeRoundBtn').addEventListener('click', async () => {
   const roundNumber = getRoundInput();
   if (!roundNumber) return;
-  if (!confirm(`⚠️ Défiger le round ${roundNumber} ?\n\nIl sera recalculé au prochain gel.`)) return;
+  if (!confirm(`Défiger le round ${roundNumber} ?\n\nIl sera recalculé au prochain gel.`)) return;
 
   try {
     const data = await adminJson(ed(`/admin/unfreeze-round/${roundNumber}`), { method: 'POST' });
     if (!data.success) throw new Error(`Le round ${roundNumber} n'était pas figé`);
-    addLog(`🔓 Round ${roundNumber} défigé`);
-    alert(`✅ Round ${roundNumber} défigé`);
+    addLog(`Round ${roundNumber} défigé`);
+    alert(`Round ${roundNumber} défigé`);
     refreshAfterFreezeChange();
   } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
+    addLog(`Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 });
@@ -781,9 +781,9 @@ document.querySelectorAll('.download-btn').forEach(btn => {
     const [path, filename] = DOWNLOADS[btn.dataset.file]();
     try {
       await downloadFrom(path, filename);
-      addLog(`📥 ${filename} téléchargé`);
+      addLog(`${filename} téléchargé`);
     } catch (error) {
-      addLog(`❌ ${filename}: ${error.message}`);
+      addLog(`${filename}: ${error.message}`);
       alert('Erreur: ' + error.message);
     }
   });
@@ -807,26 +807,26 @@ document.getElementById('resetPasswordBtn').addEventListener('click', async () =
   const resultDiv = document.getElementById('resetPasswordResult');
 
   if (!athleteId) {
-    resultDiv.innerHTML = '<span class="err">❌ Veuillez sélectionner un athlète</span>';
+    resultDiv.innerHTML = '<span class="err">Veuillez sélectionner un athlète</span>';
     return;
   }
   if (!newPassword || newPassword.length < 6) {
-    resultDiv.innerHTML = '<span class="err">❌ Le mot de passe doit contenir au moins 6 caractères</span>';
+    resultDiv.innerHTML = '<span class="err">Le mot de passe doit contenir au moins 6 caractères</span>';
     return;
   }
 
   const athleteName = athletesCache[athleteId]?.name || athleteId;
-  if (!confirm(`⚠️ Réinitialiser le mot de passe de ${athleteName} ?\n\nNouveau mot de passe : ${newPassword}`)) return;
+  if (!confirm(`Réinitialiser le mot de passe de ${athleteName} ?\n\nNouveau mot de passe : ${newPassword}`)) return;
 
   try {
     const data = await adminJson('/admin/reset-password', { method: 'POST', body: { athleteId, newPassword } });
-    resultDiv.innerHTML = `<span class="ok">✅ ${escapeHtml(data.message)}</span>`;
-    addLog(`🔑 Mot de passe réinitialisé pour ${athleteName}`);
+    resultDiv.innerHTML = `<span class="ok">${escapeHtml(data.message)}</span>`;
+    addLog(`Mot de passe réinitialisé pour ${athleteName}`);
     document.getElementById('resetPasswordNew').value = '';
     select.value = '';
   } catch (error) {
-    resultDiv.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
-    addLog(`❌ Erreur reset password: ${error.message}`);
+    resultDiv.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
+    addLog(`Erreur reset password: ${error.message}`);
   }
 });
 
@@ -905,11 +905,11 @@ function renderActivitiesList() {
               <span class="hint">${escapeHtml(a.sport_type || a.type || '')}</span></td>
             <td class="num">${((a.distance || 0) / 1000).toFixed(2)} km</td>
             <td class="num">+${Math.round(a.total_elevation_gain || 0)} m</td>
-            <td class="center">${a.excluded ? '<span class="err">❌ Exclue</span>' : '<span class="ok">✅ Active</span>'}</td>
+            <td class="center">${a.excluded ? '<span class="err">Exclue</span>' : '<span class="ok">Active</span>'}</td>
             <td class="center">
               <button class="btn btn-sm ${a.excluded ? 'btn-success' : 'btn-danger'}"
                 onclick="toggleActivityExclusion('${escapeHtml(a.id)}', ${!a.excluded})">
-                ${a.excluded ? '↩️ Réintégrer' : '🚫 Exclure'}
+                ${a.excluded ? 'Réintégrer' : 'Exclure'}
               </button>
             </td>
           </tr>`).join('')}
@@ -930,9 +930,9 @@ async function toggleActivityExclusion(activityId, exclude) {
 
     renderActivitiesList();
     updateExcludedCount();
-    addLog(`${exclude ? '🚫' : '↩️'} Activité ${activityId}: ${exclude ? 'exclue' : 'réintégrée'}`);
+    addLog(`Activité ${activityId}: ${exclude ? 'exclue' : 'réintégrée'}`);
   } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
+    addLog(`Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 }
@@ -962,8 +962,8 @@ async function loadJokersData() {
     if (data.config) jokerIds = Object.keys(data.config);
     renderJokersManagement(data.athletes || []);
   } catch (error) {
-    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
-    addLog(`❌ Erreur jokers: ${error.message}`);
+    container.innerHTML = `<p class="err">${escapeHtml(error.message)}</p>`;
+    addLog(`Erreur jokers: ${error.message}`);
   }
 }
 
@@ -1035,21 +1035,21 @@ async function adjustJoker(athleteId, jokerType, delta) {
     setTimeout(() => { span.style.transform = ''; }, 200);
   } catch (error) {
     setValue(currentValue);
-    addLog(`❌ Erreur jokers: ${error.message}`);
+    addLog(`Erreur jokers: ${error.message}`);
   }
 }
 
 window.adjustJoker = adjustJoker;
 
 document.getElementById('resetAllJokersBtn').addEventListener('click', async () => {
-  if (!confirm('⚠️ Remettre le stock de jokers de TOUS les athlètes à sa valeur de départ ?\n\nLes jokers en attente sur le round en cours sont annulés. Action irréversible.')) return;
+  if (!confirm('Remettre le stock de jokers de TOUS les athlètes à sa valeur de départ ?\n\nLes jokers en attente sur le round en cours sont annulés. Action irréversible.')) return;
 
   try {
     const data = await adminJson(ed('/admin/jokers/reset'), { method: 'POST' });
-    addLog(`🔄 Jokers réinitialisés pour ${data.count} athlètes (${data.refundsAdded || 0} usages figés compensés)`);
+    addLog(`Jokers réinitialisés pour ${data.count} athlètes (${data.refundsAdded || 0} usages figés compensés)`);
     loadJokersData();
   } catch (error) {
-    addLog(`❌ Erreur reset jokers: ${error.message}`);
+    addLog(`Erreur reset jokers: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 });
@@ -1067,8 +1067,8 @@ const BONUS_STATUS_LABELS = {
 function describeBonusResult(bonus) {
   const r = bonus.effect_result;
   if (!r) return '<span class="muted">—</span>';
-  if (bonus.bonus_id === 'marquage') return r.targetEliminated ? '<span class="ok">✅ cible éliminée (+1 pt)</span>' : 'cible sauvée';
-  if (bonus.bonus_id === 'duel' && r.won !== undefined) return r.won ? '<span class="ok">✅ gagné (+1 pt)</span>' : 'perdu / égalité';
+  if (bonus.bonus_id === 'marquage') return r.targetEliminated ? '<span class="ok">cible éliminée (+1 pt)</span>' : 'cible sauvée';
+  if (bonus.bonus_id === 'duel' && r.won !== undefined) return r.won ? '<span class="ok">gagné (+1 pt)</span>' : 'perdu / égalité';
   if (r.amount) return `${r.amount > 0 ? '+' : ''}${Math.round(r.amount)} m`;
   if (r.stolenElevation) return `${Math.round(r.stolenElevation)} m`;
   return escapeHtml(r.error || (r.noEffect ? 'sans effet' : '—'));
@@ -1114,13 +1114,13 @@ async function loadBonusesAdmin() {
       : '<p class="muted">Aucun bonus choisi sur la saison en cours.</p>';
 
     container.innerHTML = `
-      <h4 style="margin: 0 0 8px;">⏳ Choix en attente (${pending.length})</h4>
+      <h4 style="margin: 0 0 8px;">Choix en attente (${pending.length})</h4>
       ${pendingHtml}
       <h4 style="margin: 20px 0 8px;">🎁 Bonus de la saison en cours (${current.length})</h4>
       ${currentHtml}`;
   } catch (error) {
-    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
-    addLog(`❌ Erreur bonus: ${error.message}`);
+    container.innerHTML = `<p class="err">${escapeHtml(error.message)}</p>`;
+    addLog(`Erreur bonus: ${error.message}`);
   }
 }
 
@@ -1147,15 +1147,15 @@ async function loadLeague() {
     leagueState = { league, editions, participants };
     container.innerHTML = renderLeague(leagueState);
   } catch (error) {
-    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
-    addLog(`❌ Erreur ligue: ${error.message}`);
+    container.innerHTML = `<p class="err">${escapeHtml(error.message)}</p>`;
+    addLog(`Erreur ligue: ${error.message}`);
   }
 }
 
 function editionStatus(edition, today) {
-  if (edition.startDate && edition.startDate > today) return '<span class="info">📅 À venir</span>';
-  if (edition.endDate && edition.endDate < today) return '<span class="muted">✔️ Terminée</span>';
-  return '<span class="warn">⏳ En cours</span>';
+  if (edition.startDate && edition.startDate > today) return '<span class="info">À venir</span>';
+  if (edition.endDate && edition.endDate < today) return '<span class="muted">Terminée</span>';
+  return '<span class="warn">En cours</span>';
 }
 
 /** Identifiant proposé pour l'édition suivante : année suivante si les identifiants sont des années. */
@@ -1214,7 +1214,7 @@ function renderLeague({ league, editions, participants }) {
     const pending = current.filter(p => !confirmedIds.has(String(p.id)));
     const names = list => list.map(p => escapeHtml(p.name || p.id)).sort((a, b) => a.localeCompare(b)).join(', ') || '<span class="muted">personne</span>';
     return `
-      <h4>✅ Confirmations pour l'édition ${escapeHtml(next.editionId)} : ${confirmed.length} confirmé(s), ${pending.length} en attente</h4>
+      <h4>Confirmations pour l'édition ${escapeHtml(next.editionId)} : ${confirmed.length} confirmé(s), ${pending.length} en attente</h4>
       <p style="font-size: 14px; margin: 0 0 6px;"><span class="ok">Confirmé :</span> ${names(confirmed)}</p>
       <p style="font-size: 14px; margin: 0;"><span class="warn">En attente :</span> ${names(pending)}</p>`;
   }).join('');
@@ -1226,9 +1226,9 @@ function renderLeague({ league, editions, participants }) {
         <p class="desc" style="margin-bottom: 4px;">Code d'invitation :</p>
         <div class="invite-code" id="inviteCode">${escapeHtml(code || '—')}</div>
         <div class="stack">
-          <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(signupLink)}">📋 Copier le lien d'inscription (nouveau joueur)</button>
-          <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(memberLink)}">📋 Copier le lien pour un compte existant</button>
-          <button class="btn btn-danger btn-sm" id="regenerateInviteBtn">🔄 Nouveau code (l'ancien ne marchera plus)</button>
+          <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(signupLink)}">Copier le lien d'inscription (nouveau joueur)</button>
+          <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(memberLink)}">Copier le lien pour un compte existant</button>
+          <button class="btn btn-danger btn-sm" id="regenerateInviteBtn">Nouveau code (l'ancien ne marchera plus)</button>
         </div>
         ${adminLinkBlock}
       </div>
@@ -1250,12 +1250,12 @@ function renderLeague({ league, editions, participants }) {
               <label class="field">Finalistes <input type="number" id="launchFinalists" min="1" placeholder="4"></label>
             </div>
           </details>
-          <button type="submit" class="btn btn-warn">🚀 Lancer l'édition</button>
+          <button type="submit" class="btn btn-warn">Lancer l'édition</button>
           <span id="launchEditionResult" style="margin-left: 8px; font-size: 14px;"></span>
         </form>
       </div>
     </div>
-    <h4>📚 Éditions</h4>
+    <h4>Éditions</h4>
     <table class="admin-table">
       <thead><tr><th>Édition</th><th>Dates</th><th>Statut</th><th class="center">Participants</th><th></th></tr></thead>
       <tbody>${editionRows || '<tr><td colspan="5" class="muted">Aucune édition</td></tr>'}</tbody>
@@ -1299,7 +1299,7 @@ document.getElementById('leagueContent').addEventListener('click', async (e) => 
   if (copy) {
     try {
       await navigator.clipboard.writeText(copy.dataset.copy);
-      addLog('📋 Lien copié');
+      addLog('Lien copié');
     } catch {
       window.prompt('Copie ce lien :', copy.dataset.copy);
     }
@@ -1323,10 +1323,10 @@ document.getElementById('leagueContent').addEventListener('click', async (e) => 
     if (!confirm("Créer un nouveau code d'invitation ?\n\nL'ancien code et les liens déjà envoyés ne marcheront plus.")) return;
     try {
       const data = await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/invite-code`, { method: 'POST' });
-      addLog(`🔄 Nouveau code d'invitation : ${data.inviteCode || data.league?.inviteCode || ''}`);
+      addLog(`Nouveau code d'invitation : ${data.inviteCode || data.league?.inviteCode || ''}`);
       loadLeague();
     } catch (error) {
-      addLog(`❌ Erreur code d'invitation: ${error.message}`);
+      addLog(`Erreur code d'invitation: ${error.message}`);
       alert('Erreur: ' + error.message);
     }
   }
@@ -1381,8 +1381,8 @@ document.getElementById('leagueContent').addEventListener('submit', async (e) =>
     }
     loadLeague();
   } catch (error) {
-    result.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
-    addLog(`❌ Erreur lancement: ${error.message}`);
+    result.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
+    addLog(`Erreur lancement: ${error.message}`);
   }
 });
 
@@ -1398,8 +1398,8 @@ async function loadLeagues() {
     leaguesCache = leagues;
     container.innerHTML = renderLeagues(leagues, withoutLeague);
   } catch (error) {
-    container.innerHTML = `<p class="err">❌ ${escapeHtml(error.message)}</p>`;
-    addLog(`❌ Erreur liste des ligues: ${error.message}`);
+    container.innerHTML = `<p class="err">${escapeHtml(error.message)}</p>`;
+    addLog(`Erreur liste des ligues: ${error.message}`);
   }
 }
 
@@ -1422,7 +1422,7 @@ function renderLeagues(leagues, withoutLeague) {
           <label style="display: inline-flex; gap: 6px; align-items: center; margin: 0 12px 6px 0; font-size: 13px;">
             <input type="checkbox" value="${escapeHtml(m.id)}" ${league.admins.some(a => a.id === m.id) ? 'checked' : ''}> ${escapeHtml(m.name)}
           </label>`).join('')
-        + `<div><button class="btn btn-primary btn-sm" data-save-admins="${escapeHtml(league.id)}">💾 Enregistrer les admins</button></div>`
+        + `<div><button class="btn btn-primary btn-sm" data-save-admins="${escapeHtml(league.id)}">Enregistrer les admins</button></div>`
       : '<p class="hint">Aucun membre pour l\'instant : envoie le lien admin au futur admin, il réglera la ligue et invitera les joueurs.</p>';
     return `
       <tr class="${isManaged ? 'is-current' : ''}">
@@ -1441,7 +1441,7 @@ function renderLeagues(leagues, withoutLeague) {
   }).join('');
 
   const orphans = withoutLeague.length
-    ? `<p class="hint" style="margin-top: 12px;">👤 Comptes sans ligue (${withoutLeague.length}) : ${withoutLeague.map(a => escapeHtml(a.name || a.id)).join(', ')}</p>`
+    ? `<p class="hint" style="margin-top: 12px;">Comptes sans ligue (${withoutLeague.length}) : ${withoutLeague.map(a => escapeHtml(a.name || a.id)).join(', ')}</p>`
     : '';
 
   return `
@@ -1501,7 +1501,7 @@ document.getElementById('leaguesContent').addEventListener('click', async (e) =>
     addLog(`🛡️ Admins de ${league.name} : ${names}`);
     loadLeagues();
   } catch (error) {
-    addLog(`❌ Erreur admins: ${error.message}`);
+    addLog(`Erreur admins: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 });
@@ -1514,7 +1514,7 @@ document.getElementById('createLeagueForm').addEventListener('submit', async (e)
   if (!confirm(`Créer la ligue « ${name} » ?`)) return;
   try {
     const { league } = await adminJson('/admin/leagues', { method: 'POST', body: { name } });
-    addLog(`🏔️ Ligue créée : ${league.name} (${league.id}), code ${league.inviteCode}`);
+    addLog(`Ligue créée : ${league.name} (${league.id}), code ${league.inviteCode}`);
     input.value = '';
     // Lien admin (L59) : le futur admin règle la ligue, choisit les dates et invite les joueurs
     const link = adminLink(league);
@@ -1526,7 +1526,7 @@ document.getElementById('createLeagueForm').addEventListener('submit', async (e)
     document.getElementById('copyNewAdminLink').addEventListener('click', () => copyLink(link, 'Lien admin'));
     loadLeagues();
   } catch (error) {
-    addLog(`❌ Erreur création de ligue: ${error.message}`);
+    addLog(`Erreur création de ligue: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 });
@@ -1549,11 +1549,11 @@ document.getElementById('freezeElimBtn').addEventListener('click', async () => {
   if (!confirm(`Figer le classement du challenge des éliminés de la saison ${seasonNumber} ?`)) return;
   try {
     await adminJson(ed(`/admin/freeze-elim-challenge/${seasonNumber}`), { method: 'POST', body: {} });
-    addLog(`❄️ Challenge des éliminés S${seasonNumber} figé`);
-    alert(`✅ Challenge des éliminés de la saison ${seasonNumber} figé`);
+    addLog(`Challenge des éliminés S${seasonNumber} figé`);
+    alert(`Challenge des éliminés de la saison ${seasonNumber} figé`);
     refreshAfterFreezeChange();
   } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
+    addLog(`Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 });
@@ -1561,47 +1561,47 @@ document.getElementById('freezeElimBtn').addEventListener('click', async () => {
 document.getElementById('unfreezeElimBtn').addEventListener('click', async () => {
   const seasonNumber = getSeasonInput();
   if (!seasonNumber) return;
-  if (!confirm(`⚠️ Défiger le challenge des éliminés de la saison ${seasonNumber} ?`)) return;
+  if (!confirm(`Défiger le challenge des éliminés de la saison ${seasonNumber} ?`)) return;
   try {
     const data = await adminJson(ed(`/admin/unfreeze-elim-challenge/${seasonNumber}`), { method: 'POST' });
     if (!data.success) throw new Error(`Le challenge des éliminés de la saison ${seasonNumber} n'était pas figé`);
-    addLog(`🔓 Challenge des éliminés S${seasonNumber} défigé`);
-    alert(`✅ Challenge des éliminés de la saison ${seasonNumber} défigé`);
+    addLog(`Challenge des éliminés S${seasonNumber} défigé`);
+    alert(`Challenge des éliminés de la saison ${seasonNumber} défigé`);
     refreshAfterFreezeChange();
   } catch (error) {
-    addLog(`❌ Erreur: ${error.message}`);
+    addLog(`Erreur: ${error.message}`);
     alert('Erreur: ' + error.message);
   }
 });
 
 document.getElementById('stravaStatusBtn').addEventListener('click', async () => {
   const box = document.getElementById('stravaStatus');
-  box.innerHTML = '<span class="warn">⏳ Interrogation de Strava...</span>';
+  box.innerHTML = '<span class="warn">Interrogation de Strava...</span>';
   try {
     const data = await adminJson('/admin/strava/status');
     const sub = data.subscriptions?.[0];
     box.innerHTML = data.active
-      ? `<span class="ok">✅ Abonnement actif</span> <span class="hint">n° ${escapeHtml(sub?.id)} → ${escapeHtml(sub?.callback_url)}</span>`
-      : '<span class="err">❌ Aucun abonnement aux webhooks : les activités n\'arrivent que par les synchros planifiées</span>';
+      ? `<span class="ok">Abonnement actif</span> <span class="hint">n° ${escapeHtml(sub?.id)} → ${escapeHtml(sub?.callback_url)}</span>`
+      : '<span class="err">Aucun abonnement aux webhooks : les activités n\'arrivent que par les synchros planifiées</span>';
   } catch (error) {
-    box.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
+    box.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
   }
 });
 
 document.getElementById('diagnosticBtn').addEventListener('click', async () => {
   const box = document.getElementById('diagnosticResult');
-  box.innerHTML = '<span class="warn">⏳ ...</span>';
+  box.innerHTML = '<span class="warn">...</span>';
   try {
     const d = await adminJson('/admin/diagnostic');
     const a = d.athletes;
     const w = d.webhooks;
     box.innerHTML = `
-      <div>👤 ${a.total} comptes · ${a.withToken} reliés à Strava ${a.expired ? `· <span class="warn">${a.expired} token(s) expiré(s)</span>` : ''}</div>
-      <div>🔐 ${a.passwordScrypt} mot(s) de passe au nouveau format ${a.passwordLegacyOnly ? `· <span class="warn">${a.passwordLegacyOnly} à l'ancien format seulement</span>` : ''}</div>
-      <div>📨 Webhooks sur 24 h : ${w.last24h} (${w.success} réussis${w.failed ? `, <span class="err">${w.failed} en échec</span>` : ''})${w.pendingRetry ? ` · <span class="warn">${w.pendingRetry} à rejouer</span>` : ''}</div>
+      <div>${a.total} comptes · ${a.withToken} reliés à Strava ${a.expired ? `· <span class="warn">${a.expired} token(s) expiré(s)</span>` : ''}</div>
+      <div>${a.passwordScrypt} mot(s) de passe au nouveau format ${a.passwordLegacyOnly ? `· <span class="warn">${a.passwordLegacyOnly} à l'ancien format seulement</span>` : ''}</div>
+      <div>Webhooks sur 24 h : ${w.last24h} (${w.success} réussis${w.failed ? `, <span class="err">${w.failed} en échec</span>` : ''})${w.pendingRetry ? ` · <span class="warn">${w.pendingRetry} à rejouer</span>` : ''}</div>
       <div class="hint">au ${new Date(d.timestamp).toLocaleString('fr-FR')}</div>`;
   } catch (error) {
-    box.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
+    box.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
   }
 });
 

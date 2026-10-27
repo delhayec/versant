@@ -108,7 +108,7 @@ async function detectFinishedSeasons() {
       results.push({ season: s, ...result });
 
       if (result.success) {
-        console.log(`✅ Saison ${s} : ${result.ranking.length} athlète(s) figé(s)`);
+        console.log(`Saison ${s} : ${result.ranking.length} athlète(s) figé(s)`);
         // Afficher le podium pour vérification visuelle
         result.ranking.slice(0, 3).forEach(r => {
           console.log(
@@ -117,9 +117,9 @@ async function detectFinishedSeasons() {
           );
         });
       } else if (result.error === 'already_frozen') {
-        console.log(`⏭️  Saison ${s} : déjà figée. Utiliser --force pour écraser.`);
+        console.log(`Saison ${s} : déjà figée. Utiliser --force pour écraser.`);
       } else {
-        console.log(`❌ Saison ${s} : ${result.error}`);
+        console.log(`Saison ${s} : ${result.error}`);
       }
     }
 

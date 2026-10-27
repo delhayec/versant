@@ -90,11 +90,11 @@ const athleteIdOf = a => String(a.athlete?.id || a.athlete_id);
       }
     });
 
-    console.log(`\n✅ ${stats.processed} traitée(s) — ${stats.ok} ok, ${stats.rainy} avec pluie, ${stats.noGeo} sans GPS, ${stats.errors} erreur(s)`);
+    console.log(`\n${stats.processed} traitée(s) — ${stats.ok} ok, ${stats.rainy} avec pluie, ${stats.noGeo} sans GPS, ${stats.errors} erreur(s)`);
 
     if (!opts.dryRun && stats.changed) {
       await fs.writeFile(activitiesFile, JSON.stringify(all, null, 2));
-      console.log(`💾 ${activitiesFile} mis à jour`);
+      console.log(`${activitiesFile} mis à jour`);
     }
   }
 
@@ -126,6 +126,6 @@ const athleteIdOf = a => String(a.athlete?.id || a.athlete_id);
     console.log(`Sans météo exploitable : ${scope.filter(a => a.weather && a.weather.status !== 'ok').length}`);
   }
 })().catch(e => {
-  console.error('❌', e.message);
+  console.error('Erreur :', e.message);
   process.exit(1);
 });

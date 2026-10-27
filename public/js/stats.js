@@ -166,12 +166,12 @@ async function loadActivities() {
       const age = Date.now() - parseInt(cachedDate, 10);
       if (age < CACHE_TTL_MS) {
         const data = JSON.parse(cached);
-        console.log(`✅ Activités depuis cache (${data.length}, ${Math.round(age / 1000)}s)`);
+        console.log(`Activités depuis cache (${data.length}, ${Math.round(age / 1000)}s)`);
         return data;
       }
     }
   } catch (e) {
-    console.warn('⚠️ Cache illisible, rechargement', e);
+    console.warn('Cache illisible, rechargement', e);
   }
 
   // 2. API backend
@@ -182,14 +182,14 @@ async function loadActivities() {
   if (!response.ok) throw new Error(`API error ${response.status}`);
   const raw = await response.json();
   if (!Array.isArray(raw)) throw new Error('Format de réponse API invalide');
-  console.log(`📦 ${raw.length} activités brutes reçues de l'API`);
+  console.log(`${raw.length} activités brutes reçues de l'API`);
 
   // 3. Sauvegarde cache
   try {
     sessionStorage.setItem(CACHE_KEY, JSON.stringify(raw));
     sessionStorage.setItem(CACHE_DATE_KEY, Date.now().toString());
   } catch (e) {
-    console.warn('⚠️ sessionStorage plein, on continue sans cache');
+    console.warn('sessionStorage plein, on continue sans cache');
   }
 
   return raw;
@@ -537,7 +537,7 @@ function detectGroupActivities(activities) {
 
   // Log de perf (debug)
   console.log(
-    `📊 Détection groupes: ${totalComparisons} comparaisons effectives, ` +
+    `Détection groupes: ${totalComparisons} comparaisons effectives, ` +
     `${skippedByTime} skip-temps, ${skippedBySport} skip-sport`
   );
 
@@ -980,7 +980,7 @@ function renderMapLegend(activities, colorMode) {
         </div>
         <div class="country-stats-line">↑ ${formatElevationCompact(r.elevation)} m D+</div>
         <div class="country-stats-line">◉ ${r.count} activités</div>
-        <div class="country-stats-line">👥 ${r.athletes.size} athlète${r.athletes.size > 1 ? 's' : ''}</div>
+        <div class="country-stats-line">${r.athletes.size} athlète${r.athletes.size > 1 ? 's' : ''}</div>
       </div>`);
   });
 
@@ -1828,7 +1828,7 @@ const today = new Date();
       : null;
 
     if (!snapshotDate) {
-      console.warn(`⚠️ Pas de date de fin pour la saison ${s}, snapshot ignoré`);
+      console.warn(`Pas de date de fin pour la saison ${s}, snapshot ignoré`);
       continue;
     }
 
@@ -1839,7 +1839,7 @@ const today = new Date();
 
     // DEBUG — affichage console pour diagnostiquer les valeurs du graphe.
     // Retire ce bloc quand les chiffres sont validés.
-    console.group(`📊 Évolution — Fin Saison ${s} (snapshot = ${snapshotDate.toISOString()})`);
+    console.group(`Évolution — Fin Saison ${s} (snapshot = ${snapshotDate.toISOString()})`);
     const sorted = [...standings].sort((a, b) => b.totalPoints - a.totalPoints);
     console.table(sorted.map(e => ({
       rank: e.rank,
@@ -2997,12 +2997,11 @@ async function init() {
 
     setStatus('Filtrage et normalisation…');
     allActivities = filterAndNormalize(raw);
-    console.log(`✅ ${allActivities.length} activités après filtrage (>= ${CHALLENGE_CONFIG.yearStartDate})`);
+    console.log(`${allActivities.length} activités après filtrage (>= ${CHALLENGE_CONFIG.yearStartDate})`);
 
     if (allActivities.length === 0) {
       document.body.innerHTML = `
         <div class="stats-error">
-          <div class="stats-error-icon">📭</div>
           <div class="stats-error-title">Aucune activité trouvée</div>
           <div class="stats-error-text">Le challenge démarre le ${formatDateFr(CHALLENGE_START)}. Les stats apparaîtront dès les premières activités.</div>
           <a href="index.html" class="stats-error-retry" style="text-decoration:none;display:inline-block;">Retour au classement</a>
@@ -3065,7 +3064,7 @@ async function init() {
             const t0 = performance.now();
             detectedGroups = detectGroupActivities(allActivities);
             const elapsed = performance.now() - t0;
-            console.log(`🔍 ${detectedGroups.length} sorties en groupe détectées en ${elapsed.toFixed(0)}ms`);
+            console.log(`${detectedGroups.length} sorties en groupe détectées en ${elapsed.toFixed(0)}ms`);
             renderSocialGraph(detectedGroups);
           });
         });
@@ -3081,10 +3080,9 @@ async function init() {
     });
 
   } catch (err) {
-    console.error('❌ Erreur init:', err);
+    console.error('Erreur init:', err);
     document.body.innerHTML = `
       <div class="stats-error">
-        <div class="stats-error-icon">⚠️</div>
         <div class="stats-error-title">Erreur de chargement</div>
         <div class="stats-error-text">${err.message || 'Impossible de charger les données.'}</div>
         <button class="stats-error-retry" onclick="location.reload()">Réessayer</button>

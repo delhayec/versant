@@ -22,7 +22,7 @@ async function acquireLock(filePath, timeout = 15000) {
   const start = Date.now();
   while (fileLocks.get(filePath)) {
     if (Date.now() - start > timeout) {
-      console.warn(`⚠️ Lock timeout: ${filePath}`);
+      console.warn(`Lock timeout: ${filePath}`);
       fileLocks.delete(filePath);
       break;
     }

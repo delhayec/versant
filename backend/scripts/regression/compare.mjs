@@ -43,11 +43,11 @@ const ignored = diffs.filter(d => ignores.some(p => d.path === p || d.path.start
 const real = diffs.filter(d => !ignored.includes(d));
 
 if (real.length === 0) {
-  console.log(`✅ Identique${ignored.length ? ` (${ignored.length} écart(s) attendu(s) ignoré(s))` : ''}`);
+  console.log(`Identique${ignored.length ? ` (${ignored.length} écart(s) attendu(s) ignoré(s))` : ''}`);
   process.exit(0);
 }
 
-console.log(`❌ ${real.length} écart(s)${ignored.length ? `, plus ${ignored.length} attendu(s) ignoré(s)` : ''} :`);
+console.log(`${real.length} écart(s)${ignored.length ? `, plus ${ignored.length} attendu(s) ignoré(s)` : ''} :`);
 for (const d of real.slice(0, max)) {
   console.log(`  ${d.path || '(racine)'}`);
   console.log(`    référence : ${preview(d.ref)}`);

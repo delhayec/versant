@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260918b">
+  <link rel="stylesheet" href="css/style.css?v=20261027a">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
   <style>
     .admin-wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
@@ -88,7 +88,6 @@
   <section class="ranking-section" id="loginSection" style="padding-top: 120px;">
     <div style="max-width: 400px; margin: 0 auto; padding: 0 24px;">
       <div class="admin-box" style="padding: 40px; text-align: center;">
-        <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
         <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 24px;">Accès Administration</h2>
         <p class="muted" style="font-size: 13px; margin: -12px 0 20px;">Pour le super-admin et les admins de ligue</p>
         <div id="loginError" class="err" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
@@ -118,16 +117,15 @@
     <div class="admin-wrap">
 
       <div class="section-header" style="margin-bottom: 32px;">
-        <span class="section-number">🔧</span>
         <h2 class="section-title">Panneau d'Administration</h2>
         <p class="section-desc" id="adminScope">Chargement...</p>
       </div>
 
       <!-- Toutes les ligues (super-admin, L51c) : liste, création, admins -->
       <div class="admin-box" id="leaguesBox" data-super-only style="margin-bottom: 24px;">
-        <h3>🌍 Toutes les ligues</h3>
+        <h3>Toutes les ligues</h3>
         <div id="leaguesContent" class="scroll"><p class="muted">Chargement...</p></div>
-        <h4>➕ Créer une ligue</h4>
+        <h4>Créer une ligue</h4>
         <form id="createLeagueForm" class="row" style="margin-bottom: 4px;">
           <input id="newLeagueName" placeholder="Nom de la ligue (ex. Les Grimpeurs du Vercors)" required maxlength="80">
           <button type="submit" class="btn btn-warn">Créer</button>
@@ -140,7 +138,7 @@
 
       <!-- Ma ligue (L51) : code d'invitation, éditions, confirmations, lancement -->
       <div class="admin-box" id="leagueBox" style="margin-bottom: 24px;">
-        <h3>🏔️ Ma ligue</h3>
+        <h3>Ma ligue</h3>
         <div id="leagueContent"><p class="muted">Chargement...</p></div>
       </div>
 
@@ -156,19 +154,19 @@
 
       <!-- Saison en cours -->
       <div class="admin-box" style="margin-bottom: 24px;">
-        <h3>🗓️ Saison en cours</h3>
+        <h3>Saison en cours</h3>
         <p class="desc">
           Plan calculé par le moteur de gel : les rounds figés sont affichés tels quels, les suivants sont projetés
           à partir du nombre de joueurs actifs et de la configuration de chaque round.
           Laissez « Nb élim » vide pour garder la valeur par défaut (ou celle de la règle spéciale).
         </p>
         <div id="seasonVisualizerContent" class="scroll"><p class="muted">Chargement...</p></div>
-        <button id="refreshSeasonVisualizerBtn" class="btn btn-primary" style="margin-top: 12px;">🔄 Rafraîchir</button>
+        <button id="refreshSeasonVisualizerBtn" class="btn btn-primary" style="margin-top: 12px;">Rafraîchir</button>
       </div>
 
       <!-- Planning des saisons -->
       <div class="admin-box" style="margin-bottom: 24px;">
-        <h3>📅 Planning des saisons</h3>
+        <h3>Planning des saisons</h3>
         <p class="desc">
           Mode de jeu de chaque saison. Modifiable tant qu'aucun round de la saison n'est figé ;
           à régler avant le début de la saison (le changement s'applique dès l'enregistrement).
@@ -180,40 +178,40 @@
 
         <!-- Résultats figés -->
         <div class="admin-box">
-          <h3>❄️ Résultats figés</h3>
+          <h3>Résultats figés</h3>
           <p class="desc">Les rounds terminés sont figés automatiquement chaque nuit à 00h15 (après une synchro).</p>
           <div id="frozenStatus" class="status-box"><span class="warn">Chargement...</span></div>
         </div>
 
         <!-- Téléchargements -->
         <div class="admin-box">
-          <h3>📥 Télécharger les données</h3>
+          <h3>Télécharger les données</h3>
           <p class="desc">Exporter les données de l'édition.</p>
           <div class="stack">
-            <button class="btn btn-ghost download-btn" data-file="ranking">🏆 Classement annuel</button>
-            <button class="btn btn-ghost download-btn" data-file="activities">🏃 Activités</button>
+            <button class="btn btn-ghost download-btn" data-file="ranking">Classement annuel</button>
+            <button class="btn btn-ghost download-btn" data-file="activities">Activités</button>
             <!-- Fichiers bruts : super-admin seul -->
-            <button class="btn btn-ghost download-btn" data-file="athletes" data-super-only>📋 athletes.json (comptes, toutes ligues)</button>
+            <button class="btn btn-ghost download-btn" data-file="athletes" data-super-only>athletes.json (comptes, toutes ligues)</button>
             <button class="btn btn-ghost download-btn" data-file="jokers" data-super-only>🃏 jokers_usage.json</button>
-            <button class="btn btn-ghost download-btn" data-file="frozen" data-super-only>❄️ frozen_results.json</button>
+            <button class="btn btn-ghost download-btn" data-file="frozen" data-super-only>frozen_results.json</button>
           </div>
         </div>
 
         <!-- Reset mot de passe : super-admin seul -->
         <div class="admin-box" data-super-only>
-          <h3>🔑 Reset mot de passe</h3>
+          <h3>Reset mot de passe</h3>
           <p class="desc">Réinitialiser le mot de passe d'un joueur qui l'a oublié.</p>
           <div class="stack">
             <select id="resetPasswordAthlete"><option value="">-- Choisir un athlète --</option></select>
             <input type="text" id="resetPasswordNew" placeholder="Nouveau mot de passe (6 caractères min.)">
-            <button id="resetPasswordBtn" class="btn btn-block" style="background: linear-gradient(135deg, #f97316, #f43f5e); color: white;">🔐 Réinitialiser le mot de passe</button>
+            <button id="resetPasswordBtn" class="btn btn-block" style="background: linear-gradient(135deg, #f97316, #f43f5e); color: white;">Réinitialiser le mot de passe</button>
           </div>
           <div id="resetPasswordResult" style="margin-top: 12px; font-size: 14px;"></div>
         </div>
 
         <!-- Activités -->
         <div class="admin-box wide">
-          <h3>🏃 Gestion des activités</h3>
+          <h3>Gestion des activités</h3>
           <p class="desc">Exclure ou réintégrer des activités qui ne respectent pas les règles du challenge.</p>
           <div class="row">
             <input type="text" id="activitySearch" placeholder="Rechercher (nom, athlète...)" style="min-width: 200px;">
@@ -222,14 +220,14 @@
               <option value="active">Actives uniquement</option>
               <option value="excluded">Exclues uniquement</option>
             </select>
-            <button id="refreshActivitiesBtn" class="btn btn-ghost">🔄 Rafraîchir</button>
+            <button id="refreshActivitiesBtn" class="btn btn-ghost">Rafraîchir</button>
           </div>
           <div id="activitiesList" class="scroll"><p class="muted">Chargement...</p></div>
         </div>
 
         <!-- Athlètes -->
         <div class="admin-box wide">
-          <h3>👥 Participants</h3>
+          <h3>Participants</h3>
           <div id="athletesList" class="scroll" style="max-height: 400px;"><p class="muted">Chargement...</p></div>
         </div>
 
@@ -238,7 +236,7 @@
           <h3>🃏 Gestion des jokers</h3>
           <p class="desc">Stock restant de chaque athlète (usages figés inclus). Les boutons +/- enregistrent immédiatement.</p>
           <div class="row">
-            <button id="resetAllJokersBtn" class="btn btn-danger">🔄 Remettre tous les stocks au départ</button>
+            <button id="resetAllJokersBtn" class="btn btn-danger">Remettre tous les stocks au départ</button>
           </div>
           <div id="jokersManagementTable" class="scroll"><p class="muted">Chargement...</p></div>
         </div>
@@ -255,12 +253,12 @@
 
       <!-- Maintenance (super-admin, décision du 21/10) : outils rarement utiles, repliés -->
       <details class="admin-box" id="maintenanceBox" data-super-only style="margin-bottom: 24px;">
-        <summary style="cursor: pointer; color: #f97316; font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;">🛠️ Maintenance</summary>
+        <summary style="cursor: pointer; color: #f97316; font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;">Maintenance</summary>
         <p class="desc" style="margin-top: 12px;">Synchro et gel sont automatiques : ces outils ne servent qu'en cas de problème.</p>
         <div class="admin-grid" style="margin-bottom: 0;">
           <div id="maintenanceEdition" class="stack">
             <div class="sub-box">
-              <label>🔄 Synchronisation Strava de l'édition</label>
+              <label>Synchronisation Strava de l'édition</label>
               <p class="hint" style="margin: 0 0 8px;">Automatique à 6h, 10h, 14h, 18h, 20h et 22h (+ 00h15 avant le gel).</p>
               <div class="row">
                 <input type="date" id="syncStartDate">
@@ -270,9 +268,9 @@
               <div id="syncResult" style="margin-top: 12px; font-size: 14px;"></div>
             </div>
             <div class="sub-box">
-              <label>❄️ Gel des rounds</label>
+              <label>Gel des rounds</label>
               <div class="stack">
-                <button id="autoFreezeBtn" class="btn btn-primary btn-block">❄️ Figer les rounds terminés</button>
+                <button id="autoFreezeBtn" class="btn btn-primary btn-block">Figer les rounds terminés</button>
                 <div class="row" style="margin: 0;">
                   <input type="number" id="freezeRoundNumber" placeholder="N° round" min="1">
                   <button id="freezeRoundBtn" class="btn btn-success">Figer</button>
@@ -291,12 +289,12 @@
           </div>
           <div class="stack">
             <div class="sub-box">
-              <label>📡 Statut Strava</label>
+              <label>Statut Strava</label>
               <button id="stravaStatusBtn" class="btn btn-ghost btn-sm">Vérifier l'abonnement aux webhooks</button>
               <div id="stravaStatus" style="margin-top: 8px; font-size: 14px;"></div>
             </div>
             <div class="sub-box">
-              <label>🩺 Diagnostic</label>
+              <label>Diagnostic</label>
               <button id="diagnosticBtn" class="btn btn-ghost btn-sm">Lancer le diagnostic</button>
               <div id="diagnosticResult" style="margin-top: 8px; font-size: 14px;"></div>
             </div>
@@ -307,7 +305,7 @@
       <div class="admin-grid">
         <!-- Journal -->
         <div class="admin-box wide">
-          <h3>📜 Journal des actions</h3>
+          <h3>Journal des actions</h3>
           <div id="logsContainer"><div class="muted">En attente d'actions...</div></div>
         </div>
 
@@ -322,6 +320,6 @@
     </div>
   </footer>
 
-  <script src="js/admin.js?v=20261027a"></script>
+  <script src="js/admin.js?v=20261027b"></script>
 </body>
 </html>

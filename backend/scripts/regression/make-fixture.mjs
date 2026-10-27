@@ -114,7 +114,7 @@ const meta = {
 };
 writeFileSync(join(out, 'fixture.json'), JSON.stringify(meta, null, 2) + '\n');
 
-console.log(`✅ Fixture créée : ${out}`);
+console.log(`Fixture créée : ${out}`);
 console.log(`   ligue ${leagueId}, instant de référence ${capturedAt}`);
 console.log(`   ${Object.keys(frozen.rounds || {}).length} rounds figés, ${activities.length} activités`);
 for (const [rel, hash] of Object.entries(written)) console.log(`   ${hash.slice(0, 12)}  ${rel}`);
@@ -164,6 +164,6 @@ function required(value, name) {
 }
 
 function fail(message) {
-  console.error(`❌ ${message}`);
+  console.error(`${message}`);
   process.exit(1);
 }

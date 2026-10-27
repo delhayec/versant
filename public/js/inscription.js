@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const response = await fetch('/api/strava-client-id');
     if (response.ok) STRAVA_CONFIG.clientId = (await response.json()).clientId;
   } catch (e) {
-    console.warn('⚠️ Impossible de charger le client ID Strava');
+    console.warn('Impossible de charger le client ID Strava');
   }
 
   setupEventListeners();
@@ -441,7 +441,7 @@ function showError(message) {
 function showSuccess(seasonNumber, { joined = null, joinError = null, adminOf = null, adminError = null } = {}) {
   $('signupCard').style.display = 'none';
   $('adminNotice').hidden = true;
-  let html = '<h3>🎉 Inscription réussie !</h3><p>Ton compte Versant est créé et ton Strava est connecté.</p>';
+  let html = '<h3>Inscription réussie !</h3><p>Ton compte Versant est créé et ton Strava est connecté.</p>';
   if (joined?.league) {
     html += `<p style="margin-top: 16px;">Tu fais maintenant partie de la ligue <strong>${escapeHtml(joined.league.name)}</strong>.</p>`;
     // Ligue en préparation (L59)
@@ -452,7 +452,7 @@ function showSuccess(seasonNumber, { joined = null, joinError = null, adminOf = 
   if (seasonNumber > 1) {
     html += `
       <p style="margin-top: 16px; padding: 12px; background: rgba(249,115,22,0.1); border-radius: 8px; border: 1px solid rgba(249,115,22,0.3);">
-        ℹ️ La saison est déjà en cours : tu entreras en jeu à la <strong>Saison ${seasonNumber}</strong>.
+        La saison est déjà en cours : tu entreras en jeu à la <strong>Saison ${seasonNumber}</strong>.
         D'ici là tes sorties sont enregistrées, mais elles ne comptent pas encore au classement.
       </p>`;
   }

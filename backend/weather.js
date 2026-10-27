@@ -16,7 +16,7 @@
  *   - résolution ~2-11 km au lieu de 9 km, ce qui compte en montagne ;
  *   - pas de délai de 5 jours (données disponibles le jour même) ;
  *   - résolution minutely_15, testée disponible y compris hors Europe.
- * ⚠️ L'offre gratuite Open-Meteo est réservée à un usage NON COMMERCIAL.
+ * L'offre gratuite Open-Meteo est réservée à un usage NON COMMERCIAL.
  *
  * On stocke les MESURES BRUTES (mm, minutes, intensité, codes WMO) et pas
  * seulement le booléen : le seuil peut ainsi être retouché plus tard sans
@@ -129,7 +129,7 @@ async function fetchOpenMeteo(lat, lon, startDate, endDate, deadline = Infinity)
       if (error.response?.status === 429) {
         // Pas d'attente au-delà du budget : le reste sera repris au prochain passage
         if (Date.now() + RATE_LIMIT_WAIT_MS > deadline) break;
-        console.log(`   ⏳ Open-Meteo rate limit, attente ${RATE_LIMIT_WAIT_MS / 1000}s...`);
+        console.log(`   Open-Meteo rate limit, attente ${RATE_LIMIT_WAIT_MS / 1000}s...`);
         await sleep(RATE_LIMIT_WAIT_MS);
       } else if (attempt < 3) {
         await sleep(1500 * attempt);

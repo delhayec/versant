@@ -150,7 +150,7 @@ export function showJumpToDateModal(onDateSelect) {
   jumpModal.innerHTML = `
     <div class="jump-modal-content">
       <div class="jump-modal-header">
-        <span>📅 Aller à une date</span>
+        <span>Aller à une date</span>
         <button class="jump-modal-close">&times;</button>
       </div>
       <div class="jump-modal-body">
@@ -280,7 +280,7 @@ export function initDemoMode(options = {}) {
     });
   }
   
-  console.log('🎮 Mode démo initialisé');
+  console.log('Mode démo initialisé');
 }
 
 // Import pour utiliser PARTICIPANTS (circular import handling)

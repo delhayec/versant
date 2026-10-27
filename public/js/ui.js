@@ -61,20 +61,20 @@ function formatActivityDateTime(activity) {
 }
 
 const ACTIVITY_SPORT_ICONS = {
-  'Run': '👟',
-  'TrailRun': '⛰️',
-  'Hike': '🥾',
-  'Walk': '🚶',
-  'Ride': '🚴',
-  'MountainBikeRide': '🚵',
-  'GravelRide': '🚴',
-  'BackcountrySki': '⛷️',
-  'NordicSki': '🎿',
-  'Snowshoe': '❄️'
+  'Run': 'Course',
+  'TrailRun': 'Trail',
+  'Hike': 'Rando',
+  'Walk': 'Marche',
+  'Ride': 'Vélo',
+  'MountainBikeRide': 'VTT',
+  'GravelRide': 'Gravel',
+  'BackcountrySki': 'Ski rando',
+  'NordicSki': 'Ski de fond',
+  'Snowshoe': 'Raquettes'
 };
 
 function getActivitySportIcon(sportType) {
-  return ACTIVITY_SPORT_ICONS[sportType] || '👟';
+  return ACTIVITY_SPORT_ICONS[sportType] || 'Activité';
 }
 
 // ============================================
@@ -259,7 +259,7 @@ export function renderActiveJokersSection(container, data) {
   // Jokers programmés pour le prochain round
   if (pendingJokers.length > 0) {
     const nextRound = getRoundInSeason(new Date()) + 1;
-    html += `<div class="pending-jokers"><h4>⏰ Programmés pour le Round ${nextRound}</h4><div class="pending-list">`;
+    html += `<div class="pending-jokers"><h4>Programmés pour le Round ${nextRound}</h4><div class="pending-list">`;
 
     pendingJokers.forEach(joker => {
       const jokerType = JOKER_TYPES[joker.jokerId];
@@ -303,7 +303,7 @@ export function renderAthleteActivitiesPanel(athleteId, roundActivities, special
     if (isRainRule && isRainyActivity(a)) {
       const w = a.weather;
       const boosted = Math.round(getActivityElevation(a, specialRule));
-      rainBadge = `<span class="athlete-activity-rain" title="${w.rain_minutes} min de pluie · ${w.rain_mm} mm">🌧️</span>`;
+      rainBadge = `<span class="athlete-activity-rain" title="${w.rain_minutes} min de pluie · ${w.rain_mm} mm">pluie</span>`;
       elevationHtml = `<span class="athlete-activity-elevation-raw">${formatElevation(raw)}</span> <span class="athlete-activity-elevation-boost">${formatElevation(boosted)}</span>`;
     }
 
@@ -332,7 +332,7 @@ export function renderRanking(container, data) {
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
       <div class="empty-state">
-        <p>🏆 Saison terminée ! Champion : ${seasonData.winner?.name || 'N/A'}</p>
+        <p>Saison terminée ! Champion : ${seasonData.winner?.name || 'N/A'}</p>
       </div>
     `;
     return;
@@ -355,7 +355,6 @@ export function renderRanking(container, data) {
   if (isSpecial && specialRuleDetails) {
     specialRuleHtml = `
       <div class="special-rule-banner">
-        <div class="special-rule-icon">${specialRuleDetails.icon}</div>
         <div class="special-rule-info">
           <span class="special-rule-name">${specialRuleDetails.name}</span>
           <span class="special-rule-desc">${specialRuleDetails.fullDescription}</span>
@@ -371,14 +370,14 @@ export function renderRanking(container, data) {
   if (isFinale) {
     specialBanner += `
       <div style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #1f2937; padding: 16px 20px; border-radius: 10px; margin-bottom: 16px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3); font-size: 16px;">
-        🏆 FINALE — Round ${currentRoundNumber} — Dernière ligne droite !
+        FINALE — Round ${currentRoundNumber} — Dernière ligne droite !
       </div>
     `;
   }
   if (isNoBonus) {
     specialBanner += `
       <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 14px 20px; border-radius: 10px; margin-bottom: 16px; font-weight: 600; text-align: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
-        🚫 Round au D+ pur — Jokers et bonus désactivés
+        Round au D+ pur — Jokers et bonus désactivés
       </div>
     `;
   }
@@ -437,7 +436,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
         // puisque seules certaines sorties de l'athlète sont concernées.
         const gain = entry.rainBonusElevation || 0;
         adjHtml = gain > 0
-          ? `<span class="handicap-bonus" title="${entry.rainyActivities} activité(s) sous la pluie, D+ ×${WEATHER_RULE.multiplier}">🌧️ +${gain} m</span>`
+          ? `<span class="handicap-bonus" title="${entry.rainyActivities} activité(s) sous la pluie, D+ ×${WEATHER_RULE.multiplier}">+${gain} m</span>`
           : `<span class="handicap-none">—</span>`;
       } else {
         const adjPercent = entry.adjustmentPercent || 0;
@@ -464,8 +463,8 @@ let html = specialBanner + specialRuleHtml + headerHtml;
             </div>
             <div class="athlete-details">
               <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
-              ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent">🎫 Rescapé</span>' : ''}
-              ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
+              ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent">Rescapé</span>' : ''}
+              ${entry.isInDangerZone ? '<span class="athlete-status danger">Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
               ${entry.adjustmentLabel ? `<span class="athlete-status handicap-tag" title="${entry.adjustmentLabel}">${entry.adjustmentLabel}</span>` : ''}
             </div>
@@ -496,8 +495,8 @@ let html = specialBanner + specialRuleHtml + headerHtml;
             </div>
             <div class="athlete-details">
               <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
-              ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">🎫 Rescapé</span>' : ''}
-              ${entry.isInDangerZone ? '<span class="athlete-status danger">⚠️ Zone danger</span>' : ''}
+              ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">Rescapé</span>' : ''}
+              ${entry.isInDangerZone ? '<span class="athlete-status danger">Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
             </div>
           </div>
@@ -824,7 +823,6 @@ export function renderArsenal(container, data) {
     html += `
       <div class="arsenal-card arsenal-recap">
         <div class="arsenal-card-title">
-          <span class="icon">📜</span>
           Récap Round ${previousRoundNumber} (terminé)
         </div>
         <div class="recap-content">
@@ -893,7 +891,7 @@ export function renderArsenal(container, data) {
           hoverTitle = `${joker.athlete_name} est protégé(e) contre l'élimination ce round`;
           break;
         case 'multiplicateur':
-          description = `✨ ×1.5 sur tout le D+ de ${joker.athlete_name}${amount > 0 ? ` (+${fmtAmt} m bonus)` : ''}`;
+          description = `×1.5 sur tout le D+ de ${joker.athlete_name}${amount > 0 ? ` (+${fmtAmt} m bonus)` : ''}`;
           hoverTitle = amount > 0 ? `+${fmtAmt} m D+ bonus grâce au multiplicateur` : 'En attente de calcul...';
           break;
         case 'sabotage':
@@ -923,7 +921,6 @@ export function renderArsenal(container, data) {
     html += `
       <div class="arsenal-card">
         <div class="arsenal-card-title">
-          <span class="icon">⏰</span>
           Programmés pour le Round ${nextRound}
         </div>
         <div class="active-jokers-list">
@@ -959,9 +956,9 @@ export function renderArsenal(container, data) {
                           bonus.status === 'used' ? 'used' :
                           bonus.status === 'active' ? 'active' : 'available';
 
-      const statusLabel = bonus.status === 'pending' ? '⏳ Choix en attente' :
+      const statusLabel = bonus.status === 'pending' ? 'Choix en attente' :
                           bonus.status === 'used' ? '✓ Utilisé ce round' :
-                          bonus.status === 'active' ? '🎯 Activé' : '💤 Disponible';
+                          bonus.status === 'active' ? '🎯 Activé' : 'Disponible';
 
       // Construire les détails du bonus
       let bonusDetails = '';
@@ -986,12 +983,12 @@ export function renderArsenal(container, data) {
         <div class="bonus-item ${statusClass}" ${hoverTitle ? `title="${hoverTitle}"` : ''}>
           <div class="bonus-item-header">
             <span class="bonus-icon">${bonus.icon || '🎁'}</span>
-            <span class="bonus-owner">👻 ${bonus.athlete_name || 'Joueur'}</span>
+            <span class="bonus-owner">${bonus.athlete_name || 'Joueur'}</span>
             ${bonus.bonus_name ? `<span class="bonus-name">${bonus.bonus_name}</span>` : ''}
             <span class="bonus-status ${statusClass}">${statusLabel}</span>
           </div>
           ${bonusDetails ? `<div class="bonus-item-details">${bonusDetails}</div>` : ''}
-          ${bonus.hoverInfo ? `<div class="bonus-hover-hint">ℹ️ Survoler pour plus d'infos</div>` : ''}
+          ${bonus.hoverInfo ? `<div class="bonus-hover-hint">Survoler pour plus d'infos</div>` : ''}
         </div>
       `;
     });
@@ -1015,19 +1012,19 @@ function getBonusEffectDescription(bonus) {
 
   switch (bonusId) {
     case 'embuscade':
-      return `⚡ À la fin du round, une activité aléatoire de ${target || 'la cible'} sera volée`;
+      return `À la fin du round, une activité aléatoire de ${target || 'la cible'} sera volée`;
     case 'ravitaillement':
-      return `⚡ À la fin du round$, une activité sera donnée à ${target || 'la cible'}`;
+      return `À la fin du round$, une activité sera donnée à ${target || 'la cible'}`;
     case 'duel':
-      return `⚡ Duel en cours jusqu'à la fin de la saison. Le gagnant (plus de D+) obtient +1 point`;
+      return `Duel en cours jusqu'à la fin de la saison. Le gagnant (plus de D+) obtient +1 point`;
     case 'brouillard':
-      return `⚡ D+ masqué jusqu'à la révélation finale en fin de saison`;
+      return `D+ masqué jusqu'à la révélation finale en fin de saison`;
     case 'marquage':
-      return `⚡ Si ${target || 'la cible'} est éliminé(e) à la fin du round → +1 point`;
+      return `Si ${target || 'la cible'} est éliminé(e) à la fin du round → +1 point`;
     case 'trap':
-      return `⚡ Piège actif. Le prochain dernier éliminé donnera du D+`;
+      return `Piège actif. Le prochain dernier éliminé donnera du D+`;
     case 'second_souffle':
-      return `⚡ En fin de saison, la plus petite activité sera doublée`;
+      return `En fin de saison, la plus petite activité sera doublée`;
     case 'kamikaze':
       return `💣 -25% D+ pour toi ET -25% D+ pour ${target || 'la cible'} à la fin du round`;
     case 'malediction':
@@ -1058,7 +1055,7 @@ export function renderJokersGuide(container) {
           <h3>${joker.name}</h3>
           <div class="joker-effect-desc">${joker.description}</div>
           <div class="joker-details">${joker.effect}</div>
-          ${!joker.usableInFinal ? '<div class="joker-warning">⚠️ Non utilisable en finale</div>' : ''}
+          ${!joker.usableInFinal ? '<div class="joker-warning">Non utilisable en finale</div>' : ''}
         </div>
       </div>
     `;
@@ -1068,7 +1065,7 @@ export function renderJokersGuide(container) {
       </div>
       
       <div class="joker-tips">
-        <h4>💡 Conseils stratégiques</h4>
+        <h4>Conseils stratégiques</h4>
         <ul>
           <li>Les jokers s'activent au round suivant leur utilisation</li>
           <li>Le Duel peut retourner une situation défavorable</li>
@@ -1161,7 +1158,7 @@ export function showContextMenu(e, participantId, participantName, options = {})
       `;
     });
   } else {
-    itemsHtml += '<div class="context-menu-info">⏰ Activé au prochain round</div>';
+    itemsHtml += '<div class="context-menu-info">Activé au prochain round</div>';
     Object.entries(JOKER_TYPES).forEach(([jokerId, joker]) => {
       const count = stock[jokerId] || 0;
       const alreadyPending = status.pending.some(j => j.jokerId === jokerId);
@@ -1186,7 +1183,6 @@ export function showContextMenu(e, participantId, participantName, options = {})
   itemsHtml += `
     <div class="context-menu-divider"></div>
     <div class="context-menu-item reset" data-action="reset" data-participant="${participantId}">
-      <span class="joker-icon">🔄</span>
       <span class="joker-name">Reset jokers (démo)</span>
     </div>
   `;
@@ -1378,8 +1374,8 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
   // Compte à rebours vers le palier suivant (L44)
   const step = nextGaugeStep(gauge);
   const stepHtml = step
-    ? `<div class="gauge-status">⏳ Prochain palier : <strong>${step.tier.label}</strong> (${Math.round(step.tier.minRatio * 100)} %) dans <strong>${formatElevation(step.missing)}</strong> · ${describeGaugeEffect(step.tier)}</div>`
-    : '<div class="gauge-status">🏆 Palier le plus haut atteint</div>';
+    ? `<div class="gauge-status">Prochain palier : <strong>${step.tier.label}</strong> (${Math.round(step.tier.minRatio * 100)} %) dans <strong>${formatElevation(step.missing)}</strong> · ${describeGaugeEffect(step.tier)}</div>`
+    : '<div class="gauge-status">Palier le plus haut atteint</div>';
 
   container.innerHTML = `
     <div class="elevation-gauge tier-${tier.id}${isLive ? '' : ' is-preview'}">

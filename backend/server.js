@@ -339,13 +339,13 @@ async function initializeServer() {
     if (!Array.isArray(raw)) {
       const normalized = normalizeJokerUsage(raw);
       await fs.writeFile(currentEdition().paths.jokers, JSON.stringify(normalized, null, 2));
-      console.log(`🔧 Migration jokers_usage.json: format objet → tableau (${normalized.length} entrées)`);
+      console.log(`Migration jokers_usage.json: format objet → tableau (${normalized.length} entrées)`);
     }
   } catch (e) {
-    console.warn('⚠️ Impossible de migrer jokers_usage.json:', e.message);
+    console.warn('Impossible de migrer jokers_usage.json:', e.message);
   }
 
-  console.log('✅ Serveur initialisé');
+  console.log('Serveur initialisé');
 }
 
 // ============================================
@@ -511,7 +511,7 @@ async function backfillAfterJoin(editionKey, athleteId) {
     const name = accounts.find(a => normalizeId(a.id) === normalizeId(athleteId))?.name || athleteId;
     await withEdition(context, () => backfillNewParticipant(editionKey, normalizeId(athleteId), name));
   } catch (e) {
-    console.error('⚠️ Rattrapage après adhésion échoué:', e.message);
+    console.error('Rattrapage après adhésion échoué:', e.message);
   }
 }
 
@@ -696,7 +696,7 @@ async function replanDeadline(reason) {
   try {
     return await frozenResults.replanDeadlineSeason(await getLeagueAthletes(), currentEdition().config);
   } catch (e) {
-    console.warn(`⚠️ Replanification Deadline (${reason}):`, e.message);
+    console.warn(`Replanification Deadline (${reason}):`, e.message);
     return null;
   }
 }
@@ -815,7 +815,7 @@ app.post('/api/admin/season-planning/:seasonNumber', async (req, res) => {
     // Saison en cours : appliquer tout de suite (sinon au premier gel de la saison)
     const replan = await replanDeadline('planning admin');
 
-    console.log(`🗓️ Saison ${seasonNumber} → ${type}${seasonType.hasDeadline ? ` (deadline ${deadline})` : ''}`);
+    console.log(`Saison ${seasonNumber} → ${type}${seasonType.hasDeadline ? ` (deadline ${deadline})` : ''}`);
     res.json({ success: true, seasonNumber, type, deadline: seasonType.hasDeadline ? deadline : null, replan });
   } catch (error) {
     console.error('Erreur season-planning POST:', error);
@@ -903,7 +903,7 @@ async function ensureScryptHash(account, password) {
       return athletes;
     }, null);
   } catch (error) {
-    console.warn(`⚠️ Migration du mot de passe de ${account.name} : ${error.message}`);
+    console.warn(`Migration du mot de passe de ${account.name} : ${error.message}`);
   }
 }
 
@@ -972,7 +972,7 @@ app.post('/api/admin/reset-password', async (req, res) => {
 
     await safeWriteJSON(ATHLETES_FILE, athletes);
 
-    console.log(`🔑 Mot de passe réinitialisé pour: ${athletes[idx].name} (ID: ${athleteId})`);
+    console.log(`Mot de passe réinitialisé pour: ${athletes[idx].name} (ID: ${athleteId})`);
 
     res.json({
       success: true,
@@ -1016,7 +1016,7 @@ async function getCurrentSeasonContext() {
 
     return { seasonNumber, startRound };
   } catch (e) {
-    console.warn('⚠️ getCurrentSeasonContext:', e.message);
+    console.warn('getCurrentSeasonContext:', e.message);
     return { seasonNumber: 1, startRound: 1 };
   }
 }
@@ -1036,8 +1036,8 @@ async function backfillNewParticipant(leagueId, athleteId, name) {
   const backfillStart = toLocalDay(frozenResults.getRoundDates(startRound, currentEdition().config).start);
   const backfillEnd = toLocalDay(new Date());
   syncLeague(leagueId, backfillStart, backfillEnd, { athleteIds: [athleteId] })
-    .then(r => console.log(`📥 Backfill ${name}: ${r.totalNew} activité(s) depuis ${backfillStart}`))
-    .catch(e => console.error(`⚠️ Backfill ${name} échoué:`, e.message));
+    .then(r => console.log(`Backfill ${name}: ${r.totalNew} activité(s) depuis ${backfillStart}`))
+    .catch(e => console.error(`Backfill ${name} échoué:`, e.message));
 }
 
 app.post('/api/athletes/register', async (req, res) => {
@@ -1115,7 +1115,7 @@ app.post('/api/athletes/register', async (req, res) => {
     await safeWriteJSON(ATHLETES_FILE, athletes);
     emailCodes.consumeEmailCode(email);
     const token = await createSession(normalizedId);
-    console.log(`✅ Athlète inscrit: ${name}`);
+    console.log(`Athlète inscrit: ${name}`);
 
     // Règle globale : on n'écrit PAS active_from_round. Son absence signifie
     // « entre à la saison suivante » (cf. isAthleteInRound dans frozen-results).
@@ -1266,7 +1266,7 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
         });
       }
     } catch (e) {
-      console.warn('⚠️ Impossible de vérifier la saison team:', e.message);
+      console.warn('Impossible de vérifier la saison team:', e.message);
     }
 
     // Vérifier si l'athlète est éliminé DANS LA SAISON COURANTE
@@ -1316,7 +1316,7 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
         }
       }
     } catch (e) {
-      console.warn('⚠️ Impossible de vérifier le statut éliminé:', e.message);
+      console.warn('Impossible de vérifier le statut éliminé:', e.message);
     }
 
     // Pré-calculer les rounds figés où cet athlète a utilisé ce joker
@@ -1467,7 +1467,7 @@ async function refreshStravaToken(athlete) {
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      console.log(`   🔄 ${athlete.name}: refresh (${attempt}/3)...`);
+      console.log(`   ${athlete.name}: refresh (${attempt}/3)...`);
 
       const response = await axios.post(`${STRAVA_BASE_URL}/oauth/token`, {
         client_id: STRAVA_CONFIG.clientId,
@@ -1476,7 +1476,7 @@ async function refreshStravaToken(athlete) {
         grant_type: 'refresh_token'
       }, { timeout: 10000 });
 
-      console.log(`   ✅ ${athlete.name}: token rafraîchi`);
+      console.log(`   ${athlete.name}: token rafraîchi`);
       return {
         success: true,
         access_token: response.data.access_token,
@@ -1484,7 +1484,7 @@ async function refreshStravaToken(athlete) {
         expires_at: response.data.expires_at
       };
     } catch (error) {
-      console.log(`   ⚠️ ${athlete.name}: tentative ${attempt} échouée`);
+      console.log(`   ${athlete.name}: tentative ${attempt} échouée`);
       if (attempt < 3) await sleep(1500 * attempt);
     }
   }
@@ -1511,7 +1511,7 @@ async function saveAthleteTokens(updates) {
 }
 
 async function refreshAllTokens() {
-  console.log('🔄 Refresh préventif des tokens...');
+  console.log('Refresh préventif des tokens...');
 
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
   const now = Date.now() / 1000;
@@ -1539,7 +1539,7 @@ async function refreshAllTokens() {
 
   if (refreshed > 0) {
     await saveAthleteTokens(tokenUpdates);
-    console.log(`   ✅ ${refreshed} tokens rafraîchis`);
+    console.log(`   ${refreshed} tokens rafraîchis`);
   }
 }
 
@@ -1588,14 +1588,14 @@ async function enrichLeagueWeather(leagueId, options = {}) {
     if (stats.changed) {
       await store.writeActivities(activitiesLeague, activities);
       console.log(
-        `   🌦️ Météo: ${stats.processed} activité(s) traitée(s) — ` +
+        `   Météo: ${stats.processed} activité(s) traitée(s) — ` +
         `${stats.ok} ok, ${stats.rainy} avec pluie, ${stats.noGeo} sans GPS, ${stats.errors} erreur(s)` +
         `${stats.skipped ? `, ${stats.skipped} reportée(s) (budget atteint)` : ''} en ${Math.round((Date.now() - started) / 1000)} s`
       );
     }
     return stats;
   } catch (error) {
-    console.error(`⚠️ Enrichissement météo ${leagueId} échoué:`, error.message);
+    console.error(`Enrichissement météo ${leagueId} échoué:`, error.message);
     return null;
   }
 }
@@ -1607,7 +1607,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   // athleteIds : restreint le sync à ces athlètes (backfill d'un nouvel inscrit).
   const { updateExisting = true, athleteIds = null } = options;
 
-  console.log(`🔄 Sync ${leagueId}: ${startDate} → ${endDate} (update=${updateExisting})`);
+  console.log(`Sync ${leagueId}: ${startDate} → ${endDate} (update=${updateExisting})`);
 
   const athletes = await safeReadJSON(ATHLETES_FILE, []);
   let leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
@@ -1631,7 +1631,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
     const athleteId = normalizeId(athlete.id);
 
     try {
-      console.log(`   📥 ${athlete.name}...`);
+      console.log(`   ${athlete.name}...`);
 
       let accessToken = athlete.tokens?.access_token;
       if (!accessToken) {
@@ -1688,7 +1688,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
               existing.name !== act.name;
 
             if (hasChanged) {
-              console.log(`      🔄 MAJ: ${act.name} (D+ ${existing.total_elevation_gain}→${act.total_elevation_gain}m)`);
+              console.log(`      MAJ: ${act.name} (D+ ${existing.total_elevation_gain}→${act.total_elevation_gain}m)`);
 
               // Préserver certains champs locaux (excluded, etc.)
               const localFields = {
@@ -1740,7 +1740,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   await saveAthleteTokens(tokenUpdates);
   await store.writeActivities(activitiesLeague, activities);
 
-  console.log(`   ✅ Total: ${totalNew} nouvelles, ${totalUpdated} mises à jour`);
+  console.log(`   Total: ${totalNew} nouvelles, ${totalUpdated} mises à jour`);
 
   // Météo des activités nouvelles ou pas encore consolidées
   await enrichLeagueWeather(leagueId);
@@ -1804,13 +1804,13 @@ async function forEachActiveEdition(label, fn) {
       if (!context) continue;
       await withEdition(context, () => fn(edition));
     } catch (error) {
-      console.error(`❌ [${edition.key}] ${label} :`, error.message);
+      console.error(`[${edition.key}] ${label} :`, error.message);
     }
   }
 }
 
 async function autoSyncAllLeagues() {
-  console.log('🔄 Sync automatique...');
+  console.log('Sync automatique...');
   await refreshAllTokens();
 
   const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -1821,7 +1821,7 @@ async function autoSyncAllLeagues() {
   // compte avec la gestion du quota d'API (L60).
   await forEachActiveEdition('synchro', edition => syncLeague(edition.key, start, end));
 
-  console.log('✅ Sync automatique terminée');
+  console.log('Sync automatique terminée');
 }
 
 // ============================================
@@ -1832,10 +1832,10 @@ let processingQueue = false;
 
 app.get('/api/webhook/strava', (req, res) => {
   const { 'hub.mode': mode, 'hub.verify_token': token, 'hub.challenge': challenge } = req.query;
-  console.log(`🔔 Validation webhook: mode=${mode}`);
+  console.log(`Validation webhook: mode=${mode}`);
 
   if (mode === 'subscribe' && token === STRAVA_VERIFY_TOKEN) {
-    console.log('✅ Webhook validé');
+    console.log('Webhook validé');
     res.json({ 'hub.challenge': challenge });
   } else {
     res.status(403).send('Forbidden');
@@ -1844,7 +1844,7 @@ app.get('/api/webhook/strava', (req, res) => {
 
 app.post('/api/webhook/strava', (req, res) => {
   const event = req.body;
-  console.log(`🔔 Webhook: ${event.object_type}:${event.aspect_type} owner=${event.owner_id} obj=${event.object_id}`);
+  console.log(`Webhook: ${event.object_type}:${event.aspect_type} owner=${event.owner_id} obj=${event.object_id}`);
 
   // Répondre immédiatement
   res.status(200).send('OK');
@@ -1868,7 +1868,7 @@ async function processWebhookQueue() {
     try {
       await processOneWebhook(event);
     } catch (error) {
-      console.error(`❌ Webhook error: ${error.message}`);
+      console.error(`Webhook error: ${error.message}`);
       await logWebhook(event, 'error', { error: error.message });
     }
 
@@ -1937,7 +1937,7 @@ async function processOneWebhook(event) {
   const ownerId = normalizeId(event.owner_id);
   const objectId = event.object_id;
 
-  console.log(`   📋 Traitement: owner=${ownerId} object=${objectId}`);
+  console.log(`   Traitement: owner=${ownerId} object=${objectId}`);
 
   // Événement d'un autre abonnement que le nôtre : forgé ou périmé
   if (STRAVA_SUBSCRIPTION_ID && String(event.subscription_id) !== STRAVA_SUBSCRIPTION_ID) {
@@ -1987,7 +1987,7 @@ async function processOneWebhook(event) {
     let accessToken = athlete.tokens?.access_token;
 
     if (!accessToken) {
-      console.log(`   ❌ Pas de token`);
+      console.log(`   Pas de token`);
       await logWebhook(event, 'failed', { reason: 'no_token' });
       await saveFailedWebhook(event, 'no_token');
       return;
@@ -1996,11 +1996,11 @@ async function processOneWebhook(event) {
     // Refresh si expiré
     const now = Date.now() / 1000;
     if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
-      console.log(`   🔄 Token expiré, refresh...`);
+      console.log(`   Token expiré, refresh...`);
 
       const result = await refreshStravaToken(athlete);
       if (!result.success) {
-        console.log(`   ❌ Refresh échoué`);
+        console.log(`   Refresh échoué`);
         await logWebhook(event, 'failed', { reason: 'refresh_failed' });
         await saveFailedWebhook(event, 'refresh_failed');
         return;
@@ -2016,7 +2016,7 @@ async function processOneWebhook(event) {
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        console.log(`   🌐 Fetch (${attempt}/3)...`);
+        console.log(`   Fetch (${attempt}/3)...`);
 
         // Attendre un peu avant chaque tentative (Strava peut avoir un délai)
         if (attempt > 1) await sleep(3000);
@@ -2031,18 +2031,18 @@ async function processOneWebhook(event) {
         break;
       } catch (error) {
         const msg = error.response?.status === 404 ? 'Activity not found' : error.message;
-        console.log(`   ⚠️ Tentative ${attempt}: ${msg}`);
+        console.log(`   Tentative ${attempt}: ${msg}`);
 
         // Si 404, l'activité n'existe peut-être pas encore côté Strava
         if (error.response?.status === 404 && attempt < 3) {
-          console.log(`   ⏳ Attente 5s avant retry...`);
+          console.log(`   Attente 5s avant retry...`);
           await sleep(5000);
         }
       }
     }
 
     if (!stravaActivity) {
-      console.log(`   ❌ Impossible de récupérer l'activité`);
+      console.log(`   Impossible de récupérer l'activité`);
       await logWebhook(event, 'failed', { reason: 'fetch_failed' });
       await saveFailedWebhook(event, 'fetch_failed');
       return;
@@ -2115,7 +2115,7 @@ async function processOneWebhook(event) {
     // Météo de la nouvelle activité (best-effort, ne bloque pas le webhook)
     await enrichLeagueWeather(leagueId);
 
-    console.log(`   ✅ Ajouté: ${stravaActivity.name} (+${stravaActivity.total_elevation_gain}m)`);
+    console.log(`   Ajouté: ${stravaActivity.name} (+${stravaActivity.total_elevation_gain}m)`);
     await logWebhook(event, 'success', { name: stravaActivity.name, elevation: stravaActivity.total_elevation_gain });
     await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
 
@@ -2139,7 +2139,7 @@ async function processOneWebhook(event) {
       return;
     }
     if (onStrava !== 'gone') {
-      console.log(`   ❌ Suppression non vérifiable auprès de Strava`);
+      console.log(`   Suppression non vérifiable auprès de Strava`);
       await logWebhook(event, 'failed', { reason: 'delete_unverified' });
       await saveFailedWebhook(event, 'delete_unverified');
       return;
@@ -2151,7 +2151,7 @@ async function processOneWebhook(event) {
 
     if (activities.length < before) {
       await store.writeActivities(activitiesLeague, activities);
-      console.log(`   🗑️ Supprimé`);
+      console.log(`   Supprimé`);
       await logWebhook(event, 'deleted', {});
       await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
     }
@@ -2176,7 +2176,7 @@ async function processOneWebhook(event) {
     let accessToken = athlete.tokens?.access_token;
 
     if (!accessToken) {
-      console.log(`   ❌ Pas de token pour update`);
+      console.log(`   Pas de token pour update`);
       await logWebhook(event, 'failed', { reason: 'no_token' });
       return;
     }
@@ -2186,7 +2186,7 @@ async function processOneWebhook(event) {
     if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
       const result = await refreshStravaToken(athlete);
       if (!result.success) {
-        console.log(`   ❌ Refresh échoué pour update`);
+        console.log(`   Refresh échoué pour update`);
         await logWebhook(event, 'failed', { reason: 'refresh_failed' });
         return;
       }
@@ -2196,7 +2196,7 @@ async function processOneWebhook(event) {
     }
 
     try {
-      console.log(`   🌐 Fetch update...`);
+      console.log(`   Fetch update...`);
       const response = await axios.get(
         `${STRAVA_BASE_URL}/api/v3/activities/${objectId}`,
         { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
@@ -2273,12 +2273,12 @@ async function processOneWebhook(event) {
 
       await store.writeActivities(activitiesLeague, activities);
 
-      console.log(`   🔄 MAJ: ${changes.join(', ')}`);
+      console.log(`   MAJ: ${changes.join(', ')}`);
       await logWebhook(event, 'updated', { changes, name: stravaActivity.name });
       await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
 
     } catch (error) {
-      console.log(`   ❌ Erreur fetch update: ${error.message}`);
+      console.log(`   Erreur fetch update: ${error.message}`);
       await logWebhook(event, 'failed', { reason: 'fetch_failed', error: error.message });
     }
   }
@@ -2306,15 +2306,15 @@ async function saveFailedWebhook(event, reason) {
 }
 
 async function retryFailedWebhooks() {
-  console.log('🔄 Retry webhooks échoués...');
+  console.log('Retry webhooks échoués...');
 
   const failed = await safeReadJSON(FAILED_WEBHOOKS_FILE, []);
   if (failed.length === 0) {
-    console.log('   ✅ Aucun webhook en échec');
+    console.log('   Aucun webhook en échec');
     return;
   }
 
-  console.log(`   📋 ${failed.length} à retenter`);
+  console.log(`   ${failed.length} à retenter`);
   const stillFailed = [];
 
   for (const item of failed) {
@@ -2322,7 +2322,7 @@ async function retryFailedWebhooks() {
 
     try {
       await processOneWebhook(item.event);
-      console.log(`   ✅ Réussi: ${item.event.object_id}`);
+      console.log(`   Réussi: ${item.event.object_id}`);
     } catch (error) {
       item.retry_count++;
       item.last_attempt = new Date().toISOString();
@@ -2522,7 +2522,7 @@ app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res)
 
     await store.writeActivities(activitiesLeague, activities);
 
-    console.log(`${exclude ? '🚫' : '↩️'} Activité ${activityId} ${exclude ? 'exclue' : 'réintégrée'}`);
+    console.log(`Activité ${activityId} ${exclude ? 'exclue' : 'réintégrée'}`);
 
     res.json({
       success: true,
@@ -2612,7 +2612,7 @@ function refreshYearlyStandings(reason) {
     const compact = compactStandings(standings);
     if (compact.length === 0) throw new Error('classement vide, rien enregistré');
     await saveYearlyStandingsSnapshot(compact);
-    console.log(`🏆 Classement annuel recalculé${edition ? ` [${edition.key}]` : ''} (${reason}) : ${compact.length} joueurs, ${Date.now() - started} ms`);
+    console.log(`Classement annuel recalculé${edition ? ` [${edition.key}]` : ''} (${reason}) : ${compact.length} joueurs, ${Date.now() - started} ms`);
     return compact;
   };
   const result = standingsRefreshChain.then(run, run);
@@ -2628,7 +2628,7 @@ function scheduleStandingsRefresh(reason) {
   clearTimeout(standingsRefreshTimers.get(key));
   standingsRefreshTimers.set(key, setTimeout(() => {
     standingsRefreshTimers.delete(key);
-    refreshYearlyStandings(reason).catch(e => console.error(`❌ Classement annuel [${key}] :`, e.message));
+    refreshYearlyStandings(reason).catch(e => console.error(`Classement annuel [${key}] :`, e.message));
   }, STANDINGS_REFRESH_DELAY_MS));
 }
 
@@ -2728,11 +2728,11 @@ function lockSeasonTeams(file, seasonNumber, roundNumber, teams) {
     if (Array.isArray(existing?.teams) && existing.teams.length > 0) return true;
     seasonEntry.rounds[String(roundNumber)] = { teams, lockedAt: new Date().toISOString() };
     await safeWriteJSON(file, stored);
-    console.log(`🔒 Équipes S${seasonNumber} R${roundNumber} verrouillées (premier tirage)`);
+    console.log(`Équipes S${seasonNumber} R${roundNumber} verrouillées (premier tirage)`);
     return true;
   };
   const result = _seasonTeamsWriteChain.then(run, run);
-  _seasonTeamsWriteChain = result.catch(e => console.error('❌ Verrouillage équipes:', e.message));
+  _seasonTeamsWriteChain = result.catch(e => console.error('Verrouillage équipes:', e.message));
   return result.catch(() => false);
 }
 
@@ -3152,11 +3152,11 @@ app.post('/api/admin/import-frozen-results', async (req, res) => {
 // ============================================
 // CRON - Ajout auto-freeze
 // ============================================
-cron.schedule('0 6 * * *', () => { console.log('🕐 Sync 6h'); autoSyncAllLeagues(); });
-cron.schedule('0 10 * * *', () => { console.log('🕐 Sync 10h'); autoSyncAllLeagues(); });
-cron.schedule('0 14 * * *', () => { console.log('🕐 Sync 14h'); autoSyncAllLeagues(); });
-cron.schedule('0 18 * * *', () => { console.log('🕐 Sync 18h'); autoSyncAllLeagues(); });
-cron.schedule('0 22 * * *', () => { console.log('🕐 Sync 22h'); autoSyncAllLeagues(); });
+cron.schedule('0 6 * * *', () => { console.log('Sync 6h'); autoSyncAllLeagues(); });
+cron.schedule('0 10 * * *', () => { console.log('Sync 10h'); autoSyncAllLeagues(); });
+cron.schedule('0 14 * * *', () => { console.log('Sync 14h'); autoSyncAllLeagues(); });
+cron.schedule('0 18 * * *', () => { console.log('Sync 18h'); autoSyncAllLeagues(); });
+cron.schedule('0 22 * * *', () => { console.log('Sync 22h'); autoSyncAllLeagues(); });
 
 // Auto-freeze des rounds terminés, juste après minuit.
 // IMPORTANT : on SYNCHRONISE Strava d'abord, puis on fige. Sans ça, le freeze
@@ -3169,11 +3169,11 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
   const started = Date.now();
   if (sync) {
     try {
-      console.log(`🔄 [${reason}] Sync Strava avant auto-freeze...`);
+      console.log(`[${reason}] Sync Strava avant auto-freeze...`);
       await autoSyncAllLeagues();
     } catch (e) {
       // Best-effort : on tente quand même le freeze avec les données sur disque.
-      console.error(`⚠️ [${reason}] Sync avant freeze échoué, on fige avec les données existantes:`, e.message);
+      console.error(`[${reason}] Sync avant freeze échoué, on fige avec les données existantes:`, e.message);
     }
   }
   // Chaque édition en cours, dans son contexte (L33)
@@ -3206,11 +3206,11 @@ async function freezeCurrentEdition(reason, started) {
       activitiesForFreeze, leagueAthletes, jokerUsage, currentEdition().config
     );
     const editionLabel = currentEdition() === LEGACY_CONTEXT ? '' : ` [${currentEdition().leagueId}]`;
-    console.log(`❄️ [${reason}]${editionLabel} ${frozen.length} round(s) figé(s) en ${Math.round((Date.now() - started) / 1000)} s (sync compris)`);
+    console.log(`[${reason}]${editionLabel} ${frozen.length} round(s) figé(s) en ${Math.round((Date.now() - started) / 1000)} s (sync compris)`);
     if (frozen.length > 0) scheduleStandingsRefresh(`gel (${reason})`);
     return frozen;
   } catch (error) {
-    console.error(`❌ [${reason}] Erreur auto-freeze:`, error.message);
+    console.error(`[${reason}] Erreur auto-freeze:`, error.message);
     return [];
   }
 }
@@ -3224,13 +3224,13 @@ cron.schedule('15 0 * * *', () => runAutoFreeze('cron 00h15', { sync: true }), {
 });
 
 cron.schedule('0 20 * * *', async () => {
-  console.log('🕐 Tâches 20h');
+  console.log('Tâches 20h');
   await autoSyncAllLeagues();
   await retryFailedWebhooks();
 });
 
 cron.schedule('30 */2 * * *', () => {
-  console.log('🔄 Refresh tokens');
+  console.log('Refresh tokens');
   refreshAllTokens();
 });
 
@@ -3253,7 +3253,7 @@ async function hasPendingRoundToFreeze() {
     }
     return false;
   } catch (e) {
-    console.warn('⚠️ hasPendingRoundToFreeze:', e.message);
+    console.warn('hasPendingRoundToFreeze:', e.message);
     return false;
   }
 }
@@ -3280,7 +3280,7 @@ async function catchUpAutoFreezeOnStartup() {
   console.log('[startup] round(s) terminé(s) non figé(s) → sync avant freeze');
   const frozen = await runAutoFreeze('startup', { sync: true });
   frozen.forEach(r => {
-    console.log(`   ❄️ Round ${r.roundNumber} (saison ${r.seasonNumber})`);
+    console.log(`   Round ${r.roundNumber} (saison ${r.seasonNumber})`);
   });
 }
 
@@ -3288,17 +3288,17 @@ initializeServer().then(async () => {
   app.listen(PORT, () => {
     console.log('');
     console.log('╔════════════════════════════════════════╗');
-    console.log('║     🚀 VERSANT SERVER v2.6             ║');
+    console.log('║     VERSANT SERVER v2.6             ║');
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Port: ${PORT}                             ║`);
     console.log('║  Syncs: 6h, 10h, 14h, 18h, 22h         ║');
     console.log('║  Auto-freeze: sync+00h15 + démarrage   ║');
     console.log('║  Refresh tokens: toutes les 2h        ║');
     console.log('╚════════════════════════════════════════╝');
-    if (!ADMIN_PASSWORD) console.warn('⚠️  ADMIN_PASSWORD non défini : toutes les routes admin sont refusées');
-    if (JOBS_DISABLED) console.log('⏸️  VERSANT_DISABLE_JOBS=1 : tâches planifiées et rattrapage du gel désactivés');
-    if (process.env.VERSANT_DATA_DIR) console.log(`📁 Données : ${DATA_DIR}`);
-    if (STORE_LAYOUT !== 'legacy') console.log(`🗂️  Organisation des données : ${STORE_LAYOUT}`);
+    if (!ADMIN_PASSWORD) console.warn('ADMIN_PASSWORD non défini : toutes les routes admin sont refusées');
+    if (JOBS_DISABLED) console.log('VERSANT_DISABLE_JOBS=1 : tâches planifiées et rattrapage du gel désactivés');
+    if (process.env.VERSANT_DATA_DIR) console.log(`Données : ${DATA_DIR}`);
+    if (STORE_LAYOUT !== 'legacy') console.log(`Organisation des données : ${STORE_LAYOUT}`);
     scheduleStandingsRefresh('démarrage');
     console.log('');
   });
@@ -3310,7 +3310,7 @@ initializeServer().then(async () => {
       await catchUpAutoFreezeOnStartup();
       // Bonus restés rattachés à une saison close (ex: saison figée par script)
       await frozenResults.purgeClosedSeasonBonuses().catch(e =>
-        console.warn('⚠️ Rattrapage purge bonus:', e.message));
+        console.warn('Rattrapage purge bonus:', e.message));
       // Saison Deadline en cours : recaler les rounds restants
       await replanDeadline('démarrage');
     }, 5000);

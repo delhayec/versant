@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
-  <script src="shared/edition-session.js?v=20261027a" data-auth="optional"></script>
+  <script src="shared/edition-session.js?v=20261027b" data-auth="optional"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Règles - Challenge Versant 2026</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260918b">
+  <link rel="stylesheet" href="css/style.css?v=20261027a">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️</text></svg>">
 
   <style>
@@ -538,7 +538,6 @@
     <section id="teamSeasonRulesBanner" class="rules-section team-season-banner" style="display: none;">
       <div class="team-season-card">
         <div class="team-season-header">
-          <span class="team-season-icon">🤝</span>
           <h2 class="team-season-title">Saison Équipes — Règles spéciales</h2>
         </div>
         <p class="team-season-intro" id="teamSeasonContext">
@@ -547,7 +546,7 @@
 
         <div class="team-rules-grid">
           <div class="team-rule-card">
-            <h4>🎲 Composition des équipes</h4>
+            <h4>Composition des équipes</h4>
             <p>
               4 équipes de 4 joueurs sont tirées au sort
               <strong>à chaque round</strong>. L'algorithme d'équilibrage minimise
@@ -559,7 +558,7 @@
 
 
           <div class="team-rule-card">
-            <h4>⛔ Élimination</h4>
+            <h4>Élimination</h4>
             <p>
               On somme le D+ de tous les membres pour chaque équipe. À la fin
               du round, <strong>l'équipe avec le moins de D+ cumulé est éliminée
@@ -580,7 +579,7 @@
           </div>
 
           <div class="team-rule-card">
-            <h4>🏆 Round R3 — Finale principale</h4>
+            <h4>Round R3 — Finale principale</h4>
             <p>
               La finale du challenge principal se déroule à 2 équipes (8 joueurs).
               <strong>Équipe gagnante : positions 1 à 4 (24/21/18/15 pts).
@@ -590,7 +589,7 @@
           </div>
 
           <div class="team-rule-card">
-            <h4>👻 Round R4 — Finale challenge éliminés</h4>
+            <h4>Round R4 — Finale challenge éliminés</h4>
             <p>
               Les deux équipes finaliste intègre le challenge des éliminés pour un Super-Round bonus de durée standard.
               Toutes les équipes éliminées au
@@ -601,7 +600,7 @@
           </div>
 
           <div class="team-rule-card">
-            <h4>📊 Points du challenge des éliminés</h4>
+            <h4>Points du challenge des éliminés</h4>
             <p>
               À la fin de la saison, on classe les équipes éliminées par D+
               cumulé depuis leur élimination jusqu'à la fin du R4 :
@@ -657,7 +656,6 @@
     <!-- Système de Points -->
     <section class="rules-section">
       <h2 class="section-title">
-        <span class="section-title-icon"></span>
         Système de Points
       </h2>
 
@@ -837,7 +835,7 @@
             <strong>Effet :</strong> Le D+ de cette activité est <span style="color:#ef4444">retiré</span> du total du joueur actif
             et <span style="color:#10b981">ajouté</span> à ton total dans le challenge des éliminés.
           </div>
-          <div class="timing">⏰ Activation : 3 premiers jours du round<br>⚡ Effet : fin du round</div>
+          <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
           <div class="category">⚔️ Offensif</div>
         </div>
 
@@ -850,8 +848,8 @@
             <strong>Effet :</strong> Le D+ de cette activité est <span style="color:#10b981">ajouté en bonus</span> au joueur actif.
             Tu <span style="color:#10b981">conserves aussi</span> ce D+ dans ton total (pas de perte pour toi).
           </div>
-          <div class="timing">⏰ Activation : 3 premiers jours du round<br>⚡ Effet : fin du round</div>
-          <div class="category">🤝 Soutien</div>
+          <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
+          <div class="category">Soutien</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
@@ -863,8 +861,8 @@
             <strong>Effet :</strong> À la fin de la saison, on compare le D+ total des deux duellistes (depuis leur élimination).
             Le gagnant remporte <span style="color:#10b981">+1 point</span> au classement général. Égalité = aucun point.
           </div>
-          <div class="timing">⏰ Activation : automatique dès le choix<br>⚡ Effet : fin de saison</div>
-          <div class="category">🏆 Compétitif</div>
+          <div class="timing">Activation : automatique dès le choix<br>Effet : fin de saison</div>
+          <div class="category">Compétitif</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
@@ -877,7 +875,7 @@
             Tu apparais comme dernier du classement des éliminés (même si ce n'est pas le cas).
             Révélation à la fin de la saison.
           </div>
-          <div class="timing">⏰ Activation : dans les 48h après élimination<br>⚡ Effet : fin de saison</div>
+          <div class="timing">Activation : dans les 48h après élimination<br>Effet : fin de saison</div>
           <div class="category">🛡️ Défensif</div>
         </div>
 
@@ -890,8 +888,8 @@
             <strong>Effet :</strong> Si le joueur marqué termine dans les 2 dernières places (éliminé) à la fin du round,
             tu gagnes <span style="color:#10b981">+1 point</span> au classement général. Sinon, le bonus est perdu.
           </div>
-          <div class="timing">⏰ Activation : jour 1 du round uniquement<br>⚡ Effet : fin du round</div>
-          <div class="category">🎲 Pari</div>
+          <div class="timing">Activation : jour 1 du round uniquement<br>Effet : fin du round</div>
+          <div class="category">Pari</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
@@ -903,7 +901,7 @@
             <strong>Effet :</strong> Quand un joueur est éliminé en dernière position, tu récupères
             <span style="color:#10b981">le D+ de sa dernière activité</span> du round (c'est une copie, pas un vol - il garde son D+).
           </div>
-          <div class="timing">⏰ Activation : automatique dès réception<br>⚡ Effet : au prochain éliminé dernier</div>
+          <div class="timing">Activation : automatique dès réception<br>Effet : au prochain éliminé dernier</div>
           <div class="category">🪤 Piège</div>
         </div>
 
@@ -916,8 +914,8 @@
             <strong>Effet :</strong> À la fin de la saison, ton activité avec le D+ le plus faible (depuis ton élimination)
             <span style="color:#10b981">compte double</span> dans ton total du challenge des éliminés.
           </div>
-          <div class="timing">⏰ Activation : automatique dès réception<br>⚡ Effet : fin de saison</div>
-          <div class="category">⚡ Boost</div>
+          <div class="timing">Activation : automatique dès réception<br>Effet : fin de saison</div>
+          <div class="category">Boost</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
@@ -929,7 +927,7 @@
             <strong>Effet :</strong> Tu <span style="color:#ef4444">perds 25%</span> de ton D+ du round,
             mais ta cible (joueur actif de ton choix) <span style="color:#ef4444">perd aussi 25%</span> de son D+ du round.
           </div>
-          <div class="timing">⏰ Activation : 3 premiers jours du round<br>⚡ Effet : fin du round</div>
+          <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
           <div class="category">⚔️ Offensif</div>
         </div>
 
@@ -943,7 +941,7 @@
             <strong>Effet :</strong> À chaque fin de round, <span style="color:#ef4444">10% de son D+ lui est volé</span>
             et <span style="color:#10b981">ajouté à ton total</span>. L'effet cesse quand il est éliminé.
           </div>
-          <div class="timing">⏰ Activation : automatique dès le choix<br>⚡ Effet : chaque fin de round</div>
+          <div class="timing">Activation : automatique dès le choix<br>Effet : chaque fin de round</div>
           <div class="category">⚔️ Offensif</div>
         </div>
       </div>
@@ -954,7 +952,6 @@
     <!-- Activités comptabilisées -->
     <section class="rules-section">
       <h2 class="section-title">
-        <span class="section-title-icon">🏃</span>
         Activités Comptabilisées
       </h2>
 
@@ -1024,7 +1021,7 @@
         const nextSeason = currentSeason + 1;
         if (isTeamSeason(nextSeason)) {
           showBanner = true;
-          context = `⏳ La <strong>Saison ${nextSeason}</strong> arrive et se jouera par équipes ! Découvre les règles spéciales avant le grand départ.`;
+          context = `La <strong>Saison ${nextSeason}</strong> arrive et se jouera par équipes ! Découvre les règles spéciales avant le grand départ.`;
         }
       }
 

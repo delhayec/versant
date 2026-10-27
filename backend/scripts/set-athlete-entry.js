@@ -19,7 +19,7 @@
  *
  * Une sauvegarde horodatée de athletes.json est écrite avant toute modification.
  *
- * ⚠️  Le serveur lit athletes.json à chaque requête. Lancer ce script pendant
+ * Le serveur lit athletes.json à chaque requête. Lancer ce script pendant
  *     qu'une inscription est en cours pourrait perdre l'une des deux écritures.
  *     À exécuter de préférence serveur arrêté, ou à un moment calme.
  */
@@ -125,19 +125,19 @@ async function main() {
   }
 
   if (!wantClear && (roundArg == null || isNaN(Number(roundArg)))) {
-    console.error('❌ Indiquez un round global (entier) ou --clear.');
+    console.error('Indiquez un round global (entier) ou --clear.');
     process.exit(1);
   }
 
   const athletes = await readJSON(ATHLETES_FILE, null);
   if (!Array.isArray(athletes)) {
-    console.error(`❌ Impossible de lire ${ATHLETES_FILE}`);
+    console.error(`Impossible de lire ${ATHLETES_FILE}`);
     process.exit(1);
   }
 
   const idx = athletes.findIndex(a => String(a.id) === String(athleteId));
   if (idx < 0) {
-    console.error(`❌ Athlète ${athleteId} introuvable.`);
+    console.error(`Athlète ${athleteId} introuvable.`);
     console.error(`   Connus : ${athletes.map(a => `${a.id} (${a.name})`).join(', ')}`);
     process.exit(1);
   }
@@ -147,7 +147,7 @@ async function main() {
   const after = wantClear ? null : Number(roundArg);
 
   if (before === after) {
-    console.log(`ℹ️  ${athlete.name} : déjà à ${after == null ? '(règle globale)' : `round ${after}`}. Rien à faire.`);
+    console.log(`${athlete.name} : déjà à ${after == null ? '(règle globale)' : `round ${after}`}. Rien à faire.`);
     return;
   }
 
@@ -155,7 +155,7 @@ async function main() {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const backup = path.join(DATA_DIR, `athletes.backup-${stamp}.json`);
   await fs.writeFile(backup, JSON.stringify(athletes, null, 2));
-  console.log(`💾 Sauvegarde : ${backup}`);
+  console.log(`Sauvegarde : ${backup}`);
 
   if (after == null) {
     delete athletes[idx].active_from_round;
@@ -166,7 +166,7 @@ async function main() {
   await fs.writeFile(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
 
   console.log('');
-  console.log(`✅ ${athlete.name} (${athlete.id})`);
+  console.log(`${athlete.name} (${athlete.id})`);
   console.log(`   avant : ${before == null ? 'règle globale (entre à la saison suivante)' : `round ${before}`}`);
   console.log(`   après : ${after == null ? 'règle globale (entre à la saison suivante)' : `round ${after}`}`);
   if (after != null) {
@@ -180,6 +180,6 @@ async function main() {
 }
 
 main().catch(e => {
-  console.error('❌', e);
+  console.error(e);
   process.exit(1);
 });

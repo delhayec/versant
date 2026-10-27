@@ -310,7 +310,7 @@ export async function toggleSimulator(roundNumber, allActivities, activeParticip
     return;
   }
 
-  panel.innerHTML = '<div class="sim-banner">🧪 Calcul de la simulation…</div>';
+  panel.innerHTML = '<div class="sim-banner">Calcul de la simulation…</div>';
   panel.classList.add('open');
 
   try {
@@ -325,7 +325,7 @@ export async function toggleSimulator(roundNumber, allActivities, activeParticip
     panel.innerHTML = renderSimulationHTML(sim);
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (e) {
-    console.error('❌ Erreur simulation:', e);
+    console.error('Erreur simulation:', e);
     panel.innerHTML = `<div class="sim-banner sim-error">Erreur lors de la simulation : ${e.message}</div>`;
   }
 }

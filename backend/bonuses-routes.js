@@ -313,7 +313,7 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
             }
           }
         } catch (e) {
-          console.warn(`⚠️ Impossible de déterminer le co-éliminé pour duel:`, e.message);
+          console.warn(`Impossible de déterminer le co-éliminé pour duel:`, e.message);
         }
       }
 

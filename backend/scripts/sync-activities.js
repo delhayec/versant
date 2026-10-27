@@ -14,8 +14,8 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const API_BASE = process.env.API_BASE || 'http://localhost:3000/api';
 
 async function syncActivities(leagueId, startDate, endDate) {
-  console.log(`🔄 Synchronisation de la ligue: ${leagueId}`);
-  console.log(`📅 Période: ${startDate} → ${endDate}`);
+  console.log(`Synchronisation de la ligue: ${leagueId}`);
+  console.log(`Période: ${startDate} → ${endDate}`);
   
   try {
     const response = await axios.post(
@@ -30,19 +30,19 @@ async function syncActivities(leagueId, startDate, endDate) {
     
     const { activities_count, athletes_count, errors } = response.data;
     
-    console.log(`✅ Synchronisation réussie!`);
-    console.log(`   📊 ${activities_count} activités`);
-    console.log(`   👥 ${athletes_count} athlètes`);
+    console.log(`Synchronisation réussie!`);
+    console.log(`   ${activities_count} activités`);
+    console.log(`   ${athletes_count} athlètes`);
     
     if (errors && errors.length > 0) {
-      console.log(`⚠️  ${errors.length} erreurs:`);
+      console.log(`${errors.length} erreurs:`);
       errors.forEach(err => {
         console.log(`   - Athlète ${err.athlete_id}: ${err.error}`);
       });
     }
     
   } catch (error) {
-    console.error('❌ Erreur de synchronisation:', error.message);
+    console.error('Erreur de synchronisation:', error.message);
     if (error.response) {
       console.error('   Détails:', error.response.data);
     }

@@ -171,9 +171,9 @@ async function diagnose(athlete, data) {
 
   console.log('');
   if (problems.length === 0) {
-    console.log('  ✅ Aucune contamination détectée dans les données figées.');
+    console.log('  Aucune contamination détectée dans les données figées.');
   } else {
-    console.log(`  ⚠️  ${problems.length} anomalie(s) :`);
+    console.log(`  ${problems.length} anomalie(s) :`);
     problems.forEach(p => console.log(`     • ${p}`));
   }
   return problems.length;
@@ -184,7 +184,7 @@ async function main() {
   const data = await frozenResults.loadFrozenResultsRaw();
 
   if (!athletes.length) {
-    console.error(`❌ Aucun athlète dans ${ATHLETES_FILE}`);
+    console.error(`Aucun athlète dans ${ATHLETES_FILE}`);
     process.exit(1);
   }
 
@@ -194,7 +194,7 @@ async function main() {
   } else {
     targets = athletes.filter(a => String(a.id) === String(targetId));
     if (!targets.length) {
-      console.error(`❌ Athlète ${targetId} introuvable.`);
+      console.error(`Athlète ${targetId} introuvable.`);
       console.error(`   Athlètes connus : ${athletes.map(a => `${a.id} (${a.name})`).join(', ')}`);
       process.exit(1);
     }
@@ -206,12 +206,12 @@ async function main() {
   console.log('');
   console.log('═'.repeat(70));
   console.log(total === 0
-    ? '✅ Rien à réparer.'
-    : `⚠️  ${total} anomalie(s) au total. Aucune donnée n'a été modifiée (script en lecture seule).`);
+    ? 'Rien à réparer.'
+    : `${total} anomalie(s) au total. Aucune donnée n'a été modifiée (script en lecture seule).`);
   console.log('');
 }
 
 main().catch(e => {
-  console.error('❌', e);
+  console.error(e);
   process.exit(1);
 });

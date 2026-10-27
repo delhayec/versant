@@ -60,7 +60,7 @@ async function refreshStravaToken(athlete) {
   console.log('Options:', opts);
 
   if (!process.env.STRAVA_CLIENT_ID || !process.env.STRAVA_CLIENT_SECRET) {
-    console.error('❌ STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET manquants dans env');
+    console.error('STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET manquants dans env');
     process.exit(1);
   }
 
@@ -100,7 +100,7 @@ async function refreshStravaToken(athlete) {
   for (const [athleteId, acts] of byAthlete) {
     const idx = athleteIndex[athleteId];
     if (idx === undefined) {
-      console.log(`⚠️  Athlète ${athleteId} inconnu, ${acts.length} activités sautées`);
+      console.log(`Athlète ${athleteId} inconnu, ${acts.length} activités sautées`);
       skippedNoToken += acts.length;
       continue;
     }
@@ -108,7 +108,7 @@ async function refreshStravaToken(athlete) {
     let accessToken = athlete.tokens?.access_token;
 
     if (!accessToken) {
-      console.log(`⚠️  Pas de token pour ${athlete.name}, ${acts.length} activités sautées`);
+      console.log(`Pas de token pour ${athlete.name}, ${acts.length} activités sautées`);
       skippedNoToken += acts.length;
       continue;
     }
@@ -116,10 +116,10 @@ async function refreshStravaToken(athlete) {
     // Refresh si expiré
     const now = Date.now() / 1000;
     if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
-      console.log(`🔄 Refresh token pour ${athlete.name}`);
+      console.log(`Refresh token pour ${athlete.name}`);
       const result = await refreshStravaToken(athlete);
       if (!result.success) {
-        console.log(`❌ Refresh échoué pour ${athlete.name} : ${result.error}`);
+        console.log(`Refresh échoué pour ${athlete.name} : ${result.error}`);
         skippedNoToken += acts.length;
         continue;
       }
@@ -128,7 +128,7 @@ async function refreshStravaToken(athlete) {
       await fs.writeFile('data/athletes.json', JSON.stringify(athletes, null, 2));
     }
 
-    console.log(`\n📥 ${athlete.name} (${acts.length} activités)`);
+    console.log(`\n${athlete.name} (${acts.length} activités)`);
 
     for (const a of acts) {
       try {
@@ -165,16 +165,16 @@ async function refreshStravaToken(athlete) {
           backfilled_at: new Date().toISOString()
         };
         const hasPoly = s.map?.summary_polyline ? '✓ polyline' : '(pas de gps)';
-        console.log(`   ✅ ${a.id} ${hasPoly}`);
+        console.log(`   ${a.id} ${hasPoly}`);
         fixed++;
         await sleep(opts.delayMs);
       } catch (err) {
         const status = err.response?.status;
         const reason = status === 404 ? 'not found' : status === 429 ? 'rate limit' : err.message;
-        console.log(`   ❌ ${a.id} : ${reason}`);
+        console.log(`   ${a.id} : ${reason}`);
         failed++;
         if (status === 429) {
-          console.log(`   ⏸️  Rate limit atteint, pause 60s...`);
+          console.log(`   Rate limit atteint, pause 60s...`);
           await sleep(60000);
         }
       }

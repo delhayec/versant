@@ -672,7 +672,7 @@ export function parseActivitiesData(data) {
     return activities;
   }
 
-  console.warn('⚠️ Format de données non reconnu');
+  console.warn('Format de données non reconnu');
   return [];
 }
 

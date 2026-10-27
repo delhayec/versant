@@ -36,7 +36,7 @@ try {
   const bonusesRoutes = require('./bonuses-routes.js');
   applyBonusEffectsForRound = bonusesRoutes.applyBonusEffectsForRound;
 } catch (e) {
-  console.warn('⚠️ Impossible de charger bonuses-routes pour auto-apply');
+  console.warn('Impossible de charger bonuses-routes pour auto-apply');
 }
 
 // Import du moteur de challenge éliminés (CommonJS)
@@ -85,7 +85,7 @@ async function getSpecialRuleForRound(roundNumber) {
       return { id: config.specialRule, ...(ROUND_RULES_BACKEND[config.specialRule] || {}) };
     }
   } catch (e) {
-    console.warn(`⚠️ Erreur lecture round_configs pour round ${roundNumber}:`, e.message);
+    console.warn(`Erreur lecture round_configs pour round ${roundNumber}:`, e.message);
   }
   return null;
 }
@@ -313,7 +313,7 @@ async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
       return null;
     }
   } catch (e) {
-    console.warn(`⚠️ Erreur lecture frozen_results pour check saison close:`, e.message);
+    console.warn(`Erreur lecture frozen_results pour check saison close:`, e.message);
     // En cas d'erreur, on continue (ne pas bloquer la génération par sécurité)
   }
 
@@ -428,7 +428,7 @@ async function importFrozenResults(importData, options = { merge: true }) {
 
   await saveFrozenResults(currentData);
 
-  console.log(`📥 Import: ${imported} round(s) importé(s), ${skipped} ignoré(s)`);
+  console.log(`Import: ${imported} round(s) importé(s), ${skipped} ignoré(s)`);
 
   return {
     success: true,
@@ -726,7 +726,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
         });
       }
     } catch (e) {
-      console.warn('⚠️ Snapshot yearlyStandings indisponible:', e.message);
+      console.warn('Snapshot yearlyStandings indisponible:', e.message);
     }
   }
 
@@ -767,7 +767,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
       }
     }
   } catch (e) {
-    console.warn('⚠️ Lecture season_teams.json échouée:', e.message);
+    console.warn('Lecture season_teams.json échouée:', e.message);
   }
 
   // 3. Fallback : tirage normal
@@ -777,7 +777,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     teamsLockedSource = 'computed (formBalancedTeams)';
   }
 
-  console.log(`📋 R${roundNumber} équipes : source = ${teamsLockedSource}`);
+  console.log(`R${roundNumber} équipes : source = ${teamsLockedSource}`);
 
   // Calcul des D+ par membre puis par équipe.
   // ÉTAPE 1 : construire un ranking individuel temporaire pour pouvoir
@@ -1122,7 +1122,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     const rainyCount = ranking.reduce((s, e) => s + (e.rainyActivities || 0), 0);
     const unknown = ranking.reduce((s, e) => s + (e.weatherUnknown || 0), 0);
     console.log(
-      `🌧️ Round ${roundNumber}: règle 'pluie qui mouille' (×${WEATHER_RULE.multiplier} ` +
+      `Round ${roundNumber}: règle 'pluie qui mouille' (×${WEATHER_RULE.multiplier} ` +
       `si ≥${WEATHER_RULE.minRainMinutes} min de pluie) — ${rainyCount} activité(s) ` +
       `sous la pluie, ${unknown} sans météo exploitable`
     );
@@ -1139,7 +1139,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
     await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities);
   } else {
-    console.log(`🚫 Round ${roundNumber}: règle 'no_bonus' - jokers et bonus éphémères désactivés`);
+    console.log(`Round ${roundNumber}: règle 'no_bonus' - jokers et bonus éphémères désactivés`);
   }
 
   // Appliquer le handicap si actif (malus/bonus sur le D+)
@@ -1190,7 +1190,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
       }
     });
 
-    console.log(`⚖️ Round ${roundNumber}: Handicap appliqué (${Object.keys(malusPerPosition).length} malus, ${bonusLastCount} bonus)`);
+    console.log(`Round ${roundNumber}: Handicap appliqué (${Object.keys(malusPerPosition).length} malus, ${bonusLastCount} bonus)`);
   }
 
   // Trier par D+ décroissant (après handicap)
@@ -1235,7 +1235,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     // Sauf si la config admin force nbEliminations: 0 (cas finale à plusieurs joueurs sans élimination)
     if (customNbEliminations === 0) {
       toEliminate = [];
-      console.log(`🏆 Round ${roundNumber}: finale sans élimination (${eligibleForElimination.length} finalistes)`);
+      console.log(`Round ${roundNumber}: finale sans élimination (${eligibleForElimination.length} finalistes)`);
     } else {
       toEliminate = eligibleForElimination.slice(1);
     }
@@ -1246,7 +1246,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   } else if (useNewRules && zeroElevationPlayers.length >= 2 && zeroElevationPlayers.length >= eliminationsForThisRound) {
     // Si le nombre de joueurs à 0 D+ dépasse le nombre d'éliminations prévues → tous éliminés
     toEliminate = zeroElevationPlayers;
-    console.log(`📋 Round ${roundNumber}: ${zeroElevationPlayers.length} joueurs à 0 D+ (≥${eliminationsForThisRound}) → tous éliminés`);
+    console.log(`Round ${roundNumber}: ${zeroElevationPlayers.length} joueurs à 0 D+ (≥${eliminationsForThisRound}) → tous éliminés`);
   } else {
     // RÈGLE NORMALE: éliminer les N derniers (2 par défaut, 4 pour handicap, ou config admin)
     toEliminate = eligibleForElimination.slice(-eliminationsForThisRound);
@@ -1522,7 +1522,7 @@ case 'marquage': {
   try {
     await fs.writeFile(currentEdition().paths.bonuses, JSON.stringify(bonuses, null, 2), 'utf8');
   } catch (e) {
-    console.warn('⚠️ Impossible de sauvegarder bonuses.json après application:', e.message);
+    console.warn('Impossible de sauvegarder bonuses.json après application:', e.message);
   }
 }
 
@@ -1610,7 +1610,7 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
   const data = await loadFrozenResults();
 
   if (data.rounds[String(roundNumber)]?.frozen) {
-    console.log(`⚠️ Round ${roundNumber} déjà figé`);
+    console.log(`Round ${roundNumber} déjà figé`);
     return data.rounds[String(roundNumber)];
   }
 
@@ -1626,13 +1626,13 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
   data.rounds[String(roundNumber)] = results;
   await saveFrozenResults(data);
 
-  console.log(`❄️ Round ${roundNumber} figé (calculé): ${results.eliminations.length} éliminé(s)`);
+  console.log(`Round ${roundNumber} figé (calculé): ${results.eliminations.length} éliminé(s)`);
 
   // Saison Deadline : recaler les rounds suivants sur les éliminations réelles
   try {
     await replanDeadlineSeason(athletes, config);
   } catch (e) {
-    console.warn(`⚠️ Replanification Deadline après R${roundNumber}:`, e.message);
+    console.warn(`Replanification Deadline après R${roundNumber}:`, e.message);
   }
 
   // Générer automatiquement les choix de bonus pour le meilleur éliminé.
@@ -1652,7 +1652,7 @@ const isNoBonusRound = results.specialRule === 'no_bonus';
         await saveFrozenResults(data);
       }
     } catch (e) {
-      console.warn(`⚠️ Erreur génération choix bonus round ${roundNumber}:`, e.message);
+      console.warn(`Erreur génération choix bonus round ${roundNumber}:`, e.message);
     }
   }
 
@@ -1680,7 +1680,7 @@ if (isTeamRound) {
         const roundConfig = await roundConfigs.getRoundConfig(results.roundNumber);
         forcedFinale = roundConfig?.type === 'finale';
       } catch (e) {
-        console.warn(`⚠️ Erreur lecture config round ${results.roundNumber}:`, e.message);
+        console.warn(`Erreur lecture config round ${results.roundNumber}:`, e.message);
       }
 
       shouldFreezeSeason = naturalEnd || forcedFinale;
@@ -1693,14 +1693,14 @@ if (isTeamRound) {
       );
       if (elimChallengeFrozen?.success) {
         console.log(
-          `🏔️ Auto-freeze challenge éliminés saison ${results.seasonNumber} ` +
+          `Auto-freeze challenge éliminés saison ${results.seasonNumber} ` +
           `(${elimChallengeFrozen.ranking.length} athlètes, ${elimChallengeFrozen.archivedBonuses || 0} bonus archivés)`
         );
         results.eliminatedChallengeFrozen = elimChallengeFrozen;
       }
     }
   } catch (e) {
-    console.warn(`⚠️ Erreur auto-freeze challenge éliminés saison ${results.seasonNumber}:`, e.message);
+    console.warn(`Erreur auto-freeze challenge éliminés saison ${results.seasonNumber}:`, e.message);
   }
 
   return results;
@@ -1777,7 +1777,7 @@ async function calculateYearlyStandings(athletes) {
  */
 async function resetAllFrozenResults() {
   await saveFrozenResults({ version: "1.0", rounds: {}, lastUpdated: null });
-  console.log('🗑️ Tous les résultats figés ont été supprimés');
+  console.log('Tous les résultats figés ont été supprimés');
 }
 
 /**
@@ -1796,7 +1796,7 @@ async function unfreezeRound(roundNumber) {
   if (data.rounds[String(roundNumber)]) {
     delete data.rounds[String(roundNumber)];
     await saveFrozenResults(data);
-    console.log(`🔓 Round ${roundNumber} défigé`);
+    console.log(`Round ${roundNumber} défigé`);
     return true;
   }
   return false;
@@ -2075,12 +2075,12 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
       await fs.writeFile(PENDING_FILE, JSON.stringify(pending, null, 2), 'utf8');
     }
   } catch (e) {
-    console.warn(`⚠️ Impossible de purger pending_bonus_choices pendant freeze saison ${seasonNumber}:`, e.message);
+    console.warn(`Impossible de purger pending_bonus_choices pendant freeze saison ${seasonNumber}:`, e.message);
   }
 
   if (purgeLog.expiredBonuses.length || purgeLog.purgedPendingChoices.length) {
     console.log(
-      `🧹 Purge saison ${seasonNumber}: ` +
+      `Purge saison ${seasonNumber}: ` +
       `${purgeLog.expiredBonuses.length} bonus expiré(s), ` +
       `${purgeLog.purgedPendingChoices.length} pending choice(s) supprimé(s)`
     );
@@ -2090,7 +2090,7 @@ async function archiveAndPurgeSeasonBonuses(seasonNumber, frozenRoundsMap, ranki
   try {
     await fs.writeFile(currentEdition().paths.bonuses, JSON.stringify(updatedBonusesLive, null, 2), 'utf8');
   } catch (e) {
-    console.warn(`⚠️ Impossible d'écrire ${currentEdition().paths.bonuses} pendant freeze saison ${seasonNumber}:`, e.message);
+    console.warn(`Impossible d'écrire ${currentEdition().paths.bonuses} pendant freeze saison ${seasonNumber}:`, e.message);
   }
 
   return { archivedBonuses, purgeLog };
@@ -2283,7 +2283,7 @@ async function freezeTeamEliminatedChallengeForSeason(seasonNumber, options = {}
   data.lastUpdated = new Date().toISOString();
   await saveFrozenResults(data);
 
-  console.log(`🏔️ Challenge éliminés saison ${seasonNumber} (TEAM) figé : ${ranking.length} athlète(s) répartis en ${eliminatedTeamsData.length} équipes`);
+  console.log(`Challenge éliminés saison ${seasonNumber} (TEAM) figé : ${ranking.length} athlète(s) répartis en ${eliminatedTeamsData.length} équipes`);
 
   return {
     success: true,
@@ -2380,7 +2380,7 @@ async function freezeEliminatedChallengeForSeason(seasonNumber, options = {}) {
 
   await saveFrozenResults(data);
 
-  console.log(`🏔️ Challenge éliminés saison ${seasonNumber} figé : ${ranking.length} athlète(s), ${archivedBonuses.length} bonus archivé(s)`);
+  console.log(`Challenge éliminés saison ${seasonNumber} figé : ${ranking.length} athlète(s), ${archivedBonuses.length} bonus archivé(s)`);
 
   return {
     success: true,
@@ -2468,7 +2468,7 @@ async function purgeClosedSeasonBonuses() {
     await fs.writeFile(pendingFile, JSON.stringify(pending, null, 2), 'utf8');
   }
   if (archived || purgedPending) {
-    console.log(`🧹 Rattrapage purge bonus : ${archived} bonus archivé(s), ${purgedPending} choix en attente supprimé(s)`);
+    console.log(`Rattrapage purge bonus : ${archived} bonus archivé(s), ${purgedPending} choix en attente supprimé(s)`);
   }
   return { archived, purgedPending };
 }
@@ -2558,9 +2558,9 @@ async function replanDeadlineSeason(athletes, config, now = new Date()) {
   await roundConfigs.writeConfigs(configs);
 
   const lastRound = nextRound + plan.rounds.length - 1;
-  console.log(`⏳ Saison Deadline ${seasonNumber} : ${plan.rounds.length} round(s) R${nextRound}→R${lastRound}, ` +
+  console.log(`Saison Deadline ${seasonNumber} : ${plan.rounds.length} round(s) R${nextRound}→R${lastRound}, ` +
     `fin ${getRoundDates(lastRound, config).end.toLocaleDateString('fr-FR')} (deadline ${deadline})` +
-    (plan.warning ? ` ⚠️ ${plan.warning}` : ''));
+    (plan.warning ? ` ${plan.warning}` : ''));
 
   return {
     seasonNumber, planned: true, deadline, actives,

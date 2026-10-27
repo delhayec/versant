@@ -158,7 +158,7 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
       // Lien admin (L59) : à envoyer au futur admin, qui règle ensuite la ligue
       const league = { id, name, inviteCode: newInviteCode(), adminCode: newAdminCode(), createdAt: new Date().toISOString() };
       await store.saveLeague(league);
-      console.log(`🏔️ Ligue créée : ${name} (${id})`);
+      console.log(`Ligue créée : ${name} (${id})`);
       res.status(201).json({ league });
     } catch (error) {
       console.error('Erreur création de ligue:', error);
@@ -256,7 +256,7 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
         config,
         createdAt: new Date().toISOString()
       });
-      console.log(`📅 Édition lancée : ${leagueId}/${editionId}, du ${body.startDate} au ${body.endDate}`);
+      console.log(`Édition lancée : ${leagueId}/${editionId}, du ${body.startDate} au ${body.endDate}`);
 
       // Inscrits en attente (L59) : ils entrent dans cette première édition.
       // Arrivés avant qu'elle existe, ils jouent dès le début : si l'admin a
@@ -331,7 +331,7 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
         return res.json({ success: true, alreadyConfirmed: true, edition });
       }
       await store.addParticipant(edition.key, req.athleteId, new Date().toISOString());
-      console.log(`✅ ${req.athleteId} confirme ${leagueId}/${editionId}`);
+      console.log(`${req.athleteId} confirme ${leagueId}/${editionId}`);
       if (onJoin) onJoin(edition.key, req.athleteId);
       res.json({ success: true, edition });
     } catch (error) {

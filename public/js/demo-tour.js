@@ -169,7 +169,7 @@
           ${avatar(id)}
           <div class="athlete-info tour-name-line">
             <span class="athlete-name">${PLAYERS[id].name}<span class="tour-gift" hidden></span></span>
-            <span class="athlete-status danger" hidden>⚠️<span class="long"> Zone danger</span></span>
+            <span class="athlete-status danger" hidden><span class="long">Zone </span>danger</span>
           </div>
         </div>
         <div class="ranking-elevation"><span class="tour-num"></span> <span class="elevation-unit">m</span></div>
@@ -403,9 +403,9 @@
       steps: [
         [2800, 'Round en cours : les 2 derniers sont en zone danger.'],
         [3800, 'Léa enregistre une sortie trail sur Strava : son compteur grimpe.',
-          () => table.gain('lea', 564, ['🏃', 'Trail'], 'activity', 2200)],
+          () => table.gain('lea', 564, ['', 'Trail'], 'activity', 2200)],
         [5600, 'Inès, en zone danger, part à vélo : +612 m. Elle remonte…',
-          () => table.gain('ines', 612, ['🚴', 'Vélo'], 'activity', 3600)],
+          () => table.gain('ines', 612, ['', 'Vélo'], 'activity', 3600)],
         [3800, 'Inès double Sarah et Tom : ce sont eux qui passent en zone danger. Il reste du temps pour réagir !']
       ]
     };
@@ -480,9 +480,9 @@
           count.parentElement.classList.add('tour-pop');
         }],
         [4600, 'Tom part en VTT : +720 m, il prend la tête.',
-          () => table.gain('tom', 720, ['🚵', 'VTT'], 'activity', 3400)],
+          () => table.gain('tom', 720, ['', 'VTT'], 'activity', 3400)],
         [4400, 'Sarah sort courir : +450 m, elle double Zoé.',
-          () => table.gain('sarah', 450, ['🏃', 'Course'], 'activity', 2800)],
+          () => table.gain('sarah', 450, ['', 'Course'], 'activity', 2800)],
         [2800, 'Fin du round suivant : Hugo et Max sont éliminés à leur tour et rejoignent le challenge.', async () => {
           table.add('hugo', 0, { from: 'left' });
           await sleep(200);
@@ -515,8 +515,8 @@
       steps: [
         [2600, 'Finale de la saison : il ne reste que Léa et Inès.'],
         [5000, 'Dernier jour : Inès sort une grosse rando et passe devant !',
-          () => table.gain('ines', 320, ['🥾', 'Rando'], 'activity', 3200)],
-        [2600, 'Fin de la finale : Inès remporte la saison 👑', () => table.gift('ines', '👑')],
+          () => table.gain('ines', 320, ['', 'Rando'], 'activity', 3200)],
+        [2600, 'Fin de la finale : Inès remporte la saison', () => table.gift('ines', '🥇')],
         [3200, 'Au classement général : 24 pts pour la championne, 21 pour la finaliste. Les autres marquent aussi, selon leur place.', () => {
           table.bubble('ines', '+24 pts', 'main');
           table.bubble('lea', '+21 pts', 'main');

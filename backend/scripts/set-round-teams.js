@@ -59,5 +59,5 @@ if (fs.existsSync(SEASON_TEAMS_FILE)) {
 seasonEntry.rounds[String(round)] = { teams, lockedAt: new Date().toISOString(), source: input.source || file };
 fs.writeFileSync(SEASON_TEAMS_FILE, JSON.stringify(stored, null, 2));
 
-console.log(`🔒 S${season} R${round} verrouillé :`);
+console.log(`S${season} R${round} verrouillé :`);
 teams.forEach(t => console.log(`   ${t.animal?.name || '?'} : ${t.members.map(m => `${m.name} (${m.points})`).join(', ')}`));
