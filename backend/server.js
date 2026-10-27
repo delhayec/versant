@@ -1076,7 +1076,7 @@ app.post('/api/athletes/register', async (req, res) => {
       return res.status(502).json({ error: 'Strava ne répond pas : réessaie dans un instant' });
     }
     if (!stravaAthlete?.id || normalizeId(stravaAthlete.id) !== normalizeId(athlete_id)) {
-      console.warn(`⛔ Inscription refusée : le jeton Strava n'appartient pas à ${athlete_id}`);
+      console.warn(`Inscription refusée : le jeton Strava n'appartient pas à ${athlete_id}`);
       return res.status(403).json({ error: 'Ce compte Strava ne correspond pas' });
     }
 

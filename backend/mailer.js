@@ -17,7 +17,7 @@ let nodemailer = null;
 try {
   nodemailer = require('nodemailer');
 } catch (error) {
-  console.error('⚠️ nodemailer absent (npm install dans backend/) : envoi d\'e-mails désactivé');
+  console.error('nodemailer absent (npm install dans backend/) : envoi d\'e-mails désactivé');
 }
 
 let transport = null;
@@ -68,7 +68,7 @@ function layout({ title, lines = [], code, button, footer }) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:32px 12px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:12px;overflow:hidden;">
-        <tr><td style="background:#0a0a0f;padding:20px 28px;color:#ffffff;font-size:20px;font-weight:bold;">⛰️ Versant</td></tr>
+        <tr><td style="background:#0a0a0f;padding:20px 28px;color:#ffffff;font-size:20px;font-weight:bold;">Versant</td></tr>
         <tr><td style="padding:28px;">
           <h1 style="margin:0 0 16px;font-size:20px;">${escapeHtml(title)}</h1>
           ${lines.map(l => `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;">${escapeHtml(l)}</p>`).join('\n          ')}

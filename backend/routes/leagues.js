@@ -173,7 +173,7 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
       const { leagueId } = req.params;
       if (!ID_PATTERN.test(leagueId) || !(await store.getLeague(leagueId))) return res.status(404).json({ error: 'Ligue introuvable' });
       const league = await store.modifyLeague(leagueId, current => ({ ...current, adminCode: newAdminCode() }));
-      console.log(`🛡️ Nouveau lien admin pour la ligue ${leagueId}`);
+      console.log(`Nouveau lien admin pour la ligue ${leagueId}`);
       res.json({ success: true, adminCode: league.adminCode });
     } catch (error) {
       console.error('Erreur lien admin:', error);
@@ -217,7 +217,7 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
         config: { ...(info.config || {}), ...changes },
         updatedAt: new Date().toISOString()
       }));
-      console.log(`📅 Édition modifiée : ${leagueId}/${editionId}, du ${startDate} au ${endDate}`);
+      console.log(`Édition modifiée : ${leagueId}/${editionId}, du ${startDate} au ${endDate}`);
       res.json({ success: true, edition: { ...edition, startDate, endDate } });
     } catch (error) {
       console.error('Erreur modification d\'édition:', error);

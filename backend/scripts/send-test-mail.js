@@ -23,17 +23,17 @@ const { mailEnabled, sendMail } = require('../mailer');
     process.exit(1);
   }
   if (!mailEnabled()) {
-    console.error(`❌ SMTP_HOST, SMTP_USER ou SMTP_PASS manquant dans ${fs.existsSync(envFile) ? envFile : path.resolve('.env')}`);
+    console.error(`SMTP_HOST, SMTP_USER ou SMTP_PASS manquant dans ${fs.existsSync(envFile) ? envFile : path.resolve('.env')}`);
     process.exit(1);
   }
-  console.log(`📨 Envoi via ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587} (${process.env.SMTP_USER})`);
+  console.log(`Envoi via ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587} (${process.env.SMTP_USER})`);
   console.log(`   de   : ${process.env.MAIL_FROM || 'Versant <noreply@versant-app.fr>'}`);
   console.log(`   à    : ${to}`);
   try {
     const info = await sendMail({
       to,
       subject: 'Versant : e-mail de test',
-      title: 'Ça marche ! 🎉',
+      title: 'Ça marche !',
       lines: [
         'Cet e-mail de test confirme que Versant peut envoyer des messages depuis noreply@versant-app.fr.',
         `Envoyé le ${new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}.`
@@ -41,11 +41,11 @@ const { mailEnabled, sendMail } = require('../mailer');
       code: '123456',
       footer: 'Le code ci-dessus est un exemple : c\'est ainsi que s\'afficheront les codes de validation.'
     });
-    console.log(`✅ Accepté par le serveur SMTP : ${info.response}`);
+    console.log(`Accepté par le serveur SMTP : ${info.response}`);
     console.log(`   messageId : ${info.messageId}`);
     console.log('   Vérifie ta boîte de réception (et les spams).');
   } catch (error) {
-    console.error(`❌ Échec : ${error.message}`);
+    console.error(`Échec : ${error.message}`);
     if (error.responseCode === 535) console.error('   Identifiant ou clé SMTP refusés : vérifie SMTP_USER et SMTP_PASS.');
     if (error.responseCode === 525) console.error('   Adresse IP du serveur non autorisée : Brevo > Sécurité > IP autorisées (curl -4 ifconfig.me ; curl -6 ifconfig.me).');
     process.exit(1);

@@ -93,7 +93,7 @@ function registerMailAuthRoutes(app, { readAccounts, modifyAccounts, setPassword
         code,
         footer: 'Il est valable 15 minutes. Si tu n\'as rien demandé, ignore cet e-mail.'
       });
-      console.log(`📧 Code d'inscription envoyé à ${email}`);
+      console.log(`Code d'inscription envoyé à ${email}`);
       res.json({ success: true });
     } catch (error) {
       console.error('Erreur envoi du code:', error.message);
@@ -158,7 +158,7 @@ function registerMailAuthRoutes(app, { readAccounts, modifyAccounts, setPassword
         button: { label: 'Choisir un nouveau mot de passe', url: `${publicUrl()}/login.html#reset=${token}` },
         footer: 'Ce lien est valable 1 heure et ne sert qu\'une fois. Si tu n\'as rien demandé, ignore cet e-mail : ton mot de passe ne change pas.'
       });
-      console.log(`📧 Lien de réinitialisation envoyé à ${account.name} (${account.id})`);
+      console.log(`Lien de réinitialisation envoyé à ${account.name} (${account.id})`);
       res.json(SAME_ANSWER);
     } catch (error) {
       console.error('Erreur mot de passe oublié:', error.message);
@@ -185,7 +185,7 @@ function registerMailAuthRoutes(app, { readAccounts, modifyAccounts, setPassword
       }
       await dropSessions(account.id);
       const session = await createSession(account.id);
-      console.log(`🔑 Mot de passe réinitialisé par e-mail : ${account.name} (${account.id})`);
+      console.log(`Mot de passe réinitialisé par e-mail : ${account.name} (${account.id})`);
       res.json({ success: true, token: session, athlete: { id: account.id, name: account.name } });
     } catch (error) {
       console.error('Erreur réinitialisation:', error.message);

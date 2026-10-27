@@ -192,7 +192,7 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
           }
           return current;
         });
-        console.log(`🤝 ${req.athleteId} rejoint la ligue ${league.id} (en attente de la première édition)`);
+        console.log(`${req.athleteId} rejoint la ligue ${league.id} (en attente de la première édition)`);
         return res.json({ success: true, waiting: true, league: { id: league.id, name: league.name } });
       }
 
@@ -223,7 +223,7 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
         delete current.adminCode;
         return current;
       });
-      console.log(`🛡️ ${req.athleteId} devient admin de la ligue ${league.id} (lien admin)`);
+      console.log(`${req.athleteId} devient admin de la ligue ${league.id} (lien admin)`);
       res.json({ success: true, league: { id: league.id, name: league.name } });
     } catch (error) {
       console.error('Erreur lien admin:', error);
