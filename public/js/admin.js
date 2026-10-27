@@ -114,11 +114,16 @@ function chooseManagedEdition() {
   const league = params.get('ligue');
   const edition = params.get('edition');
   const me = adminAuth.me;
-  if (league && !isSuperAdmin() && league !== me?.league?.id) return "Tu n'administres pas cette ligue";
+  // Ligues administrées (L59) : la sienne, ou une autre reçue par un lien admin
+  const administered = me?.adminLeagues || [];
+  const adminOf = id => administered.find(l => l.id === id);
+  if (league && !isSuperAdmin() && !adminOf(league)) return "Tu n'administres pas cette ligue";
   if (league) {
     // Sans édition dans l'adresse : celle du compte s'il s'agit de sa ligue,
     // sinon aucune (ligue sans édition : seule « Ma ligue » est utilisable)
-    managed = { leagueId: league, editionId: edition || (league === me?.league?.id ? me.edition?.editionId : null) || null };
+    managed = { leagueId: league, editionId: edition || (league === me?.league?.id ? me.edition?.editionId : adminOf(league)?.editionId) || null };
+  } else if (!isSuperAdmin() && administered.length && !adminOf(me?.league?.id)) {
+    managed = { leagueId: administered[0].id, editionId: administered[0].editionId || null };
   } else if (me?.league) {
     // Ligue sans édition : seule la rubrique « Ma ligue » est utilisable
     managed = { leagueId: me.league.id, editionId: me.edition?.editionId || null };
@@ -1169,15 +1174,36 @@ function renderLeague({ league, editions, participants }) {
   const editionRows = editions.map(e => {
     const isManaged = e.editionId === managed.editionId;
     const link = `admin.html?ligue=${encodeURIComponent(e.leagueId)}&edition=${encodeURIComponent(e.editionId)}`;
+    // Pas encore commencée (L59) : dates et réglages modifiables
+    const editable = !e.legacyId && e.startDate && e.startDate > today;
     return `
       <tr class="${isManaged ? 'is-current' : ''}">
         <td><strong>${escapeHtml(e.editionId)}</strong></td>
         <td>${formatDay(e.startDate)} → ${formatDay(e.endDate)}</td>
         <td>${editionStatus(e, today)}</td>
         <td class="center num">${(participants[e.editionId] || []).length}</td>
-        <td class="center">${isManaged ? '<span class="hint">gérée ici</span>' : `<a href="${link}" style="color: #22d3ee;">Gérer</a>`}</td>
-      </tr>`;
+        <td class="center">
+          ${isManaged ? '<span class="hint">gérée ici</span>' : `<a href="${link}" style="color: #22d3ee;">Gérer</a>`}
+          ${editable ? `<button class="btn btn-ghost btn-sm" data-edit-edition="${escapeHtml(e.editionId)}" style="margin-left: 6px;">Modifier</button>` : ''}
+        </td>
+      </tr>
+      ${editable ? `<tr data-edit-row="${escapeHtml(e.editionId)}" hidden><td colspan="5">${renderEditEditionForm(e)}</td></tr>` : ''}`;
   }).join('');
+
+  // Inscrits en attente de la première édition (L59)
+  const waiting = league.waiting || [];
+  const waitingBlock = waiting.length
+    ? `<p style="font-size: 14px; margin: 12px 0 0;"><span class="warn">En attente de la première édition (${waiting.length}) :</span> ${waiting.map(w => escapeHtml(w.name || w.id)).sort((a, b) => a.localeCompare(b)).join(', ')}</p>`
+    : '';
+
+  // Lien admin (L59) : montré au super-admin seul, tant qu'il n'a pas servi
+  const adminLinkBlock = isSuperAdmin()
+    ? `<p class="desc" style="margin: 16px 0 4px;">Lien admin (à envoyer au futur admin, il ne sert qu'une fois) :</p>
+       <div class="stack">
+         ${league.adminCode ? `<button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(adminLink(league))}">Copier le lien admin</button>` : '<span class="hint">Lien utilisé ou pas encore créé.</span>'}
+         <button class="btn btn-ghost btn-sm" data-new-admin-code="${escapeHtml(league.id)}">Nouveau lien admin</button>
+       </div>`
+    : '';
 
   // Confirmations : éditions après celle gérée, comparées à ses participants
   const managedIndex = editions.findIndex(e => e.editionId === managed.editionId);
@@ -1204,9 +1230,12 @@ function renderLeague({ league, editions, participants }) {
           <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(memberLink)}">📋 Copier le lien pour un compte existant</button>
           <button class="btn btn-danger btn-sm" id="regenerateInviteBtn">🔄 Nouveau code (l'ancien ne marchera plus)</button>
         </div>
+        ${adminLinkBlock}
       </div>
       <div>
-        <p class="desc" style="margin-bottom: 8px;">Lancer l'édition suivante : chaque membre confirme ensuite sa participation depuis son dashboard. Tu peux la lancer en avance, à la date de ton choix.</p>
+        <p class="desc" style="margin-bottom: 8px;">${editions.length
+          ? "Lancer l'édition suivante : chaque membre confirme ensuite sa participation depuis son dashboard. Tu peux la lancer en avance, à la date de ton choix."
+          : "Lancer la première édition, à la date de ton choix : les inscrits en attente y entrent automatiquement. Tant qu'elle n'a pas commencé, tu pourras encore changer ses dates et ses réglages."}</p>
         <form id="launchEditionForm">
           <div class="row">
             <label class="field">Édition <input id="launchEditionId" required pattern="[A-Za-z0-9_-]{1,64}" value="${escapeHtml(suggestEditionId(editions))}" placeholder="2027"></label>
@@ -1231,8 +1260,39 @@ function renderLeague({ league, editions, participants }) {
       <thead><tr><th>Édition</th><th>Dates</th><th>Statut</th><th class="center">Participants</th><th></th></tr></thead>
       <tbody>${editionRows || '<tr><td colspan="5" class="muted">Aucune édition</td></tr>'}</tbody>
     </table>
+    ${waitingBlock}
     ${confirmations}`;
 }
+
+/** Lien admin (L59) : inscription avec le code de la ligue, puis prise en main. */
+function adminLink(league) {
+  return `${window.location.origin}/inscription.html?invitation=${encodeURIComponent(league.inviteCode || '')}#admin=${encodeURIComponent(league.adminCode)}`;
+}
+
+/** Formulaire de modification d'une édition pas encore commencée (L59). */
+function renderEditEditionForm(e) {
+  const s = e.settings || {};
+  const id = escapeHtml(e.editionId);
+  return `
+    <form data-edit-form="${id}" style="padding: 8px 0;">
+      <div class="row">
+        <label class="field">Début <input type="date" name="startDate" required value="${escapeHtml(e.startDate)}" min="${escapeHtml(tomorrowInParis())}"></label>
+        <label class="field">Fin <input type="date" name="endDate" required value="${escapeHtml(e.endDate)}"></label>
+        <label class="field">Jours par round <input type="number" name="roundDurationDays" min="1" value="${escapeHtml(s.roundDurationDays ?? '')}"></label>
+        <label class="field">Éliminations par round <input type="number" name="eliminationsPerRound" min="1" value="${escapeHtml(s.eliminationsPerRound ?? '')}"></label>
+        <label class="field">Finalistes <input type="number" name="finalistsCount" min="1" value="${escapeHtml(s.finalistsCount ?? '')}"></label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-edit-cancel="${id}">Annuler</button>
+      <span data-edit-result style="margin-left: 8px; font-size: 14px;"></span>
+    </form>`;
+}
+
+const tomorrowInParis = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+};
 
 document.getElementById('leagueContent').addEventListener('click', async (e) => {
   const copy = e.target.closest('[data-copy]');
@@ -1243,6 +1303,20 @@ document.getElementById('leagueContent').addEventListener('click', async (e) => 
     } catch {
       window.prompt('Copie ce lien :', copy.dataset.copy);
     }
+    return;
+  }
+  // Modification d'une édition pas encore commencée (L59)
+  const edit = e.target.closest('[data-edit-edition], [data-edit-cancel]');
+  if (edit) {
+    const editionId = edit.dataset.editEdition ?? edit.dataset.editCancel;
+    const row = document.querySelector(`[data-edit-row="${CSS.escape(editionId)}"]`);
+    if (row) row.hidden = edit.dataset.editCancel !== undefined ? true : !row.hidden;
+    return;
+  }
+  const newAdminCode = e.target.closest('[data-new-admin-code]');
+  if (newAdminCode) {
+    await regenerateAdminCode(newAdminCode.dataset.newAdminCode);
+    loadLeague();
     return;
   }
   if (e.target.id === 'regenerateInviteBtn') {
@@ -1259,6 +1333,31 @@ document.getElementById('leagueContent').addEventListener('click', async (e) => 
 });
 
 document.getElementById('leagueContent').addEventListener('submit', async (e) => {
+  const editForm = e.target.closest('[data-edit-form]');
+  if (editForm) {
+    e.preventDefault();
+    const editionId = editForm.dataset.editForm;
+    const field = name => editForm.elements[name].value.trim();
+    const body = { startDate: field('startDate'), endDate: field('endDate') };
+    for (const name of ['roundDurationDays', 'eliminationsPerRound', 'finalistsCount']) {
+      if (field(name) !== '') body[name] = parseInt(field(name), 10);
+    }
+    const result = editForm.querySelector('[data-edit-result]');
+    if (!(body.endDate > body.startDate)) {
+      result.innerHTML = '<span class="err">La fin doit être après le début</span>';
+      return;
+    }
+    if (!confirm(`Modifier l'édition ${editionId} : du ${formatDay(body.startDate)} au ${formatDay(body.endDate)} ?`)) return;
+    try {
+      await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions/${encodeURIComponent(editionId)}`, { method: 'PUT', body });
+      addLog(`Édition ${editionId} modifiée (${body.startDate} → ${body.endDate})`);
+      loadLeague();
+    } catch (error) {
+      result.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
+      addLog(`Erreur modification: ${error.message}`);
+    }
+    return;
+  }
   if (e.target.id !== 'launchEditionForm') return;
   e.preventDefault();
   const value = id => document.getElementById(id).value.trim();
@@ -1273,8 +1372,13 @@ document.getElementById('leagueContent').addEventListener('submit', async (e) =>
   }
   if (!confirm(`Lancer l'édition ${body.editionId}, du ${formatDay(body.startDate)} au ${formatDay(body.endDate)} ?\n\nLes membres seront invités à confirmer leur participation.`)) return;
   try {
-    await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions`, { method: 'POST', body });
-    addLog(`🚀 Édition ${body.editionId} lancée (${body.startDate} → ${body.endDate})`);
+    const data = await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions`, { method: 'POST', body });
+    addLog(`Édition ${body.editionId} lancée (${body.startDate} → ${body.endDate})${data.participantsAdded ? `, ${data.participantsAdded} inscrit(s) en attente ajouté(s)` : ''}`);
+    // Première édition (L59) : l'admin la gère désormais depuis cette page
+    if (!managed.editionId) {
+      window.location.href = `admin.html?ligue=${encodeURIComponent(managed.leagueId)}&edition=${encodeURIComponent(body.editionId)}`;
+      return;
+    }
     loadLeague();
   } catch (error) {
     result.innerHTML = `<span class="err">❌ ${escapeHtml(error.message)}</span>`;
@@ -1302,9 +1406,14 @@ async function loadLeagues() {
 function renderLeagues(leagues, withoutLeague) {
   const rows = leagues.map(league => {
     const current = league.editions.find(e => e.editionId === league.currentEditionId);
-    const editions = league.editions.length
+    const editions = (league.editions.length
       ? league.editions.map(e => `${escapeHtml(e.editionId)} <span class="hint">(${e.participants})</span>`).join(', ')
-      : '<span class="muted">aucune</span>';
+      : '<span class="muted">aucune</span>')
+      + (league.waiting ? ` <span class="warn" style="font-size: 13px;">· ${league.waiting} en attente</span>` : '');
+    // Lien admin (L59) : tant qu'il n'a pas servi
+    const adminLinkCell = league.adminCode
+      ? `<button class="btn btn-ghost btn-sm" data-copy-admin="${escapeHtml(league.id)}">Copier le lien admin</button>`
+      : `<button class="btn btn-ghost btn-sm" data-new-admin-code="${escapeHtml(league.id)}">Nouveau lien admin</button>`;
     const manageLink = `admin.html?ligue=${encodeURIComponent(league.id)}${current ? `&edition=${encodeURIComponent(current.editionId)}` : ''}`;
     const isManaged = league.id === managed.leagueId;
     const admins = league.admins.length ? league.admins.map(a => escapeHtml(a.name)).join(', ') : '<span class="muted">aucun</span>';
@@ -1314,13 +1423,14 @@ function renderLeagues(leagues, withoutLeague) {
             <input type="checkbox" value="${escapeHtml(m.id)}" ${league.admins.some(a => a.id === m.id) ? 'checked' : ''}> ${escapeHtml(m.name)}
           </label>`).join('')
         + `<div><button class="btn btn-primary btn-sm" data-save-admins="${escapeHtml(league.id)}">💾 Enregistrer les admins</button></div>`
-      : '<p class="hint">Aucun membre : lance une édition et envoie le code d\'invitation, puis reviens nommer l\'admin.</p>';
+      : '<p class="hint">Aucun membre pour l\'instant : envoie le lien admin au futur admin, il réglera la ligue et invitera les joueurs.</p>';
     return `
       <tr class="${isManaged ? 'is-current' : ''}">
         <td><strong>${escapeHtml(league.name)}</strong><div class="hint" style="margin: 0;">${escapeHtml(league.id)}</div></td>
         <td>${editions}</td>
         <td>
           ${admins}
+          <div style="margin-top: 6px;">${adminLinkCell}</div>
           <details style="margin-top: 6px;" data-admins-of="${escapeHtml(league.id)}">
             <summary class="hint" style="cursor: pointer; margin: 0;">Modifier</summary>
             <div style="margin-top: 8px;">${checkboxes}</div>
@@ -1342,7 +1452,43 @@ function renderLeagues(leagues, withoutLeague) {
     ${orphans}`;
 }
 
+/** Copie un lien dans le presse-papiers (sinon l'affiche à copier à la main). */
+async function copyLink(link, label) {
+  try {
+    await navigator.clipboard.writeText(link);
+    addLog(`${label} copié`);
+  } catch {
+    window.prompt('Copie ce lien :', link);
+  }
+}
+
+/** Nouveau lien admin (L59, super-admin) : l'ancien, s'il n'a pas servi, ne marche plus. */
+async function regenerateAdminCode(leagueId) {
+  if (!confirm("Créer un nouveau lien admin ?\n\nL'ancien lien, s'il n'a pas servi, ne marchera plus.")) return false;
+  try {
+    await adminJson(`/admin/leagues/${encodeURIComponent(leagueId)}/admin-code`, { method: 'POST' });
+    addLog('Nouveau lien admin créé');
+    if (isSuperAdmin()) loadLeagues();
+    return true;
+  } catch (error) {
+    addLog(`Erreur lien admin: ${error.message}`);
+    alert('Erreur: ' + error.message);
+    return false;
+  }
+}
+
 document.getElementById('leaguesContent').addEventListener('click', async (e) => {
+  const copyAdmin = e.target.closest('[data-copy-admin]');
+  if (copyAdmin) {
+    const league = leaguesCache.find(l => l.id === copyAdmin.dataset.copyAdmin);
+    if (league) await copyLink(adminLink(league), 'Lien admin');
+    return;
+  }
+  const newAdminCode = e.target.closest('[data-new-admin-code]');
+  if (newAdminCode) {
+    if (await regenerateAdminCode(newAdminCode.dataset.newAdminCode) && newAdminCode.dataset.newAdminCode === managed.leagueId) loadLeague();
+    return;
+  }
   const leagueId = e.target.dataset?.saveAdmins;
   if (!leagueId) return;
   const box = document.querySelector(`[data-admins-of="${CSS.escape(leagueId)}"]`);
@@ -1370,8 +1516,14 @@ document.getElementById('createLeagueForm').addEventListener('submit', async (e)
     const { league } = await adminJson('/admin/leagues', { method: 'POST', body: { name } });
     addLog(`🏔️ Ligue créée : ${league.name} (${league.id}), code ${league.inviteCode}`);
     input.value = '';
+    // Lien admin (L59) : le futur admin règle la ligue, choisit les dates et invite les joueurs
+    const link = adminLink(league);
     document.getElementById('createLeagueResult').innerHTML =
-      `✅ Ligue <strong>${escapeHtml(league.name)}</strong> créée. <a href="admin.html?ligue=${encodeURIComponent(league.id)}" style="color: #22d3ee;">La gérer pour lancer sa première édition →</a>`;
+      `Ligue <strong>${escapeHtml(league.name)}</strong> créée. Envoie ce lien à son futur admin (il ne sert qu'une fois) :
+       <div class="invite-code" style="font-size: 13px; word-break: break-all; margin: 8px 0;">${escapeHtml(link)}</div>
+       <button class="btn btn-ghost btn-sm" id="copyNewAdminLink">Copier le lien admin</button>
+       <a href="admin.html?ligue=${encodeURIComponent(league.id)}" style="color: #22d3ee; margin-left: 8px;">Gérer la ligue moi-même →</a>`;
+    document.getElementById('copyNewAdminLink').addEventListener('click', () => copyLink(link, 'Lien admin'));
     loadLeagues();
   } catch (error) {
     addLog(`❌ Erreur création de ligue: ${error.message}`);
