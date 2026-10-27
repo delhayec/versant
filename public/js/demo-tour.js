@@ -609,17 +609,6 @@
     }, { threshold: 0.35 }).observe(root);
   }
 
-  // Lien d'inscription, avec le code de la ligue s'il est saisi
-  function setupJoin() {
-    const form = document.getElementById('joinForm');
-    if (!form) return;
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const code = document.getElementById('joinCode').value.trim();
-      window.location.href = code ? `inscription.html?invitation=${encodeURIComponent(code)}` : 'inscription.html';
-    });
-  }
-
   function init() {
     const scenes = {
       activity: sceneActivity,
@@ -629,7 +618,6 @@
       general: sceneGeneral
     };
     document.querySelectorAll('[data-scene]').forEach(root => play(root, scenes[root.dataset.scene]));
-    setupJoin();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

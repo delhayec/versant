@@ -257,24 +257,7 @@
       margin-bottom: 12px;
     }
     .tour-join p { color: var(--text-secondary); line-height: 1.6; }
-    .tour-join form {
-      display: flex;
-      gap: 10px;
-      margin: 24px 0 12px;
-    }
-    .tour-join input {
-      flex: 1;
-      min-width: 0;
-      padding: 14px 16px;
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-      background: var(--bg-card);
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-      font-size: 1rem;
-      text-transform: uppercase;
-    }
-    .tour-join button { border: none; cursor: pointer; font-size: 1rem; }
+    .tour-join-btn { display: inline-block; margin: 24px 0 12px; padding: 14px 32px; font-size: 1.05rem; }
     .tour-join .tour-more { font-size: 0.85rem; color: var(--text-muted); }
     .tour-join .tour-more a { color: var(--text-secondary); }
 
@@ -300,7 +283,6 @@
       .tour-table .ranking-athlete { gap: 10px; }
       .tour-bubble { font-size: 0.72rem; padding: 3px 8px; }
       .tour-row .long { display: none; }
-      .tour-join form { flex-direction: column; }
       .tour-banner .banner-block { padding: 10px 12px; min-width: 0; }
       .tour-banner .banner-separator { display: none; }
     }
@@ -452,14 +434,10 @@
   <section class="tour-join" id="rejoindre">
     <h2>Prêt à grimper ?</h2>
     <p>
-      Une ligue se rejoint sur invitation : demande le code à l'admin de ta ligue.
-      Tu crées ton compte, tu relies Strava, et c'est parti.
+      Il te faut le code de ta ligue, donné par son admin, et ton compte Strava.
     </p>
-    <form id="joinForm">
-      <input id="joinCode" placeholder="Code de la ligue (ABCD-EFGH)" autocomplete="off" autocapitalize="characters" aria-label="Code de la ligue">
-      <button type="submit" class="btn-join">S'inscrire avec Strava</button>
-    </form>
-    <p class="tour-more">Pas encore de code ? Tu pourras le saisir plus tard. <a href="rules.html">Règles détaillées</a></p>
+    <a href="inscription.html" class="btn-join tour-join-btn">S'inscrire</a>
+    <p class="tour-more"><a href="rules.html">Règles détaillées</a></p>
   </section>
 
   <footer class="footer">
@@ -469,6 +447,6 @@
     </div>
   </footer>
 
-  <script src="js/demo-tour.js?v=20261027f"></script>
+  <script src="js/demo-tour.js?v=20261027g"></script>
 </body>
 </html>

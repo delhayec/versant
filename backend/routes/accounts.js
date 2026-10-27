@@ -6,6 +6,7 @@
  * code d'invitation (distinct de l'identifiant de la ligue, régénérable).
  *
  * GET  /api/me (alias /api/auth/me, attendu par login.html)
+ * GET  /api/leagues/invite/:code                   nom de la ligue (publique, avant l'inscription)
  * POST /api/leagues/join                           { code }
  * GET  /api/admin/leagues/:leagueId                ligue + code (créé s'il manque)
  * POST /api/admin/leagues/:leagueId/invite-code    nouveau code (l'ancien ne marche plus)
@@ -95,6 +96,43 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
   }
   app.get('/api/me', requireAuth, me);
   app.get('/api/auth/me', requireAuth, me);
+
+  /**
+   * Vérification d'un code avant l'inscription (L55) : publique, ne renvoie
+   * que le nom de la ligue. Essais limités par adresse (30 par 10 minutes)
+   * pour qu'on ne puisse pas deviner les codes en masse. Derrière nginx,
+   * l'adresse du joueur est dans X-Real-IP / X-Forwarded-For.
+   */
+  const codeChecks = new Map();
+  const CHECK_WINDOW_MS = 10 * 60 * 1000;
+  const CHECK_MAX = 30;
+  app.get('/api/leagues/invite/:code', async (req, res) => {
+    try {
+      const client = req.headers['x-real-ip'] || String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip;
+      const now = Date.now();
+      if (codeChecks.size > 10000) codeChecks.clear();
+      let entry = codeChecks.get(client);
+      if (!entry || now - entry.since > CHECK_WINDOW_MS) {
+        entry = { count: 0, since: now };
+        codeChecks.set(client, entry);
+      }
+      if (++entry.count > CHECK_MAX) {
+        return res.status(429).json({ error: 'Trop d\'essais : réessaie dans quelques minutes' });
+      }
+
+      const code = normalizeCode(req.params.code);
+      const league = code.length === 8
+        ? (await store.listLeagues()).find(l => l.inviteCode && normalizeCode(l.inviteCode) === code)
+        : null;
+      if (!league) return res.status(404).json({ error: 'Code d\'invitation inconnu' });
+      const editions = await store.listLeagueEditions(league.id);
+      if (!editions.length) return res.status(409).json({ error: 'Cette ligue n\'a pas encore d\'édition' });
+      res.json({ league: { name: league.name } });
+    } catch (error) {
+      console.error('Erreur vérification du code:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
 
   app.post('/api/leagues/join', requireAuth, async (req, res) => {
     try {

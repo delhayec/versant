@@ -249,21 +249,91 @@
       display: block;
     }
     
-    .league-info {
-      background: rgba(59,130,246,0.1);
-      border-left: 4px solid #3b82f6;
-      padding: 16px 20px;
-      margin-bottom: 32px;
-      border-radius: 8px;
+    /* Parcours en 3 étapes */
+    .signup-card [hidden] { display: none !important; }
+    .athlete-preview .athlete-info { flex-direction: column; align-items: flex-start; gap: 2px; }
+    .signup-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 8px 32px;
+      margin-bottom: 24px;
     }
-    
-    .league-info p {
+    .signup-step {
+      padding: 28px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .signup-step:last-child { border-bottom: none; }
+    .signup-step.locked { opacity: 0.45; }
+    .signup-step.done .step-num { background: #10b981; }
+    .step-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .step-head h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
       margin: 0;
-      color: rgba(255,255,255,0.8);
     }
-    
-    .league-info strong {
-      color: #3b82f6;
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f97316;
+      color: #0a0a0f;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-help {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      margin: 0 0 16px;
+    }
+    .code-input {
+      font-family: 'Space Mono', monospace;
+      font-size: 22px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-align: center;
+      max-width: 320px;
+    }
+    .code-input.valid { border-color: #10b981; }
+    .code-input.invalid { border-color: #ef4444; }
+    .code-status {
+      min-height: 1.4em;
+      margin: 10px 0 0;
+      font-size: 15px;
+    }
+    .code-status.ok { color: #10b981; }
+    .code-status.ko { color: #f87171; }
+    .step-lock {
+      margin: 12px 0 0;
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+    }
+    .registration-form {
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: 16px;
+    }
+    .login-link {
+      text-align: center;
+      color: rgba(255,255,255,0.6);
+    }
+    .login-link a { color: #f97316; }
+    @media (max-width: 600px) {
+      .inscription-container { padding: 48px 16px 80px; }
+      .inscription-title { font-size: 36px; }
+      .signup-card { padding: 4px 20px; }
+      .strava-connect-btn { width: 100%; justify-content: center; font-size: 16px; padding: 14px 20px; }
+      .code-input { max-width: none; }
     }
   </style>
 </head>
@@ -276,7 +346,7 @@
         <span class="brand-text">Versant • Inscription</span>
       </a>
       <div class="nav-links">
-        <a href="index.html" class="nav-link">Voir la ligue</a>
+        <a href="login.html" class="nav-link">Se connecter</a>
       </div>
     </div>
   </nav>
@@ -284,24 +354,74 @@
   <div class="inscription-container">
     <div class="inscription-header">
       <div class="hero-eyebrow" style="display: inline-block; margin-bottom: 16px;">Challenge Versant</div>
-      <h1 class="inscription-title">Rejoindre la ligue</h1>
-      <p class="inscription-subtitle">Connectez votre compte Strava pour participer au Challenge Versant</p>
+      <h1 class="inscription-title">Rejoindre une ligue</h1>
+      <p class="inscription-subtitle">Ton code de ligue, ton compte Strava, puis ton mot de passe : c'est parti.</p>
     </div>
 
-    <div class="league-info">
-      <p><strong>◭️ Une ligue se rejoint sur invitation</strong></p>
-      <p>Garde sous la main le code d'invitation que t'a donné l'admin de ta ligue : il te sera demandé à la fin de l'inscription.</p>
+    <!-- Parcours d'inscription : 1. code de la ligue, 2. Strava, 3. compte -->
+    <div class="signup-card" id="signupCard">
+      <!-- Étape 1 : code de la ligue -->
+      <div class="signup-step" id="stepCode">
+        <div class="step-head"><span class="step-num">1</span><h3>Code de ta ligue</h3></div>
+        <p class="step-help">Donné par l'admin de ta ligue. Il est obligatoire pour s'inscrire.</p>
+        <input type="text" id="inviteCode" class="form-input code-input" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" aria-describedby="codeStatus">
+        <p class="code-status" id="codeStatus" aria-live="polite"></p>
+      </div>
+
+      <!-- Étape 2 : Strava -->
+      <div class="signup-step" id="stepStrava">
+        <div class="step-head"><span class="step-num">2</span><h3>Connexion Strava</h3></div>
+        <p class="step-help">Versant lit tes activités pour compter ton dénivelé. Tu seras redirigé vers Strava pour donner ton accord.</p>
+        <button class="strava-connect-btn" id="stravaConnectBtn" disabled>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+          Se connecter avec Strava
+        </button>
+        <p class="step-lock" id="stravaLock">Entre d'abord un code de ligue valide.</p>
+        <div class="athlete-preview" id="athletePreview" hidden></div>
+      </div>
+
+      <!-- Étape 3 : compte (après Strava) -->
+      <div class="signup-step" id="stepAccount">
+        <div class="step-head"><span class="step-num">3</span><h3>Ton compte Versant</h3></div>
+        <div class="registration-form" id="registrationForm">
+          <div class="form-group">
+            <label class="form-label" for="athleteName">Nom d'affichage</label>
+            <input type="text" id="athleteName" class="form-input" placeholder="Ton nom" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="athleteEmail">Adresse e-mail <span style="color: #f97316;">*</span></label>
+            <input type="email" id="athleteEmail" class="form-input" placeholder="ton@email.com" required autocomplete="email">
+            <p class="step-help" style="margin-top: 8px;">Elle te sert d'identifiant pour te connecter.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="athletePassword">Mot de passe <span style="color: #f97316;">*</span></label>
+            <input type="password" id="athletePassword" class="form-input" placeholder="Minimum 6 caractères" required minlength="6" autocomplete="new-password">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="athletePasswordConfirm">Confirmer le mot de passe <span style="color: #f97316;">*</span></label>
+            <input type="password" id="athletePasswordConfirm" class="form-input" placeholder="Répète ton mot de passe" required autocomplete="new-password">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <input type="checkbox" id="acceptTerms" required style="margin-right: 8px;">
+              J'accepte que mes activités Strava soient synchronisées et affichées aux joueurs de ma ligue
+            </label>
+          </div>
+
+          <button class="submit-btn" id="submitBtn" disabled>Créer mon compte</button>
+        </div>
+      </div>
     </div>
 
-    <div class="info-box">
-      <h3>📋 Comment ça marche ?</h3>
-      <ul>
-        <li>Connectez votre compte Strava</li>
-        <li>Nous récupérons automatiquement vos activités</li>
-        <li>Participez aux rounds de 5 jours</li>
-        <li>Évitez l'élimination et gagnez des points</li>
-      </ul>
-    </div>
+    <!-- Message d'erreur -->
+    <div class="error-message" id="errorMessage"></div>
+
+    <!-- Message de réussite -->
+    <div class="success-message" id="successMessage"></div>
 
     <div class="info-box">
       <h3>✨ Ce que nous collectons</h3>
@@ -313,91 +433,7 @@
       </ul>
     </div>
 
-    <!-- Strava Connection -->
-    <div class="strava-connect-section">
-      <div class="strava-logo">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="#FC4C02">
-          <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
-        </svg>
-      </div>
-      <h3 style="margin-bottom: 16px; font-size: 24px;">Connexion Strava</h3>
-      <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
-        Autorisez Versant à accéder à vos activités Strava
-      </p>
-      <button class="strava-connect-btn" id="stravaConnectBtn">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-          <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
-        </svg>
-        Se connecter avec Strava
-      </button>
-      <p style="margin-top: 16px; font-size: 14px; color: rgba(255,255,255,0.5);">
-        Vous serez redirigé vers Strava pour autoriser l'accès
-      </p>
-    </div>
-
-    <!-- Error Message -->
-    <div class="error-message" id="errorMessage"></div>
-
-    <!-- Registration Form (shown after Strava connection) -->
-    <div class="registration-form" id="registrationForm">
-      <h3 style="margin-bottom: 24px;">Finaliser votre inscription</h3>
-      
-      <div class="athlete-preview" id="athletePreview">
-        <!-- Filled by JavaScript -->
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="athleteName">Nom d'affichage</label>
-        <input type="text" id="athleteName" class="form-input" placeholder="Votre nom" required>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="athleteEmail">Adresse e-mail <span style="color: #f97316;">*</span></label>
-        <input type="email" id="athleteEmail" class="form-input" placeholder="votre@email.com" required>
-        <p style="font-size: 14px; color: rgba(255,255,255,0.5); margin-top: 8px;">
-          Utilisée pour vous connecter et recevoir les notifications de la ligue
-        </p>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="athletePassword">Mot de passe <span style="color: #f97316;">*</span></label>
-        <input type="password" id="athletePassword" class="form-input" placeholder="Minimum 6 caractères" required minlength="6">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="athletePasswordConfirm">Confirmer le mot de passe <span style="color: #f97316;">*</span></label>
-        <input type="password" id="athletePasswordConfirm" class="form-input" placeholder="Répétez votre mot de passe" required>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="inviteCode">Code d'invitation de ta ligue</label>
-        <input type="text" id="inviteCode" class="form-input" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters">
-        <p style="font-size: 14px; color: rgba(255,255,255,0.5); margin-top: 8px;">
-          Donné par l'admin de la ligue. Tu pourras aussi le saisir plus tard.
-        </p>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">
-          <input type="checkbox" id="acceptTerms" required style="margin-right: 8px;">
-          J'accepte que mes activités Strava soient synchronisées et affichées publiquement sur Versant
-        </label>
-      </div>
-
-      <button class="submit-btn" id="submitBtn">Confirmer mon inscription</button>
-    </div>
-
-    <!-- Success Message -->
-    <div class="success-message" id="successMessage">
-      <h3>🎉 Inscription réussie !</h3>
-      <p style="margin-bottom: 16px;">Bienvenue dans le Challenge Versant</p>
-      <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">
-        Vos activités seront automatiquement synchronisées à partir du début de l'édition de votre ligue.
-      </p>
-      <a href="index.html" class="strava-connect-btn" style="display: inline-flex;">
-        Voir le classement
-      </a>
-    </div>
+    <p class="login-link">Déjà inscrit ? <a href="login.html">Se connecter</a></p>
   </div>
 
   <footer class="footer">
@@ -407,6 +443,6 @@
     </div>
   </footer>
 
-  <script type="module" src="js/inscription.js?v=20261026a"></script>
+  <script type="module" src="js/inscription.js?v=20261027a"></script>
 </body>
 </html>
