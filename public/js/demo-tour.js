@@ -398,6 +398,7 @@
   function sceneActivity(root) {
     const table = new Table(root.querySelector('.tour-table'), { header: ['Pos.', 'Athlète', 'D+ du round'], dangerCount: 2 });
     return {
+      rows: 5,
       setup: () => table.reset([['lea', 1840], ['hugo', 1520], ['sarah', 1210], ['tom', 980], ['ines', 760]]),
       steps: [
         [2800, 'Round en cours : les 2 derniers sont en zone danger.'],
@@ -418,6 +419,7 @@
     const field = name => root.querySelector(`[data-tour="${name}"]`);
     const setTimer = values => values.forEach((v, i) => { nums[i].textContent = String(v).padStart(2, '0'); });
     return {
+      rows: 5,
       setup: () => {
         table.dangerCount = 2;
         table.reset([['lea', 2404], ['hugo', 1520], ['ines', 1372], ['sarah', 1210], ['tom', 980]]);
@@ -460,6 +462,7 @@
     const table = new Table(root.querySelector('.tour-table'), { header: ['Pos.', 'Éliminé', 'D+ cumulé', 'Points'], points: true, medals: false });
     const count = root.querySelector('[data-tour="count"]');
     return {
+      rows: 6,
       setup: () => {
         table.reset([['paul', 640], ['zoe', 380]]);
         count.textContent = '2';
@@ -503,6 +506,7 @@
     const label = root.querySelector('[data-tour="label"]');
     const active = root.querySelector('[data-tour="active"]');
     return {
+      rows: 7,
       setup: () => {
         table.reset([['lea', 1650], ['ines', 1480]]);
         label.innerHTML = 'Saison 1 · <span class="tour-finale">Finale</span>';
@@ -538,6 +542,7 @@
   function sceneGeneral(root) {
     const standings = new Standings(root.querySelector('.tour-standings'));
     return {
+      rows: 7,
       setup: () => standings.reset([
         ['hugo', 44, 14], ['paul', 35, 16], ['sarah', 38, 12], ['lea', 39, 8],
         ['zoe', 31, 14], ['tom', 30, 10], ['ines', 28, 8]
@@ -576,11 +581,52 @@
     };
   }
 
+  /*
+   * Place réservée : le tableau garde la hauteur de son plus grand état
+   * (scene.rows lignes) et la légende celle de sa plus longue phrase. Les
+   * lignes qui arrivent ou partent ne font donc plus bouger la suite de la
+   * page. Mesuré sur les lignes en place (offsetTop ignore les animations),
+   * et de nouveau quand la largeur change.
+   */
+  function reserveSpace(root, scene) {
+    const body = root.querySelector('.tour-rows');
+    const cap = root.querySelector('.tour-caption');
+    const measure = () => {
+      const rows = [...body.children].filter(r => !r.className.includes('tour-collapse') && !r.className.includes('tour-leave'));
+      if (rows.length >= 2) {
+        const step = (rows[rows.length - 1].offsetTop - rows[0].offsetTop) / (rows.length - 1);
+        body.style.minHeight = `${Math.ceil(rows[0].offsetTop + step * (scene.rows - 1) + rows[0].offsetHeight)}px`;
+      }
+      const shown = cap.textContent;
+      cap.style.minHeight = '';
+      let tallest = 0;
+      for (const [, text] of scene.steps) {
+        if (!text) continue;
+        cap.textContent = text;
+        tallest = Math.max(tallest, cap.offsetHeight);
+      }
+      cap.textContent = shown;
+      cap.style.minHeight = `${tallest}px`;
+    };
+    measure();
+    if (document.fonts?.ready) document.fonts.ready.then(measure); // polices chargées : autres hauteurs
+    let width = window.innerWidth;
+    let timer = null;
+    window.addEventListener('resize', () => {
+      if (window.innerWidth === width) return; // barre d'adresse mobile : hauteur seule
+      width = window.innerWidth;
+      clearTimeout(timer);
+      timer = setTimeout(measure, 200);
+    });
+  }
+
   // ---------- Lecture en boucle, seulement quand la scène est visible ----------
   function play(root, build) {
     const scene = build(root);
     const bar = progressBar(root, scene.steps);
     const cap = root.querySelector('.tour-caption');
+    scene.setup();
+    reserveSpace(root, scene);
     let visible = false;
     let running = false;
     const loop = async () => {
