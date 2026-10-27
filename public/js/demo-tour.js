@@ -6,7 +6,7 @@
  * les règles principales à un nouveau joueur :
  *   1. une activité Strava fait grimper un compteur et remonte un joueur ;
  *   2. fin du round : les 2 derniers sortent, les compteurs repartent de zéro ;
- *   3. challenge des éliminés : arrivées, bonus du meilleur des 2, embuscade ;
+ *   3. challenge des éliminés : arrivées, compteurs cumulés jusqu'à la fin de saison ;
  *   4. finale, couronne, points, puis tout le monde revient en course ;
  *   5. classement général : points du principal et des éliminés.
  * Joueurs et chiffres fictifs (même histoire d'une scène à l'autre), aucun
@@ -455,9 +455,7 @@
   }
 
   // ---------- Scène 3 : challenge des éliminés ----------
-  // Seul le meilleur des 2 éliminés du round (le plus de D+ pendant ce
-  // round) reçoit un bonus : Sarah (1 210 m contre 980 pour Tom). Max,
-  // 8e joueur, n'apparaît qu'ici : il fallait 2 nouveaux éliminés.
+  // Max, 8e joueur, n'apparaît qu'ici : il fallait 2 nouveaux éliminés.
   function sceneEliminated(root) {
     const table = new Table(root.querySelector('.tour-table'), { header: ['Pos.', 'Éliminé', 'D+ cumulé', 'Points'], points: true, medals: false });
     const count = root.querySelector('[data-tour="count"]');
@@ -478,14 +476,10 @@
           count.parentElement.offsetHeight;
           count.parentElement.classList.add('tour-pop');
         }],
-        [3000, '🎁 Sarah a fait mieux que Tom pendant le round (1 210 m contre 980) : la meilleure des 2 éliminés reçoit un bonus.',
-          () => table.gift('sarah')],
         [4600, 'Tom part en VTT : +720 m, il prend la tête.',
           () => table.gain('tom', 720, ['🚵', 'VTT'], 'activity', 3400)],
-        [3600, 'Sarah sort courir : +300 m.',
-          () => table.gain('sarah', 300, ['🏃', 'Course'], 'activity', 2000)],
-        [4400, 'Sarah joue son bonus : une embuscade, 150 m volés à un joueur encore en course. Elle double Zoé !',
-          () => table.gain('sarah', 150, ['🏹', 'Embuscade'], 'bonus', 2400)],
+        [4400, 'Sarah sort courir : +450 m, elle double Zoé.',
+          () => table.gain('sarah', 450, ['🏃', 'Course'], 'activity', 2800)],
         [2800, 'Fin du round suivant : Hugo et Max sont éliminés à leur tour et rejoignent le challenge.', async () => {
           table.add('hugo', 0, { from: 'left' });
           await sleep(200);
