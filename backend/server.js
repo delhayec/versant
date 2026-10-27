@@ -1022,6 +1022,28 @@ app.post('/api/athletes/register', async (req, res) => {
       return res.status(400).json({ error: 'Mot de passe trop court' });
     }
 
+    // L56 : le jeton envoyé par le navigateur doit appartenir à l'athlète
+    // annoncé. Sans cette vérification, on pouvait créer un compte au nom de
+    // n'importe quel identifiant Strava (visible sur son profil public).
+    let stravaAthlete;
+    try {
+      const response = await axios.get(`${STRAVA_BASE_URL}/api/v3/athlete`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+        timeout: 10000
+      });
+      stravaAthlete = response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        return res.status(401).json({ error: 'Connexion Strava expirée : reconnecte-toi à Strava' });
+      }
+      console.error('Inscription : vérification Strava impossible:', error.message);
+      return res.status(502).json({ error: 'Strava ne répond pas : réessaie dans un instant' });
+    }
+    if (!stravaAthlete?.id || normalizeId(stravaAthlete.id) !== normalizeId(athlete_id)) {
+      console.warn(`⛔ Inscription refusée : le jeton Strava n'appartient pas à ${athlete_id}`);
+      return res.status(403).json({ error: 'Ce compte Strava ne correspond pas' });
+    }
+
     // Calculé avant la lecture du fichier : scrypt prend quelques dizaines de
     // millisecondes, on n'élargit pas l'intervalle entre lecture et écriture.
     const passwordScrypt = await hashPasswordScrypt(password);
