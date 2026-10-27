@@ -3234,7 +3234,7 @@ function renderAchievementCard(icon, title, leaderboard, unitBefore = '', unitAf
 function renderLeagueStatsCard(stats, seasonNumber) {
   if (!stats) return '';
   const cmp = stats.comparison;
-  const deltaIcon = cmp ? (cmp.deltaTotal > 0 ? '↑' : cmp.deltaTotal < 0 ? '↓' : '=') : '';
+  const deltaIcon = cmp ? (cmp.deltaTotal > 0 ? '📈' : cmp.deltaTotal < 0 ? '📉' : '➡️') : '';
   return `
     <div class="recap-card">
       <h3 class="recap-card-title">D+ ligue saison</h3>
