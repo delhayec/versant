@@ -462,7 +462,8 @@ registerAccountRoutes(app, {
   isLeagueAdmin,
   readAccounts: () => safeReadJSON(ATHLETES_FILE, []),
   // Rattrapage des activités du nouvel arrivant, dans le contexte de son édition
-  onJoin: backfillAfterJoin
+  onJoin: backfillAfterJoin,
+  isSuperAdmin: req => isAdminPassword(req) || !!req.isSuperAdmin
 });
 
 // E-mails du compte (L58) : code de validation à l'inscription, mot de passe oublié

@@ -18,10 +18,16 @@
  *
  * PUT  /api/admin/leagues/:leagueId/admins            { athleteIds } (super-admin)
  * GET  /api/admin/leagues                              toutes les ligues (super-admin, L51)
+ *
+ * L59 : le super-admin crée la ligue et envoie son lien admin ; l'admin règle
+ * le reste.
+ * POST /api/admin/leagues/:leagueId/admin-code         nouveau lien admin (super-admin)
+ * PUT  /api/admin/leagues/:leagueId/editions/:editionId { startDate, endDate, … }
+ *      dates et réglages, tant que l'édition n'a pas commencé (admin de la ligue)
  */
 
 const crypto = require('crypto');
-const { newInviteCode } = require('./accounts');
+const { newInviteCode, newAdminCode } = require('./accounts');
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -35,6 +41,25 @@ function newLeagueId() {
 }
 
 const isPositiveInteger = v => Number.isInteger(v) && v > 0;
+
+/**
+ * Réglages facultatifs d'une édition (lancement et modification, L59) :
+ * écrits dans config. Renvoie le message d'erreur, ou null.
+ */
+function applyEditionSettings(body, config) {
+  for (const key of ['roundDurationDays', 'eliminationsPerRound', 'finalistsCount', 'zeroElevationRuleFromRound']) {
+    if (body[key] === undefined) continue;
+    if (!isPositiveInteger(body[key])) return `${key} : entier positif attendu`;
+    config[key] = body[key];
+  }
+  if (body.elevationGaugeStartRound !== undefined) {
+    if (body.elevationGaugeStartRound !== null && !isPositiveInteger(body.elevationGaugeStartRound)) {
+      return 'elevationGaugeStartRound : entier positif ou null attendu';
+    }
+    config.elevationGaugeStartRound = body.elevationGaugeStartRound;
+  }
+  return null;
+}
 
 /**
  * @param {Object} deps
@@ -93,11 +118,18 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
           }
           editions.push({ editionId: edition.editionId, startDate: edition.startDate, endDate: edition.endDate, participants: participants.length });
         }
+        // Inscrits en attente de la première édition (L59) : déjà membres
+        for (const w of league.waiting || []) {
+          members.set(String(w.id), nameOf(w.id));
+          inSomeLeague.add(String(w.id));
+        }
         const started = editions.filter(e => !e.startDate || e.startDate <= today);
         leagues.push({
           id: league.id,
           name: league.name,
           createdAt: league.createdAt || null,
+          adminCode: league.adminCode || null,
+          waiting: (league.waiting || []).length,
           editions,
           currentEditionId: (started[started.length - 1] || editions[0])?.editionId || null,
           admins: (league.admins || []).map(id => ({ id: String(id), name: nameOf(id) })),
@@ -123,12 +155,72 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
       const id = req.body?.id ? String(req.body.id) : newLeagueId();
       if (!ID_PATTERN.test(id)) return res.status(400).json({ error: 'Identifiant de ligue invalide' });
       if (await store.getLeague(id)) return res.status(409).json({ error: 'Cette ligue existe déjà' });
-      const league = { id, name, inviteCode: newInviteCode(), createdAt: new Date().toISOString() };
+      // Lien admin (L59) : à envoyer au futur admin, qui règle ensuite la ligue
+      const league = { id, name, inviteCode: newInviteCode(), adminCode: newAdminCode(), createdAt: new Date().toISOString() };
       await store.saveLeague(league);
       console.log(`🏔️ Ligue créée : ${name} (${id})`);
       res.status(201).json({ league });
     } catch (error) {
       console.error('Erreur création de ligue:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+
+  /** Nouveau lien admin (L59) : l'ancien, s'il n'a pas servi, ne marche plus. */
+  app.post('/api/admin/leagues/:leagueId/admin-code', async (req, res) => {
+    if (!checkAdmin(req, res)) return;
+    try {
+      const { leagueId } = req.params;
+      if (!ID_PATTERN.test(leagueId) || !(await store.getLeague(leagueId))) return res.status(404).json({ error: 'Ligue introuvable' });
+      const league = await store.modifyLeague(leagueId, current => ({ ...current, adminCode: newAdminCode() }));
+      console.log(`🛡️ Nouveau lien admin pour la ligue ${leagueId}`);
+      res.json({ success: true, adminCode: league.adminCode });
+    } catch (error) {
+      console.error('Erreur lien admin:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+
+  /**
+   * Dates et réglages d'une édition (L59), par l'admin de la ligue, tant
+   * qu'elle n'a pas commencé : ensuite, les changer décalerait des rounds
+   * déjà joués. Le nouveau début est au plus tôt demain, pour que les inscrits
+   * d'aujourd'hui jouent dès le premier round.
+   */
+  app.put('/api/admin/leagues/:leagueId/editions/:editionId', async (req, res) => {
+    try {
+      const { leagueId, editionId } = req.params;
+      if (!ID_PATTERN.test(leagueId) || !(await store.getLeague(leagueId))) return res.status(404).json({ error: 'Ligue introuvable' });
+      if (!(await isLeagueAdmin(req, leagueId))) return res.status(401).json({ error: 'Réservé aux admins de cette ligue' });
+      const edition = (await store.listLeagueEditions(leagueId)).find(e => e.editionId === editionId);
+      if (!edition) return res.status(404).json({ error: 'Édition introuvable' });
+      if (edition.legacyId) return res.status(409).json({ error: 'Cette édition ne se modifie pas ici' });
+      const today = new Date().toLocaleDateString('sv-SE'); // AAAA-MM-JJ, heure de Paris (TZ du serveur)
+      if (!edition.startDate || edition.startDate <= today) {
+        return res.status(409).json({ error: 'Cette édition a déjà commencé : ses dates et réglages ne changent plus' });
+      }
+
+      const body = req.body || {};
+      const startDate = body.startDate ?? edition.startDate;
+      const endDate = body.endDate ?? edition.endDate;
+      if (!DATE_PATTERN.test(String(startDate)) || !DATE_PATTERN.test(String(endDate)) || !(endDate > startDate)) {
+        return res.status(400).json({ error: 'Dates au format AAAA-MM-JJ, fin après le début' });
+      }
+      if (startDate <= today) return res.status(400).json({ error: 'Le début doit être au plus tôt demain' });
+      const changes = { yearStartDate: startDate, yearEndDate: endDate };
+      const settingsError = applyEditionSettings(body, changes);
+      if (settingsError) return res.status(400).json({ error: settingsError });
+
+      await store.updateEditionInfo(edition.key, info => ({
+        ...info,
+        activities: { ...(info.activities || {}), from: startDate },
+        config: { ...(info.config || {}), ...changes },
+        updatedAt: new Date().toISOString()
+      }));
+      console.log(`📅 Édition modifiée : ${leagueId}/${editionId}, du ${startDate} au ${endDate}`);
+      res.json({ success: true, edition: { ...edition, startDate, endDate } });
+    } catch (error) {
+      console.error('Erreur modification d\'édition:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
   });
@@ -157,24 +249,37 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
         // Mécanique du rescapé retirée (L44) : jamais pour une nouvelle édition
         rescapeLastSeason: 0
       };
-      for (const key of ['roundDurationDays', 'eliminationsPerRound', 'finalistsCount', 'zeroElevationRuleFromRound']) {
-        if (body[key] === undefined) continue;
-        if (!isPositiveInteger(body[key])) return res.status(400).json({ error: `${key} : entier positif attendu` });
-        config[key] = body[key];
-      }
-      if (body.elevationGaugeStartRound !== undefined) {
-        if (body.elevationGaugeStartRound !== null && !isPositiveInteger(body.elevationGaugeStartRound)) {
-          return res.status(400).json({ error: 'elevationGaugeStartRound : entier positif ou null attendu' });
-        }
-        config.elevationGaugeStartRound = body.elevationGaugeStartRound;
-      }
+      const settingsError = applyEditionSettings(body, config);
+      if (settingsError) return res.status(400).json({ error: settingsError });
       const edition = await store.createEdition(leagueId, editionId, {
         activities: { from: body.startDate, to: null },
         config,
         createdAt: new Date().toISOString()
       });
       console.log(`📅 Édition lancée : ${leagueId}/${editionId}, du ${body.startDate} au ${body.endDate}`);
-      res.status(201).json({ edition: { ...edition, startDate: body.startDate, endDate: body.endDate }, config });
+
+      // Inscrits en attente (L59) : ils entrent dans cette première édition.
+      // Arrivés avant qu'elle existe, ils jouent dès le début : si l'admin a
+      // choisi un début déjà passé, leur arrivée est ramenée juste avant.
+      const league = await store.getLeague(leagueId);
+      const waiting = league.waiting || [];
+      if (waiting.length) {
+        const [y, m, d] = body.startDate.split('-').map(Number);
+        const beforeStart = new Date(new Date(y, m - 1, d).getTime() - 60 * 1000).toISOString();
+        for (const w of waiting) {
+          const joinedAt = w.joined_at && w.joined_at < beforeStart ? w.joined_at : beforeStart;
+          await store.addParticipant(edition.key, w.id, joinedAt);
+          if (onJoin) onJoin(edition.key, w.id);
+        }
+        await store.modifyLeague(leagueId, current => {
+          const moved = new Set(waiting.map(w => String(w.id)));
+          current.waiting = (current.waiting || []).filter(w => !moved.has(String(w.id)));
+          if (!current.waiting.length) delete current.waiting;
+          return current;
+        });
+        console.log(`   ${waiting.length} inscrit(s) en attente ajouté(s) à l'édition`);
+      }
+      res.status(201).json({ edition: { ...edition, startDate: body.startDate, endDate: body.endDate }, config, participantsAdded: waiting.length });
     } catch (error) {
       if (/existe déjà/.test(error.message)) return res.status(409).json({ error: error.message });
       if (/organisation « editions »/.test(error.message)) return res.status(409).json({ error: error.message });

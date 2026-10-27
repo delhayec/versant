@@ -181,6 +181,22 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
       await safeWriteJSON(file, league);
     },
 
+    /**
+     * Modifie league.json sous verrou (L59) : fn(ligue) → ligue. Pour les
+     * listes que plusieurs requêtes peuvent toucher en même temps (inscrits en
+     * attente, admins). Renvoie la ligue enregistrée.
+     */
+    async modifyLeague(id, fn) {
+      if (!ID_PATTERN.test(String(id))) throw new Error(`identifiant de ligue invalide : ${id}`);
+      let saved = null;
+      await safeModifyJSON(path.join(leaguesDir, String(id), 'league.json'), league => {
+        if (!league || typeof league !== 'object') throw new Error(`ligue inconnue : ${id}`);
+        saved = fn(league);
+        return saved;
+      }, null);
+      return saved;
+    },
+
     async listLeagues() {
       const dirs = await fs.readdir(leaguesDir, { withFileTypes: true }).catch(() => []);
       const leagues = [];
@@ -226,14 +242,34 @@ function createEditionsStore({ dataDir = DATA_DIR } = {}) {
       return { leagueId: String(leagueId), editionId: String(editionId), legacyId: null, key: `${leagueId}/${editionId}` };
     },
 
-    /** Ligues dont un athlète est participant (au plus une, cf. décision du 21/10). */
+    /**
+     * Ligues dont un athlète est participant (au plus une, cf. décision du
+     * 21/10), y compris en attente de la première édition (league.json, waiting, L59).
+     */
     async leaguesOf(athleteId) {
       const leagues = new Set();
       for (const e of await loadEditions()) {
         const key = e.legacyId || `${e.leagueId}/${e.editionId}`;
         if ((await this.listParticipants(key)).some(a => String(a.id) === String(athleteId))) leagues.add(e.leagueId);
       }
+      for (const league of await this.listLeagues()) {
+        if ((league.waiting || []).some(w => String(w.id) === String(athleteId))) leagues.add(league.id);
+      }
       return [...leagues];
+    },
+
+    /**
+     * Modifie edition.json (L59 : dates et réglages d'une édition pas encore
+     * commencée) : fn(info) → info. Le contexte gardé en mémoire est oublié, il
+     * sera reconstruit avec la nouvelle config.
+     */
+    async updateEditionInfo(id, fn) {
+      const edition = await requireEdition(id);
+      await safeModifyJSON(path.join(edition.dir, 'edition.json'), info => {
+        if (!info || typeof info !== 'object') throw new Error(`edition.json illisible : ${id}`);
+        return fn(info);
+      }, null);
+      contexts.delete(edition.dir);
     },
 
     /**

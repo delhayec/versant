@@ -61,6 +61,15 @@ function createLegacyStore() {
       await safeWriteJSON(file, league);
     },
 
+    /** Modifie league.json (L59) ; ici, seulement versant. */
+    async modifyLeague(id, fn) {
+      const league = await this.getLeague(id);
+      if (!league) throw new Error(`ligue inconnue : ${id}`);
+      const saved = fn(league);
+      await this.saveLeague(saved);
+      return saved;
+    },
+
     async listLeagues() {
       return [await this.getLeague(LEGACY_EDITION.leagueId)];
     },
@@ -76,6 +85,10 @@ function createLegacyStore() {
     /** Organisation actuelle : une seule édition, versant/2026. */
     async createEdition() {
       throw new Error("créer une édition demande l'organisation « editions » (VERSANT_STORE_LAYOUT=editions)");
+    },
+
+    async updateEditionInfo() {
+      throw new Error("modifier une édition demande l'organisation « editions » (VERSANT_STORE_LAYOUT=editions)");
     },
 
     /** Ligues dont un athlète est participant (au plus une, cf. décision du 21/10). */
