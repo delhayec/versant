@@ -2,11 +2,10 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <!-- L52 : démo statique, aucune donnée des ligues en cours (avant tout autre script) -->
-  <script src="shared/demo-session.js?v=20261026a"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Versant - Démo Challenge 2025</title>
-  
+  <title>Versant - Comment ça marche</title>
+  <meta name="description" content="Fais du sport, Strava compte ton dénivelé, les derniers de ta ligue sont éliminés.">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
@@ -14,331 +13,201 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️️</text></svg>">
 
   <style>
-    /* Styles pour la section règles */
-    .rules-section {
-      padding: 80px var(--container-padding);
-      background: linear-gradient(180deg, rgba(15,23,42,0.5) 0%, rgba(30,41,59,0.5) 100%);
-      border-top: 1px solid rgba(255,255,255,0.1);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .rules-header {
-      text-align: center;
-      margin-bottom: 60px;
-    }
-
-    .rules-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 48px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      background: linear-gradient(135deg, #f97316, #22d3ee);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .rules-subtitle {
-      font-size: 18px;
-      color: rgba(255,255,255,0.7);
-      max-width: 800px;
+    .tour-step {
+      max-width: 760px;
       margin: 0 auto;
+      padding: var(--section-padding) var(--container-padding);
+    }
+    .tour-step .section-desc {
+      font-size: 1rem;
+      line-height: 1.6;
+      max-width: 620px;
     }
 
-    .rules-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 32px;
-      margin-bottom: 60px;
+    /* Tableaux animés : mêmes classes que les vrais classements, 3 ou 4 colonnes */
+    .tour-table .ranking-header,
+    .tour-table .ranking-row {
+      grid-template-columns: 50px 1fr 130px;
     }
-
-    .rule-card {
-      display: flex;
-      flex-direction: column;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 12px;
-      transition: all 0.3s ease;
-      margin-bottom: 60px;
+    .tour-table.with-points .ranking-header,
+    .tour-table.with-points .ranking-row {
+      grid-template-columns: 50px 1fr 110px 80px;
     }
-
-    .rule-card:hover {
-      background: rgba(255,255,255,0.05);
-      border-color: rgba(249,115,22,0.3);
-      transform: translateY(-4px);
+    .tour-table .ranking-header > *:nth-child(n+3),
+    .tour-table .ranking-row > *:nth-child(n+3) {
+      display: block !important;
+      text-align: right;
     }
-
-    .rule-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-      display: block;
-    }
-
-    .rule-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      background: linear-gradient(135deg, #f97316, #22d3ee);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-     .rule-description {
-       width: 90%;           /* Prend toute la largeur */
-       flex-grow: 0.9;          /* Remplit l'espace disponible */
-       text-align: justify;   /* Justifie le texte pour un rendu plus propre */
-       margin: 20px;
-    }
-
-    .rule-list {
-      list-style: none;
-      padding: 0;
-      margin: 20px;
-    }
-
-    .rule-list li {
-      padding: 8px 0;
-      padding-left: 28px;
+    .tour-rows { position: relative; }
+    .tour-row {
       position: relative;
-      color: rgba(255,255,255,0.7);
-      font-size: 14px;
+      background: var(--bg-card);
+      transition: transform 0.8s var(--ease-out-expo), opacity 0.6s ease, background 0.4s ease;
+    }
+    .tour-row .athlete-info { flex-wrap: nowrap; gap: 6px; min-width: 0; }
+    .tour-row .athlete-name { white-space: nowrap; }
+    .tour-row .ranking-athlete { min-width: 0; }
+    .tour-row .ranking-elevation .tour-num {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      transition: color 0.3s ease;
+    }
+    .tour-counting .ranking-elevation .tour-num { color: var(--text-primary); }
+    .tour-enter-left { transform: translateX(-110%); opacity: 0; }
+    .tour-leave-right { transform: translateX(110%) !important; opacity: 0; }
+    .tour-collapse {
+      height: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      border-bottom-width: 0 !important;
+      overflow: hidden;
+      transition: height 0.4s ease, padding 0.4s ease !important;
     }
 
-    .rule-list li:before {
-      content: "→";
-      position: absolute;
-      left: 8px;
-      color: #90a17f;
+    /* Bulle « activité Strava », juste après le nom (le nom et le compteur restent visibles) */
+    .tour-bubble {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+      color: #fff;
+      background: #fc4c02; /* couleur d'une activité Strava */
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      animation: tour-bubble 2.6s var(--ease-out-expo) forwards;
+    }
+    .tour-bubble-bonus { background: var(--accent-tertiary); }
+    .athlete-info:has(.tour-bubble) .athlete-status { display: none; }
+    @keyframes tour-bubble {
+      0% { opacity: 0; transform: translateX(-12px) scale(0.6); }
+      12% { opacity: 1; transform: none; }
+      75% { opacity: 1; transform: none; }
+      100% { opacity: 0; transform: translateY(-18px); }
     }
 
-    .timeline-section {
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 40px;
-      margin-bottom: 60px;
+    .tour-pop { animation: tour-pop 0.6s var(--ease-out-expo); display: inline-block; }
+    @keyframes tour-pop {
+      0% { transform: scale(0.3); }
+      60% { transform: scale(1.35); }
+      100% { transform: scale(1); }
     }
 
-    .timeline-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 28px;
-      font-weight: 600;
-      margin-bottom: 32px;
+    .tour-caption {
+      min-height: 3em;
+      margin-top: 14px;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
       text-align: center;
-       background: linear-gradient(135deg, #f97316, #22d3ee);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    }
+    .tour-caption-in { animation: tour-caption 0.5s ease; }
+    @keyframes tour-caption {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: none; }
     }
 
-    .timeline {
+    .tour-banner {
+      margin-bottom: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .tour-flash .ranking-container { animation: tour-flash 0.7s ease; }
+    @keyframes tour-flash {
+      0%, 100% { box-shadow: none; }
+      40% { box-shadow: 0 0 0 3px var(--accent-danger), 0 0 40px rgba(239, 68, 68, 0.4); }
+    }
+
+    .tour-elim-head {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      position: relative;
-      padding: 20px 0;
-    }
-
-    .timeline:before {
-      content: '';
-      position: absolute;
-      top: 16px;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, #f97316, #22d3ee);
-      z-index: 0;
-    }
-
-    .timeline-item {
-      flex: 1;
-      text-align: right;
-      position: relative;
-      z-index: 1;
-    }
-
-    .timeline-item:first-child {
-      text-align: left;
-    }
-
-    .timeline-item:nth-child(2) {
-      text-align: center;
-    }
-
-    .timeline-item:last-child {
-      height: 58px;
-      text-align: end;
-      display: inline-block;
-    }
-
-    .timeline-dot {
-      width: 16px;
-      height: 16px;
-      background: #22d3ee;
-      border-radius: 50%;
-      margin: 0 0 0 0;
-      box-shadow: 0 0 0 4px rgba(249,115,22,0.2);
-      display: inline-block;
-    }
-
-    .timeline-item:nth-child(2) .timeline-dot {
-      margin: 0 auto 0px;
-      display: block;
-    }
-
-    .timeline-item:last-child .timeline-dot {
-      margin: 0px auto 0px;
-      float: right;
-      display: block;
-    }
-
-    .timeline-label {
-      font-weight: 600;
-      color: rgba(255,255,255,0.9);
-      margin-bottom: 14px;
-      font-size: 14px;
-    }
-
-
-    .timeline-value {
-      color: #f97316;
-      font-weight: 700;
-      font-size: 18px;
-    }
-
-    .demo-info {
-      background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(244,63,94,0.1));
-      border: 1px solid rgba(249,115,22,0.3);
-      border-radius: 16px;
-      padding: 32px;
-      text-align: center;
-    }
-
-    .demo-info-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      color: rgba(255,255,255,0.9);
-    }
-
-    .demo-info-text {
-      color: rgba(255,255,255,0.8);
-      line-height: 1.6;
-      margin-bottom: 24px;
-    }
-
-    .demo-controls {
-      display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 20px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 12px;
-      margin-top: 20px;
+      margin-bottom: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .tour-elim-head strong {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      color: var(--accent-danger);
+      margin-right: 6px;
     }
 
-    .demo-controls-icon {
-      font-size: 32px;
-    }
-
-    .demo-controls-text {
-      color: rgba(255,255,255,0.9);
-      font-weight: 600;
-    }
-
-    .bonus-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-top: 32px;
-    }
-
-    .bonus-card {
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
-      padding: 20px;
+    /* Inscription */
+    .tour-join {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: var(--section-padding) var(--container-padding) 80px;
       text-align: center;
     }
-
-    .bonus-icon {
-      font-size: 32px;
+    .tour-join h2 {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
       margin-bottom: 12px;
     }
-
-       .bonus-name {
-      height: 52px;
-      font-weight: 600;
-      background: linear-gradient(135deg, var(--accent-tertiary), #059669);
-      border-radius: 12px;
-      margin: 0 auto 12px;
+    .tour-join p { color: var(--text-secondary); line-height: 1.6; }
+    .tour-join form {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 8px 12px;
-      color: rgba(255,255,255,0.9);
+      gap: 10px;
+      margin: 24px 0 12px;
+    }
+    .tour-join input {
+      flex: 1;
+      min-width: 0;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      text-transform: uppercase;
+    }
+    .tour-join button { border: none; cursor: pointer; font-size: 1rem; }
+    .tour-join .tour-more { font-size: 0.85rem; color: var(--text-muted); }
+    .tour-join .tour-more a { color: var(--text-secondary); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tour-row, .tour-row * { transition: none !important; }
+      .tour-bubble { animation: none; }
+      .tour-pop, .tour-caption-in, .tour-flash .ranking-container { animation: none; }
     }
 
-    .joker-name {
-      height: 52px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #f97316, #f43f5e);
-      border-radius: 12px;
-      margin: 0 auto 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 8px 12px;
-      color: rgba(255,255,255,0.9);
-    }
-
-    .bonus-desc {
-      font-size: 13px;
-      color: rgba(255,255,255,0.6);
-      line-height: 1.4;
+    @media (max-width: 768px) {
+      .tour-table .ranking-header,
+      .tour-table .ranking-row { grid-template-columns: 36px 1fr 96px; padding: 10px 12px; }
+      .tour-table.with-points .ranking-header,
+      .tour-table.with-points .ranking-row { grid-template-columns: 30px 1fr 84px 56px; }
+      .tour-table .ranking-athlete { gap: 10px; }
+      .tour-bubble { font-size: 0.72rem; padding: 3px 8px; }
+      .tour-bubble .long { display: none; }
+      .tour-join form { flex-direction: column; }
+      .tour-banner .banner-block { padding: 10px 12px; min-width: 0; }
+      .tour-banner .banner-separator { display: none; }
     }
   </style>
 </head>
 <body>
-  <!-- Loading Screen -->
-  <div class="loading-screen" id="loadingScreen">
-    <div class="loading-content">
-      <div class="loading-icon">◭️️</div>
-      <div class="loading-title">Versant</div>
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Chargement de la démo...</div>
-    </div>
-  </div>
-
-  <!-- Demo Banner -->
-  <div class="demo-banner">
-    <span class="demo-badge"> MODE DÉMO</span>
-    <span class="demo-text">Le Challenge Versant avec les données de 2025</span>
-    <a href="index.html" class="demo-link">Voir la ligue en cours →</a>
-  </div>
-
-  <!-- Hero Section -->
-  <section class="hero" style="min-height: 60vh;">
+  <!-- Accroche -->
+  <section class="hero">
     <div class="hero-bg"></div>
     <div class="hero-content">
-      <span class="hero-eyebrow">Challenge 2025 • Démo</span>
+      <span class="hero-eyebrow">Challenge Versant • Comment ça marche</span>
       <h1 class="hero-title">
-        <span class="title-line">Challenge</span>
-        <span class="title-line accent">Versant</span>
+        <span class="title-line">Fais du sport.</span>
+        <span class="title-line accent">Le dernier saute.</span>
       </h1>
-      <p class="hero-subtitle">Course à élimination par saisons • Dénivelé positif</p>
       <p class="hero-description">
-        Chaque round de 5 jours, les 2 derniers au classement D+ sont éliminés.
-        À la fin de chaque saison, les points sont attribués et tout le monde repart !
+        Tes sorties Strava comptent ton dénivelé positif. À la fin de chaque round,
+        les derniers de ta ligue sont éliminés. Trois tableaux pour tout comprendre.
       </p>
-    </div>
-    <div class="scroll-indicator">
-      <span>Découvrir</span>
-      <div class="scroll-line"></div>
     </div>
   </section>
 
@@ -347,371 +216,111 @@
     <div class="nav-container">
       <a href="demo.html" class="nav-brand">
         <span class="brand-icon">◭️️</span>
-        <span class="brand-text">Versant • Démo</span>
+        <span class="brand-text">Versant</span>
       </a>
       <div class="nav-links">
-        <a href="#rules" class="nav-link">Règles</a>
-        <a href="#ranking" class="nav-link">Classement</a>
-        <a href="#eliminated" class="nav-link">Éliminés</a>
-        <a href="#standings" class="nav-link">Points</a>
-        <a href="#participants" class="nav-link">Participants</a>
-        <a href="inscription.html" class="btn-join">S'inscrire</a>
+        <a href="#rejoindre" class="btn-join">S'inscrire</a>
       </div>
     </div>
   </nav>
 
-  <!-- ========================================
-       SECTION RÈGLES DU JEU
-       ======================================== -->
-  <section class="rules-section" id="rules">
-    <div class="rules-header">
-      <h2 class="rules-title"> Règles du Challenge</h2>
-      <p class="rules-subtitle">
-        Découvrez comment fonctionne le Challenge Versant, un challenge basé sur le dénivelé positif avec éliminations progressives
-      </p>
-    </div>
-
-    <!-- Règles de Base -->
-    <div class="rules-grid">
-      <div class="rule-card">
-
-        <h3 class="rule-title">Objectif</h3>
-        <p class="rule-description">
-          Accumuler le plus de dénivelé positif (D+) possible tout au long de l'année pour éviter l'élimination et marquer des points.
-        </p>
-        <ul class="rule-list">
-          <li>Activités Strava comptabilisées automatiquement</li>
-          <li>Sports valides : Run, Trail, Marche, Rando, Vélo, VTT, Ski Rando, Ski Nordic</li>
-          <li>En round standard seul le D+ compte (pas la distance)</li>
-        </ul>
-      </div>
-
-      <div class="rule-card">
-
-        <h3 class="rule-title">Éliminations</h3>
-        <p class="rule-description">
-          À la fin de chaque round, les 2 derniers au classement D+ sont éliminés du challenge principal. Le compteur de D+ est remis a zeros.<strong style="color: #f97316;"> Vous ne conservez pas votre avance !! </strong>
-        </p>
-        <ul class="rule-list">
-          <li>2 derniers éliminés tous les 5 jours</li>
-          <li>Plus vous êtes eliminé tard plus vous marquez de points</li>
-          <li>Les éliminés continuent dans le Challenge des Éliminés</li>
-        </ul>
-      </div>
-
-      <div class="rule-card">
-
-        <h3 class="rule-title">Challenge des Éliminés</h3>
-        <p class="rule-description">
-          Lorsque vous êtes exclus du challenge principal tout n'est pas perdu !
-        </p>
-        <ul class="rule-list">
-          <li>Vous cumulez de D+ à partir du moment où vous rentrez dans le challenge des éliminés</li>
-          <li>Plus vous y rentrez tôt plus vous avez de temps pour accumuler du D+</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Timeline : Ligue → Saison → Round -->
-
-      <h3 class="timeline-title"> Structure Temporelle</h3>
-        <div class="rule-card">
-          <p style="margin-bottom: 16px; color: rgba(255,255,255,0.8);">
-            <strong style="color: rgba(255,255,255,0.9);">LIGUE :</strong> (1 an)<br>
-            Une ligue dure 1 an complet (ex: 1er février 2026 → 31 janvier 2027). Elle contient plusieurs saisons. À la fin de l'année, un classement général est établi en fonction des points accumulés (dans les challenges pricipal et celui des éliminés).
-          </p>
-          <p style="margin-bottom: 16px; color: rgba(255,255,255,0.8);">
-            <strong style="color: rgba(255,255,255,0.9);">SAISON :</strong> (~1 mois)<br>
-            Une saison dure environ 1 mois et contient 6 rounds de 5 jours. À la fin de chaque saison, des points sont attribués selon le classement géneral et le classement des eliminés, puis tout le monde réintègre le challenge pour le premier round de la saison suivante.
-          </p>
-          <p style="color: rgba(255,255,255,0.8);">
-            <strong style="color: rgba(255,255,255,0.9);">ROUND :</strong> (5 jours)<br>
-            Un round dure 5 jours et se termine à 20h le dernier jour. C'est la période de compétition de base où vous accumulez du D+. Les 2 derniers sont éliminés à la fin de chaque round. Le D+ est remis à zero au début de chaque round
-          </p>
-
-        </div>
-
-    <!-- Détail des Points -->
-    <div style="margin-bottom: 60px;">
-      <h3 class="timeline-title">🏆 Attribution des Points</h3>
-      <div class="rule-card" style="margin-bottom: 0;">
-        <p style="margin-bottom: 24px; color: rgba(255,255,255,0.8); text-align: center;">
-          À la fin de chaque saison, des points sont attribués selon votre performance dans les deux challenges.
-        </p>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px;">
-
-          <!-- Challenge Principal -->
-          <div style="background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 24px;">
-            <h4 style="font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #f97316; text-align: center;">
-              ◭️ Challenge Principal
-            </h4>
-            <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 16px; text-align: center;">
-              Points selon le classement à l'élimination
-            </p>
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥇 1er (vainqueur)</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #fbbf24;">24 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥈 2ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #d1d5db;">21 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥉 3ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #cd7f32;">18 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">4ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">15 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">5ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">12 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">6ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">10 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">7ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">8 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">8ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">6 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">9ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">5 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">10ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">4 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">11ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">3 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">12ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">2 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">13ème</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">1 pt</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">14ème et +</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.5);">0 pt</td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- Challenge des Éliminés -->
-          <div style="background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3); border-radius: 12px; padding: 24px;">
-            <h4 style="font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #22d3ee; text-align: center;">
-              ⚔️ Challenge des Éliminés
-            </h4>
-            <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 16px; text-align: center;">
-              Points selon le classement D+ cumulé
-            </p>
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥇 1ère place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #fbbf24;">10 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥈 2ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #d1d5db;">8 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">🥉 3ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: #cd7f32;">6 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">4ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">5 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">5ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">4 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">6ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">3 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">7ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">2 pts</td>
-              </tr>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">8ème place</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.8);">1 pt</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 4px; color: rgba(255,255,255,0.7);">9ème place et +</td>
-                <td style="padding: 8px 4px; text-align: right; font-weight: 600; color: rgba(255,255,255,0.5);">0 pt</td>
-              </tr>
-            </table>
-          </div>
-
-        </div>
-
-        <div style="margin-top: 24px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
-          <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin: 0;">
-            <strong style="color: #f97316;">💡 Astuce :</strong>
-            Être éliminé tôt donne plus de temps pour accumuler du D+ dans le challenge des éliminés.
-            Un bon score au challenge des éliminés peut compenser une élimination précoce.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bonus & Règles Spéciales -->
-    <div style="margin-bottom: 40px;">
-      <h3 style="font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 600; margin-bottom: 24px; text-align: center; color: rgba(255,255,255,0.9);">
-        🃏 Les Jokers
-      </h3>
-      <p style="text-align: center; color: rgba(255,255,255,0.7); margin-bottom: 24px;">
-        Chaque athlète dispose de <strong style="color: #f97316;">8 jokers</strong> (2 de chaque type) à utiliser stratégiquement durant la ligue.
-      </p>
-
-      <div class="bonus-grid">
-        <div class="bonus-card">
-          <div class="bonus-icon">🦹</div>
-          <div class="bonus-name">Voleur</div>
-          <div class="bonus-desc">Volez la meilleure activité (plus gros D+) d'un adversaire. Actif au round suivant.</div>
-        </div>
-
-        <div class="bonus-card">
-          <div class="bonus-icon">✖️</div>
-          <div class="bonus-name">Multiplicateur</div>
-          <div class="bonus-desc">Multiplie votre D+ du round par ×1.5. Actif au round suivant.</div>
-        </div>
-
-        <div class="bonus-card">
-          <div class="bonus-icon">🛡️</div>
-          <div class="bonus-name">Bouclier</div>
-          <div class="bonus-desc">Évitez l'élimination même si vous êtes dernier. Activable immédiatement (J1-J2) ou au round suivant. NON utilisable en finale.</div>
-        </div>
-
-        <div class="bonus-card">
-          <div class="bonus-icon">💣</div>
-          <div class="bonus-name">Sabotage</div>
-          <div class="bonus-desc">Retire 30% du D+ d'un adversaire ciblé. Actif au round suivant.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Rounds Spéciaux -->
-    <div style="margin-bottom: 40px;">
-      <h3 style="font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 600; margin-bottom: 24px; text-align: center; color: rgba(255,255,255,0.9);">
-         Rounds Spéciaux
-      </h3>
-
-      <div class="bonus-grid">
-        <div class="bonus-card">
-          <div class="bonus-name">⛰️ Pente Raide</div>
-          <div class="bonus-desc">Seul le D+ réalisé sur des pentes > 15% est comptabilisé</div>
-        </div>
-
-        <div class="bonus-card">
-          <div class="bonus-name">🏁 Round Final</div>
-          <div class="bonus-desc">Le dernier round de la saison : pas d'élimination, seul le vainqueur est désigné</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Info Mode Démo -->
-    <div class="demo-info">
-      <h3 class="demo-info-title"> À Propos de Ce Mode Démo</h3>
-      <p class="demo-info-text">
-        Cette démo simule un Challenge Versant en utilisant les <strong>données réelles de 2025</strong>.
-        Elle vous permet de comprendre le fonctionnement du challenge en explorant différentes dates et en visualisant l'évolution des classements, des éliminations et des points.
-      </p>
-
-      <div class="demo-controls">
-        <span class="demo-controls-icon">← →</span>
-        <span class="demo-controls-text">Utilisez le slider et les flèches en bas de page pour naviguer dans le temps</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Season Banner -->
-  <section style="padding: 24px var(--container-padding);">
-    <div class="season-banner" id="seasonBanner"></div>
-  </section>
-
-  <!-- Round Banner -->
-  <section style="padding: 0 var(--container-padding);">
-    <div class="round-banner" id="roundBanner"></div>
-  </section>
-
-  <!-- Classement du Round -->
-  <section class="ranking-section" id="ranking">
+  <!-- 1. Une activité Strava -->
+  <section class="tour-step" data-scene="activity">
     <div class="section-header">
       <span class="section-number">01</span>
-      <h2 class="section-title">Classement du Round</h2>
-      <p class="section-desc">Survolez un athlète pour voir ses activités • Les derniers seront éliminés</p>
+      <h2 class="section-title">Bouge, Strava compte</h2>
+      <p class="section-desc">
+        Course, trail, rando, vélo, ski de rando… Chaque sortie enregistrée sur Strava ajoute
+        son dénivelé positif à ton compteur, automatiquement. Une bonne sortie et tu remontes au classement.
+      </p>
     </div>
-    <div class="ranking-container" id="rankingContainer"></div>
+    <div class="ranking-container tour-table"></div>
+    <p class="tour-caption" aria-live="polite"></p>
   </section>
 
-  <!-- Challenge des Éliminés -->
-  <section class="ranking-section" id="eliminated">
+  <!-- 2. Fin du round -->
+  <section class="tour-step" data-scene="round-end">
     <div class="section-header">
       <span class="section-number">02</span>
-      <h2 class="section-title">Challenge des Éliminés</h2>
-      <p class="section-desc">D+ cumulé depuis l'élimination - Points attribués en fin de saison</p>
+      <h2 class="section-title">Les derniers sautent, tout le monde repart de zéro</h2>
+      <p class="section-desc">
+        Quand le compte à rebours arrive à zéro, les 2 derniers du round sont éliminés.
+        Le round suivant commence aussitôt, avec tous les compteurs à zéro : rien n'est jamais joué d'avance.
+      </p>
     </div>
-    <div class="ranking-container" id="eliminatedChallengeContainer"></div>
+    <div class="tour-banner">
+      <div class="banner-unified">
+        <div class="banner-block banner-round-block">
+          <span class="banner-label">Round</span>
+          <span class="banner-value" data-tour="round">1</span>
+          <span class="banner-day" data-tour="day">J5/5</span>
+        </div>
+        <div class="banner-separator"></div>
+        <div class="banner-block banner-stats-block">
+          <div class="banner-stat">
+            <span class="banner-stat-value" data-tour="active">5</span>
+            <span class="banner-stat-label">en course</span>
+          </div>
+          <div class="banner-stat">
+            <span class="banner-stat-value" data-tour="out">0</span>
+            <span class="banner-stat-label">éliminés</span>
+          </div>
+        </div>
+        <div class="banner-separator"></div>
+        <div class="banner-block banner-countdown-block">
+          <span class="banner-label">Fin du round</span>
+          <div class="banner-countdown-timer">
+            <span class="countdown-unit"><span class="countdown-num">00</span>j</span>
+            <span class="countdown-unit"><span class="countdown-num">00</span>h</span>
+            <span class="countdown-unit"><span class="countdown-num">00</span>m</span>
+            <span class="countdown-unit"><span class="countdown-num">05</span>s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ranking-container tour-table"></div>
+    <p class="tour-caption" aria-live="polite"></p>
   </section>
 
-  <!-- Classement Général (Points) -->
-  <section class="ranking-section" id="standings">
+  <!-- 3. Challenge des éliminés -->
+  <section class="tour-step" data-scene="eliminated">
     <div class="section-header">
       <span class="section-number">03</span>
-      <h2 class="section-title">Classement Général</h2>
-      <p class="section-desc">Points totaux = Challenge Principal + Challenge Éliminés</p>
+      <h2 class="section-title">Éliminé ? Tu ne t'ennuies pas</h2>
+      <p class="section-desc">
+        Les éliminés jouent leur propre challenge jusqu'à la fin de la saison. Ils gagnent des points,
+        des bonus, et peuvent même gêner ceux qui sont encore en course. À chaque nouvelle saison, tout le monde repart.
+      </p>
     </div>
-    <div class="standings-container" id="finalStandingsContainer"></div>
+    <div class="tour-elim-head">
+      <span>Challenge des éliminés</span>
+      <span><strong data-tour="count">2</strong>joueurs</span>
+    </div>
+    <div class="ranking-container tour-table with-points"></div>
+    <p class="tour-caption" aria-live="polite"></p>
   </section>
 
-  <!-- Participants -->
-  <section class="participants-section" id="participants">
-    <div class="section-header">
-      <span class="section-number">04</span>
-      <h2 class="section-title">Participants</h2>
-      <p class="section-desc">Tous les athlètes de la saison</p>
-    </div>
-    <div class="participants-grid" id="participantsGrid"></div>
+  <!-- Inscription -->
+  <section class="tour-join" id="rejoindre">
+    <h2>Prêt à grimper ?</h2>
+    <p>
+      Une ligue se rejoint sur invitation : demande le code à l'admin de ta ligue.
+      Tu crées ton compte, tu relies Strava, et c'est parti.
+    </p>
+    <form id="joinForm">
+      <input id="joinCode" placeholder="Code de la ligue (ABCD-EFGH)" autocomplete="off" autocapitalize="characters" aria-label="Code de la ligue">
+      <button type="submit" class="btn-join">S'inscrire avec Strava</button>
+    </form>
+    <p class="tour-more">Pas encore de code ? Tu pourras le saisir plus tard. <a href="rules.html">Règles détaillées</a></p>
   </section>
 
-  <!-- Historique -->
-  <section class="history-section" id="history">
-    <div class="section-header">
-      <span class="section-number">05</span>
-      <h2 class="section-title">Historique des Saisons</h2>
-      <p class="section-desc">Détails et résumés des saisons passées</p>
-    </div>
-    <div class="history-timeline" id="historyTimeline"></div>
-  </section>
-
-  <!-- Footer -->
   <footer class="footer">
     <div class="footer-content">
       <div class="footer-brand">◭️️ Versant</div>
       <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
-      <a href="inscription.html" class="footer-cta">Rejoindre une ligue</a>
     </div>
   </footer>
 
-  <!-- Date Slider (Demo Mode) -->
-  <div class="date-slider-container bottom" id="dateSliderContainer"></div>
-
-  <script src="shared/team-formation.js"></script>
-  <script type="module" src="js/app.js"></script>
+  <script src="js/demo-tour.js?v=20261027a"></script>
 </body>
 </html>
