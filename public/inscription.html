@@ -328,7 +328,27 @@
       color: rgba(255,255,255,0.6);
     }
     .login-link a { color: #f97316; }
+    /* Code de validation de l'e-mail (L58) */
+    .email-row {
+      display: flex;
+      gap: 10px;
+    }
+    .email-row .form-input { flex: 1; min-width: 0; }
+    .email-code-btn {
+      flex-shrink: 0;
+      padding: 0 18px;
+      background: rgba(249,115,22,0.15);
+      border: 1px solid rgba(249,115,22,0.5);
+      border-radius: 8px;
+      color: #f97316;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .email-code-btn:disabled { opacity: 0.5; cursor: default; }
     @media (max-width: 600px) {
+      .email-row { flex-direction: column; }
+      .email-code-btn { padding: 12px 18px; }
       .inscription-container { padding: 48px 16px 80px; }
       .inscription-title { font-size: 36px; }
       .signup-card { padding: 4px 20px; }
@@ -391,8 +411,17 @@
 
           <div class="form-group">
             <label class="form-label" for="athleteEmail">Adresse e-mail <span style="color: #f97316;">*</span></label>
-            <input type="email" id="athleteEmail" class="form-input" placeholder="ton@email.com" required autocomplete="email">
-            <p class="step-help" style="margin-top: 8px;">Elle te sert d'identifiant pour te connecter.</p>
+            <div class="email-row">
+              <input type="email" id="athleteEmail" class="form-input" placeholder="ton@email.com" required autocomplete="email">
+              <button type="button" class="email-code-btn" id="sendEmailCodeBtn">Recevoir le code</button>
+            </div>
+            <p class="step-help" style="margin-top: 8px;">Elle te sert d'identifiant pour te connecter. On y envoie un code pour la valider.</p>
+          </div>
+
+          <div class="form-group" id="emailCodeGroup" hidden>
+            <label class="form-label" for="emailCode">Code reçu par e-mail <span style="color: #f97316;">*</span></label>
+            <input type="text" id="emailCode" class="form-input code-input" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+            <p class="code-status" id="emailCodeStatus" aria-live="polite"></p>
           </div>
 
           <div class="form-group">
@@ -443,6 +472,6 @@
     </div>
   </footer>
 
-  <script type="module" src="js/inscription.js?v=20261027a"></script>
+  <script type="module" src="js/inscription.js?v=20261027b"></script>
 </body>
 </html>

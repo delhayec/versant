@@ -47,8 +47,32 @@
       <!-- Success Message -->
       <div class="success-message" id="successMessage" style="display: none;"></div>
 
+      <!-- Nouveau mot de passe (lien reçu par e-mail : login.html#reset=…) -->
+      <div class="info-box" id="resetBox" style="padding: 40px; display: none;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🔑</div>
+          <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 8px;">Nouveau mot de passe</h2>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px;">Choisis ton nouveau mot de passe : tu seras connecté dans la foulée.</p>
+        </div>
+        <form id="resetForm">
+          <div class="form-group" style="margin-bottom: 24px;">
+            <label class="form-label" for="newPassword" style="display: block; margin-bottom: 8px; font-weight: 500; color: rgba(255,255,255,0.9);">Nouveau mot de passe</label>
+            <input type="password" id="newPassword" class="form-input" placeholder="Minimum 6 caractères" required minlength="6" autocomplete="new-password"
+              style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; font-family: inherit;">
+          </div>
+          <div class="form-group" style="margin-bottom: 32px;">
+            <label class="form-label" for="newPasswordConfirm" style="display: block; margin-bottom: 8px; font-weight: 500; color: rgba(255,255,255,0.9);">Confirmer le mot de passe</label>
+            <input type="password" id="newPasswordConfirm" class="form-input" placeholder="Répète ton mot de passe" required autocomplete="new-password"
+              style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; font-family: inherit;">
+          </div>
+          <button type="submit" id="resetSubmit" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; font-family: inherit;">
+            Enregistrer
+          </button>
+        </form>
+      </div>
+
       <!-- Login Form -->
-      <div class="info-box" style="padding: 40px;">
+      <div class="info-box" id="loginBox" style="padding: 40px;">
         <div style="text-align: center; margin-bottom: 32px;">
           <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
           <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 8px;">
@@ -116,18 +140,21 @@
           <div style="text-align: center;">
             <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
             <h3 style="font-family: 'Syne', sans-serif; margin-bottom: 12px; font-size: 20px;">Mot de passe oublié ?</h3>
-            <p style="color: rgba(255,255,255,0.7); font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
-              Contacte l'administrateur de la ligue pour réinitialiser ton mot de passe.
+            <p style="color: rgba(255,255,255,0.7); font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+              Entre l'e-mail de ton compte : on t'envoie un lien pour choisir un nouveau mot de passe.
             </p>
 
-            <div style="background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-              <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Administrateur</p>
-              <p style="color: #f97316; font-size: 16px; font-weight: 600;">Clement</p>
-              <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-top: 4px;">Via le groupe WhatsApp ou Strava</p>
-            </div>
+            <form id="forgotForm" style="margin-bottom: 16px;">
+              <input type="email" id="forgotEmail" class="form-input" placeholder="votre@email.com" required autocomplete="email"
+                style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 16px; font-family: inherit; margin-bottom: 12px;">
+              <button type="submit" id="forgotSubmit" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; font-family: inherit;">
+                Recevoir le lien
+              </button>
+            </form>
+            <p id="forgotResult" aria-live="polite" style="font-size: 14px; line-height: 1.5; margin-bottom: 16px; display: none;"></p>
 
             <button id="closeResetModal" style="width: 100%; padding: 14px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: rgba(255,255,255,0.8); cursor: pointer; font-size: 15px; font-weight: 500; transition: all 0.3s ease;">
-              Compris !
+              Fermer
             </button>
           </div>
         </div>
@@ -319,8 +346,45 @@
       }
     });
 
+    // Lien « mot de passe oublié » reçu par e-mail (L58) : login.html#reset=…
+    // (après le #, le jeton n'est jamais envoyé au serveur ni écrit dans ses journaux)
+    const resetToken = new URLSearchParams(window.location.hash.slice(1)).get('reset');
+    if (resetToken) {
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('resetBox').style.display = 'block';
+      // Le jeton ne doit pas rester dans l'historique ni partir dans le Referer
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('newPassword').value;
+      const confirm = document.getElementById('newPasswordConfirm').value;
+      if (password.length < 6) return showError('Le mot de passe doit contenir au moins 6 caractères');
+      if (password !== confirm) return showError('Les mots de passe ne correspondent pas');
+      const btn = document.getElementById('resetSubmit');
+      btn.disabled = true;
+      try {
+        const response = await fetch(`${API_BASE}/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: resetToken, password })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Erreur serveur');
+        localStorage.setItem('versant_token', data.token);
+        localStorage.setItem('versant_athlete_id', data.athlete.id);
+        showSuccess('Mot de passe enregistré ! Redirection...');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+      } catch (error) {
+        showError(error.message);
+        btn.disabled = false;
+      }
+    });
+
     // Vérifier si déjà connecté
     window.addEventListener('DOMContentLoaded', async () => {
+      if (resetToken) return;
       const token = localStorage.getItem('versant_token');
 
       if (token) {
@@ -361,7 +425,32 @@
 
     forgotLink.addEventListener('click', (e) => {
       e.preventDefault();
+      document.getElementById('forgotEmail').value = document.getElementById('email').value.trim();
       forgotModal.style.display = 'flex';
+    });
+
+    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const result = document.getElementById('forgotResult');
+      const btn = document.getElementById('forgotSubmit');
+      btn.disabled = true;
+      try {
+        const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: document.getElementById('forgotEmail').value.trim() })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Erreur serveur');
+        result.style.color = '#10b981';
+        result.textContent = `${data.message} Pense à regarder dans les spams.`;
+        document.getElementById('forgotForm').style.display = 'none';
+      } catch (error) {
+        result.style.color = '#ef4444';
+        result.textContent = error.message;
+        btn.disabled = false;
+      }
+      result.style.display = 'block';
     });
 
     closeModal.addEventListener('click', () => {

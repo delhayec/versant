@@ -145,6 +145,7 @@ const { currentEdition, withEdition, LEGACY_CONTEXT } = require('./edition-conte
 const { registerEditionRoutes } = require('./routes/editions');
 const { registerAccountRoutes } = require('./routes/accounts');
 const { registerLeagueRoutes } = require('./routes/leagues');
+const { registerMailAuthRoutes } = require('./routes/mail-auth');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const FAILED_WEBHOOKS_FILE = path.join(DATA_DIR, 'failed_webhooks.json');
 const WEBHOOK_LOG_FILE = path.join(DATA_DIR, 'webhook_log.json');
@@ -462,6 +463,36 @@ registerAccountRoutes(app, {
   readAccounts: () => safeReadJSON(ATHLETES_FILE, []),
   // Rattrapage des activités du nouvel arrivant, dans le contexte de son édition
   onJoin: backfillAfterJoin
+});
+
+// E-mails du compte (L58) : code de validation à l'inscription, mot de passe oublié
+const modifyAccounts = fn => safeModifyJSON(ATHLETES_FILE, accounts => {
+  // Fichier illisible : surtout ne pas réécrire une liste vide.
+  if (!Array.isArray(accounts)) throw new Error('athletes.json illisible');
+  return fn(accounts);
+}, null);
+const emailCodes = registerMailAuthRoutes(app, {
+  readAccounts: () => safeReadJSON(ATHLETES_FILE, []),
+  modifyAccounts,
+  async setPassword(account, password, resetHash) {
+    const passwordScrypt = await hashPasswordScrypt(password);
+    let done = false;
+    await modifyAccounts(accounts => {
+      const current = accounts.find(a => normalizeId(a.id) === normalizeId(account.id));
+      if (current && current.reset_token === resetHash) {
+        current.password_hash = hashPassword(password);
+        current.password_scrypt = passwordScrypt;
+        delete current.reset_token;
+        delete current.reset_expires;
+        done = true;
+      }
+      return accounts;
+    });
+    return done;
+  },
+  createSession,
+  dropSessions: athleteId => safeModifyJSON(SESSIONS_FILE,
+    sessions => (Array.isArray(sessions) ? sessions.filter(s => normalizeId(s.athlete_id) !== normalizeId(athleteId)) : sessions), [])
 });
 
 // Ligues et éditions (L42c) : création, lancement d'édition, confirmations
@@ -1010,7 +1041,7 @@ async function backfillNewParticipant(leagueId, athleteId, name) {
 
 app.post('/api/athletes/register', async (req, res) => {
   try {
-    const { athlete_id, name, email, password, strava_data, access_token, refresh_token, expires_at, league_id } = req.body;
+    const { athlete_id, name, email, password, strava_data, access_token, refresh_token, expires_at, league_id, email_code } = req.body;
 
     // league_id est facultatif depuis L42 : un compte peut exister sans ligue
     // et en rejoindre une ensuite avec son code (POST /api/leagues/join)
@@ -1021,6 +1052,10 @@ app.post('/api/athletes/register', async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: 'Mot de passe trop court' });
     }
+
+    // L58 : l'e-mail est validé par le code à 6 chiffres qu'on vient d'y envoyer
+    const codeError = emailCodes.checkEmailCode(email, email_code);
+    if (codeError) return res.status(400).json({ error: codeError, field: 'email_code' });
 
     // L56 : le jeton envoyé par le navigateur doit appartenir à l'athlète
     // annoncé. Sans cette vérification, on pouvait créer un compte au nom de
@@ -1077,6 +1112,7 @@ app.post('/api/athletes/register', async (req, res) => {
     });
 
     await safeWriteJSON(ATHLETES_FILE, athletes);
+    emailCodes.consumeEmailCode(email);
     const token = await createSession(normalizedId);
     console.log(`✅ Athlète inscrit: ${name}`);
 

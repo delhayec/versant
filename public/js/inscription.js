@@ -5,7 +5,7 @@
  * Parcours en 3 étapes (L55) :
  *   1. code de la ligue, obligatoire, vérifié par le serveur ;
  *   2. connexion Strava, possible seulement avec un code valide ;
- *   3. compte Versant : nom, e-mail, mot de passe.
+ *   3. compte Versant : nom, e-mail validé par un code (L58), mot de passe.
  * Le compte est créé, puis la ligue rejointe avec le code.
  */
 
@@ -23,6 +23,7 @@ let athleteData = null;
 let stravaTokens = null;
 let validCode = null;   // code de ligue vérifié
 let leagueName = null;
+let codeSentTo = null;  // e-mail auquel le code de validation a été envoyé
 
 // Code d'invitation : lien inscription.html?invitation=ABCD-EFGH ou saisi.
 // Gardé le temps de l'aller-retour vers Strava, qui ne renvoie que ses paramètres.
@@ -214,6 +215,66 @@ function setupEventListeners() {
   });
 
   submitBtn.addEventListener('click', handleSubmit);
+
+  $('sendEmailCodeBtn').addEventListener('click', sendEmailCode);
+  // Adresse modifiée après l'envoi : le code reçu ne vaut que pour l'ancienne
+  $('athleteEmail').addEventListener('input', () => {
+    if (codeSentTo && $('athleteEmail').value.trim().toLowerCase() !== codeSentTo) {
+      codeSentTo = null;
+      $('emailCodeGroup').hidden = true;
+      $('emailCode').value = '';
+      clearInterval(resendTimer);
+      $('sendEmailCodeBtn').textContent = 'Recevoir le code';
+      $('sendEmailCodeBtn').disabled = false;
+    }
+  });
+  $('emailCode').addEventListener('input', e => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+    if (digits !== e.target.value) e.target.value = digits;
+  });
+}
+
+// ============================================
+// ÉTAPE 3 : VALIDATION DE L'E-MAIL (L58)
+// ============================================
+let resendTimer = null;
+
+async function sendEmailCode() {
+  const email = $('athleteEmail').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('Format d\'e-mail invalide');
+  const btn = $('sendEmailCodeBtn');
+  const status = $('emailCodeStatus');
+  btn.disabled = true;
+  btn.textContent = 'Envoi…';
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/email-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'L\'e-mail n\'a pas pu être envoyé');
+    codeSentTo = email.toLowerCase();
+    $('emailCodeGroup').hidden = false;
+    status.className = 'code-status ok';
+    status.textContent = `Code envoyé à ${email}. Pense à regarder dans les spams.`;
+    $('emailCode').focus();
+    // Renvoi possible au bout d'une minute
+    let left = 60;
+    clearInterval(resendTimer);
+    btn.textContent = `Renvoyer (${left} s)`;
+    resendTimer = setInterval(() => {
+      left -= 1;
+      if (left > 0) { btn.textContent = `Renvoyer (${left} s)`; return; }
+      clearInterval(resendTimer);
+      btn.textContent = 'Renvoyer le code';
+      btn.disabled = false;
+    }, 1000);
+  } catch (error) {
+    showError(error.message);
+    btn.textContent = codeSentTo ? 'Renvoyer le code' : 'Recevoir le code';
+    btn.disabled = false;
+  }
 }
 
 // ============================================
@@ -228,6 +289,9 @@ async function handleSubmit() {
   if (!athleteName) return showError('Entre ton nom d\'affichage');
   if (!athleteEmail) return showError('L\'adresse e-mail est obligatoire');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(athleteEmail)) return showError('Format d\'e-mail invalide');
+  if (codeSentTo !== athleteEmail.toLowerCase()) return showError('Clique sur « Recevoir le code » pour valider ton e-mail');
+  const emailCode = $('emailCode').value.trim();
+  if (!/^\d{6}$/.test(emailCode)) return showError('Entre le code à 6 chiffres reçu par e-mail');
   if (!password || password.length < 6) return showError('Le mot de passe doit contenir au moins 6 caractères');
   if (password !== passwordConfirm) return showError('Les mots de passe ne correspondent pas');
   if (!$('acceptTerms').checked) return showError('Accepte les conditions pour continuer');
@@ -247,6 +311,7 @@ async function handleSubmit() {
         athlete_id: String(athleteData.id),
         name: athleteName,
         email: athleteEmail,
+        email_code: emailCode,
         password,
         strava_data: athleteData,
         access_token: stravaTokens.access_token,
