@@ -47,6 +47,7 @@ const { mailEnabled, sendMail } = require('../mailer');
   } catch (error) {
     console.error(`❌ Échec : ${error.message}`);
     if (error.responseCode === 535) console.error('   Identifiant ou clé SMTP refusés : vérifie SMTP_USER et SMTP_PASS.');
+    if (error.responseCode === 525) console.error('   Adresse IP du serveur non autorisée : Brevo > Sécurité > IP autorisées (curl -4 ifconfig.me ; curl -6 ifconfig.me).');
     process.exit(1);
   }
 })();
