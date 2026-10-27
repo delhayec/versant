@@ -33,7 +33,8 @@
     tom: { name: 'Tom R.', color: '#10b981' },
     ines: { name: 'Inès D.', color: '#fbbf24' },
     paul: { name: 'Paul V.', color: '#ec4899' },
-    zoe: { name: 'Zoé L.', color: '#60a5fa' }
+    zoe: { name: 'Zoé L.', color: '#60a5fa' },
+    max: { name: 'Max P.', color: '#f43f5e' }
   };
   const initials = name => name.split(/[\s.]+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const avatar = (id, cls = 'athlete-avatar') => {
@@ -294,6 +295,16 @@
 
     ungift(id) { this.rows.get(id).querySelector('.tour-gift').hidden = true; }
 
+    // Compteurs mis en lumière : ils gardent leur valeur
+    keep(ids) {
+      for (const id of ids) {
+        const num = this.rows.get(id).querySelector('.tour-num');
+        num.classList.remove('tour-keep');
+        num.offsetHeight;
+        num.classList.add('tour-keep');
+      }
+    }
+
     async remove(id, to = 'right') {
       const row = this.rows.get(id);
       row.style.height = `${row.offsetHeight}px`;
@@ -445,7 +456,8 @@
 
   // ---------- Scène 3 : challenge des éliminés ----------
   // Seul le meilleur des 2 éliminés du round (le plus de D+ pendant ce
-  // round) reçoit un bonus : Sarah (1 210 m contre 980 pour Tom).
+  // round) reçoit un bonus : Sarah (1 210 m contre 980 pour Tom). Max,
+  // 8e joueur, n'apparaît qu'ici : il fallait 2 nouveaux éliminés.
   function sceneEliminated(root) {
     const table = new Table(root.querySelector('.tour-table'), { header: ['Pos.', 'Éliminé', 'D+ cumulé', 'Points'], points: true, medals: false });
     const count = root.querySelector('[data-tour="count"]');
@@ -474,6 +486,18 @@
           () => table.gain('sarah', 300, ['🏃', 'Course'], 'activity', 2000)],
         [4400, 'Sarah joue son bonus : une embuscade, 150 m volés à un joueur encore en course. Elle double Zoé !',
           () => table.gain('sarah', 150, ['🏹', 'Embuscade'], 'bonus', 2400)],
+        [2800, 'Fin du round suivant : Hugo et Max sont éliminés à leur tour et rejoignent le challenge.', async () => {
+          table.add('hugo', 0, { from: 'left' });
+          await sleep(200);
+          table.add('max', 0, { from: 'left' });
+          table.refresh();
+          count.textContent = '6';
+          count.parentElement.classList.remove('tour-pop');
+          count.parentElement.offsetHeight;
+          count.parentElement.classList.add('tour-pop');
+        }],
+        [3600, 'Ici, les compteurs ne repartent pas de zéro : le D+ des éliminés se cumule jusqu\'à la fin de la saison.',
+          () => table.keep(['tom', 'paul', 'sarah', 'zoe'])],
         [3400, 'Les points des éliminés comptent aussi au classement général.']
       ]
     };
@@ -487,7 +511,7 @@
     return {
       setup: () => {
         table.reset([['lea', 1650], ['ines', 1480]]);
-        label.textContent = 'Saison 1 · Finale';
+        label.innerHTML = 'Saison 1 · <span class="tour-finale">Finale</span>';
         active.textContent = '2';
       },
       steps: [

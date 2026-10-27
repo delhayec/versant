@@ -207,6 +207,35 @@
       background: currentColor;
     }
     .tour-legends { white-space: nowrap; }
+
+    /* « FINALE » en or, avec un reflet qui passe */
+    .tour-finale {
+      display: inline-block;
+      margin-left: 4px;
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      vertical-align: middle;
+      background: linear-gradient(110deg, #b45309 0%, #fbbf24 30%, #fff7cc 45%, #fbbf24 60%, #b45309 100%);
+      background-size: 250% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.45));
+      animation: tour-shine 2.8s linear infinite;
+    }
+    @keyframes tour-shine {
+      from { background-position: 100% 0; }
+      to { background-position: -150% 0; }
+    }
+
+    /* Compteurs qui gardent leur valeur : brève mise en lumière */
+    .tour-keep { animation: tour-keep 1.6s ease 2; border-radius: 6px; }
+    @keyframes tour-keep {
+      0%, 100% { box-shadow: none; background: transparent; }
+      40% { box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.15); }
+    }
     .tour-legend-main { color: #10b981; }
     .tour-legend-elim { color: #a855f7; }
     .tour-elim-head strong {
@@ -255,7 +284,7 @@
        règles ; seuls les effets décoratifs sont retirés. */
     @media (prefers-reduced-motion: reduce) {
       .tour-bubble { animation: none; }
-      .tour-pop, .tour-caption-in, .tour-flash .ranking-container { animation: none; }
+      .tour-pop, .tour-caption-in, .tour-flash .ranking-container, .tour-finale { animation: none; }
     }
 
     @media (max-width: 768px) {
@@ -395,7 +424,7 @@
       </p>
     </div>
     <div class="tour-elim-head">
-      <span data-tour="label">Saison 1 · Finale</span>
+      <span data-tour="label">Saison 1 · <span class="tour-finale">Finale</span></span>
       <span><strong data-tour="active">2</strong>en course</span>
     </div>
     <div class="ranking-container tour-table"></div>
@@ -441,6 +470,6 @@
     </div>
   </footer>
 
-  <script src="js/demo-tour.js?v=20261027d"></script>
+  <script src="js/demo-tour.js?v=20261027e"></script>
 </body>
 </html>
