@@ -23,7 +23,7 @@ const { mailEnabled, sendMail } = require('../mailer');
     process.exit(1);
   }
   if (!mailEnabled()) {
-    console.error('❌ SMTP_HOST, SMTP_USER ou SMTP_PASS manquant dans le .env');
+    console.error(`❌ SMTP_HOST, SMTP_USER ou SMTP_PASS manquant dans ${fs.existsSync(envFile) ? envFile : path.resolve('.env')}`);
     process.exit(1);
   }
   console.log(`📨 Envoi via ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587} (${process.env.SMTP_USER})`);

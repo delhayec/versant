@@ -11,12 +11,19 @@
  * routes qui en dépendent répondent 503 au lieu de planter.
  */
 
-const nodemailer = require('nodemailer');
+// Chargé à la demande : si la dépendance manque (npm install oublié au
+// déploiement), seul l'envoi d'e-mails est coupé, pas le serveur entier.
+let nodemailer = null;
+try {
+  nodemailer = require('nodemailer');
+} catch (error) {
+  console.error('⚠️ nodemailer absent (npm install dans backend/) : envoi d\'e-mails désactivé');
+}
 
 let transport = null;
 
 function mailEnabled() {
-  return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return !!(nodemailer && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
 function getTransport() {
