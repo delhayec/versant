@@ -34,6 +34,15 @@ const storage = {
   clear() { try { sessionStorage.removeItem(INVITE_KEY); } catch { /* sans stockage */ } }
 };
 
+// Lien admin (L59) : inscription.html?invitation=…#admin=…, gardé le temps de
+// l'aller-retour vers Strava (ou vers la page de connexion, qui le lit aussi)
+const ADMIN_KEY = 'versant_admin_code';
+const adminStore = {
+  get() { try { return sessionStorage.getItem(ADMIN_KEY) || ''; } catch { return ''; } },
+  set(code) { try { sessionStorage.setItem(ADMIN_KEY, code); } catch { /* sans stockage */ } },
+  clear() { try { sessionStorage.removeItem(ADMIN_KEY); } catch { /* sans stockage */ } }
+};
+
 const $ = id => document.getElementById(id);
 const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const normalizeCode = code => String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -54,6 +63,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   setupEventListeners();
+
+  const adminCode = new URLSearchParams(window.location.hash.slice(1)).get('admin');
+  if (adminCode) {
+    adminStore.set(adminCode);
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  }
+  if (adminStore.get()) await setupAdminNotice();
 
   const params = new URLSearchParams(window.location.search);
   const initialCode = params.get('invitation') || storage.get();
@@ -116,7 +132,8 @@ async function checkCode() {
     storage.set(code);
     input.classList.add('valid');
     status.classList.add('ok');
-    status.textContent = `✓ Ligue ${leagueName}`;
+    // Ligue en préparation (L59) : on la rejoint déjà, elle démarre plus tard
+    status.textContent = `✓ Ligue ${leagueName}${data.waiting ? ' (en préparation)' : ''}`;
   } catch (error) {
     if (seq !== checkSeq) return false;
     input.classList.add('invalid');
@@ -125,6 +142,49 @@ async function checkCode() {
   }
   setStep(athleteData ? 'account' : 'code');
   return !!validCode;
+}
+
+// ============================================
+// LIEN ADMIN (L59)
+// ============================================
+/** Devient admin de la ligue du lien admin. Renvoie la ligue ; lève l'erreur du serveur. */
+async function claimAdmin(token) {
+  const response = await fetch(`${API_BASE_URL}/leagues/claim-admin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code: adminStore.get() })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Erreur ${response.status}`);
+  adminStore.clear();
+  return data.league;
+}
+
+/** Avis « lien admin » ; déjà connecté : bouton pour devenir admin sans s'inscrire. */
+async function setupAdminNotice() {
+  $('adminNotice').hidden = false;
+  const token = localStorage.getItem('versant_token');
+  if (!token) return;
+  try {
+    const response = await fetch(`${API_BASE_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) return;
+    const me = await response.json();
+    $('adminNoticeName').textContent = me.athlete?.name || '';
+    $('adminNoticeLogged').hidden = false;
+    $('adminNoticeLogin').hidden = true;
+    $('claimAdminBtn').addEventListener('click', async () => {
+      $('claimAdminBtn').disabled = true;
+      try {
+        await claimAdmin(token);
+        window.location.href = 'admin.html';
+      } catch (error) {
+        showError(error.message);
+        $('claimAdminBtn').disabled = false;
+      }
+    });
+  } catch {
+    // hors ligne : l'avis reste, l'inscription aussi
+  }
 }
 
 // ============================================
@@ -346,8 +406,19 @@ async function handleSubmit() {
     }
     storage.clear();
 
+    // Lien admin (L59) : le nouveau compte devient admin de la ligue
+    let adminOf = null;
+    let adminError = null;
+    if (adminStore.get()) {
+      try {
+        adminOf = await claimAdmin(result.token);
+      } catch (e) {
+        adminError = e.message;
+      }
+    }
+
     // Saison d'entrée : calculée sur le calendrier de versant-2026 (édition historique)
-    showSuccess(joined?.edition?.legacyId ? result.active_from_season : null, { joined, joinError });
+    showSuccess(joined?.edition?.legacyId ? result.active_from_season : null, { joined, joinError, adminOf, adminError });
   } catch (error) {
     console.error('Erreur d\'inscription:', error);
     showError(error.message || 'Erreur lors de l\'inscription. Réessaie.');
@@ -367,11 +438,14 @@ function showError(message) {
   setTimeout(() => errorDiv.classList.remove('active'), 6000);
 }
 
-function showSuccess(seasonNumber, { joined = null, joinError = null } = {}) {
+function showSuccess(seasonNumber, { joined = null, joinError = null, adminOf = null, adminError = null } = {}) {
   $('signupCard').style.display = 'none';
+  $('adminNotice').hidden = true;
   let html = '<h3>🎉 Inscription réussie !</h3><p>Ton compte Versant est créé et ton Strava est connecté.</p>';
   if (joined?.league) {
     html += `<p style="margin-top: 16px;">Tu fais maintenant partie de la ligue <strong>${escapeHtml(joined.league.name)}</strong>.</p>`;
+    // Ligue en préparation (L59)
+    if (joined.waiting && !adminOf) html += '<p style="margin-top: 8px;">Elle démarrera quand son admin aura fixé la date de début : tu y seras inscrit automatiquement.</p>';
   } else if (joinError) {
     html += `<p style="margin-top: 16px; color: #f87171;">La ligue n'a pas pu être rejointe : ${escapeHtml(joinError)}. Tu pourras saisir le code à nouveau sur la page suivante.</p>`;
   }
@@ -381,6 +455,20 @@ function showSuccess(seasonNumber, { joined = null, joinError = null } = {}) {
         ℹ️ La saison est déjà en cours : tu entreras en jeu à la <strong>Saison ${seasonNumber}</strong>.
         D'ici là tes sorties sont enregistrées, mais elles ne comptent pas encore au classement.
       </p>`;
+  }
+  if (adminOf) {
+    html += `<p style="margin-top: 16px;">Tu es l'admin de la ligue <strong>${escapeHtml(adminOf.name)}</strong> : choisis ses dates, lance sa première édition et partage son code d'invitation.</p>
+      <p style="margin-top: 24px;">
+        <a href="admin.html" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #f97316, #f43f5e); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Régler ma ligue</a>
+      </p>`;
+    const successDiv = $('successMessage');
+    successDiv.innerHTML = html;
+    successDiv.classList.add('active');
+    successDiv.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    return;
+  }
+  if (adminError) {
+    html += `<p style="margin-top: 16px; color: #f87171;">Le lien admin n'a pas fonctionné : ${escapeHtml(adminError)}.</p>`;
   }
   html += `
     <p style="margin-top: 24px;">

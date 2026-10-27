@@ -50,7 +50,6 @@
       <!-- Nouveau mot de passe (lien reçu par e-mail : login.html#reset=…) -->
       <div class="info-box" id="resetBox" style="padding: 40px; display: none;">
         <div style="text-align: center; margin-bottom: 32px;">
-          <div style="font-size: 48px; margin-bottom: 16px;">🔑</div>
           <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 8px;">Nouveau mot de passe</h2>
           <p style="color: rgba(255,255,255,0.6); font-size: 14px;">Choisis ton nouveau mot de passe : tu seras connecté dans la foulée.</p>
         </div>
@@ -82,6 +81,11 @@
             Entrez vos identifiants pour accéder à votre dashboard
           </p>
         </div>
+
+        <!-- Lien admin en attente (L59) : venu de la page d'inscription -->
+        <p id="adminPending" hidden style="margin: 0 0 24px; padding: 12px 16px; border-radius: 10px; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.35); font-size: 14px; line-height: 1.5;">
+          Connecte-toi pour devenir l'admin de la ligue de ton lien.
+        </p>
 
         <form id="loginForm">
           <div class="form-group" style="margin-bottom: 24px;">
@@ -277,6 +281,21 @@
         localStorage.setItem('versant_token', data.token);
         localStorage.setItem('versant_athlete_id', data.athlete.id);
 
+        // Lien admin (L59) : le compte devient admin de la ligue du lien
+        if (pendingAdminCode()) {
+          try {
+            const league = await claimAdmin(data.token);
+            showSuccess(`Tu es maintenant admin de la ligue ${league.name} ! Redirection...`);
+            setTimeout(() => { window.location.href = 'admin.html'; }, 1000);
+            return;
+          } catch (error) {
+            sessionStorage.removeItem(ADMIN_KEY);
+            showError(`Connexion réussie, mais le lien admin n'a pas fonctionné : ${error.message}`);
+            setTimeout(() => { window.location.href = nextPage(); }, 3000);
+            return;
+          }
+        }
+
         showSuccess('Connexion réussie ! Redirection...');
 
         // Retour à la page demandée (L50), sinon le dashboard
@@ -292,6 +311,23 @@
         submitBtn.style.opacity = '1';
       }
     });
+
+    // Lien admin (L59), gardé par la page d'inscription pour la session du navigateur
+    const ADMIN_KEY = 'versant_admin_code';
+    const pendingAdminCode = () => { try { return sessionStorage.getItem(ADMIN_KEY) || ''; } catch { return ''; } };
+    if (pendingAdminCode()) document.getElementById('adminPending').hidden = false;
+
+    async function claimAdmin(token) {
+      const response = await fetch(`${API_BASE}/leagues/claim-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: pendingAdminCode() })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Erreur ${response.status}`);
+      sessionStorage.removeItem(ADMIN_KEY);
+      return data.league;
+    }
 
     /**
      * Page à ouvrir après la connexion (L50) : ?next= posé par
@@ -384,7 +420,8 @@
 
     // Vérifier si déjà connecté
     window.addEventListener('DOMContentLoaded', async () => {
-      if (resetToken) return;
+      // Lien admin en attente : on reste ici pour que la connexion le valide
+      if (resetToken || pendingAdminCode()) return;
       const token = localStorage.getItem('versant_token');
 
       if (token) {

@@ -118,7 +118,7 @@
      * Remplace la page par un message (aucune donnée affichable) ;
      * withJoinForm : formulaire du code d'invitation (compte sans ligue, L51).
      */
-    function block(message, withJoinForm = false) {
+    function block(message, withJoinForm = false, withAdminLink = false) {
       if (blocked) return;
       blocked = true;
       const show = () => {
@@ -126,6 +126,10 @@
         box.id = 'editionBlocked';
         box.setAttribute('style', 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;text-align:center');
         box.innerHTML = '<div style="max-width:460px;width:100%"><p style="font-size:1.1rem;line-height:1.5;margin:0 0 20px"></p>'
+          // Admin d'une ligue en préparation (L59) : il la règle depuis l'admin
+          + (withAdminLink
+            ? '<p style="margin:0 0 20px"><a id="editionAdminLink" href="admin.html" style="display:inline-block;padding:12px 20px;border-radius:8px;background:linear-gradient(135deg,#f97316,#f43f5e);color:#fff;font-weight:600;text-decoration:none">Régler ma ligue</a></p>'
+            : '')
           + (withJoinForm
             ? '<form id="joinLeagueForm" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 12px">'
               + '<input id="joinLeagueCode" autocomplete="off" autocapitalize="characters" placeholder="ABCD-EFGH" aria-label="Code d’invitation" required '
@@ -135,7 +139,7 @@
             : '')
           + '<a href="login.html" style="color:#f97316">Se connecter avec un autre compte</a></div>';
         box.querySelector('p').textContent = message;
-        box.querySelector('a').addEventListener('click', () => {
+        box.querySelector('a[href="login.html"]').addEventListener('click', () => {
           localStorage.removeItem('versant_token');
           localStorage.removeItem('versant_athlete_id');
         });
@@ -185,6 +189,14 @@
       }
       if (me.edition) return { leagueId: me.edition.leagueId, editionId: me.edition.editionId };
       if (optional) return null;
+      // Ligue en préparation (L59) : inscrit, en attente de la première édition
+      if (me.waiting && me.league) {
+        const admin = (me.adminLeagues || []).some(l => l.id === me.league.id);
+        block(admin
+          ? `Tu es admin de la ligue ${me.league.name}. Choisis ses dates et lance sa première édition : les joueurs déjà inscrits y entreront automatiquement.`
+          : `Tu as bien rejoint la ligue ${me.league.name}. Elle démarrera quand son admin aura fixé la date de début : tu y seras inscrit automatiquement.`, false, admin);
+        return never;
+      }
       block("Tu ne fais partie d'aucune ligue pour l'instant. Entre le code d'invitation que t'a donné l'admin de la ligue.", true);
       return never;
     }

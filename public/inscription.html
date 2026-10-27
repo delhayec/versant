@@ -328,6 +328,20 @@
       color: rgba(255,255,255,0.6);
     }
     .login-link a { color: #f97316; }
+    /* Lien admin (L59) */
+    .admin-notice {
+      margin: 24px 0 4px;
+      padding: 16px 20px;
+      border-radius: 12px;
+      background: rgba(34,211,238,0.08);
+      border: 1px solid rgba(34,211,238,0.35);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .admin-notice p { margin: 0; }
+    .admin-notice p + p { margin-top: 10px; }
+    .admin-notice a { color: #22d3ee; }
+    .admin-notice .email-code-btn { margin-left: 8px; padding: 8px 14px; }
     /* Code de validation de l'e-mail (L58) */
     .email-row {
       display: flex;
@@ -380,6 +394,16 @@
 
     <!-- Parcours d'inscription : 1. code de la ligue, 2. Strava, 3. compte -->
     <div class="signup-card" id="signupCard">
+      <!-- Lien admin (L59) : celui qui s'inscrit ou se connecte avec devient admin de la ligue -->
+      <div class="admin-notice" id="adminNotice" hidden>
+        <p><strong>Lien admin</strong> : en t'inscrivant avec ce lien, tu deviens l'admin de la ligue. Tu choisiras ensuite ses dates et inviteras les joueurs.</p>
+        <p id="adminNoticeLogged" hidden>
+          Tu es déjà connecté en tant que <strong id="adminNoticeName"></strong>.
+          <button type="button" class="email-code-btn" id="claimAdminBtn">Devenir admin de la ligue</button>
+        </p>
+        <p id="adminNoticeLogin">Déjà un compte Versant ? <a href="login.html">Connecte-toi</a> : tu deviendras admin en te connectant.</p>
+      </div>
+
       <!-- Étape 1 : code de la ligue -->
       <div class="signup-step" id="stepCode">
         <div class="step-head"><span class="step-num">1</span><h3>Code de ta ligue</h3></div>
@@ -472,6 +496,6 @@
     </div>
   </footer>
 
-  <script type="module" src="js/inscription.js?v=20261027b"></script>
+  <script type="module" src="js/inscription.js?v=20261027c"></script>
 </body>
 </html>
