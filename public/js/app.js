@@ -17,7 +17,7 @@ import {
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
   setFrozenCache,
-  getMainChallengePoints, getEliminatedChallengePoints, eliminatedChallengeRosterSize, getMainPointsMultiplier, rulesActive,
+  getMainChallengePoints, getEliminatedChallengePoints, eliminatedChallengeRosterSize, getMainPointsMultiplier, rulesActive, mechanicActive,
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
   getSeasonRosterSize,
@@ -648,9 +648,10 @@ renderRanking(rankingContainer, {
       } // fin else mode standard
     }
 
-    // Jauge collective de D+ du round en cours (pas de jauge en saison team)
+    // Jauge collective de D+ du round en cours (pas de jauge en saison team,
+    // ni avant sa saison de déblocage aux règles L54)
     const gaugeContainer = document.getElementById('elevationGaugeContainer');
-    if (gaugeContainer && getSeasonType(currentSeasonNumber)?.isTeamBased) {
+    if (gaugeContainer && (getSeasonType(currentSeasonNumber)?.isTeamBased || !mechanicActive('gauge', currentSeasonNumber))) {
       gaugeContainer.innerHTML = '';
     } else if (gaugeContainer) {
       const gaugeDates = getRoundDates(currentRoundNumber);

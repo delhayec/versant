@@ -564,8 +564,14 @@ function gatherTeamSeasonHistory(seasonNumber, previousRounds) {
  *   antérieur à son premier round de jauge (config.elevationGaugeStartRound)
  */
 function computeElevationGauge(roundNumber, seasonNumber, activeIds, roundActivities, previousRounds) {
-  const gaugeStartRound = currentEdition().config.elevationGaugeStartRound;
-  if (gaugeStartRound == null || roundNumber < gaugeStartRound || activeIds.length === 0) return null;
+  const editionConfig = currentEdition().config;
+  if (EditionRules.isActive(editionConfig)) {
+    // Règles L54 : la jauge suit le calendrier des mécaniques (saison de déblocage)
+    if (!EditionRules.mechanicActive(editionConfig, 'gauge', seasonNumber) || activeIds.length === 0) return null;
+  } else {
+    const gaugeStartRound = editionConfig.elevationGaugeStartRound;
+    if (gaugeStartRound == null || roundNumber < gaugeStartRound || activeIds.length === 0) return null;
+  }
 
   const activeSet = new Set(activeIds.map(String));
   const athleteOf = a => String(a.athlete?.id || a.athlete_id);
@@ -1099,7 +1105,10 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   // Chargée AVANT la construction du classement, pour deux raisons :
   //  - 'pluie_qui_mouille' pondère chaque activité AVANT la somme des D+ ;
   //  - 'no_bonus' doit pouvoir désactiver jokers et bonus éphémères.
-  const specialRule = await getSpecialRuleForRound(roundNumber);
+  // Règles L54 : pas de règle spéciale avant sa saison de déblocage
+  const specialRule = EditionRules.isActive(config) && !EditionRules.mechanicActive(config, 'specialRules', seasonNumber)
+    ? null
+    : await getSpecialRuleForRound(roundNumber);
   const isNoBonusRound = specialRule?.id === 'no_bonus';
 
   // Calculer le D+ de chaque participant actif

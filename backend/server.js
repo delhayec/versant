@@ -794,6 +794,13 @@ app.post('/api/admin/season-planning/:seasonNumber', async (req, res) => {
     if (!seasonType) {
       return res.status(400).json({ error: `Type de saison inconnu: ${type}` });
     }
+    // Règles L54 : saison Équipes seulement à partir de sa saison de déblocage
+    const editionConfig = currentEdition().config;
+    if (seasonType.isTeamBased && sharedConfig.EditionRules.isActive(editionConfig)
+      && !sharedConfig.EditionRules.mechanicActive(editionConfig, 'teams', seasonNumber)) {
+      const from = editionConfig.rules.mechanics?.teams;
+      return res.status(400).json({ error: from ? `La saison Équipes est possible à partir de la saison ${from}` : 'Pas de saison Équipes dans cette ligue' });
+    }
     if (seasonType.hasDeadline) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(deadline || ''))) {
         return res.status(400).json({ error: 'Date de fin (deadline) requise au format AAAA-MM-JJ' });
@@ -1310,7 +1317,13 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
         }
       }
 
-      const { isTeamSeason } = require('./shared-config');
+      const { isTeamSeason, EditionRules } = require('./shared-config');
+      // Règles L54 : jokers seulement à partir de leur saison de déblocage
+      const editionConfig = currentEdition().config;
+      if (roundSeason != null && EditionRules.isActive(editionConfig) && !EditionRules.mechanicActive(editionConfig, 'jokers', roundSeason)) {
+        const from = editionConfig.rules.mechanics?.jokers;
+        return res.status(403).json({ error: from ? `Les jokers arrivent à la saison ${from}` : 'Pas de jokers dans cette ligue' });
+      }
       if (roundSeason != null && isTeamSeason(roundSeason) && joker_id === 'bouclier') {
         return res.status(403).json({
           error: 'Le bouclier est désactivé en saison Équipes (toute l\'équipe est éliminée ou survit ensemble).'

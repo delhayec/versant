@@ -1185,9 +1185,17 @@ function renderLeague({ league, editions, participants }) {
         <td class="center">
           ${isManaged ? '<span class="hint">gérée ici</span>' : `<a href="${link}" style="color: #22d3ee;">Gérer</a>`}
           ${editable ? `<button class="btn btn-ghost btn-sm" data-edit-edition="${escapeHtml(e.editionId)}" style="margin-left: 6px;">Modifier</button>` : ''}
+          ${e.settings?.mechanics ? `<button class="btn btn-ghost btn-sm" data-mechanics-edition="${escapeHtml(e.editionId)}" style="margin-left: 6px;">Mécaniques</button>` : ''}
         </td>
       </tr>
-      ${editable ? `<tr data-edit-row="${escapeHtml(e.editionId)}" hidden><td colspan="5">${renderEditEditionForm(e)}</td></tr>` : ''}`;
+      ${editable ? `<tr data-edit-row="${escapeHtml(e.editionId)}" hidden><td colspan="5">${renderEditEditionForm(e)}</td></tr>` : ''}
+      ${e.settings?.mechanics ? `<tr data-mechanics-row="${escapeHtml(e.editionId)}" hidden><td colspan="5">
+        <form data-mechanics-form="${escapeHtml(e.editionId)}" style="padding: 8px 0;">
+          <p class="hint" style="margin: 0 0 8px;">Saison à partir de laquelle chaque mécanique entre en jeu. Les rounds déjà figés ne changent pas ; le nouveau calendrier vaut pour la suite, saison en cours comprise.</p>
+          <div class="row">${mechanicsFields(e.settings.mechanics)}</div>
+          <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+          <span data-mechanics-result style="margin-left: 8px; font-size: 14px;"></span>
+        </form></td></tr>` : ''}`;
   }).join('');
 
   // Inscrits en attente de la première édition (L59)
@@ -1249,6 +1257,8 @@ function renderLeague({ league, editions, participants }) {
               <label class="field">Éliminations par round <input type="number" id="launchEliminations" min="1" placeholder="2"></label>
               <label class="field">Finalistes <input type="number" id="launchFinalists" min="1" placeholder="4"></label>
             </div>
+            <p class="hint" style="margin: 8px 0 4px;">Saison à partir de laquelle chaque mécanique entre en jeu (modifiable ensuite à tout moment) :</p>
+            <div class="row">${mechanicsFields()}</div>
           </details>
           <button type="submit" class="btn btn-warn">Lancer l'édition</button>
           <span id="launchEditionResult" style="margin-left: 8px; font-size: 14px;"></span>
@@ -1262,6 +1272,39 @@ function renderLeague({ league, editions, participants }) {
     </table>
     ${waitingBlock}
     ${confirmations}`;
+}
+
+// Calendrier des mécaniques (règles L54) : saison de déblocage de chacune
+const MECHANIC_LABELS = [
+  ['jokers', 'Jokers'],
+  ['eliminatedBonuses', 'Bonus des éliminés'],
+  ['specialRules', 'Règles spéciales'],
+  ['gauge', 'Jauge de D+'],
+  ['teams', 'Saison Équipes possible']
+];
+const DEFAULT_MECHANICS = { jokers: 1, eliminatedBonuses: 2, specialRules: 3, gauge: 3, teams: 4 };
+
+/** Choix de la saison de déblocage de chaque mécanique (« jamais » possible). */
+function mechanicsFields(values = DEFAULT_MECHANICS) {
+  return MECHANIC_LABELS.map(([key, label]) => {
+    const current = values[key] ?? null;
+    const seasons = [1, 2, 3, 4, 5, 6, 7, 8];
+    if (current !== null && !seasons.includes(current)) seasons.push(current);
+    const options = seasons
+      .map(s => `<option value="${s}" ${current === s ? 'selected' : ''}>Saison ${s}</option>`).join('')
+      + `<option value="" ${current === null ? 'selected' : ''}>Jamais</option>`;
+    return `<label class="field">${label} <select name="mechanic-${key}">${options}</select></label>`;
+  }).join('');
+}
+
+/** Valeurs des choix de mechanicsFields dans un formulaire. */
+function readMechanics(form) {
+  const mechanics = {};
+  for (const [key] of MECHANIC_LABELS) {
+    const value = form.querySelector(`[name="mechanic-${key}"]`)?.value ?? '';
+    mechanics[key] = value === '' ? null : parseInt(value, 10);
+  }
+  return mechanics;
 }
 
 /** Lien admin (L59) : inscription avec le code de la ligue, puis prise en main. */
@@ -1305,6 +1348,13 @@ document.getElementById('leagueContent').addEventListener('click', async (e) => 
     }
     return;
   }
+  // Calendrier des mécaniques (règles L54)
+  const mechanicsBtn = e.target.closest('[data-mechanics-edition]');
+  if (mechanicsBtn) {
+    const row = document.querySelector(`[data-mechanics-row="${CSS.escape(mechanicsBtn.dataset.mechanicsEdition)}"]`);
+    if (row) row.hidden = !row.hidden;
+    return;
+  }
   // Modification d'une édition pas encore commencée (L59)
   const edit = e.target.closest('[data-edit-edition], [data-edit-cancel]');
   if (edit) {
@@ -1333,6 +1383,20 @@ document.getElementById('leagueContent').addEventListener('click', async (e) => 
 });
 
 document.getElementById('leagueContent').addEventListener('submit', async (e) => {
+  const mechanicsForm = e.target.closest('[data-mechanics-form]');
+  if (mechanicsForm) {
+    e.preventDefault();
+    const editionId = mechanicsForm.dataset.mechanicsForm;
+    const result = mechanicsForm.querySelector('[data-mechanics-result]');
+    try {
+      await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions/${encodeURIComponent(editionId)}/mechanics`, { method: 'PUT', body: { mechanics: readMechanics(mechanicsForm) } });
+      addLog(`Calendrier des mécaniques de l'édition ${editionId} enregistré`);
+      result.innerHTML = '<span class="ok">Enregistré</span>';
+    } catch (error) {
+      result.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
+    }
+    return;
+  }
   const editForm = e.target.closest('[data-edit-form]');
   if (editForm) {
     e.preventDefault();
@@ -1365,6 +1429,7 @@ document.getElementById('leagueContent').addEventListener('submit', async (e) =>
   for (const [field, id] of [['roundDurationDays', 'launchRoundDays'], ['eliminationsPerRound', 'launchEliminations'], ['finalistsCount', 'launchFinalists']]) {
     if (value(id) !== '') body[field] = parseInt(value(id), 10);
   }
+  body.mechanics = readMechanics(e.target);
   const result = document.getElementById('launchEditionResult');
   if (!(body.endDate > body.startDate)) {
     result.innerHTML = '<span class="err">La fin doit être après le début</span>';

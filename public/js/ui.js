@@ -11,7 +11,8 @@ import {
   getSeasonDates, getRoundDates, getRoundDuration, getRoundInSeason, getDayInRound, getParticipantById,
   getAthleteColor, getAthleteInitials, getRoundInfo,
   isRainyActivity, getActivityElevation, WEATHER_RULE,
-  ELEVATION_GAUGE, getGaugeTier, getGaugeTierById, multiplierLabel
+  ELEVATION_GAUGE, getGaugeTier, getGaugeTierById, multiplierLabel,
+  rulesActive, mechanicActive, getSeasonNumber
 } from './config.js';
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
@@ -1343,7 +1344,10 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
   }
 
   const gaugeStartRound = CHALLENGE_CONFIG.elevationGaugeStartRound;
-  const isLive = gaugeStartRound != null && roundNumber >= gaugeStartRound;
+  // Règles L54 : la jauge suit le calendrier des mécaniques
+  const isLive = rulesActive()
+    ? mechanicActive('gauge', getSeasonNumber(getRoundDates(roundNumber).start))
+    : gaugeStartRound != null && roundNumber >= gaugeStartRound;
   const pct = r => Math.min(100, (r / GAUGE_SCALE_MAX) * 100);
   const fillPct = pct(gauge.ratio);
 

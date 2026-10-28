@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
   <script src="shared/edition-session.js?v=20261028a" data-auth="optional"></script>
-  <script src="shared/edition-rules.js?v=20261028c"></script>
+  <script src="shared/edition-rules.js?v=20261028d"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Règles - Challenge Versant 2026</title>
 
@@ -627,6 +627,12 @@
       </div>
     </section>
 
+    <!-- Calendrier des mécaniques (règles L54, rempli par le script en bas de page) -->
+    <section class="rules-section" id="mechanicsCalendar" hidden>
+      <h2 class="section-title">Dans ta ligue, saison par saison</h2>
+      <div class="rules-card" id="mechanicsCalendarBody"></div>
+    </section>
+
     <!-- Principe du Challenge -->
     <section class="rules-section">
       <h2 class="section-title">
@@ -646,8 +652,8 @@
       <div class="rules-card">
         <h4>Déroulement d'une saison</h4>
         <p>
-          Une saison dure envrion 1 mois et se compose de plusieurs rounds de 5 jours chacun.
-          À chaque round, les 2 derniers joueurs du classement D+ sont éliminés et rejoignent le Challenge des Éliminés.
+          Une saison dure environ 1 mois et se compose de plusieurs rounds de <span data-rules-value="roundDurationDays">5</span> jours chacun.
+          À chaque round, les <span data-rules-value="eliminationsPerRound">2</span> derniers joueurs du classement D+ sont éliminés et rejoignent le Challenge des Éliminés.
           La saison se termine quand il ne reste qu'un seul joueur actif : le champion !
         </p>
       </div>
@@ -655,7 +661,7 @@
 
 
     <!-- Système de Points -->
-    <section class="rules-section">
+    <section class="rules-section" id="pointsSection">
       <h2 class="section-title">
         Système de Points
       </h2>
@@ -674,7 +680,7 @@
           <p style="font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px;">
             Points par round selon le classement
           </p>
-          <table class="points-table">
+          <table class="points-table" id="pointsMainTable">
             <tr><td>🥇 1ère place</td><td style="color: #fbbf24;">24 pts</td></tr>
             <tr><td>🥈 2ème place</td><td style="color: #d1d5db;">21 pts</td></tr>
             <tr><td>🥉 3ème place</td><td style="color: #cd7f32;">18 pts</td></tr>
@@ -698,7 +704,7 @@
           <p style="font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px;">
             Points selon le D+ cumulé depuis l'élimination
           </p>
-          <table class="points-table">
+          <table class="points-table" id="pointsElimTable">
             <tr><td>🥇 1ère place</td><td style="color: #fbbf24;">10 pts</td></tr>
             <tr><td>🥈 2ème place</td><td style="color: #d1d5db;">8 pts</td></tr>
             <tr><td>🥉 3ème place</td><td style="color: #cd7f32;">6 pts</td></tr>
@@ -713,7 +719,7 @@
       </div>
 
       <div class="info-box">
-        <p>
+        <p id="pointsTip">
           <strong> Astuce :</strong> Être éliminé tôt donne plus de temps pour accumuler du D+ dans le challenge des éliminés.
           Un bon score peut compenser une élimination précoce !
         </p>
@@ -721,7 +727,7 @@
     </section>
 
     <!-- Jauge collective de D+ -->
-    <section class="rules-section">
+    <section class="rules-section" data-mechanic="gauge">
       <h2 class="section-title">
         La jauge collective de D+
       </h2>
@@ -729,7 +735,7 @@
       <div class="special-rule-card">
         <h4>Tous ensemble… ou pas</h4>
         <p style="color: rgba(255,255,255,0.7); line-height: 1.7;">
-          À chaque round (à partir du round 50), le D+ réel cumulé de tous les joueurs du challenge principal
+          À chaque round <span id="gaugeStart">(à partir du round 50)</span>, le D+ réel cumulé de tous les joueurs du challenge principal
           remplit une jauge commune, avant handicap, jokers et bonus. L'objectif (100 %) dépend du nombre de joueurs en lice :
           825 m de D+ moyen à 14 joueurs ou plus, 975 m de 11 à 13, 1 125 m à 9-10, 1 313 m à 7-8,
           1 575 m à 5-6, 2 025 m à 3-4 et 2 250 m à 2. Atteindre l'objectif suffit à éviter l'échec ;
@@ -762,7 +768,7 @@
     </section>
 
     <!-- Les Jokers -->
-    <section class="rules-section">
+    <section class="rules-section" data-mechanic="jokers">
       <h2 class="section-title">
         <span class="section-title-icon">🃏</span>
         Les Jokers
@@ -778,14 +784,14 @@
       </div>
 
       <div class="cards-grid">
-        <div class="joker-card">
+        <div class="joker-card" data-joker="voleur">
           <div class="icon">🦹</div>
           <div class="name">Voleur</div>
           <div class="desc">Vole la meilleure activité (plus gros D+) d'un adversaire de ton choix.</div>
           <div class="stock">×2 par saison</div>
         </div>
 
-        <div class="joker-card">
+        <div class="joker-card" data-joker="multiplicateur">
           <div class="icon">✖️</div>
           <div class="name">Multiplicateur</div>
           <div class="desc">Multiplie ton D+ du round par ×1.5. Un boost considérable !</div>
@@ -799,7 +805,7 @@
           <div class="stock">×2 par saison</div>
         </div>
 
-        <div class="joker-card">
+        <div class="joker-card" data-joker="sabotage">
           <div class="icon">💣</div>
           <div class="name">Sabotage</div>
           <div class="desc">Retire 30% du D+ d'un adversaire ciblé. Idéal pour déstabiliser un concurrent.</div>
@@ -809,7 +815,7 @@
     </section>
 
     <!-- Bonus Éphémères -->
-    <section class="rules-section">
+    <section class="rules-section" data-mechanic="eliminatedBonuses">
       <h2 class="section-title">
         <span class="section-title-icon">🎁</span>
         Bonus Éphémères (Challenge des Éliminés)
@@ -827,7 +833,7 @@
       </div>
 
       <div class="cards-grid">
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="embuscade">
           <div class="icon">🏹</div>
           <div class="name">Embuscade</div>
           <div class="desc">
@@ -919,7 +925,7 @@
           <div class="category">Boost</div>
         </div>
 
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="kamikaze">
           <div class="icon">💣</div>
           <div class="name">Kamikaze</div>
           <div class="desc">
@@ -932,7 +938,7 @@
           <div class="category">⚔️ Offensif</div>
         </div>
 
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="malediction">
           <div class="icon">🪬</div>
           <div class="name">Malédiction</div>
           <div class="desc">
@@ -1034,6 +1040,88 @@
       }
     } catch (e) {
       console.warn('Erreur détection saison team:', e);
+    }
+  </script>
+
+  <script type="module">
+    // Règles de l'édition affichée. Versant 2026 garde sa page, sauf le kamikaze
+    // et la malédiction, qui n'y ont jamais été tirés. Une édition aux règles
+    // L54 voit son calendrier des mécaniques, seulement celles débloquées, son
+    // barème selon le nombre de joueurs et les nouveaux effets.
+    import {
+      CHALLENGE_CONFIG, JOKER_TYPES, BONUS_TYPES, PARTICIPANTS, loadParticipants,
+      rulesActive, mechanicActive, mechanicStartSeason, editionRules, getSeasonNumber
+    } from './js/config.js';
+
+    const LABELS = {
+      jokers: 'Jokers', eliminatedBonuses: 'Bonus des éliminés', specialRules: 'Règles spéciales de round',
+      gauge: 'Jauge collective de D+', teams: 'Saison Équipes'
+    };
+
+    try {
+      for (const el of document.querySelectorAll('[data-rules-value]')) {
+        const value = CHALLENGE_CONFIG[el.dataset.rulesValue];
+        if (value != null) el.textContent = value;
+      }
+
+      if (!rulesActive()) {
+        for (const id of ['kamikaze', 'malediction']) document.querySelector(`[data-bonus="${id}"]`)?.remove();
+      } else {
+        const season = getSeasonNumber(new Date());
+
+        // Calendrier : mécaniques actives, à venir, absentes
+        const items = Object.keys(LABELS).map(key => {
+          const from = mechanicStartSeason(key);
+          const state = from == null ? 'pas dans cette ligue'
+            : mechanicActive(key, season) ? `en jeu depuis la saison ${from}` : `arrive à la saison ${from}`;
+          return `<li><strong>${LABELS[key]}</strong> : ${state}</li>`;
+        });
+        const next = Object.keys(LABELS)
+          .map(key => ({ key, from: mechanicStartSeason(key) }))
+          .filter(m => m.from != null && m.from > season)
+          .sort((a, b) => a.from - b.from)[0];
+        document.getElementById('mechanicsCalendarBody').innerHTML =
+          `<p>Les mécaniques de jeu entrent en scène au fil des saisons. Nous sommes en saison ${season}.</p><ul>${items.join('')}</ul>`
+          + (next ? `<p><strong>Prochaine nouveauté :</strong> ${LABELS[next.key].toLowerCase()} à la saison ${next.from}.</p>` : '');
+        document.getElementById('mechanicsCalendar').hidden = false;
+
+        // Seulement les mécaniques débloquées
+        for (const section of document.querySelectorAll('[data-mechanic]')) {
+          if (!mechanicActive(section.dataset.mechanic, season)) section.hidden = true;
+        }
+
+        // Nouveaux effets des jokers et des bonus
+        for (const card of document.querySelectorAll('[data-joker]')) {
+          const desc = card.querySelector('.desc');
+          if (desc) desc.textContent = JOKER_TYPES[card.dataset.joker]?.effect || desc.textContent;
+        }
+        for (const card of document.querySelectorAll('[data-bonus]')) {
+          const desc = card.querySelector('.desc');
+          if (desc) desc.textContent = BONUS_TYPES[card.dataset.bonus]?.effect || desc.textContent;
+        }
+        const gaugeFrom = mechanicStartSeason('gauge');
+        const gaugeStart = document.getElementById('gaugeStart');
+        if (gaugeStart) gaugeStart.textContent = gaugeFrom ? `(à partir de la saison ${gaugeFrom})` : '';
+
+        // Barème selon le nombre de joueurs de la ligue
+        await loadParticipants();
+        const N = Math.max(PARTICIPANTS.length, 2);
+        const F = Number(CHALLENGE_CONFIG.finalistsCount) || 1;
+        const rules = editionRules();
+        const medal = ['🥇', '🥈', '🥉'];
+        const row = (p, pts) => `<tr><td>${medal[p - 1] ? medal[p - 1] + ' ' : ''}${p}${p === 1 ? 're' : 'e'} place</td><td>${pts} pt${pts > 1 ? 's' : ''}</td></tr>`;
+        document.getElementById('pointsMainTable').innerHTML =
+          Array.from({ length: N }, (_, i) => row(i + 1, rules.mainPoints(i + 1, N, F))).join('');
+        const elimRows = [];
+        for (let p = 1; rules.eliminatedPoints(p, N) > 0; p++) elimRows.push(row(p, rules.eliminatedPoints(p, N)));
+        document.getElementById('pointsElimTable').innerHTML = elimRows.join('')
+          + `<tr><td>${elimRows.length + 1}e et +</td><td style="color: rgba(255,255,255,0.5);">0 pt</td></tr>`;
+        document.getElementById('pointsTip').innerHTML =
+          `<strong>Barème de ta ligue</strong> (${N} joueurs, finale à ${F}) : entrer en finale rapporte toujours plus que de bien finir le challenge des éliminés. `
+          + `Seule exception : un joueur éliminé juste avant la finale qui gagne ensuite le challenge des éliminés passe devant le dernier finaliste.`;
+      }
+    } catch (e) {
+      console.warn('Règles de l\'édition :', e);
     }
   </script>
 

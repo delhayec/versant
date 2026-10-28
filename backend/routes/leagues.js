@@ -47,6 +47,24 @@ const isPositiveInteger = v => Number.isInteger(v) && v > 0;
  * Réglages facultatifs d'une édition (lancement et modification, L59) :
  * écrits dans config. Renvoie le message d'erreur, ou null.
  */
+/**
+ * Calendrier des mécaniques (règles L54) : saison à partir de laquelle chacune
+ * est active ; null ou 0 : jamais. Les mécaniques non fournies gardent leur
+ * valeur (base), à défaut celle par défaut.
+ * @returns {Object|string} calendrier, ou message d'erreur
+ */
+function parseMechanics(value, base = EditionRules.DEFAULT_MECHANICS) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 'mechanics : objet attendu';
+  const mechanics = { ...EditionRules.DEFAULT_MECHANICS, ...base };
+  for (const [key, season] of Object.entries(value)) {
+    if (!EditionRules.MECHANICS.includes(key)) return `mechanics : mécanique inconnue (${key})`;
+    if (season === null || season === 0) mechanics[key] = null;
+    else if (Number.isInteger(season) && season >= 1 && season <= 50) mechanics[key] = season;
+    else return `mechanics.${key} : numéro de saison (1 à 50), ou null pour jamais`;
+  }
+  return mechanics;
+}
+
 function applyEditionSettings(body, config) {
   for (const key of ['roundDurationDays', 'eliminationsPerRound', 'finalistsCount', 'zeroElevationRuleFromRound']) {
     if (body[key] === undefined) continue;
@@ -58,6 +76,11 @@ function applyEditionSettings(body, config) {
       return 'elevationGaugeStartRound : entier positif ou null attendu';
     }
     config.elevationGaugeStartRound = body.elevationGaugeStartRound;
+  }
+  if (body.mechanics !== undefined) {
+    const mechanics = parseMechanics(body.mechanics, config.rules?.mechanics);
+    if (typeof mechanics === 'string') return mechanics;
+    config.rules = { ...(config.rules || EditionRules.defaultRules()), mechanics };
   }
   return null;
 }
@@ -208,7 +231,8 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
         return res.status(400).json({ error: 'Dates au format AAAA-MM-JJ, fin après le début' });
       }
       if (startDate <= today) return res.status(400).json({ error: 'Le début doit être au plus tôt demain' });
-      const changes = { yearStartDate: startDate, yearEndDate: endDate };
+      const currentRules = (await store.editionContext(edition.key))?.config?.rules;
+      const changes = { yearStartDate: startDate, yearEndDate: endDate, ...(currentRules ? { rules: currentRules } : {}) };
       const settingsError = applyEditionSettings(body, changes);
       if (settingsError) return res.status(400).json({ error: settingsError });
 
@@ -222,6 +246,35 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
       res.json({ success: true, edition: { ...edition, startDate, endDate } });
     } catch (error) {
       console.error('Erreur modification d\'édition:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+
+  /**
+   * Calendrier des mécaniques d'une édition aux règles L54, modifiable par
+   * l'admin de la ligue à tout moment : les rounds déjà figés ne changent pas,
+   * le nouveau calendrier vaut pour la suite (saison en cours comprise).
+   */
+  app.put('/api/admin/leagues/:leagueId/editions/:editionId/mechanics', async (req, res) => {
+    try {
+      const { leagueId, editionId } = req.params;
+      if (!ID_PATTERN.test(leagueId) || !(await store.getLeague(leagueId))) return res.status(404).json({ error: 'Ligue introuvable' });
+      if (!(await isLeagueAdmin(req, leagueId))) return res.status(401).json({ error: 'Réservé aux admins de cette ligue' });
+      const edition = (await store.listLeagueEditions(leagueId)).find(e => e.editionId === editionId);
+      if (!edition) return res.status(404).json({ error: 'Édition introuvable' });
+      const editionConfig = (await store.editionContext(edition.key))?.config;
+      if (!EditionRules.isActive(editionConfig)) return res.status(409).json({ error: 'Cette édition garde ses règles d\'origine' });
+      const mechanics = parseMechanics(req.body?.mechanics, editionConfig.rules.mechanics);
+      if (typeof mechanics === 'string') return res.status(400).json({ error: mechanics });
+      await store.updateEditionInfo(edition.key, info => ({
+        ...info,
+        config: { ...info.config, rules: { ...info.config.rules, mechanics } },
+        updatedAt: new Date().toISOString()
+      }));
+      console.log(`Mécaniques de ${leagueId}/${editionId} : ${JSON.stringify(mechanics)}`);
+      res.json({ success: true, mechanics });
+    } catch (error) {
+      console.error('Erreur calendrier des mécaniques:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
   });

@@ -256,7 +256,9 @@ function registerAccountRoutes(app, { store, requireAuth, isLeagueAdmin, readAcc
           settings: {
             roundDurationDays: config.roundDurationDays,
             eliminationsPerRound: config.eliminationsPerRound,
-            finalistsCount: config.finalistsCount
+            finalistsCount: config.finalistsCount,
+            // Règles L54 : calendrier des mécaniques (null : édition aux règles d'origine)
+            mechanics: config.rules?.mechanics || null
           }
         });
       }

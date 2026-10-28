@@ -14,7 +14,7 @@ import {
   getRoundInSeason, getRoundsPerSeason,
   getAthleteColor, getAthleteInitials,
   fetchWithTimeout, loadSeasonPlanning,
-  getDayInRound as getDayInRoundAt, getRoundDuration,
+  getDayInRound as getDayInRoundAt, getRoundDuration, mechanicActive, mechanicStartSeason,
   setFrozenCache,
   onDomReady
 } from './config.js';
@@ -695,18 +695,27 @@ function renderJokers() {
 // Si le round courant est no_bonus (règle admin), TOUS les jokers sont désactivés
   // — que ce soit pour ce round ou le prochain, pour éviter la confusion utilisateur
   const isNoBonus = isNoBonusRound(currentRound);
+  const jokersLocked = (() => {
+    try { return !mechanicActive('jokers', getSeasonNumber(new Date())); } catch { return false; }
+  })();
   grid.innerHTML = Object.entries(JOKER_TYPES).map(([id, joker]) => {
     const count = jokerStock[id] || 0;
     const isPending = pendingJokers.some(j => j.joker_id === id);
     const isAvailable = count > 0 && !isPending;
 const isDisabledByTeam = isTeamMode && id === 'bouclier';
     const isDisabledByNoBonus = isNoBonus;
+    // Règles L54 : jokers verrouillés avant leur saison de déblocage
+    const lockedFrom = jokersLocked ? mechanicStartSeason('jokers') : undefined;
 
     let statusClass = 'used';
     let statusText = 'Épuisé';
     let statusIcon = '✗';
 
-    if (isDisabledByNoBonus) {
+    if (jokersLocked) {
+      statusClass = 'disabled-nobonus';
+      statusText = lockedFrom ? `Débloqué à la saison ${lockedFrom}` : 'Pas de jokers dans cette ligue';
+      statusIcon = '';
+    } else if (isDisabledByNoBonus) {
       statusClass = 'disabled-nobonus';
       statusText = 'Round au D+ pur';
       statusIcon = '';

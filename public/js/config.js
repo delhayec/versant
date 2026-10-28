@@ -249,6 +249,16 @@ export function rulesActive() {
   return Number(CHALLENGE_CONFIG.rules?.version) >= 2;
 }
 
+/** Mécanique active pour la saison (calendrier des règles L54) ; toujours vrai sinon. */
+export function mechanicActive(mechanic, seasonNumber) {
+  return !rulesActive() || editionRules().mechanicActive(CHALLENGE_CONFIG, mechanic, seasonNumber);
+}
+
+/** Saison de déblocage d'une mécanique (règles L54) ; null : jamais. */
+export function mechanicStartSeason(mechanic) {
+  return rulesActive() ? (CHALLENGE_CONFIG.rules.mechanics?.[mechanic] ?? null) : 1;
+}
+
 export function editionRules() {
   const rules = typeof window !== "undefined" ? window.EditionRules : null;
   if (!rules) throw new Error("shared/edition-rules.js n'est pas chargé");
@@ -1375,7 +1385,10 @@ export async function loadSpecialRulesOverrides() {
  * Retourne la règle spéciale pour un round donné (depuis les overrides serveur)
  */
 export function getSpecialRuleForRound(globalRoundNumber) {
-  return specialRulesOverrides[String(globalRoundNumber)] || null;
+  const rule = specialRulesOverrides[String(globalRoundNumber)] || null;
+  // Règles L54 : pas de règle spéciale avant sa saison de déblocage (comme le gel)
+  if (rule && rulesActive() && !mechanicActive("specialRules", getSeasonNumber(getRoundDates(globalRoundNumber).start))) return null;
+  return rule;
 }
 
 /**
