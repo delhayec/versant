@@ -971,8 +971,14 @@ function handleBonusClick(bonusId) {
 function showBonusTargetModal(bonusId, bonusType) {
   fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
     .then(res => res.json())
-    .then(athletes => {
+    .then(async athletes => {
       let targets = athletes.filter(a => String(a.id) !== String(currentUser.id));
+      // Malédiction (règles L54) : un des 3 joueurs juste au-dessus au round de l'élimination
+      if (bonusType.targetType === 'eliminator' && window.EditionRules && bonusData?.elimination_round) {
+        const round = await fetch(`${API_BASE}/frozen-results/round/${bonusData.elimination_round}`).then(r => r.ok ? r.json() : null).catch(() => null);
+        const allowed = new Set(window.EditionRules.maledictionTargets(round?.round || round, currentUser.id));
+        targets = targets.filter(a => allowed.has(String(a.id)));
+      }
 
       const modal = document.createElement('div');
       modal.className = 'joker-selection-modal';

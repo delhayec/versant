@@ -218,10 +218,13 @@ function getBonusHistoryDescription(bonus) {
       const savedFrom = effectResult?.savedFromElimination ? 'sauvé de l\'élimination' : 'protection active';
       return `${icon} ${athleteName} a utilisé son second souffle (${savedFrom})`;
     case 'kamikaze':
+      if (effectResult?.targetPenaltyMain != null) {
+        return `${icon} ${athleteName} a lancé une attaque kamikaze sur ${targetName} (-${fmtElev(effectResult.targetPenaltyMain)} pour la cible, -${fmtElev(effectResult.userPenalty || 0)} pour lui)`;
+      }
       const kamikazeAmount = effectResult?.targetPenalty || effectResult?.amount || 0;
       return `${icon} ${athleteName} a lancé une attaque kamikaze sur ${targetName} (-${fmtElev(kamikazeAmount)} chacun)`;
     case 'malediction':
-      const curseAmount = effectResult?.stolenThisRound || 0;
+      const curseAmount = effectResult?.stolenThisRound || effectResult?.total || 0;
       return `${icon} ${athleteName} a maudit ${targetName} (${curseAmount > 0 ? '-' + fmtElev(curseAmount) + ' ce round' : 'malédiction active'})`;
     default:
       return `${icon} ${athleteName} a utilisé ${bonusType?.name || bonus.bonus_id}${targetName ? ' sur ' + targetName : ''}`;

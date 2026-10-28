@@ -23,7 +23,7 @@ const {
   WEATHER_RULE, isRainyActivity, getActivityElevation,
   MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
   getMainPoints, getEliminatedPoints,
-  EditionRules, mainPointsForEdition,
+  EditionRules, mainPointsForEdition, bonusIdsForEdition,
   getGaugeObjectivePerPlayer, getGaugeTier,
   BONUS_IDS,
   getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
@@ -295,8 +295,17 @@ function computeRescapeInfo(roundData, allRounds, roundNumber, totalParticipants
 /**
  * Génère un choix de bonus pour le meilleur des 2 éliminés
  */
-async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
+/**
+ * @param {Object} [options] - règles L54 : { config, seasonNumber, roundInSeason, roundsInSeason }
+ *   (mécanique débloquée ou non, tirage pondéré selon le moment de la saison)
+ */
+async function generateBonusChoiceForBestEliminated(eliminations, roundNumber, options = {}) {
   if (!eliminations || eliminations.length < 2) return null;
+  const l54 = EditionRules.isActive(options.config);
+  if (l54 && !EditionRules.mechanicActive(options.config, 'eliminatedBonuses', options.seasonNumber)) {
+    console.log(`🎁 Pas de bonus pour round ${roundNumber}: bonus des éliminés pas encore débloqués (saison ${options.seasonNumber})`);
+    return null;
+  }
 
   // Ne pas générer de bonus si la saison de ce round est déjà close.
   // Cas typique : on défige/refige un round d'une saison passée pour réparer
@@ -367,11 +376,14 @@ async function generateBonusChoiceForBestEliminated(eliminations, roundNumber) {
     // Si on n'arrive pas à lire bonuses.json, on continue sans filtrage
   }
 
-  const eligibleBonuses = BONUS_IDS.filter(id => !alreadyOwnedBonusIds.has(id));
+  const bonusIds = l54 ? bonusIdsForEdition(options.config) : BONUS_IDS;
+  const eligibleBonuses = bonusIds.filter(id => !alreadyOwnedBonusIds.has(id));
   // Si moins de 2 bonus éligibles (cas extrême), on retombe sur tous
-  const pool = eligibleBonuses.length >= 2 ? eligibleBonuses : BONUS_IDS;
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
-  const choices = shuffled.slice(0, 2);
+  const pool = eligibleBonuses.length >= 2 ? eligibleBonuses : bonusIds;
+  // Règles L54 : tirage pondéré par le moment de la saison ; sinon tirage d'origine
+  const choices = l54
+    ? EditionRules.drawBonuses(pool, options.roundInSeason, options.roundsInSeason, 2)
+    : [...pool].sort(() => Math.random() - 0.5).slice(0, 2);
 
   // Ajouter le choix
   pendingChoices[playerId] = {
@@ -815,7 +827,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
   }
 
   // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
-  await applyEphemeralBonusEffects(tmpRanking, roundNumber, roundActivities);
+  await applyEphemeralBonusEffects(tmpRanking, roundNumber, roundActivities, { config, seasonNumber });
 
   // ÉTAPE 2 : reconstruire les équipes avec les D+ corrigés post-jokers/bonus
   const elevById = {};
@@ -1143,7 +1155,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     applyJokerEffects(ranking, activeJokers, roundActivities, athletes, config);
 
     // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
-    await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities);
+    await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities, { config, seasonNumber });
   } else {
     console.log(`Round ${roundNumber}: règle 'no_bonus' - jokers et bonus éphémères désactivés`);
   }
@@ -1350,6 +1362,8 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
     // la formule théorique roundInSeason === roundsPerSeason. Lu par detectSeasonContext()
     // pour terminer la saison au bon round, même quand plusieurs finalistes restent actifs.
     configForcedFinale: isCustomFinale === true,
+    // Règles L54 : longueur prévue de la saison (tirage des bonus selon le moment de la saison)
+    ...(EditionRules.isActive(config) ? { roundsInSeason: roundsPerSeason } : {}),
     activeParticipants,
     ranking,
     eliminations,
@@ -1388,7 +1402,9 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
  * - ravitaillement : la meilleure activité du possesseur est donnée à la cible (D+ ajouté)
  * - embuscade : une activité aléatoire est volée à la cible (D+ retiré)
  */
-async function applyEphemeralBonusEffects(ranking, roundNumber, roundActivities) {
+async function applyEphemeralBonusEffects(ranking, roundNumber, roundActivities, options = {}) {
+  // Règles L54 : embuscade hors meilleure activité, kamikaze et malédiction calculés
+  const l54 = EditionRules.isActive(options.config);
   let bonuses = [];
   try {
     const raw = await fs.readFile(currentEdition().paths.bonuses, 'utf8');
@@ -1449,6 +1465,24 @@ async function applyEphemeralBonusEffects(ranking, roundNumber, roundActivities)
         const targetActivities = roundActivities.filter(a =>
           normalizeId(a.athlete_id || a.athlete?.id) === normalizeId(bonus.target_athlete_id)
         );
+
+        if (l54) {
+          // Règles L54 : jamais la meilleure activité du round ; une seule activité → la moitié
+          const pick = EditionRules.embuscadePick(targetActivities.map(a => ({
+            id: a.id, name: a.name, elevation: a.total_elevation_gain || 0, movingTime: a.moving_time || 0
+          })));
+          const target = ranking.find(e => e.id === normalizeId(bonus.target_athlete_id));
+          if (target && pick.amount > 0) {
+            target.elevation = Math.max(0, target.elevation - pick.amount);
+            target.embuscadeReceived = { by: bonus.athlete_name, amount: pick.amount, activity: pick.activity.name };
+          }
+          bonuses[i].effect_applied = true;
+          bonuses[i].effect_result = pick.activity
+            ? { stolenElevation: pick.amount, stolenActivityId: pick.activity.id, stolenActivityName: pick.activity.name, ...(pick.half ? { half: true } : {}) }
+            : { stolenElevation: 0, error: 'Aucune activité éligible trouvée' };
+          bonuses[i].effect_applied_at = new Date().toISOString();
+          break;
+        }
 
         if (targetActivities.length > 0) {
           const randomIndex = Math.floor(Math.random() * targetActivities.length);
@@ -1517,10 +1551,56 @@ case 'marquage': {
         }
         break;
       }
+      case 'kamikaze': {
+        // Règles L54 : la cible (en lice) perd 25 % de son D+ du round, le
+        // lanceur 10 % du sien au challenge des éliminés (userPenalty). La perte
+        // de la cible est notée targetPenaltyMain : elle ne compte qu'ici.
+        if (!l54) break;
+        const sum = id => roundActivities
+          .filter(a => normalizeId(a.athlete_id || a.athlete?.id) === normalizeId(id))
+          .reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+        const targetPenaltyMain = Math.round(sum(bonus.target_athlete_id) * EditionRules.BONUSES.kamikazeTargetShare);
+        const userPenalty = Math.round(sum(bonus.athlete_id) * EditionRules.BONUSES.kamikazeSelfShare);
+        const target = ranking.find(e => e.id === normalizeId(bonus.target_athlete_id));
+        if (target && targetPenaltyMain > 0) {
+          target.elevation = Math.max(0, target.elevation - targetPenaltyMain);
+          target.kamikazeReceived = { by: bonus.athlete_name, amount: targetPenaltyMain };
+        }
+        bonuses[i].effect_applied = true;
+        bonuses[i].effect_result = { targetPenaltyMain, userPenalty };
+        bonuses[i].effect_applied_at = new Date().toISOString();
+        break;
+      }
       default:
         // Les autres bonus (marquage, malediction, kamikaze, etc.) n'affectent pas
         // les joueurs actifs dans le challenge principal
         break;
+    }
+  }
+
+  // Malédiction (règles L54) : à chaque round de la saison où la cible est
+  // encore en lice, 15 % de son D+ du round lui est retiré ; le lanceur le gagne
+  // au challenge des éliminés (effect_result.rounds, lu par maledictionGains).
+  if (l54) {
+    const data = await loadFrozenResults();
+    for (let i = 0; i < bonuses.length; i++) {
+      const bonus = bonuses[i];
+      if (bonus.bonus_id !== 'malediction' || bonus.status !== 'used' || bonus.used_in_round == null) continue;
+      if (Number(bonus.used_in_round) > Number(roundNumber)) continue;
+      if (Number(data.rounds?.[String(bonus.elimination_round)]?.seasonNumber) !== Number(options.seasonNumber)) continue;
+      const target = ranking.find(e => e.id === normalizeId(bonus.target_athlete_id));
+      if (!target) continue;
+      const raw = roundActivities
+        .filter(a => normalizeId(a.athlete_id || a.athlete?.id) === target.id)
+        .reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+      const amount = Math.round(raw * EditionRules.BONUSES.maledictionShare);
+      if (amount > 0) {
+        target.elevation = Math.max(0, target.elevation - amount);
+        target.maledictionReceived = { by: bonus.athlete_name, amount };
+      }
+      const rounds = { ...(bonus.effect_result?.rounds || {}), [String(roundNumber)]: amount };
+      bonuses[i].effect_result = { rounds, total: Object.values(rounds).reduce((s, x) => s + x, 0) };
+      bonuses[i].effect_applied_at = new Date().toISOString();
     }
   }
 
@@ -1681,7 +1761,9 @@ const isNoBonusRound = results.specialRule === 'no_bonus';
     || isNoBonusRound;
   if (!skipBonusGen && results.eliminations && results.eliminations.length >= 2) {
     try {
-      const generated = await generateBonusChoiceForBestEliminated(results.eliminations, roundNumber);
+      const generated = await generateBonusChoiceForBestEliminated(results.eliminations, roundNumber, {
+        config, seasonNumber: results.seasonNumber, roundInSeason: results.roundInSeason, roundsInSeason: results.roundsInSeason
+      });
       if (generated) {
         // Persisté pour pouvoir vérifier après coup qui a reçu un choix
         results.bonusChoiceGenerated = generated;

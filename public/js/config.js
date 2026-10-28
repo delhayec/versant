@@ -1596,6 +1596,17 @@ function applyRulesToCatalog() {
     description: "Multiplie ton D+ par 1,25",
     effect: "×1,25 sur tout ton D+ du round.",
   });
+  Object.assign(BONUS_TYPES.embuscade, {
+    effect: "Choisis un joueur actif. Une de ses activités (+20 min) est tirée au sort, jamais sa meilleure du round : son D+ lui est retiré et t'est transféré dans le challenge des éliminés. S'il n'a qu'une activité, tu en prends la moitié.",
+  });
+  Object.assign(BONUS_TYPES.kamikaze, {
+    effect: "Ta cible (joueur actif de ton choix) perd 25 % de son D+ du round ; toi, tu ne perds que 10 % du tien.",
+    parameters: { percentageLost: 10, targetPercentageLost: 25 },
+  });
+  Object.assign(BONUS_TYPES.malediction, {
+    effect: "Tu maudis un joueur parmi les 3 juste au-dessus de toi lors de ton élimination. À chaque fin de round, 15 % de son D+ lui est retiré et ajouté à ton total. L'effet cesse quand il est éliminé.",
+    parameters: { percentageStolen: 15, maxTargets: 3 },
+  });
   Object.assign(JOKER_TYPES.sabotage, {
     description: "Retire 30 % du D+ du joueur le plus proche de toi",
     effect: "Pas de cible à choisir : à la fin du round, le joueur le plus proche de toi en D+ (au-dessus ou en dessous) perd 30 % de son D+. En saison Équipes : l'équipe la plus proche.",

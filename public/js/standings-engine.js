@@ -47,7 +47,7 @@ import {
   formBalancedTeams, getTeamSettings, getTeamBalanceMap,
   getSpecialRuleForRound, getEffectiveNbEliminations,
   getActivityElevation, isRainyActivity, isValidSport,
-  getGaugeObjectivePerPlayer, getGaugeTier, isRescapeActive
+  getGaugeObjectivePerPlayer, getGaugeTier, isRescapeActive, rulesActive, editionRules
 } from './config.js';
 
 import { applyJokerEffects } from './jokers.js';
@@ -221,6 +221,15 @@ export function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNum
 
     // Note: trap, second_souffle, duel, brouillard sont des bonus saisonniers
     // traités par getSeasonalBonusEffectsForEliminatedAthlete() (appelé une seule fois)
+  }
+
+  // Malédiction (règles L54) : gain du round, quel que soit le round d'utilisation
+  if (rulesActive()) {
+    const all = [...(Array.isArray(bonusesCache) ? bonusesCache : []), ...Object.values(seasonBonusesCache || {}).flat()];
+    for (const gain of editionRules().maledictionGains(all, normalizedId, roundNumber)) {
+      effects.gained += gain.amount;
+      effects.details.push({ type: 'malediction_gain', amount: gain.amount, from: gain.from, icon: '🪬' });
+    }
   }
 
   return effects;

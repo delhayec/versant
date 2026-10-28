@@ -507,13 +507,18 @@ function getTeamEliminatedPoints(teamRank, posInTeam) {
 // ============================================
 // BONUS ÉPHÉMÈRES (IDs pour tirage au sort)
 // ============================================
-// kamikaze et malediction ne sont pas tirés : bonuses-routes.js refuse de les
-// attribuer, et aucun gel ne calcule leur effet. Leur définition reste dans
-// public/js/config.js (BONUS_TYPES) pour l'affichage.
+// Règles d'origine (versant-2026) : kamikaze et malediction ne sont pas tirés,
+// aucun gel n'y calculait leur effet. Les nouvelles éditions (règles L54) les
+// tirent, et le gel les calcule (EditionRules.BONUS_IDS).
 const BONUS_IDS = [
   'embuscade', 'ravitaillement', 'duel', 'brouillard',
   'marquage', 'trap', 'second_souffle'
 ];
+
+/** Bonus tirables et attribuables dans l'édition. */
+function bonusIdsForEdition(config = editionConfig()) {
+  return EditionRules.isActive(config) ? EditionRules.BONUS_IDS : BONUS_IDS;
+}
 
 module.exports = {
   CHALLENGE_CONFIG,
@@ -538,6 +543,7 @@ module.exports = {
   getMainPoints,
   getEliminatedPoints,
   EditionRules,
+  bonusIdsForEdition,
   mainPointsForEdition,
   eliminatedPointsForEdition,
   ELEVATION_GAUGE,

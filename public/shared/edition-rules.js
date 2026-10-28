@@ -223,9 +223,83 @@
     return effects;
   }
 
+  // ============================================
+  // BONUS DES ÉLIMINÉS
+  // ============================================
+  const BONUS_IDS = ['embuscade', 'ravitaillement', 'duel', 'brouillard', 'marquage', 'trap', 'second_souffle', 'kamikaze', 'malediction'];
+  const MIN_ACTIVITY_SECONDS = 20 * 60;   // embuscade : activités de plus de 20 minutes
+
+  /**
+   * Tirage pondéré de `count` bonus distincts (sans remise).
+   * @param {Array<string>} ids - bonus éligibles
+   * @param {Function} random - () → [0, 1[
+   */
+  function drawBonuses(ids, roundInSeason, roundsInSeason, count = 2, random = Math.random) {
+    let pool = ids.map(id => ({ id, w: bonusDrawWeight(id, roundInSeason, roundsInSeason) })).filter(x => x.w > 0);
+    const picked = [];
+    while (picked.length < count && pool.length) {
+      const total = pool.reduce((s, x) => s + x.w, 0);
+      let r = random() * total;
+      const index = pool.findIndex(x => (r -= x.w) < 0);
+      const chosen = pool[index === -1 ? pool.length - 1 : index];
+      picked.push(chosen.id);
+      pool = pool.filter(x => x !== chosen);
+    }
+    return picked;
+  }
+
+  /**
+   * Embuscade : une activité de plus de 20 minutes de la cible, tirée au sort
+   * HORS sa meilleure activité du round. Une seule activité : la moitié de son D+.
+   * @param {Array} activities - activités du round de la cible { id, elevation, movingTime, name }
+   * @returns {{activity: Object|null, amount: number}}
+   */
+  function embuscadePick(activities, random = Math.random) {
+    const eligible = activities.filter(a => (a.movingTime || 0) >= MIN_ACTIVITY_SECONDS);
+    if (!eligible.length) return { activity: null, amount: 0 };
+    if (eligible.length === 1) return { activity: eligible[0], amount: Math.round((eligible[0].elevation || 0) / 2), half: true };
+    const best = eligible.reduce((b, a) => ((a.elevation || 0) > (b.elevation || 0) ? a : b));
+    const pool = eligible.filter(a => a !== best);
+    const activity = pool[Math.floor(random() * pool.length)];
+    return { activity, amount: Math.round(activity.elevation || 0) };
+  }
+
+  /**
+   * Malédiction : cibles possibles = les 3 joueurs classés juste au-dessus du
+   * joueur au round de son élimination et encore en lice après ce round.
+   * @param {Object} round - round figé de l'élimination { ranking, eliminations }
+   * @returns {Array<string>} identifiants
+   */
+  function maledictionTargets(round, athleteId) {
+    const ranking = [...(round?.ranking || [])].sort((a, b) => a.position - b.position);
+    const out = new Set((round?.eliminations || []).map(e => String(e.id)));
+    const me = ranking.findIndex(e => String(e.id) === String(athleteId));
+    if (me < 0) return [];
+    return ranking.slice(0, me).filter(e => !out.has(String(e.id))).slice(-3).map(e => String(e.id));
+  }
+
+  /**
+   * D+ gagné au challenge des éliminés par la malédiction pour un round :
+   * montants posés au gel dans effect_result.rounds (règles L54 seulement).
+   * @param {Array} bonuses - bonus de l'édition (actifs et archivés, doublons tolérés)
+   */
+  function maledictionGains(bonuses, athleteId, roundNumber) {
+    const seen = new Set();
+    const gains = [];
+    for (const b of bonuses || []) {
+      if (b?.bonus_id !== 'malediction' || String(b.athlete_id) !== String(athleteId)) continue;
+      const key = `${b.athlete_id}:${b.elimination_round}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const amount = Number(b.effect_result?.rounds?.[String(roundNumber)]) || 0;
+      if (amount > 0) gains.push({ amount, from: b.target_athlete_name || null });
+    }
+    return gains;
+  }
+
   return {
-    VERSION, MECHANICS, DEFAULT_MECHANICS, JOKERS, BONUSES,
+    VERSION, MECHANICS, DEFAULT_MECHANICS, JOKERS, BONUSES, BONUS_IDS,
     defaultRules, isActive, mechanicActive, finalStep, mainPoints, eliminatedPoints, bonusDrawWeight,
-    sabotageTargets, applyJokers
+    sabotageTargets, applyJokers, drawBonuses, embuscadePick, maledictionTargets, maledictionGains
   };
 });

@@ -17,7 +17,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const roundConfigs = require('./round-configs');
-const { getRoundDates } = require('./shared-config');
+const { getRoundDates, bonusIdsForEdition, EditionRules } = require('./shared-config');
 
 const { DATA_DIR } = require('./data-dir');
 // Fichiers propres à une édition (bonus, choix en attente) : cf. edition-context.js
@@ -256,8 +256,8 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
         return res.status(400).json({ error: 'bonus_id requis' });
       }
 
-      // Vérifier que le bonus est valide
-      if (!BONUS_IDS.includes(bonus_id)) {
+      // Vérifier que le bonus est valide (kamikaze et malédiction : règles L54 seulement)
+      if (!bonusIdsForEdition().includes(bonus_id)) {
         return res.status(400).json({ error: 'Bonus invalide' });
       }
 
@@ -408,9 +408,18 @@ function createBonusesRoutes(app, requireAuth, checkAdmin) {
       }
 
       // Vérifier si une cible est nécessaire
-      const requiresTarget = ['embuscade', 'ravitaillement', 'marquage'].includes(bonus.bonus_id);
+      const requiresTarget = ['embuscade', 'ravitaillement', 'marquage', 'kamikaze', 'malediction'].includes(bonus.bonus_id);
       if (requiresTarget && !target_athlete_id) {
         return res.status(400).json({ error: 'Ce bonus nécessite une cible' });
+      }
+
+      // Malédiction (règles L54) : un des 3 joueurs juste au-dessus au round de l'élimination
+      if (bonus.bonus_id === 'malediction') {
+        const frozen = await safeReadJSON(currentEdition().paths.frozen, {});
+        const allowed = EditionRules.maledictionTargets(frozen.rounds?.[String(bonus.elimination_round)], athleteId);
+        if (!allowed.includes(normalizeId(target_athlete_id))) {
+          return res.status(400).json({ error: 'La malédiction vise un des 3 joueurs juste au-dessus de toi lors de ton élimination' });
+        }
       }
 
       // Récupérer le nom de la cible si applicable

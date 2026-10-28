@@ -27,7 +27,7 @@ const path = require('path');
 
 const {
   VALID_SPORTS, isValidSport,
-  ELIMINATED_CHALLENGE_POINTS, getEliminatedPoints, eliminatedPointsForEdition,
+  ELIMINATED_CHALLENGE_POINTS, getEliminatedPoints, eliminatedPointsForEdition, EditionRules,
   getRoundDates
 } = require('./shared-config');
 // Config de l'édition en cours (cf. edition-context.js)
@@ -227,6 +227,15 @@ function getEphemeralBonusEffectsForEliminatedAthlete(athleteId, roundNumber, bo
           effects.details.push({ type: 'kamikaze_self', amount, icon: '💣' });
         }
       }
+    }
+  }
+
+  // Malédiction (règles L54) : gain du round, quel que soit le round d'utilisation
+  if (EditionRules.isActive(currentEdition().config)) {
+    const all = [...(Array.isArray(bonusesCache) ? bonusesCache : []), ...Object.values(seasonBonusesCache || {}).flat()];
+    for (const gain of EditionRules.maledictionGains(all, normalizedId, roundNumber)) {
+      effects.gained += gain.amount;
+      effects.details.push({ type: 'malediction_gain', amount: gain.amount, from: gain.from, icon: '🪬' });
     }
   }
 
