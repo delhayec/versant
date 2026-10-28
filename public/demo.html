@@ -39,6 +39,8 @@
       text-align: right;
     }
     .tour-rows { position: relative; }
+    /* Emplacement du tableau : hauteur de son plus grand état (demo-tour.js) */
+    .tour-table-slot { display: flow-root; }
     .tour-row {
       position: relative;
       background: var(--bg-card);
@@ -245,6 +247,15 @@
     }
 
     /* Inscription */
+    .tour-one-more {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 0 var(--container-padding);
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .tour-one-more strong { color: var(--accent-orange, #f97316); }
     .tour-join {
       max-width: 560px;
       margin: 0 auto;
@@ -300,7 +311,7 @@
       </h1>
       <p class="hero-description">
         Tes sorties Strava comptent ton dénivelé positif. À la fin de chaque round,
-        les derniers de ta ligue sont éliminés. Trois tableaux pour tout comprendre.
+        les derniers de ta ligue sont éliminés. Tout comprendre en quelques points.
       </p>
     </div>
   </section>
@@ -430,6 +441,11 @@
     <p class="tour-caption" aria-live="polite"></p>
   </section>
 
+  <!-- Un dernier point : les jokers -->
+  <p class="tour-one-more">
+    <strong>One more thing…</strong> 🃏 Tu as aussi des jokers pour te sauver la mise ou enfoncer tes adversaires !
+  </p>
+
   <!-- Inscription -->
   <section class="tour-join" id="rejoindre">
     <h2>Prêt à grimper ?</h2>
@@ -447,6 +463,6 @@
     </div>
   </footer>
 
-  <script src="js/demo-tour.js?v=20261027i"></script>
+  <script src="js/demo-tour.js?v=20261028a"></script>
 </body>
 </html>
