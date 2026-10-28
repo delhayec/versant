@@ -40,7 +40,7 @@ import {
   renderAthleteActivitiesPanel
 } from './ui.js';
 
-import { getCurrentDate, setSimulatedDate, initDemoMode } from './demo.js';
+import { getCurrentDate, setSimulatedDate } from './demo.js';
 
 import {
   // Bonus helpers
@@ -326,72 +326,18 @@ function renderWaitingScreen(startDate) {
 // ============================================
 
 async function loadActivities() {
-  // Déterminer le mode (démo vs production)
-  const isDemo = CHALLENGE_CONFIG.isDemo || window.location.pathname.includes('demo');
-  const dataFile = '/data/all_activities_2025.json';
   const leagueId = CHALLENGE_CONFIG.leagueId;
-
-
-  // En mode DEMO, charger directement le fichier local 2025
-  if (isDemo) {
-    try {
-      const localResponse = await fetch(dataFile);
-      if (localResponse.ok) {
-        const localData = await localResponse.json();
-        allActivities = parseActivitiesData(localData);
-
-        if (allActivities.length > 0) {
-          const dates = allActivities.map(a => a.start_date?.substring(0, 10)).filter(Boolean);
-          const uniqueDates = [...new Set(dates)].sort().reverse();
-        }
-        return allActivities;
-      } else {
-        console.error(`Fichier démo introuvable: ${dataFile}`);
-      }
-    } catch (e) {
-      console.error('Erreur chargement fichier démo:', e);
-    }
-    return allActivities;
-  }
-
-  // Mode PRODUCTION: charger depuis l'API
   try {
     const response = await fetch(`/api/activities/${leagueId}`);
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
     const data = await response.json();
     allActivities = parseActivitiesData(data);
-
-    // Debug: afficher les dates des activités
-    if (allActivities.length > 0) {
-      const dates = allActivities.map(a => a.start_date?.substring(0, 10)).filter(Boolean);
-      const uniqueDates = [...new Set(dates)].sort().reverse();
-
-      // Vérifier les activités du round actuel
-      const today = new Date();
-      const roundStart = new Date(CHALLENGE_CONFIG.yearStartDate);
-
-      const recentActivities = allActivities.filter(a => {
-        const d = new Date(a.start_date);
-        return d >= roundStart;
-      });
-    } else {
-      console.warn('Aucune activité dans la réponse API');
-    }
-
+    if (allActivities.length === 0) console.warn('Aucune activité dans la réponse API');
     return allActivities;
   } catch (error) {
+    // Plus de repli sur un fichier statique : il affichait un classement périmé
+    // comme s'il était à jour. On garde les activités déjà chargées.
     console.warn('Erreur chargement API:', error.message);
-    console.warn('Tentative fichier local: /data/classement.json');
-    try {
-      const localResponse = await fetch('/data/classement.json');
-      if (localResponse.ok) {
-        const localData = await localResponse.json();
-        allActivities = parseActivitiesData(localData);
-        console.warn('ATTENTION: Données locales utilisées, pas l\'API!');
-      }
-    } catch (e) {
-      console.error('Impossible de charger les données:', e);
-    }
     return allActivities;
   }
 }
@@ -2524,22 +2470,11 @@ async function init() {
     // Initialiser le compteur pour le polling
     lastActivitiesCount = allActivities.length;
 
-    // Initialiser le mode démo si slider présent
-    if (document.getElementById('dateSliderContainer')) {
-      initDemoMode({
-        onDateChange: () => renderAll(),
-        showSlider: true,
-        enableRightClick: false // Géré séparément pour les jokers
-      });
-    }
-
     // Premier rendu
     renderAll();
 
-    // Démarrer le polling automatique (sauf en mode démo)
-    if (!CHALLENGE_CONFIG.isDemo) {
-      startAutoRefresh();
-    }
+    // Polling automatique
+    startAutoRefresh();
 
 
   } catch (error) {

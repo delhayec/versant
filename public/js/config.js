@@ -11,24 +11,18 @@
  * - Système de points
  * - Utilitaires de date
  *
- * Détection automatique: demo.html → 2025, sinon → 2026
+ * Valeurs de l'édition par défaut (versant-2026) ; une autre édition applique
+ * sa propre config au chargement (applyEditionConfig, L50). L'ancienne démo
+ * 2025, qui chargeait ce module, a été remplacée par demo-tour.js (L52).
  */
 
-// ============================================
-// DÉTECTION DU MODE (DEMO vs PRODUCTION)
-// ============================================
-const IS_DEMO =
-  typeof window !== "undefined" && window.location.pathname.includes("demo");
-const CURRENT_YEAR = IS_DEMO ? 2025 : 2026;
+const CURRENT_YEAR = 2026;
 
 // ============================================
 // CONFIGURATION PRINCIPALE DE LA LIGUE
 // ============================================
 
-// Date de début différente selon l'année : 2025 = 1er janvier (démo), 2026 = 1er février 02-01
-const CHALLENGE_START_DATE = IS_DEMO
-  ? `${CURRENT_YEAR}-01-01`
-  : `${CURRENT_YEAR}-02-02`;
+const CHALLENGE_START_DATE = `${CURRENT_YEAR}-02-02`;
 
 export const CHALLENGE_CONFIG = {
   name: "Versant",
@@ -60,7 +54,6 @@ export const CHALLENGE_CONFIG = {
   // Identifiant d'édition affiché (L52) ; nom de la ligue : name
   editionId: String(CURRENT_YEAR),
   dateLocale: "fr-FR",
-  isDemo: IS_DEMO,
 };
 
 // ============================================
@@ -139,7 +132,6 @@ export const SEASON_PLANNING = {
  */
 let seasonPlanningPromise = null;
 export function loadSeasonPlanning() {
-  if (IS_DEMO) return Promise.resolve(SEASON_PLANNING);
   if (!seasonPlanningPromise) {
     // Les configs de round (finales posées par le planificateur Deadline) sont
     // chargées en même temps : elles déterminent la longueur de ces saisons.
@@ -779,28 +771,11 @@ export const getSportIcon = (type) => {
 // Note: Les jokers ne sont PAS stockés dans PARTICIPANTS
 // Tout le stock/usage des jokers vient du serveur via jokers.js
 
-// Participants 2025 (pour demo - statique)
-const PARTICIPANTS_2025 = [
-  { id: "3953180", name: "Clement D" },
-  { id: "6635902", name: "Bapt I" },
-  { id: "3762537", name: "Bapt M" },
-  { id: "68391361", name: "Elo F" },
-  { id: "5231535", name: "Franck P" },
-  { id: "87904944", name: "Guillaume B" },
-  { id: "1841009", name: "Mana S" },
-  { id: "106477520", name: "Matt X" },
-  { id: "119310419", name: "Max 2Peuf" },
-  { id: "19523416", name: "Morguy D" },
-  { id: "110979265", name: "Pef B" },
-  { id: "84388438", name: "Remi S" },
-  { id: "25332977", name: "Thomas G" },
-];
-
 // Participants 2026 (tableau mutable, chargé depuis l'API)
 let PARTICIPANTS_2026 = [];
 
 // Liste des participants active (mutable pour permettre le chargement dynamique)
-export let PARTICIPANTS = IS_DEMO ? [...PARTICIPANTS_2025] : [];
+export let PARTICIPANTS = [];
 
 /**
  * Charge les participants depuis l'API (pour mode production 2026)
@@ -838,10 +813,6 @@ export async function fetchWithTimeout(url, timeout = 10000) {
 }
 
 export async function loadParticipants() {
-  if (IS_DEMO) {
-    return PARTICIPANTS_2025;
-  }
-
   // Le type des saisons (standard / équipes) conditionne tous les calculs qui
   // suivent le chargement des participants : on le charge en même temps.
   const planningLoaded = loadSeasonPlanning();
@@ -1595,7 +1566,7 @@ export function onDomReady(fn) {
 // Navigateur (L50) : l'édition affichée est choisie par
 // shared/edition-session.js ; sa config est appliquée avant que les pages
 // (qui importent ce module) ne calculent quoi que ce soit.
-if (!IS_DEMO && typeof window !== "undefined" && window.VersantEdition) {
+if (typeof window !== "undefined" && window.VersantEdition) {
   const edition = await window.VersantEdition.ready;
   if (edition) {
     const response = await fetch("/api/config");
