@@ -118,7 +118,7 @@
      * Remplace la page par un message (aucune donnée affichable) ;
      * withJoinForm : formulaire du code d'invitation (compte sans ligue, L51).
      */
-    function block(message, withJoinForm = false, withAdminLink = false) {
+    function block(message, withJoinForm = false, withAdminLink = false, withHomeLink = false) {
       if (blocked) return;
       blocked = true;
       const show = () => {
@@ -129,6 +129,10 @@
           // Admin d'une ligue en préparation (L59) : il la règle depuis l'admin
           + (withAdminLink
             ? '<p style="margin:0 0 20px"><a id="editionAdminLink" href="admin.html" style="display:inline-block;padding:12px 20px;border-radius:8px;background:linear-gradient(135deg,#f97316,#f43f5e);color:#fff;font-weight:600;text-decoration:none">Régler ma ligue</a></p>'
+            : '')
+          // Adresse vers une autre ligue ou une édition inconnue : retour à la sienne
+          + (withHomeLink
+            ? '<p style="margin:0 0 20px"><a id="editionHomeLink" href="' + location.pathname.replace(/^.*\//, '') + '" style="display:inline-block;padding:12px 20px;border-radius:8px;background:linear-gradient(135deg,#f97316,#f43f5e);color:#fff;font-weight:600;text-decoration:none">Revenir à ma ligue</a></p>'
             : '')
           + (withJoinForm
             ? '<form id="joinLeagueForm" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 12px">'
@@ -235,7 +239,14 @@
       const target = (edition && toEditionUrl(url.pathname + url.search, edition)) || url.pathname + url.search;
       const res = await realFetch(target, { ...(init || {}), headers });
       if (edition && res.status === 401 && !optional) goLogin();
-      if (edition && res.status === 403) block("Tu ne participes pas à cette édition.");
+      // Édition choisie dans l'adresse dont le joueur ne fait pas partie, ou qui
+      // n'existe pas : un message plutôt qu'une page vide
+      const fromAddress = !!params.get('ligue');
+      if (edition && res.status === 403) block("Tu ne participes pas à cette édition.", false, false, fromAddress);
+      if (edition && res.status === 404 && target !== url.pathname + url.search) {
+        const body = await res.clone().json().catch(() => ({}));
+        if (body.error === 'Édition introuvable') block("Cette ligue ou cette édition n'existe pas.", false, false, fromAddress);
+      }
       return res;
     };
 
