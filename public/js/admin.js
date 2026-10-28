@@ -1582,11 +1582,27 @@ document.getElementById('stravaStatusBtn').addEventListener('click', async () =>
     const sub = data.subscriptions?.[0];
     box.innerHTML = data.active
       ? `<span class="ok">Abonnement actif</span> <span class="hint">n° ${escapeHtml(sub?.id)} → ${escapeHtml(sub?.callback_url)}</span>`
-      : '<span class="err">Aucun abonnement aux webhooks : les activités n\'arrivent que par les synchros planifiées</span>';
+      : '<span class="err">Aucun abonnement aux webhooks : les activités n\'arrivent plus qu\'à la synchro avant le gel</span>';
   } catch (error) {
     box.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
   }
 });
+
+/** Quota d'appels Strava de l'application (L60) : 15 minutes et jour, lectures comprises. */
+function stravaQuotaLine(q) {
+  if (!q) return '';
+  const pair = (used, limit) => {
+    const ratio = used / limit;
+    const cls = ratio >= 0.9 ? 'err' : ratio >= 0.6 ? 'warn' : 'ok';
+    return `<span class="${cls}">${used} / ${limit}</span>`;
+  };
+  const blocked = q.blockedUntil
+    ? ` · <span class="err">appels suspendus jusqu'à ${new Date(q.blockedUntil).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>`
+    : '';
+  const source = q.lastHeadersAt ? '' : ' <span class="hint">(compté par le serveur depuis son démarrage : Strava n\'a pas encore répondu)</span>';
+  return `<div>Quota Strava : 15 min ${pair(q.usage.all[0], q.limits.all[0])}, jour ${pair(q.usage.all[1], q.limits.all[1])}`
+    + ` · lectures : 15 min ${pair(q.usage.read[0], q.limits.read[0])}, jour ${pair(q.usage.read[1], q.limits.read[1])}${blocked}${source}</div>`;
+}
 
 document.getElementById('diagnosticBtn').addEventListener('click', async () => {
   const box = document.getElementById('diagnosticResult');
@@ -1596,9 +1612,10 @@ document.getElementById('diagnosticBtn').addEventListener('click', async () => {
     const a = d.athletes;
     const w = d.webhooks;
     box.innerHTML = `
-      <div>${a.total} comptes · ${a.withToken} reliés à Strava ${a.expired ? `· <span class="warn">${a.expired} token(s) expiré(s)</span>` : ''}</div>
+      <div>${a.total} comptes · ${a.withToken} reliés à Strava ${a.expired ? `<span class="hint">(${a.expired} jeton(s) à renouveler à leur prochaine utilisation)</span>` : ''}</div>
       <div>${a.passwordScrypt} mot(s) de passe au nouveau format ${a.passwordLegacyOnly ? `· <span class="warn">${a.passwordLegacyOnly} à l'ancien format seulement</span>` : ''}</div>
       <div>Webhooks sur 24 h : ${w.last24h} (${w.success} réussis${w.failed ? `, <span class="err">${w.failed} en échec</span>` : ''})${w.pendingRetry ? ` · <span class="warn">${w.pendingRetry} à rejouer</span>` : ''}</div>
+      ${stravaQuotaLine(d.strava)}
       <div class="hint">au ${new Date(d.timestamp).toLocaleString('fr-FR')}</div>`;
   } catch (error) {
     box.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;

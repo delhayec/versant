@@ -18,7 +18,6 @@ process.env.TZ = process.env.TZ || 'Europe/Paris';
 
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
@@ -43,6 +42,9 @@ const frozenResults = require('./frozen-results.js');
 
 // Module météo (règle spéciale "la pluie qui mouille")
 const weather = require('./weather');
+
+// Appels à Strava et quota de l'application (L60)
+const stravaApi = require('./strava-api');
 
 
 const app = express();
@@ -122,9 +124,7 @@ const STRAVA_CONFIG = {
   clientSecret: process.env.STRAVA_CLIENT_SECRET
 };
 
-// Racine des appels à l'API Strava. STRAVA_API_BASE permet de pointer un faux
-// Strava dans le bac à sable du harnais. À ne pas définir en prod.
-const STRAVA_BASE_URL = process.env.STRAVA_API_BASE || 'https://www.strava.com';
+// Racine des appels à l'API Strava : STRAVA_API_BASE, lu par strava-api.js (L60).
 
 // Pas de valeur par défaut : sans ADMIN_PASSWORD, les routes admin refusent tout.
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || null;
@@ -872,18 +872,44 @@ app.post('/api/auth/strava/exchange', async (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Code manquant' });
 
-    const response = await axios.post(`${STRAVA_BASE_URL}/oauth/token`, {
-      client_id: STRAVA_CONFIG.clientId,
-      client_secret: STRAVA_CONFIG.clientSecret,
-      code,
-      grant_type: 'authorization_code'
-    });
+    const response = await stravaApi.request({
+      method: 'POST',
+      url: '/oauth/token',
+      data: {
+        client_id: STRAVA_CONFIG.clientId,
+        client_secret: STRAVA_CONFIG.clientSecret,
+        code,
+        grant_type: 'authorization_code'
+      }
+    }, { priority: 'user' });
 
+    rememberExchangedToken(response.data);
     res.json(response.data);
   } catch (error) {
+    if (error.rateLimited) {
+      return res.status(503).json({ error: 'Strava est très sollicité en ce moment : réessaie dans quelques minutes' });
+    }
     res.status(500).json({ error: 'Erreur Strava' });
   }
 });
+
+/**
+ * Jetons obtenus par l'échange de code ci-dessus (L60) : Strava renvoie
+ * l'athlète avec le jeton. L'inscription qui suit s'en sert au lieu de
+ * redemander GET /athlete. Gardés 30 minutes, en mémoire seulement.
+ */
+const exchangedTokens = new Map(); // jeton d'accès → { athlete, expires }
+function rememberExchangedToken(data) {
+  if (!data?.access_token || !data.athlete?.id) return;
+  const now = Date.now();
+  for (const [token, entry] of exchangedTokens) if (entry.expires < now) exchangedTokens.delete(token);
+  if (exchangedTokens.size > 1000) exchangedTokens.clear();
+  exchangedTokens.set(data.access_token, { athlete: { id: data.athlete.id }, expires: now + 30 * 60 * 1000 });
+}
+function exchangedTokenOwner(accessToken) {
+  const entry = exchangedTokens.get(String(accessToken || ''));
+  return entry && entry.expires > Date.now() ? entry.athlete : null;
+}
 
 /**
  * Après une connexion réussie : ajoute le hash scrypt d'un compte qui n'en a
@@ -1061,19 +1087,27 @@ app.post('/api/athletes/register', async (req, res) => {
     // L56 : le jeton envoyé par le navigateur doit appartenir à l'athlète
     // annoncé. Sans cette vérification, on pouvait créer un compte au nom de
     // n'importe quel identifiant Strava (visible sur son profil public).
-    let stravaAthlete;
-    try {
-      const response = await axios.get(`${STRAVA_BASE_URL}/api/v3/athlete`, {
-        headers: { Authorization: `Bearer ${access_token}` },
-        timeout: 10000
-      });
-      stravaAthlete = response.data;
-    } catch (error) {
-      if (error.response?.status === 401) {
-        return res.status(401).json({ error: 'Connexion Strava expirée : reconnecte-toi à Strava' });
+    // L60 : jeton obtenu par notre propre échange de code il y a peu → Strava
+    // nous a déjà dit à qui il appartient, pas besoin de le redemander.
+    let stravaAthlete = exchangedTokenOwner(access_token);
+    if (!stravaAthlete) {
+      try {
+        const response = await stravaApi.request({
+          url: '/api/v3/athlete',
+          headers: { Authorization: `Bearer ${access_token}` },
+          timeout: 10000
+        }, { priority: 'user' });
+        stravaAthlete = response.data;
+      } catch (error) {
+        if (error.rateLimited) {
+          return res.status(503).json({ error: 'Strava est très sollicité en ce moment : réessaie dans quelques minutes' });
+        }
+        if (error.response?.status === 401) {
+          return res.status(401).json({ error: 'Connexion Strava expirée : reconnecte-toi à Strava' });
+        }
+        console.error('Inscription : vérification Strava impossible:', error.message);
+        return res.status(502).json({ error: 'Strava ne répond pas : réessaie dans un instant' });
       }
-      console.error('Inscription : vérification Strava impossible:', error.message);
-      return res.status(502).json({ error: 'Strava ne répond pas : réessaie dans un instant' });
     }
     if (!stravaAthlete?.id || normalizeId(stravaAthlete.id) !== normalizeId(athlete_id)) {
       console.warn(`Inscription refusée : le jeton Strava n'appartient pas à ${athlete_id}`);
@@ -1461,7 +1495,7 @@ app.get('/api/activities-status/:leagueId', async (req, res) => {
 // ============================================
 // STRAVA TOKEN REFRESH
 // ============================================
-async function refreshStravaToken(athlete) {
+async function refreshStravaToken(athlete, priority = 'background') {
   const refreshToken = athlete.tokens?.refresh_token;
   if (!refreshToken) return { success: false, reason: 'no_refresh_token' };
 
@@ -1469,12 +1503,17 @@ async function refreshStravaToken(athlete) {
     try {
       console.log(`   ${athlete.name}: refresh (${attempt}/3)...`);
 
-      const response = await axios.post(`${STRAVA_BASE_URL}/oauth/token`, {
-        client_id: STRAVA_CONFIG.clientId,
-        client_secret: STRAVA_CONFIG.clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token'
-      }, { timeout: 10000 });
+      const response = await stravaApi.request({
+        method: 'POST',
+        url: '/oauth/token',
+        data: {
+          client_id: STRAVA_CONFIG.clientId,
+          client_secret: STRAVA_CONFIG.clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token'
+        },
+        timeout: 10000
+      }, { priority });
 
       console.log(`   ${athlete.name}: token rafraîchi`);
       return {
@@ -1484,11 +1523,41 @@ async function refreshStravaToken(athlete) {
         expires_at: response.data.expires_at
       };
     } catch (error) {
+      if (error.rateLimited) throw error; // quota : inutile d'insister
       console.log(`   ${athlete.name}: tentative ${attempt} échouée`);
       if (attempt < 3) await sleep(1500 * attempt);
     }
   }
   return { success: false, reason: 'refresh_failed' };
+}
+
+/**
+ * Jeton d'accès d'un athlète, rafraîchi seulement s'il expire dans moins de
+ * marginSec secondes (L60 : plus de rafraîchissement préventif toutes les
+ * 2 heures). Relit le compte sur disque, pour partir des derniers tokens ; deux
+ * demandes simultanées pour le même athlète partagent le même rafraîchissement.
+ * @returns {Promise<{token: string}|{error: 'no_token'|'refresh_failed'}>}
+ * @throws {RateLimitError} quota Strava épuisé
+ */
+const tokenRefreshes = new Map();
+async function getAccessToken(athleteId, { priority = 'background', marginSec = 300 } = {}) {
+  const id = normalizeId(athleteId);
+  const account = (await safeReadJSON(ATHLETES_FILE, [])).find(a => normalizeId(a.id) === id);
+  if (!account?.tokens?.access_token) return { error: 'no_token' };
+  const now = Date.now() / 1000;
+  if (!account.tokens.expires_at || account.tokens.expires_at >= now + marginSec) {
+    return { token: account.tokens.access_token };
+  }
+  if (!tokenRefreshes.has(id)) {
+    tokenRefreshes.set(id, (async () => {
+      const result = await refreshStravaToken(account, priority);
+      if (!result.success) return { error: 'refresh_failed' };
+      const tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
+      await saveAthleteTokens(new Map([[id, tokens]]));
+      return { token: tokens.access_token };
+    })().finally(() => tokenRefreshes.delete(id)));
+  }
+  return tokenRefreshes.get(id);
 }
 
 /**
@@ -1523,7 +1592,14 @@ async function refreshAllTokens() {
     if (!athlete.tokens?.refresh_token) continue;
 
     if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 7200) {
-      const result = await refreshStravaToken(athlete);
+      let result;
+      try {
+        result = await refreshStravaToken(athlete);
+      } catch (error) {
+        if (!error.rateLimited) throw error;
+        console.warn(`   ${error.message} : rafraîchissement arrêté`);
+        break;
+      }
       if (result.success) {
         athletes[i].tokens = {
           access_token: result.access_token,
@@ -1605,11 +1681,12 @@ async function enrichLeagueWeather(leagueId, options = {}) {
 // ============================================
 async function syncLeague(leagueId, startDate, endDate, options = {}) {
   // athleteIds : restreint le sync à ces athlètes (backfill d'un nouvel inscrit).
-  const { updateExisting = true, athleteIds = null } = options;
+  // fetchCache (L60) : réponses de Strava déjà reçues pendant la même tâche,
+  // pour qu'un joueur de deux éditions ne soit interrogé qu'une fois.
+  const { updateExisting = true, athleteIds = null, fetchCache = null } = options;
 
   console.log(`Sync ${leagueId}: ${startDate} → ${endDate} (update=${updateExisting})`);
 
-  const athletes = await safeReadJSON(ATHLETES_FILE, []);
   let leagueAthletes = (await store.listParticipants(leagueId)).filter(a => a.active);
 
   if (athleteIds) {
@@ -1624,7 +1701,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   let totalNew = 0;
   let totalUpdated = 0;
   const errors = [];
-  const tokenUpdates = new Map();
+  let rateLimited = null;
 
   for (let i = 0; i < leagueAthletes.length; i++) {
     const athlete = leagueAthletes[i];
@@ -1633,40 +1710,27 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
     try {
       console.log(`   ${athlete.name}...`);
 
-      let accessToken = athlete.tokens?.access_token;
-      if (!accessToken) {
-        errors.push({ athlete: athlete.name, error: 'no_token' });
-        continue;
-      }
-
-      // Refresh si nécessaire
-      const now = Date.now() / 1000;
-      if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 300) {
-        const result = await refreshStravaToken(athlete);
-        if (!result.success) {
-          errors.push({ athlete: athlete.name, error: 'refresh_failed' });
-          continue;
-        }
-        accessToken = result.access_token;
-        // Écrire dans le tableau COMPLET par identité, pas par l'index de la
-        // liste filtrée : les deux ne coïncident que si tous les athlètes du
-        // fichier sont actifs et dans cette ligue. Sinon on écrasait les tokens
-        // d'un autre joueur.
-        const realIndex = athletes.findIndex(a => normalizeId(a.id) === athleteId);
-        if (realIndex >= 0) {
-          athletes[realIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
-          tokenUpdates.set(athleteId, athletes[realIndex].tokens);
-        }
-      }
-
       const afterTs = Math.floor(new Date(startDate).getTime() / 1000);
       const beforeTs = Math.floor(new Date(endDate).getTime() / 1000) + 86400;
+      const cacheKey = `${athleteId}:${afterTs}:${beforeTs}`;
 
-      const response = await axios.get(`${STRAVA_BASE_URL}/api/v3/athlete/activities`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        params: { after: afterTs, before: beforeTs, per_page: 200 },
-        timeout: 20000
-      });
+      let response = fetchCache?.get(cacheKey);
+      if (!response) {
+        // Jeton rafraîchi seulement s'il expire (L60)
+        const access = await getAccessToken(athleteId);
+        if (access.error) {
+          errors.push({ athlete: athlete.name, error: access.error });
+          continue;
+        }
+
+        response = await stravaApi.request({
+          url: '/api/v3/athlete/activities',
+          headers: { Authorization: `Bearer ${access.token}` },
+          params: { after: afterTs, before: beforeTs, per_page: 200 },
+          timeout: 20000
+        });
+        fetchCache?.set(cacheKey, response);
+      }
 
       // Utilise VALID_SPORTS importé de shared-config
       let newCount = 0;
@@ -1733,11 +1797,16 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
       await sleep(300); // Pause entre chaque athlète
 
     } catch (error) {
+      if (error.rateLimited) {
+        // Quota du jour épuisé : on garde ce qui a été reçu, le reste attendra
+        console.warn(`   ${error.message} : synchro interrompue (${leagueAthletes.length - i} athlète(s) non synchronisé(s))`);
+        rateLimited = { retryAt: new Date(error.retryAt).toISOString(), remaining: leagueAthletes.length - i };
+        break;
+      }
       errors.push({ athlete: athlete.name, error: error.message });
     }
   }
 
-  await saveAthleteTokens(tokenUpdates);
   await store.writeActivities(activitiesLeague, activities);
 
   console.log(`   Total: ${totalNew} nouvelles, ${totalUpdated} mises à jour`);
@@ -1746,7 +1815,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
   await enrichLeagueWeather(leagueId);
 
   scheduleStandingsRefresh(`synchro ${leagueId}`);
-  return { success: true, totalNew, totalUpdated, errors };
+  return { success: !rateLimited, totalNew, totalUpdated, errors, rateLimited };
 }
 
 app.post('/api/sync/:leagueId', async (req, res) => {
@@ -1763,6 +1832,12 @@ app.post('/api/sync/:leagueId', async (req, res) => {
       athleteIds: Array.isArray(req.body.athleteIds) ? req.body.athleteIds : null,
       updateExisting: req.body.updateExisting !== false
     });
+    if (result.rateLimited) {
+      return res.status(429).json({
+        ...result,
+        error: `Limite d'appels Strava atteinte : ${result.rateLimited.remaining} athlète(s) non synchronisé(s), réessaie après ${new Date(result.rateLimited.retryAt).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}`
+      });
+    }
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Erreur sync' });
@@ -1809,19 +1884,29 @@ async function forEachActiveEdition(label, fn) {
   }
 }
 
-async function autoSyncAllLeagues() {
-  console.log('Sync automatique...');
-  await refreshAllTokens();
-
-  const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+/**
+ * Synchro de sécurité avant le gel (L60). Les webhooks suivent les activités
+ * en direct ; cette synchro rattrape celles qu'un webhook aurait manquées,
+ * juste avant qu'un round ne soit figé pour toujours. Seules les éditions qui
+ * ont un round terminé à figer sont interrogées, depuis le début du plus
+ * ancien de ces rounds (2 jours plus tôt : une activité compte dans le round
+ * de sa date de FIN, et Strava filtre sur la date de début).
+ * @returns {Promise<Set<string>>} éditions dont la synchro a été coupée par le quota
+ */
+async function syncBeforeFreeze(reason) {
+  const fetchCache = new Map(); // un joueur de deux éditions n'est interrogé qu'une fois
+  const blocked = new Set();
   const end = new Date().toISOString().split('T')[0];
-
-  // Une synchro par édition en cours. Un joueur inscrit à deux éditions qui se
-  // chevauchent (lancement anticipé) est interrogé deux fois : à regrouper par
-  // compte avec la gestion du quota d'API (L60).
-  await forEachActiveEdition('synchro', edition => syncLeague(edition.key, start, end));
-
-  console.log('Sync automatique terminée');
+  await forEachActiveEdition('synchro avant gel', async edition => {
+    const firstRound = await firstRoundToFreeze();
+    if (!firstRound) return;
+    const roundStart = frozenResults.getRoundDates(firstRound, currentEdition().config).start;
+    const start = new Date(roundStart.getTime() - 2 * 86400000).toISOString().split('T')[0];
+    console.log(`[${reason}] [${edition.key}] synchro avant gel du round ${firstRound}`);
+    const result = await syncLeague(edition.key, start, end, { fetchCache });
+    if (result.rateLimited) blocked.add(edition.key);
+  });
+  return blocked;
 }
 
 // ============================================
@@ -1866,7 +1951,7 @@ async function processWebhookQueue() {
     const event = webhookQueue.shift();
 
     try {
-      await processOneWebhook(event);
+      await handleWebhook(event);
     } catch (error) {
       console.error(`Webhook error: ${error.message}`);
       await logWebhook(event, 'error', { error: error.message });
@@ -1886,26 +1971,18 @@ async function processWebhookQueue() {
  *   'unknown' = pas de token, rafraîchissement impossible, autre erreur.
  */
 async function checkActivityOnStrava(athletes, athleteIndex, objectId) {
-  const athlete = athletes[athleteIndex];
-  let accessToken = athlete.tokens?.access_token;
-  if (!accessToken) return 'unknown';
-
-  const now = Date.now() / 1000;
-  if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
-    const result = await refreshStravaToken(athlete);
-    if (!result.success) return 'unknown';
-    accessToken = result.access_token;
-    athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
-    await saveAthleteTokens(new Map([[normalizeId(athletes[athleteIndex].id), athletes[athleteIndex].tokens]]));
-  }
+  const access = await getAccessToken(athletes[athleteIndex].id, { priority: 'webhook', marginSec: 60 });
+  if (access.error) return 'unknown';
 
   try {
-    await axios.get(
-      `${STRAVA_BASE_URL}/api/v3/activities/${objectId}`,
-      { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
-    );
+    await stravaApi.request({
+      url: `/api/v3/activities/${objectId}`,
+      headers: { Authorization: `Bearer ${access.token}` },
+      timeout: 20000
+    }, { priority: 'webhook' });
     return 'exists';
   } catch (error) {
+    if (error.rateLimited) throw error;
     return error.response?.status === 404 ? 'gone' : 'unknown';
   }
 }
@@ -1984,32 +2061,22 @@ async function processOneWebhook(event) {
   console.log(`   → Athlète: ${athlete.name}`);
 
   if (event.aspect_type === 'create') {
-    let accessToken = athlete.tokens?.access_token;
+    // Jeton rafraîchi seulement s'il expire dans la minute (L60)
+    const access = await getAccessToken(ownerId, { priority: 'webhook', marginSec: 60 });
 
-    if (!accessToken) {
+    if (access.error === 'no_token') {
       console.log(`   Pas de token`);
       await logWebhook(event, 'failed', { reason: 'no_token' });
       await saveFailedWebhook(event, 'no_token');
       return;
     }
-
-    // Refresh si expiré
-    const now = Date.now() / 1000;
-    if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
-      console.log(`   Token expiré, refresh...`);
-
-      const result = await refreshStravaToken(athlete);
-      if (!result.success) {
-        console.log(`   Refresh échoué`);
-        await logWebhook(event, 'failed', { reason: 'refresh_failed' });
-        await saveFailedWebhook(event, 'refresh_failed');
-        return;
-      }
-
-      accessToken = result.access_token;
-      athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
-      await saveAthleteTokens(new Map([[normalizeId(athletes[athleteIndex].id), athletes[athleteIndex].tokens]]));
+    if (access.error) {
+      console.log(`   Refresh échoué`);
+      await logWebhook(event, 'failed', { reason: 'refresh_failed' });
+      await saveFailedWebhook(event, 'refresh_failed');
+      return;
     }
+    const accessToken = access.token;
 
     // Fetch activité avec retry et délais
     let stravaActivity = null;
@@ -2021,15 +2088,17 @@ async function processOneWebhook(event) {
         // Attendre un peu avant chaque tentative (Strava peut avoir un délai)
         if (attempt > 1) await sleep(3000);
 
-        const response = await axios.get(
-          `${STRAVA_BASE_URL}/api/v3/activities/${objectId}`,
-          { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
-        );
+        const response = await stravaApi.request({
+          url: `/api/v3/activities/${objectId}`,
+          headers: { Authorization: `Bearer ${accessToken}` },
+          timeout: 20000
+        }, { priority: 'webhook' });
 
         stravaActivity = response.data;
         console.log(`   ✓ Récupéré: ${stravaActivity.name}`);
         break;
       } catch (error) {
+        if (error.rateLimited) throw error; // mis en attente par handleWebhook
         const msg = error.response?.status === 404 ? 'Activity not found' : error.message;
         console.log(`   Tentative ${attempt}: ${msg}`);
 
@@ -2172,35 +2241,48 @@ async function processOneWebhook(event) {
       return;
     }
 
-    // Récupérer les nouvelles données depuis Strava
-    let accessToken = athlete.tokens?.access_token;
+    // L60 : Strava ne signale par webhook que les changements de titre, de
+    // type et de visibilité. Un nouveau titre est dans l'événement : on
+    // l'applique sans appel à Strava. Seul un changement de type demande de
+    // relire l'activité (le sport peut cesser de compter).
+    const updates = event.updates || {};
+    if (!('type' in updates)) {
+      const existing = activities[existingIndex];
+      if (typeof updates.title !== 'string' || updates.title === existing.name) {
+        console.log(`   → Pas de changement pertinent`);
+        await logWebhook(event, 'no_change', {});
+        return;
+      }
+      const changes = [`Nom: "${existing.name}"→"${updates.title}"`];
+      activities[existingIndex] = { ...existing, name: updates.title, updated_at: new Date().toISOString(), update_source: 'webhook' };
+      await store.writeActivities(activitiesLeague, activities);
+      console.log(`   MAJ: ${changes.join(', ')}`);
+      await logWebhook(event, 'updated', { changes, name: updates.title });
+      await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
+      return;
+    }
 
-    if (!accessToken) {
+    // Récupérer les nouvelles données depuis Strava
+    const access = await getAccessToken(ownerId, { priority: 'webhook', marginSec: 60 });
+
+    if (access.error === 'no_token') {
       console.log(`   Pas de token pour update`);
       await logWebhook(event, 'failed', { reason: 'no_token' });
       return;
     }
-
-    // Refresh si expiré
-    const now = Date.now() / 1000;
-    if (athlete.tokens.expires_at && athlete.tokens.expires_at < now + 60) {
-      const result = await refreshStravaToken(athlete);
-      if (!result.success) {
-        console.log(`   Refresh échoué pour update`);
-        await logWebhook(event, 'failed', { reason: 'refresh_failed' });
-        return;
-      }
-      accessToken = result.access_token;
-      athletes[athleteIndex].tokens = { access_token: result.access_token, refresh_token: result.refresh_token, expires_at: result.expires_at };
-      await saveAthleteTokens(new Map([[normalizeId(athletes[athleteIndex].id), athletes[athleteIndex].tokens]]));
+    if (access.error) {
+      console.log(`   Refresh échoué pour update`);
+      await logWebhook(event, 'failed', { reason: 'refresh_failed' });
+      return;
     }
 
     try {
       console.log(`   Fetch update...`);
-      const response = await axios.get(
-        `${STRAVA_BASE_URL}/api/v3/activities/${objectId}`,
-        { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
-      );
+      const response = await stravaApi.request({
+        url: `/api/v3/activities/${objectId}`,
+        headers: { Authorization: `Bearer ${access.token}` },
+        timeout: 20000
+      }, { priority: 'webhook' });
 
       const stravaActivity = response.data;
       const existing = activities[existingIndex];
@@ -2278,61 +2360,90 @@ async function processOneWebhook(event) {
       await scheduleRefreshForAthlete(ownerId, 'webhook Strava');
 
     } catch (error) {
+      if (error.rateLimited) throw error; // mis en attente par handleWebhook
       console.log(`   Erreur fetch update: ${error.message}`);
       await logWebhook(event, 'failed', { reason: 'fetch_failed', error: error.message });
     }
   }
 }
 
+/**
+ * Met un webhook de côté pour plus tard. Une limite d'appels Strava
+ * ('rate_limited') ne compte pas comme un essai : l'événement attend son tour.
+ */
+const webhookKey = event => `${event.aspect_type}:${event.object_id}`;
+const replayedWebhooks = new Map(); // événement rejoué → essais déjà faits
+
 async function saveFailedWebhook(event, reason) {
-  const failed = await safeReadJSON(FAILED_WEBHOOKS_FILE, []);
-  const existing = failed.find(f => f.event.object_id === event.object_id);
-
-  if (existing) {
-    existing.retry_count++;
-    existing.last_reason = reason;
-    existing.last_attempt = new Date().toISOString();
-  } else {
-    failed.push({
-      event,
-      reason,
-      failed_at: new Date().toISOString(),
-      last_attempt: new Date().toISOString(),
-      retry_count: 0
-    });
-  }
-
-  await safeWriteJSON(FAILED_WEBHOOKS_FILE, failed);
+  const counted = reason !== 'rate_limited';
+  const previous = replayedWebhooks.get(webhookKey(event));
+  await safeModifyJSON(FAILED_WEBHOOKS_FILE, failed => {
+    const list = Array.isArray(failed) ? failed : [];
+    const existing = list.find(f => webhookKey(f.event) === webhookKey(event));
+    if (existing) {
+      if (counted) existing.retry_count++;
+      existing.last_reason = reason;
+      existing.last_attempt = new Date().toISOString();
+    } else {
+      list.push({
+        event,
+        reason,
+        failed_at: previous?.failed_at || new Date().toISOString(),
+        last_attempt: new Date().toISOString(),
+        retry_count: previous ? previous.retry_count + (counted ? 1 : 0) : 0
+      });
+    }
+    return list;
+  }, []);
 }
 
-async function retryFailedWebhooks() {
-  console.log('Retry webhooks échoués...');
+/**
+ * Traite un webhook ; si le quota Strava est épuisé, il est mis de côté sans
+ * compter d'essai et sera rejoué quand le quota le permettra (L60).
+ */
+async function handleWebhook(event) {
+  try {
+    await processOneWebhook(event);
+  } catch (error) {
+    if (!error.rateLimited) throw error;
+    console.log(`   ${error.message} : webhook mis en attente`);
+    await logWebhook(event, 'deferred', { reason: 'rate_limited', retryAt: new Date(error.retryAt).toISOString() });
+    await saveFailedWebhook(event, 'rate_limited');
+  }
+}
 
-  const failed = await safeReadJSON(FAILED_WEBHOOKS_FILE, []);
-  if (failed.length === 0) {
-    console.log('   Aucun webhook en échec');
+/**
+ * Rejoue les webhooks mis de côté (5 essais au plus). Chaque événement est
+ * retiré de la liste avant d'être rejoué : s'il échoue de nouveau,
+ * processOneWebhook le remet lui-même (saveFailedWebhook, essai compté).
+ * Avant L60, la liste était réécrite à la fin avec les seuls événements qui
+ * avaient levé une exception : ceux qui échouaient « proprement » étaient perdus.
+ */
+async function retryFailedWebhooks() {
+  const pending = (await safeReadJSON(FAILED_WEBHOOKS_FILE, [])).filter(item => item.retry_count < 5);
+  if (pending.length === 0) return;
+  if (stravaApi._check('GET', 'webhook')) {
+    console.log(`Retry webhooks : ${pending.length} en attente, quota Strava épuisé pour le moment`);
     return;
   }
 
-  console.log(`   ${failed.length} à retenter`);
-  const stillFailed = [];
-
-  for (const item of failed) {
-    if (item.retry_count >= 5) continue;
-
+  console.log(`Retry webhooks : ${pending.length} à retenter`);
+  for (const item of pending) {
+    if (stravaApi._check('GET', 'webhook')) break; // quota épuisé en route : la suite attendra
+    const key = webhookKey(item.event);
+    await safeModifyJSON(FAILED_WEBHOOKS_FILE, failed => (Array.isArray(failed) ? failed : [])
+      .filter(f => webhookKey(f.event) !== key), []);
+    replayedWebhooks.set(key, item);
     try {
-      await processOneWebhook(item.event);
-      console.log(`   Réussi: ${item.event.object_id}`);
+      await handleWebhook(item.event);
     } catch (error) {
-      item.retry_count++;
-      item.last_attempt = new Date().toISOString();
-      stillFailed.push(item);
+      console.error(`   Retry ${item.event.object_id} : ${error.message}`);
+      await saveFailedWebhook(item.event, 'error');
+    } finally {
+      replayedWebhooks.delete(key);
     }
-
     await sleep(2000);
   }
-
-  await safeWriteJSON(FAILED_WEBHOOKS_FILE, stillFailed);
 }
 
 // ============================================
@@ -2375,10 +2486,12 @@ app.post('/api/admin/webhooks/clear', async (req, res) => {
 app.get('/api/admin/strava/status', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const response = await axios.get(`${STRAVA_BASE_URL}/api/v3/push_subscriptions`, {
+    const response = await stravaApi.request({
+      url: '/api/v3/push_subscriptions',
       params: { client_id: STRAVA_CONFIG.clientId, client_secret: STRAVA_CONFIG.clientSecret }
-    });
-    res.json({ active: response.data.length > 0, subscriptions: response.data });
+    }, { priority: 'user' });
+    // Quota d'appels de l'application (L60)
+    res.json({ active: response.data.length > 0, subscriptions: response.data, quota: stravaApi.status() });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2387,20 +2500,25 @@ app.get('/api/admin/strava/status', async (req, res) => {
 app.post('/api/admin/strava/subscribe', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const check = await axios.get(`${STRAVA_BASE_URL}/api/v3/push_subscriptions`, {
+    const check = await stravaApi.request({
+      url: '/api/v3/push_subscriptions',
       params: { client_id: STRAVA_CONFIG.clientId, client_secret: STRAVA_CONFIG.clientSecret }
-    });
+    }, { priority: 'user' });
 
     if (check.data.length > 0) {
       return res.json({ message: 'Déjà abonné', subscription: check.data[0] });
     }
 
-    const response = await axios.post(`${STRAVA_BASE_URL}/api/v3/push_subscriptions`, {
-      client_id: STRAVA_CONFIG.clientId,
-      client_secret: STRAVA_CONFIG.clientSecret,
-      callback_url: 'https://versant-app.fr/api/webhook/strava',
-      verify_token: STRAVA_VERIFY_TOKEN
-    });
+    const response = await stravaApi.request({
+      method: 'POST',
+      url: '/api/v3/push_subscriptions',
+      data: {
+        client_id: STRAVA_CONFIG.clientId,
+        client_secret: STRAVA_CONFIG.clientSecret,
+        callback_url: 'https://versant-app.fr/api/webhook/strava',
+        verify_token: STRAVA_VERIFY_TOKEN
+      }
+    }, { priority: 'user' });
 
     res.json({ message: 'Abonnement créé', subscription: response.data });
   } catch (error) {
@@ -2441,8 +2559,11 @@ app.get('/api/admin/diagnostic', async (req, res) => {
       last24h: recentLogs.length,
       success: recentLogs.filter(l => l.status === 'success').length,
       failed: recentLogs.filter(l => l.status === 'failed').length,
-      pendingRetry: failedWebhooks.length
+      pendingRetry: failedWebhooks.length,
+      deferred: recentLogs.filter(l => l.status === 'deferred').length
     },
+    // Quota d'appels Strava de l'application (L60), sans appel à Strava
+    strava: stravaApi.status(),
     jokers: {
       totalUsed: jokers.length
     },
@@ -3152,25 +3273,42 @@ app.post('/api/admin/import-frozen-results', async (req, res) => {
 // ============================================
 // CRON - Ajout auto-freeze
 // ============================================
-cron.schedule('0 6 * * *', () => { console.log('Sync 6h'); autoSyncAllLeagues(); });
-cron.schedule('0 10 * * *', () => { console.log('Sync 10h'); autoSyncAllLeagues(); });
-cron.schedule('0 14 * * *', () => { console.log('Sync 14h'); autoSyncAllLeagues(); });
-cron.schedule('0 18 * * *', () => { console.log('Sync 18h'); autoSyncAllLeagues(); });
-cron.schedule('0 22 * * *', () => { console.log('Sync 22h'); autoSyncAllLeagues(); });
+// L60 : plus de synchros dans la journée (6h, 10h, 14h, 18h, 20h, 22h) ni de
+// rafraîchissement des tokens toutes les 2 h. Les webhooks suivent les
+// activités en direct, les tokens sont rafraîchis au moment de s'en servir, et
+// une synchro de sécurité précède chaque gel.
 
 // Auto-freeze des rounds terminés, juste après minuit.
-// IMPORTANT : on SYNCHRONISE Strava d'abord, puis on fige. Sans ça, le freeze
-// utiliserait les activités du dernier sync (22h) et raterait les activités de
-// la dernière soirée du round → un round terminé se figerait avec des données
-// incomplètes (et un round figé ne se recalcule jamais). Le sync est attendu
-// (await) avant le freeze, donc la nouvelle saison démarre dès que les deux
-// sont finis (~00h15 + durée du sync).
-async function runAutoFreeze(reason, { sync } = { sync: true }) {
+// IMPORTANT : on SYNCHRONISE Strava d'abord, puis on fige. Sans ça, une
+// activité dont le webhook s'est perdu manquerait au round → un round terminé
+// se figerait avec des données incomplètes (et un round figé ne se recalcule
+// jamais). Le sync est attendu (await) avant le freeze, donc la nouvelle saison
+// démarre dès que les deux sont finis (~00h15 + durée du sync).
+// Quota Strava épuisé pendant la synchro (L60) : on ne fige PAS l'édition
+// concernée sur des données incomplètes ; le gel est retenté tous les quarts
+// d'heure jusqu'à ce que la synchro passe.
+let freezeRetryPending = false;
+let freezeRunning = false;
+async function runAutoFreeze(reason, options = { sync: true }) {
+  if (freezeRunning) {
+    console.log(`[${reason}] gel déjà en cours, ignoré`);
+    return [];
+  }
+  freezeRunning = true;
+  try {
+    return await runAutoFreezeNow(reason, options);
+  } finally {
+    freezeRunning = false;
+  }
+}
+
+async function runAutoFreezeNow(reason, { sync } = { sync: true }) {
   const started = Date.now();
+  let blocked = new Set();
   if (sync) {
     try {
       console.log(`[${reason}] Sync Strava avant auto-freeze...`);
-      await autoSyncAllLeagues();
+      blocked = await syncBeforeFreeze(reason);
     } catch (e) {
       // Best-effort : on tente quand même le freeze avec les données sur disque.
       console.error(`[${reason}] Sync avant freeze échoué, on fige avec les données existantes:`, e.message);
@@ -3178,9 +3316,14 @@ async function runAutoFreeze(reason, { sync } = { sync: true }) {
   }
   // Chaque édition en cours, dans son contexte (L33)
   const frozenAll = [];
-  await forEachActiveEdition('gel', async () => {
+  await forEachActiveEdition('gel', async edition => {
+    if (blocked.has(edition.key)) {
+      console.warn(`[${reason}] [${edition.key}] gel reporté : synchro incomplète (limite d'appels Strava)`);
+      return;
+    }
     frozenAll.push(...await freezeCurrentEdition(reason, started));
   });
+  freezeRetryPending = blocked.size > 0;
   return frozenAll;
 }
 
@@ -3223,15 +3366,20 @@ cron.schedule('15 0 * * *', () => runAutoFreeze('cron 00h15', { sync: true }), {
   timezone: 'Europe/Paris'
 });
 
-cron.schedule('0 20 * * *', async () => {
-  console.log('Tâches 20h');
-  await autoSyncAllLeagues();
-  await retryFailedWebhooks();
-});
-
-cron.schedule('30 */2 * * *', () => {
-  console.log('Refresh tokens');
-  refreshAllTokens();
+// Tous les quarts d'heure (L60), sans appel à Strava s'il n'y a rien à faire :
+// gel reporté par la limite d'appels, puis webhooks en attente.
+let quarterJobsRunning = false;
+cron.schedule('5,20,35,50 * * * *', async () => {
+  if (quarterJobsRunning) return;
+  quarterJobsRunning = true;
+  try {
+    if (freezeRetryPending) await runAutoFreeze('reprise après limite Strava', { sync: true });
+    await retryFailedWebhooks();
+  } catch (error) {
+    console.error('Tâches du quart d\'heure :', error.message);
+  } finally {
+    quarterJobsRunning = false;
+  }
 });
 
 // ============================================
@@ -3243,18 +3391,23 @@ cron.schedule('30 */2 * * *', () => {
  * Même borne de fin que l'auto-freeze (getRoundDates(r).end).
  */
 async function hasPendingRoundToFreeze() {
+  return (await firstRoundToFreeze()) !== null;
+}
+
+/** Premier round terminé et pas encore figé de l'édition en cours, ou null (L60). */
+async function firstRoundToFreeze() {
   try {
     const data = await frozenResults.loadFrozenResultsRaw();
     const now = Date.now();
     for (let r = 1; r <= 500; r++) {
       const end = frozenResults.getRoundDates(r, currentEdition().config).end.getTime();
-      if (end >= now) return false; // round pas terminé → les suivants non plus
-      if (!data?.rounds?.[String(r)]?.frozen) return true;
+      if (end >= now) return null; // round pas terminé → les suivants non plus
+      if (!data?.rounds?.[String(r)]?.frozen) return r;
     }
-    return false;
+    return null;
   } catch (e) {
     console.warn('hasPendingRoundToFreeze:', e.message);
-    return false;
+    return null;
   }
 }
 
@@ -3291,9 +3444,9 @@ initializeServer().then(async () => {
     console.log('║     VERSANT SERVER v2.6             ║');
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Port: ${PORT}                             ║`);
-    console.log('║  Syncs: 6h, 10h, 14h, 18h, 22h         ║');
-    console.log('║  Auto-freeze: sync+00h15 + démarrage   ║');
-    console.log('║  Refresh tokens: toutes les 2h        ║');
+    console.log('║  Activités : webhooks Strava           ║');
+    console.log('║  Gel : synchro + 00h15 + démarrage     ║');
+    console.log('║  Quota Strava : suivi (strava-api.js)  ║');
     console.log('╚════════════════════════════════════════╝');
     if (!ADMIN_PASSWORD) console.warn('ADMIN_PASSWORD non défini : toutes les routes admin sont refusées');
     if (JOBS_DISABLED) console.log('VERSANT_DISABLE_JOBS=1 : tâches planifiées et rattrapage du gel désactivés');
