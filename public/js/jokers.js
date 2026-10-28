@@ -13,7 +13,7 @@
  * PAS de localStorage, PAS de cache complexe.
  */
 
-import { PARTICIPANTS, JOKER_TYPES, BONUS_TYPES, BONUS_IDS, BONUS_CHOICE_COUNT, getParticipantById, fetchWithTimeout } from './config.js';
+import { PARTICIPANTS, JOKER_TYPES, BONUS_TYPES, BONUS_IDS, BONUS_CHOICE_COUNT, getParticipantById, fetchWithTimeout, rulesActive, editionRules } from './config.js';
 
 // ============================================
 // CONFIGURATION
@@ -275,6 +275,8 @@ export async function useJoker(participantId, jokerId, currentRoundNumber, curre
  */
 export function applyJokerEffects(ranking, currentRoundNumber, activities = []) {
   const activeJokers = getActiveJokersForRound(currentRoundNumber);
+  // Règles L54 : mêmes effets que le gel du serveur (public/shared/edition-rules.js)
+  if (rulesActive()) return applyJokerEffectsL54(ranking, activeJokers, activities);
 
   // Créer une copie du ranking avec le D+ original sauvegardé
   const modifiedRanking = ranking.map(entry => ({
@@ -470,6 +472,60 @@ modifiedRanking.forEach(entry => {
     entry.position = index + 1;
   });
 
+  return modifiedRanking;
+}
+
+/**
+ * Jokers aux règles L54 : multiplicateur ×1,25, voleur limité aux activités de
+ * moins de 1 000 m, sabotage sur le joueur le plus proche en D+. Les effets
+ * sont notés dans jokerEffects comme avec les règles d'origine (affichage).
+ */
+function applyJokerEffectsL54(ranking, activeJokers, activities) {
+  const modifiedRanking = ranking.map(entry => ({
+    ...entry,
+    originalElevation: entry.totalElevation,
+    jokerEffects: { bonuses: {}, sabotages: [], thefts: [], stolenActivities: [] }
+  }));
+  const entries = modifiedRanking.map(e => ({
+    id: String(e.participant.id), name: e.participant.name,
+    elevation: e.totalElevation, originalElevation: e.totalElevation, ref: e
+  }));
+  const effects = editionRules().applyJokers(
+    entries,
+    activeJokers.map(j => ({ type: j.jokerId, userId: j.participantId, userName: j.participantName, targetId: j.targetId })),
+    activities.map(a => ({ id: a.id, athleteId: String(a.athlete_id || a.athlete?.id), elevation: a.total_elevation_gain || 0, name: a.name }))
+  );
+  entries.forEach(e => { e.ref.totalElevation = e.elevation; });
+
+  const fx = id => modifiedRanking.find(e => String(e.participant.id) === String(id))?.jokerEffects;
+  for (const effect of effects) {
+    const by = fx(effect.byId);
+    const to = fx(effect.toId);
+    if (effect.type === 'sabotage') {
+      to.sabotages.push({ by: effect.byName, byId: effect.byId, amount: effect.amount });
+      (by.bonuses.sabotageApplied ||= []).push({ to: effect.toName, toId: effect.toId, amount: effect.amount });
+    } else if (effect.type === 'voleur' && effect.amount > 0) {
+      to.thefts.push({ by: effect.byName, byId: effect.byId, amount: effect.amount, activity: effect.activity });
+      (by.bonuses.thief ||= []).push({ from: effect.toName, fromId: effect.toId, amount: effect.amount, activity: effect.activity });
+    } else if (effect.type === 'multiplicateur') {
+      by.bonuses.multiplier = { factor: effect.factor, amount: effect.amount };
+    } else if (effect.type === 'bouclier') {
+      by.hasShield = true;
+      by.bonuses.shield = true;
+    }
+  }
+  modifiedRanking.forEach(entry => {
+    const { sabotages, thefts, bonuses } = entry.jokerEffects;
+    if (sabotages.length) {
+      bonuses.sabotaged = { by: sabotages.map(s => s.by).join(', '), amount: sabotages.reduce((s, x) => s + x.amount, 0), count: sabotages.length };
+    }
+    if (thefts.length) {
+      bonuses.stolen = { by: thefts.map(t => t.by).join(', '), amount: thefts.reduce((m, t) => Math.max(m, t.amount), 0), count: thefts.length };
+    }
+  });
+
+  modifiedRanking.sort((a, b) => b.totalElevation - a.totalElevation);
+  modifiedRanking.forEach((entry, index) => { entry.position = index + 1; });
   return modifiedRanking;
 }
 

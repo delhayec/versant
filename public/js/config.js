@@ -1567,6 +1567,7 @@ export function applyEditionConfig(editionConfig) {
   const challenge = editionConfig?.challenge;
   if (!challenge || challenge.leagueId === CHALLENGE_CONFIG.leagueId) return false;
   Object.assign(CHALLENGE_CONFIG, challenge);
+  if (rulesActive()) applyRulesToCatalog();
   for (const season of Object.keys(SEASON_PLANNING)) delete SEASON_PLANNING[season];
   // Libellés (L52) : nom de la ligue et de l'édition, année de départ
   if (challenge.leagueName) CHALLENGE_CONFIG.name = challenge.leagueName;
@@ -1574,6 +1575,32 @@ export function applyEditionConfig(editionConfig) {
   CHALLENGE_CONFIG.fullName = `Challenge ${CHALLENGE_CONFIG.name} ${CHALLENGE_CONFIG.editionId}`;
   CHALLENGE_CONFIG.dataYear = Number(String(CHALLENGE_CONFIG.yearStartDate).slice(0, 4));
   return true;
+}
+
+/** Libellé du multiplicateur : ×1,25 aux règles L54, ×1.5 sinon. */
+export function multiplierLabel() {
+  return rulesActive() ? "×1,25" : "×1.5";
+}
+
+/**
+ * Textes des jokers aux règles L54 (les effets eux-mêmes sont calculés par
+ * public/shared/edition-rules.js) : multiplicateur ×1,25, voleur limité aux
+ * activités de moins de 1 000 m, sabotage sans cible choisie.
+ */
+function applyRulesToCatalog() {
+  Object.assign(JOKER_TYPES.voleur, {
+    description: "Vole la meilleure activité de moins de 1 000 m d'un adversaire",
+    effect: "Choisis un adversaire (en saison Équipes : une équipe adverse). Tu lui voles sa meilleure activité de moins de 1 000 m de D+ ; ses plus grosses sorties sont à l'abri.",
+  });
+  Object.assign(JOKER_TYPES.multiplicateur, {
+    description: "Multiplie ton D+ par 1,25",
+    effect: "×1,25 sur tout ton D+ du round.",
+  });
+  Object.assign(JOKER_TYPES.sabotage, {
+    description: "Retire 30 % du D+ du joueur le plus proche de toi",
+    effect: "Pas de cible à choisir : à la fin du round, le joueur le plus proche de toi en D+ (au-dessus ou en dessous) perd 30 % de son D+. En saison Équipes : l'équipe la plus proche.",
+    requiresTarget: false,
+  });
 }
 
 /**

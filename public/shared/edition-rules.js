@@ -119,8 +119,113 @@
     return 1;
   }
 
+  /**
+   * Cible du sabotage, sans choix du joueur : le joueur le plus proche de lui
+   * en D+ (au-dessus ou en dessous) ; à égalité d'écart, celui qui a le plus
+   * de D+, puis le plus petit identifiant. En saison Équipes (entrées avec
+   * teamIndex) : l'équipe la plus proche en D+ total, jamais la sienne.
+   * @returns {Array} entrées touchées
+   */
+  function sabotageTargets(entries, user) {
+    const byTeam = user.teamIndex != null;
+    if (!byTeam) {
+      const others = entries.filter(e => e !== user);
+      if (!others.length) return [];
+      const best = others.reduce((b, e) => {
+        const d = Math.abs(e.originalElevation - user.originalElevation);
+        const bd = Math.abs(b.originalElevation - user.originalElevation);
+        if (d !== bd) return d < bd ? e : b;
+        if (e.originalElevation !== b.originalElevation) return e.originalElevation > b.originalElevation ? e : b;
+        return String(e.id) < String(b.id) ? e : b;
+      });
+      return [best];
+    }
+    const totals = new Map();
+    for (const e of entries) totals.set(e.teamIndex, (totals.get(e.teamIndex) || 0) + e.originalElevation);
+    const mine = totals.get(user.teamIndex) || 0;
+    const teams = [...totals.keys()].filter(t => t !== user.teamIndex);
+    if (!teams.length) return [];
+    const target = teams.reduce((b, t) => {
+      const d = Math.abs(totals.get(t) - mine);
+      const bd = Math.abs(totals.get(b) - mine);
+      if (d !== bd) return d < bd ? t : b;
+      if (totals.get(t) !== totals.get(b)) return totals.get(t) > totals.get(b) ? t : b;
+      return t < b ? t : b;
+    });
+    return entries.filter(e => e.teamIndex === target);
+  }
+
+  /**
+   * Effets des jokers d'un round (règles L54), dans l'ordre d'origine :
+   * sabotages (sur le D+ de base), vols, multiplicateurs, boucliers.
+   * @param {Array} entries - { id, name, elevation, originalElevation, teamIndex? } (modifiés)
+   * @param {Array} jokers - { type, userId, userName, targetId }
+   * @param {Array} activities - activités du round { id, athleteId, elevation, name }
+   * @returns {Array} effets { type, byId, byName, toId, toName, amount, activity?, factor? }
+   */
+  function applyJokers(entries, jokers, activities) {
+    const byId = new Map(entries.map(e => [String(e.id), e]));
+    const sameTeam = (a, b) => a.teamIndex != null && a.teamIndex === b.teamIndex;
+    const effects = [];
+    const ofType = type => jokers.filter(j => j.type === type);
+
+    // 1. Sabotage : -30 % du D+ de base au plus proche (joueur ou équipe)
+    for (const j of ofType('sabotage')) {
+      const user = byId.get(String(j.userId));
+      if (!user) continue;
+      for (const t of sabotageTargets(entries, user)) {
+        const amount = Math.round(t.originalElevation * JOKERS.sabotageShare);
+        t.elevation = Math.max(0, t.elevation - amount);
+        effects.push({ type: 'sabotage', byId: user.id, byName: j.userName || user.name, toId: t.id, toName: t.name, amount });
+      }
+    }
+
+    // 2. Voleur : meilleure activité de moins de 1 000 m de la cible (ou de son
+    // équipe). Plusieurs voleurs sur la même activité : la victime ne la perd
+    // qu'une fois, chaque voleur gagne son D+.
+    const lost = new Set();
+    for (const j of ofType('voleur')) {
+      const thief = byId.get(String(j.userId));
+      const target = byId.get(String(j.targetId));
+      if (!thief || !target || thief === target || sameTeam(thief, target)) continue;
+      const victims = target.teamIndex != null ? entries.filter(e => e.teamIndex === target.teamIndex) : [target];
+      const ids = new Set(victims.map(v => String(v.id)));
+      const pool = activities.filter(a => ids.has(String(a.athleteId)) && a.elevation > 0 && a.elevation < JOKERS.thiefMaxActivityElevation);
+      if (!pool.length) {
+        effects.push({ type: 'voleur', byId: thief.id, byName: j.userName || thief.name, toId: target.id, toName: target.name, amount: 0, activity: null });
+        continue;
+      }
+      const best = pool.reduce((b, a) => (a.elevation > b.elevation || (a.elevation === b.elevation && String(a.id) < String(b.id)) ? a : b));
+      const amount = Math.round(best.elevation);
+      const owner = byId.get(String(best.athleteId));
+      if (!lost.has(String(best.id))) {
+        owner.elevation = Math.max(0, owner.elevation - amount);
+        lost.add(String(best.id));
+      }
+      thief.elevation += amount;
+      effects.push({ type: 'voleur', byId: thief.id, byName: j.userName || thief.name, toId: owner.id, toName: owner.name, amount, activity: best.name || null });
+    }
+
+    // 3. Multiplicateur ×1,25 sur le D+ après sabotages et vols
+    for (const j of ofType('multiplicateur')) {
+      const user = byId.get(String(j.userId));
+      if (!user) continue;
+      const amount = Math.round(user.elevation * (JOKERS.multiplier - 1));
+      user.elevation += amount;
+      effects.push({ type: 'multiplicateur', byId: user.id, byName: j.userName || user.name, toId: user.id, toName: user.name, amount, factor: JOKERS.multiplier });
+    }
+
+    // 4. Bouclier : inchangé (protection contre l'élimination)
+    for (const j of ofType('bouclier')) {
+      const user = byId.get(String(j.userId));
+      if (user) effects.push({ type: 'bouclier', byId: user.id, byName: j.userName || user.name, toId: user.id, toName: user.name, amount: 0 });
+    }
+    return effects;
+  }
+
   return {
     VERSION, MECHANICS, DEFAULT_MECHANICS, JOKERS, BONUSES,
-    defaultRules, isActive, mechanicActive, finalStep, mainPoints, eliminatedPoints, bonusDrawWeight
+    defaultRules, isActive, mechanicActive, finalStep, mainPoints, eliminatedPoints, bonusDrawWeight,
+    sabotageTargets, applyJokers
   };
 });

@@ -811,7 +811,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     j.round_number === roundNumber && j.status === 'active'
   );
   if (activeJokers.length > 0) {
-    applyJokerEffects(tmpRanking, activeJokers, roundActivities, athletes);
+    applyJokerEffects(tmpRanking, activeJokers, roundActivities, athletes, config);
   }
 
   // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
@@ -1140,7 +1140,7 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   );
 
   if (!isNoBonusRound) {
-    applyJokerEffects(ranking, activeJokers, roundActivities, athletes);
+    applyJokerEffects(ranking, activeJokers, roundActivities, athletes, config);
 
     // Appliquer les effets des bonus éphémères (ravitaillement, embuscade, etc.)
     await applyEphemeralBonusEffects(ranking, roundNumber, roundActivities);
@@ -1533,9 +1533,15 @@ case 'marquage': {
 }
 
 /**
- * Applique les effets des jokers sur le classement
+ * Applique les effets des jokers sur le classement.
+ * Règles L54 (config.rules) : public/shared/edition-rules.js, mêmes effets que
+ * les pages ; sinon règles d'origine ci-dessous, inchangées.
  */
-function applyJokerEffects(ranking, activeJokers, activities, athletes) {
+function applyJokerEffects(ranking, activeJokers, activities, athletes, config = null) {
+  if (EditionRules.isActive(config)) {
+    applyJokerEffectsL54(ranking, activeJokers, activities);
+    return;
+  }
   // Sabotages (-30%)
   activeJokers.filter(j => j.joker_id === 'sabotage').forEach(joker => {
     const target = ranking.find(e => e.id === String(joker.target_athlete_id));
@@ -1588,6 +1594,30 @@ function applyJokerEffects(ranking, activeJokers, activities, athletes) {
       participant.hasShield = true;
     }
   });
+}
+
+/** Jokers aux règles L54 : effets calculés par EditionRules.applyJokers, notés comme avant. */
+function applyJokerEffectsL54(ranking, activeJokers, activities) {
+  const effects = EditionRules.applyJokers(
+    ranking,
+    activeJokers.map(j => ({ type: j.joker_id, userId: j.athlete_id, userName: j.athlete_name, targetId: j.target_athlete_id })),
+    activities.map(a => ({ id: a.id, athleteId: String(a.athlete?.id || a.athlete_id), elevation: a.total_elevation_gain || 0, name: a.name }))
+  );
+  const entry = id => ranking.find(e => String(e.id) === String(id));
+  for (const fx of effects) {
+    if (fx.type === 'sabotage') {
+      const t = entry(fx.toId);
+      const prev = t.sabotageReceived;
+      t.sabotageReceived = { by: prev ? `${prev.by}, ${fx.byName}` : fx.byName, amount: (prev?.amount || 0) + fx.amount };
+    } else if (fx.type === 'voleur') {
+      entry(fx.byId).theftDone = { from: fx.toName, amount: fx.amount, activity: fx.activity };
+      if (fx.amount > 0) entry(fx.toId).theftReceived = { by: fx.byName, amount: fx.amount, activity: fx.activity };
+    } else if (fx.type === 'multiplicateur') {
+      entry(fx.byId).multiplierBonus = fx.amount;
+    } else if (fx.type === 'bouclier') {
+      entry(fx.byId).hasShield = true;
+    }
+  }
 }
 
 // ============================================

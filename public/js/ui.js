@@ -11,7 +11,7 @@ import {
   getSeasonDates, getRoundDates, getRoundDuration, getRoundInSeason, getDayInRound, getParticipantById,
   getAthleteColor, getAthleteInitials, getRoundInfo,
   isRainyActivity, getActivityElevation, WEATHER_RULE,
-  ELEVATION_GAUGE, getGaugeTier, getGaugeTierById
+  ELEVATION_GAUGE, getGaugeTier, getGaugeTierById, multiplierLabel
 } from './config.js';
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
@@ -236,9 +236,9 @@ export function renderActiveJokersSection(container, data) {
     if (joker.jokerId === 'voleur') {
       statusHtml = `<div class="joker-effect">🦹 ${joker.participantName} vole la meilleure activité de ${joker.targetName}</div>`;
     } else if (joker.jokerId === 'multiplicateur') {
-      statusHtml = `<div class="joker-effect">×1.5 sur tout le D+ de ${joker.participantName}</div>`;
+      statusHtml = `<div class="joker-effect">${multiplierLabel()} sur tout le D+ de ${joker.participantName}</div>`;
     } else if (joker.jokerId === 'sabotage') {
-      statusHtml = `<div class="joker-effect">-30% du D+ de ${joker.targetName}</div>`;
+      statusHtml = `<div class="joker-effect">-30% du D+ de ${joker.targetName || 'du joueur le plus proche'}</div>`;
     } else if (joker.jokerId === 'bouclier') {
       statusHtml = `<div class="joker-effect">${joker.participantName} est protégé contre l'élimination</div>`;
     }
@@ -539,7 +539,7 @@ function renderAvatarBonusIndicators(bonuses = {}, ephemeral = null) {
 
   // Multiplicateur (×1.5)
   if (bonuses.multiplier) {
-    indicators.push({ icon: '✨', class: 'multiplier', title: 'Multiplicateur ×1.5' });
+    indicators.push({ icon: '✨', class: 'multiplier', title: `Multiplicateur ${multiplierLabel()}` });
   }
 
   // Bouclier
@@ -704,7 +704,7 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}, ephemeralBonus
 
   // Jokers classiques
   if (bonuses.multiplier) {
-    tags.push(`<span class="bonus-tag multiplier">×1.5 +${formatElevation(bonuses.multiplier.amount, false)} m</span>`);
+    tags.push(`<span class="bonus-tag multiplier">${multiplierLabel()} +${formatElevation(bonuses.multiplier.amount, false)} m</span>`);
   }
   if (bonuses.duelWon) {
     tags.push(`<span class="bonus-tag duel-won">⚔️ +${formatElevation(bonuses.duelWon.amount, false)} m</span>`);
@@ -890,11 +890,11 @@ export function renderArsenal(container, data) {
           hoverTitle = `${joker.athlete_name} est protégé(e) contre l'élimination ce round`;
           break;
         case 'multiplicateur':
-          description = `×1.5 sur tout le D+ de ${joker.athlete_name}${amount > 0 ? ` (+${fmtAmt} m bonus)` : ''}`;
+          description = `${multiplierLabel()} sur tout le D+ de ${joker.athlete_name}${amount > 0 ? ` (+${fmtAmt} m bonus)` : ''}`;
           hoverTitle = amount > 0 ? `+${fmtAmt} m D+ bonus grâce au multiplicateur` : 'En attente de calcul...';
           break;
         case 'sabotage':
-          description = `💣 ${joker.athlete_name} a saboté ${joker.target_athlete_name || 'un joueur'} (-${fmtAmt} m D+)`;
+          description = `💣 ${joker.athlete_name} a saboté ${joker.target_athlete_name || 'le joueur le plus proche'} (-${fmtAmt} m D+)`;
           hoverTitle = amount > 0 ? `${fmtAmt} m D+ retirés à ${joker.target_athlete_name} (-30%)` : 'En attente de calcul...';
           break;
         default:

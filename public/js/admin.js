@@ -947,7 +947,7 @@ document.getElementById('refreshActivitiesBtn').addEventListener('click', loadDa
 // ============================================
 const JOKER_DISPLAY = {
   voleur: { icon: '🦹', label: 'Voleur' },
-  multiplicateur: { icon: '✖️', label: '×1.5' },
+  multiplicateur: { icon: '✖️', label: 'Multiplicateur' },
   bouclier: { icon: '🛡️', label: 'Bouclier' },
   sabotage: { icon: '💣', label: 'Sabotage' }
 };
