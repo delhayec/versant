@@ -583,11 +583,12 @@
 
   /*
    * Place réservée : le tableau garde sa taille naturelle (il grandit et
-   * rétrécit), mais il est posé dans un emplacement invisible qui a la
-   * hauteur de son plus grand état (scene.rows lignes) ; la légende garde
-   * celle de sa plus longue phrase. La légende et la suite de la page ne
-   * bougent donc plus. Mesuré sur les lignes en place (offsetTop ignore les
-   * animations), et de nouveau quand la largeur change.
+   * rétrécit) ; la barre de progression et la légende restent collées
+   * dessous et le suivent. Les trois sont posés dans un emplacement
+   * invisible qui a la hauteur de leur plus grand état (scene.rows lignes,
+   * plus longue phrase de la légende) : la suite de la page ne bouge donc
+   * plus. Mesuré sur les lignes en place (offsetTop ignore les animations),
+   * et de nouveau quand la largeur change.
    */
   function reserveSpace(root, scene) {
     const table = root.querySelector('.tour-table, .tour-standings');
@@ -596,21 +597,21 @@
     const slot = document.createElement('div');
     slot.className = 'tour-table-slot';
     table.before(slot);
-    slot.appendChild(table);
-    const style = getComputedStyle(table);
-    const outerHeight = () => table.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+    let node = table;
+    while (node) {
+      const next = node.nextElementSibling;
+      slot.appendChild(node);
+      node = node === cap ? null : next;
+    }
+    // Hauteur du contenu (tableau, barre, légende), sans la place réservée
+    const contentHeight = () => cap.getBoundingClientRect().bottom + parseFloat(getComputedStyle(cap).marginBottom) - slot.getBoundingClientRect().top;
     let reserved = 0;
     const reserve = height => {
       reserved = height;
       slot.style.minHeight = `${height}px`;
     };
     const measure = () => {
-      const rows = [...body.children].filter(r => !r.className.includes('tour-collapse') && !r.className.includes('tour-leave'));
-      if (rows.length >= 2) {
-        const step = (rows[rows.length - 1].offsetTop - rows[0].offsetTop) / (rows.length - 1);
-        // + 2 px : offsetTop est arrondi, les lignes ont des hauteurs décimales
-        reserve(Math.ceil(outerHeight() + step * (scene.rows - rows.length)) + 2);
-      }
+      // Légende : hauteur de sa plus longue phrase, pour que seule la taille du tableau varie
       const shown = cap.textContent;
       cap.style.minHeight = '';
       let tallest = 0;
@@ -621,13 +622,19 @@
       }
       cap.textContent = shown;
       cap.style.minHeight = `${tallest}px`;
+      const rows = [...body.children].filter(r => !r.className.includes('tour-collapse') && !r.className.includes('tour-leave'));
+      if (rows.length >= 2) {
+        const step = (rows[rows.length - 1].offsetTop - rows[0].offsetTop) / (rows.length - 1);
+        // + 2 px : offsetTop est arrondi, les lignes ont des hauteurs décimales
+        reserve(Math.ceil(contentHeight() + step * (scene.rows - rows.length)) + 2);
+      }
     };
     measure();
     if (document.fonts?.ready) document.fonts.ready.then(measure); // polices chargées : autres hauteurs
-    // Filet de sécurité : si le tableau dépasse la place prévue, elle grandit (et ne rétrécit plus)
+    // Filet de sécurité : si le contenu dépasse la place prévue, elle grandit (et ne rétrécit plus)
     if (window.ResizeObserver) {
       new ResizeObserver(() => {
-        const height = Math.ceil(outerHeight());
+        const height = Math.ceil(contentHeight());
         if (height > reserved) reserve(height);
       }).observe(table);
     }
