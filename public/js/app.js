@@ -1323,6 +1323,27 @@ function renderFinalStandings(container) {
 // RENDU: SECTION ARSENAL (JOKERS & BONUS)
 // ============================================
 
+/**
+ * Statut affiché d'un bonus éphémère (arsenal de la page d'accueil) :
+ * - lancé ce round, effet pas encore appliqué : « En cours », effet en fin de round ;
+ * - bonus de saison activé (duel, brouillard, second souffle, piège) : actif
+ *   jusqu'à la fin de la saison ;
+ * - pas encore utilisé : disponible ;
+ * - effet déjà appliqué : utilisé (grisé).
+ */
+function bonusDisplayStatus(bonus, roundNumber) {
+  if (bonus.status === 'available' || (!bonus.used_at && !bonus.activated_at)) {
+    return { status: 'available', statusLabel: 'Disponible' };
+  }
+  if (bonus.used_in_round === roundNumber && !bonus.effect_applied) {
+    return { status: 'active', statusLabel: 'En cours · effet à la fin du round' };
+  }
+  if (bonus.status === 'active' && !bonus.used_in_round) {
+    return { status: 'active', statusLabel: bonus.bonus_id === 'trap' ? 'Piège posé' : "Actif jusqu'à la fin de la saison" };
+  }
+  return { status: 'used', statusLabel: '✓ Utilisé ce round' };
+}
+
 async function renderArsenalSection(container, roundNumber) {
   const today = getCurrentDate();
   const currentRoundDates = getRoundDates(roundNumber);
@@ -1444,7 +1465,7 @@ async function renderArsenalSection(container, roundNumber) {
             target_athlete_name: target?.name || null,
             bonus_name: bonusType?.name || b.bonus_id,
             icon: bonusType?.icon || '🎁',
-            status: b.used_at ? 'used' : b.activated_at ? 'active' : 'available',
+            ...bonusDisplayStatus(b, roundNumber),
             hoverInfo
           };
         });

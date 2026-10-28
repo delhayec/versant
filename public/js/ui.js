@@ -956,9 +956,9 @@ export function renderArsenal(container, data) {
                           bonus.status === 'used' ? 'used' :
                           bonus.status === 'active' ? 'active' : 'available';
 
-      const statusLabel = bonus.status === 'pending' ? 'Choix en attente' :
+      const statusLabel = bonus.statusLabel || (bonus.status === 'pending' ? 'Choix en attente' :
                           bonus.status === 'used' ? '✓ Utilisé ce round' :
-                          bonus.status === 'active' ? '🎯 Activé' : 'Disponible';
+                          bonus.status === 'active' ? '🎯 Activé' : 'Disponible');
 
       // Construire les détails du bonus
       let bonusDetails = '';
