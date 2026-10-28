@@ -130,7 +130,8 @@ async function checkEditionRoutes(base, repoRoot, plan) {
   for (const [route, legacy] of READ_ROUTES) {
     const r = route.replace(':n', '52');
     const neu = await raw(E + r, member);
-    const old = await raw(legacy.replace('{id}', 'versant-2026').replace('{n}', '52'));
+    // Ancienne route lue avec le mot de passe admin : non publique depuis L53
+    const old = await raw(legacy.replace('{id}', 'versant-2026').replace('{n}', '52'), { 'x-admin-password': ADMIN_PASSWORD });
     routes[r] = { status: neu.status, identical: neu.status === old.status && neu.text === old.text };
   }
   const access = {
@@ -250,8 +251,13 @@ async function captureReadRoutes(base, fixture, leagueId, plan) {
     '/api/bonuses/my'
   ];
 
+  // L53 : les anciennes routes de lecture ne sont plus publiques. On les lit
+  // avec le mot de passe admin (mêmes données qu'avant), et on relève à part
+  // la réponse faite à un visiteur sans connexion.
+  const adminHeaders = { 'x-admin-password': ADMIN_PASSWORD };
   const responses = {};
-  for (const path of routes) responses[`GET ${path}`] = await call(base, path);
+  for (const path of routes) responses[`GET ${path}`] = await call(base, path, adminHeaders);
+  for (const path of routes) responses[`GET ${path} (sans connexion)`] = { status: (await call(base, path, {}, { summary: true })).status };
 
   // Routes joueur, une fois par athlète
   for (const a of fixture.json('athletes.json')) {
@@ -337,7 +343,7 @@ async function runProbes(base, leagueId, plan, sandbox) {
       }
     });
     const logEntry = await waitForWebhookLog(base, admin, objectId);
-    const activities = (await call(base, `/api/activities/${leagueId}`, {}, { raw: true })).body;
+    const activities = (await call(base, `/api/activities/${leagueId}`, admin, { raw: true })).body;
     const local = Array.isArray(activities) ? activities.find(a => String(a.id) === String(objectId)) : null;
     return {
       reponse: posted.status,
@@ -363,7 +369,7 @@ async function runProbes(base, leagueId, plan, sandbox) {
     body: { standings: [{ id: '999999', name: 'Intrus', totalPoints: 9999 }] },
     summary: true
   });
-  const frozenAfter = (await call(base, '/api/frozen-results', {}, { raw: true })).body;
+  const frozenAfter = (await call(base, '/api/frozen-results', admin, { raw: true })).body;
   probes['snapshot-falsifie'] = {
     reponse: snapshot.status,
     intrusEnregistre: (frozenAfter?.yearlyStandingsSnapshot?.standings || []).some(s => String(s.id) === '999999')
@@ -417,7 +423,7 @@ async function waitForWebhookLog(base, admin, objectId) {
 }
 
 async function activityExists(base, leagueId, objectId) {
-  const res = await call(base, `/api/activities/${leagueId}`, {}, { raw: true });
+  const res = await call(base, `/api/activities/${leagueId}`, { 'x-admin-password': ADMIN_PASSWORD }, { raw: true });
   return Array.isArray(res.body) && res.body.some(a => String(a.id) === String(objectId));
 }
 

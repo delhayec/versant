@@ -95,6 +95,23 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
+// L53 : les anciennes routes de lecture (/api/activities/:id, /api/frozen-results…)
+// ne sont plus publiques. Les pages passent par /api/leagues/:ligue/editions/:édition/…
+// (qui y délèguent, req.edition renseigné), le moteur serveur par son jeton
+// interne, l'admin par son mot de passe ou sa session. Restent publiques les
+// règles générales, lues par la page des règles sans connexion.
+const PUBLIC_LEGACY_READS = new Set(['/api/config', '/api/special-rules', '/api/season-planning', '/api/round-configs']);
+const LEGACY_READS = [...require('./routes/editions').READ_ROUTES.map(([, legacy]) => legacy), '/api/frozen-results/standings/{id}']
+  .filter(legacy => !PUBLIC_LEGACY_READS.has(legacy))
+  .map(legacy => new RegExp(`^${legacy.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{\w+\}/g, '[^/]+')}/?$`));
+app.use('/api', (req, res, next) => {
+  if (req.method !== 'GET') return next();
+  const route = req.baseUrl + req.path;
+  if (!LEGACY_READS.some(pattern => pattern.test(route))) return next();
+  if (req.edition || req.headers['x-versant-internal'] === INTERNAL_TOKEN || isAdminPassword(req) || req.isSuperAdmin) return next();
+  res.status(401).json({ error: 'Route réservée : passer par /api/leagues/:ligue/editions/:edition/…' });
+});
+
 app.use('/api', (req, res, next) => {
   if (req.method !== 'GET' && !STANDINGS_NEUTRAL_WRITES.some(prefix => req.originalUrl.startsWith(prefix))) {
     res.on('finish', () => {
@@ -2729,7 +2746,7 @@ function refreshYearlyStandings(reason) {
   const run = async () => {
     const started = Date.now();
     const edition = internalEdition();
-    const { standings } = await engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), edition });
+    const { standings } = await engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), edition, internalToken: INTERNAL_TOKEN });
     const compact = compactStandings(standings);
     if (compact.length === 0) throw new Error('classement vide, rien enregistré');
     await saveYearlyStandingsSnapshot(compact);
@@ -2783,7 +2800,7 @@ app.post('/api/admin/standings/compute', async (req, res) => {
     const context = await adminEditionContext(req);
     if (!context) return res.status(404).json({ error: 'Édition introuvable' });
     const result = await withEdition(context, () =>
-      engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), at: at?.toISOString(), edition: internalEdition() }));
+      engineRunner.computeYearlyStandings({ baseUrl: localApiBase(), at: at?.toISOString(), edition: internalEdition(), internalToken: INTERNAL_TOKEN }));
     res.json({ at: result.at, standings: compactStandings(result.standings) });
   } catch (error) {
     console.error('Erreur calcul classement:', error);

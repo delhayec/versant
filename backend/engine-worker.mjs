@@ -19,7 +19,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const { baseUrl, publicDir, at, edition } = workerData;
+const { baseUrl, publicDir, at, edition, internalToken } = workerData;
 const require = createRequire(import.meta.url);
 
 // Instant du calcul imposé (calcul « à une date », sans sauvegarde)
@@ -60,7 +60,10 @@ globalThis.sessionStorage = memoryStorage();
 const realFetch = globalThis.fetch;
 // Édition autre que celle par défaut (L33) : en-têtes internes, la requête est
 // traitée par le serveur dans le contexte de cette édition
-const editionHeaders = edition ? { 'x-versant-edition': edition.key, 'x-versant-internal': edition.token } : {};
+// Édition par défaut : jeton interne seul, exigé par les anciennes routes de lecture (L53)
+const editionHeaders = edition
+  ? { 'x-versant-edition': edition.key, 'x-versant-internal': edition.token }
+  : (internalToken ? { 'x-versant-internal': internalToken } : {});
 globalThis.fetch = (input, init = {}) => {
   let url = typeof input === 'string' ? input : input.url;
   // Identifiant « ligue/édition » inséré tel quel par le front dans les chemins

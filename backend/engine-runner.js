@@ -19,11 +19,12 @@ const TIMEOUT_MS = 120000;
  * @param {string} baseUrl - adresse de l'API du serveur (ex. http://127.0.0.1:3000)
  * @param {string} [at] - instant du calcul (ISO) ; par défaut maintenant
  * @param {Object} [edition] - { key, token } : édition autre que celle par défaut (L33)
+ * @param {string} [internalToken] - jeton interne, exigé par les anciennes routes de lecture (L53)
  * @returns {Promise<{ at: string, standings: Array }>} sortie de calculateYearlyStandings
  */
-function computeYearlyStandings({ baseUrl, at = null, edition = null }) {
+function computeYearlyStandings({ baseUrl, at = null, edition = null, internalToken = null }) {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(WORKER_FILE, { workerData: { baseUrl, publicDir: PUBLIC_DIR, at, edition } });
+    const worker = new Worker(WORKER_FILE, { workerData: { baseUrl, publicDir: PUBLIC_DIR, at, edition, internalToken } });
     const timer = setTimeout(() => {
       worker.terminate();
       reject(new Error(`moteur : pas de réponse après ${TIMEOUT_MS / 1000} s`));
