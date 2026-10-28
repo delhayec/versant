@@ -17,7 +17,7 @@ import {
   getRoundInSeason, getGlobalRoundNumber, isFinaleRound, isValidSport,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
   setFrozenCache,
-  getMainChallengePoints, getEliminatedChallengePoints, getMainPointsMultiplier,
+  getMainChallengePoints, getEliminatedChallengePoints, eliminatedChallengeRosterSize, getMainPointsMultiplier, rulesActive,
   getAthleteColor, getAthleteInitials, loadParticipants,
   getEligibleParticipants, getLateRegistrations, wasRegisteredBeforeStart,
   getSeasonRosterSize,
@@ -449,7 +449,7 @@ function getSeasonSummary(activities, seasonNumber, currentDate) {
     eliminatedRanking.sort((a, b) => b.totalElevation - a.totalElevation);
     eliminatedRanking.forEach((e, i) => {
       e.position = i + 1;
-      e.points = getEliminatedChallengePoints(e.position);
+      e.points = getEliminatedChallengePoints(e.position, eliminatedChallengeRosterSize(sData.eliminated));
     });
   }
 
@@ -1097,7 +1097,7 @@ function renderEliminatedChallenge(container) {
   ranking.sort((a, b) => b.totalElevation - a.totalElevation);
   ranking.forEach((e, i) => {
     e.position = i + 1;
-    e.points = getEliminatedChallengePoints(e.position);
+    e.points = getEliminatedChallengePoints(e.position, eliminatedChallengeRosterSize(eliminatedList));
   });
 
   let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
@@ -1800,9 +1800,9 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
       const sameRoundElims = roundEliminated;
       const elimIdx = sameRoundElims.findIndex(e => e.id === entry.participant.id);
       const elimPosition = activeAtRoundStart - elimIdx;
-      mainPts = getMainChallengePoints(Math.max(1, Math.min(elimPosition, seasonRosterSize)));
-    } else if (isFinale && position <= 3) {
-      mainPts = getMainChallengePoints(position);
+      mainPts = getMainChallengePoints(Math.max(1, Math.min(elimPosition, seasonRosterSize)), seasonRosterSize);
+    } else if (isFinale && position <= (rulesActive() ? CHALLENGE_CONFIG.finalistsCount : 3)) {
+      mainPts = getMainChallengePoints(position, seasonRosterSize);
     }
     mainPts *= getMainPointsMultiplier(currentSeasonNumber);
 
@@ -3426,7 +3426,7 @@ function computeSeasonRecap(seasonNumber, frozen) {
         const winnerId = String(nonEliminated[0].id);
         const winnerEntry = finalePodium.find(p => String(p.id) === winnerId);
         if (winnerEntry) {
-          winnerEntry.mainPoints = 24;
+          winnerEntry.mainPoints = getMainChallengePoints(1);
           winnerEntry.isWinner = true;
         }
       }

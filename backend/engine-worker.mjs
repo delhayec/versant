@@ -52,7 +52,9 @@ const memoryStorage = () => {
 
 globalThis.window = {
   location: { pathname: '/index.html', search: '', href: `${baseUrl}/index.html` },
-  TeamFormation: require(join(publicDir, 'shared', 'team-formation.js'))
+  TeamFormation: require(join(publicDir, 'shared', 'team-formation.js')),
+  // Règles des nouvelles éditions (L54)
+  EditionRules: require(join(publicDir, 'shared', 'edition-rules.js'))
 };
 globalThis.localStorage = memoryStorage();
 globalThis.sessionStorage = memoryStorage();

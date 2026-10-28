@@ -110,6 +110,30 @@ const ELIMINATED_CHALLENGE_POINTS = {
 const getMainPoints = (pos) => MAIN_CHALLENGE_POINTS[pos] ?? 0;
 const getEliminatedPoints = (pos) => ELIMINATED_CHALLENGE_POINTS[pos] ?? 0;
 
+// Règles des nouvelles éditions (L54) : source unique partagée avec le front.
+// Une édition sans `rules` (versant-2026) garde les barèmes ci-dessus.
+const EditionRules = require('../public/shared/edition-rules.js');
+
+/**
+ * Points du challenge principal pour une place de la saison.
+ * @param {number} rosterSize - joueurs au départ de la saison (barème L54)
+ */
+function mainPointsForEdition(position, rosterSize, config = editionConfig()) {
+  return EditionRules.isActive(config)
+    ? EditionRules.mainPoints(position, rosterSize, config.finalistsCount)
+    : getMainPoints(position);
+}
+
+/**
+ * Points du challenge des éliminés pour une place.
+ * @param {number} rosterSize - joueurs au départ de la saison (palier du barème L54)
+ */
+function eliminatedPointsForEdition(position, rosterSize, config = editionConfig()) {
+  return EditionRules.isActive(config)
+    ? EditionRules.eliminatedPoints(position, rosterSize)
+    : getEliminatedPoints(position);
+}
+
 // ============================================
 // JAUGE DE D+ COLLECTIVE
 // ============================================
@@ -513,6 +537,9 @@ module.exports = {
   ELIMINATED_CHALLENGE_POINTS,
   getMainPoints,
   getEliminatedPoints,
+  EditionRules,
+  mainPointsForEdition,
+  eliminatedPointsForEdition,
   ELEVATION_GAUGE,
   getGaugeObjectivePerPlayer,
   getGaugeTier,

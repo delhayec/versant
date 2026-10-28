@@ -23,6 +23,7 @@ const {
   WEATHER_RULE, isRainyActivity, getActivityElevation,
   MAIN_CHALLENGE_POINTS, ELIMINATED_CHALLENGE_POINTS,
   getMainPoints, getEliminatedPoints,
+  EditionRules, mainPointsForEdition,
   getGaugeObjectivePerPlayer, getGaugeTier,
   BONUS_IDS,
   getRoundDates, getSeasonNumber, getRoundInSeason, getSeasonRoundCount,
@@ -632,6 +633,10 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
   // rétroactivement dans les rounds antérieurs à son entrée.
   const seasonStartRound = getSeasonStartRoundFromFrozen(seasonNumber, roundNumber, previousRounds);
   let activeIds = getRoundRoster(athletes, roundNumber, seasonStartRound, config).map(a => String(a.id));
+  // Barème L54 : points selon la taille de la saison ; barème d'origine sinon (inchangé)
+  const teamMainPoints = EditionRules.isActive(config)
+    ? (position) => mainPointsForEdition(position, getSeasonSizingRoster(athletes, seasonStartRound, config).length, config)
+    : (position) => MAIN_CHALLENGE_POINTS[position] || 0;
   for (let r = roundNumber - 1; r >= 1; r--) {
     const prev = previousRounds[String(r)];
     if (!prev?.frozen) continue;
@@ -900,7 +905,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     // Positions 1-3 → équipe 1 (24/21/18), 4-6 → équipe 2 (15/12/10)
     // Les mainPoints sont définis sur leur position absolue
     for (const entry of ranking) {
-      entry.mainPoints = MAIN_CHALLENGE_POINTS[entry.position] || 0;
+      entry.mainPoints = teamMainPoints(entry.position);
     }
     // Tous les joueurs sont éliminés
     for (const team of teamsWithElevation) {
@@ -937,7 +942,7 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
       const r = ranking.find(x => x.id === m.id);
       if (r) {
         r.position = elimPosition;
-        r.mainPoints = MAIN_CHALLENGE_POINTS[elimPosition] || 0;
+        r.mainPoints = teamMainPoints(elimPosition);
       }
       eliminations.push({
         id: m.id,
@@ -1033,7 +1038,8 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   const isFinale = !isDeadlineSeason(seasonNumber) && roundInSeason === roundsPerSeason;
   // Saison « points doublés » : multiplie les points du challenge principal
   const pointsMultiplier = getMainPointsMultiplier(seasonNumber);
-  const mainPointsFor = (position) => getMainPoints(position) * pointsMultiplier;
+  // Barème L54 si l'édition le porte (taille de la saison), sinon barème d'origine
+  const mainPointsFor = (position) => mainPointsForEdition(position, totalParticipants, config) * pointsMultiplier;
 
   // Déterminer les participants actifs (non éliminés dans les rounds précédents de cette saison).
   // On part du roster du round : un athlète entré après coup n'apparaît pas

@@ -12,7 +12,7 @@
  * peut pas importer est extrait et exécuté tel quel (cf. extract.mjs).
  */
 
-import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -39,9 +39,12 @@ export async function runFront({ repoRoot, fixtureDir, at }) {
 
     const require = createRequire(import.meta.url);
     const TeamFormation = require(join(repoRoot, 'public', 'shared', 'team-formation.js'));
+    // Règles des nouvelles éditions (L54) : absentes du code antérieur
+    const rulesFile = join(repoRoot, 'public', 'shared', 'edition-rules.js');
     globalThis.window = {
       location: { pathname: '/index.html', search: '', href: 'https://versant-app.fr/index.html' },
-      TeamFormation
+      TeamFormation,
+      ...(existsSync(rulesFile) ? { EditionRules: require(rulesFile) } : {})
     };
     globalThis.localStorage = memoryStorage();
     globalThis.sessionStorage = memoryStorage();

@@ -53,6 +53,10 @@ export async function runBack({ repoRoot, fixtureDir, layout = 'legacy' }) {
       }
     }
     copyFileSync(join(repoRoot, 'public', 'shared', 'team-formation.js'), join(root, 'public', 'shared', 'team-formation.js'));
+    // Règles des nouvelles éditions (L54), requises par shared-config.js
+    if (existsSync(join(repoRoot, 'public', 'shared', 'edition-rules.js'))) {
+      copyFileSync(join(repoRoot, 'public', 'shared', 'edition-rules.js'), join(root, 'public', 'shared', 'edition-rules.js'));
+    }
     writeFileSync(join(root, 'package.json'), '{ "type": "commonjs" }\n');
 
     const resetData = () => {

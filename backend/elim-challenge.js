@@ -27,7 +27,7 @@ const path = require('path');
 
 const {
   VALID_SPORTS, isValidSport,
-  ELIMINATED_CHALLENGE_POINTS, getEliminatedPoints,
+  ELIMINATED_CHALLENGE_POINTS, getEliminatedPoints, eliminatedPointsForEdition,
   getRoundDates
 } = require('./shared-config');
 // Config de l'édition en cours (cf. edition-context.js)
@@ -380,7 +380,12 @@ function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, se
  * @param {Object} seasonDates - { start, end } en Date
  * @param {Date} currentDate - Date courante (borne sup)
  */
-function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, currentDate) {
+/**
+ * @param {number} [rosterSize] - joueurs au départ de la saison (barème L54) ;
+ *   à défaut, éliminés de la saison + finalistes
+ */
+function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, currentDate, rosterSize = null) {
+  const seasonSize = rosterSize ?? (eliminatedList.length + (Number(currentEdition().config.finalistsCount) || 0));
   const ranking = [];
   const endDate = currentDate < seasonDates.end ? currentDate : seasonDates.end;
 
@@ -420,7 +425,8 @@ function calculateEliminatedChallenge(activities, eliminatedList, seasonDates, c
   ranking.sort((a, b) => b.totalElevation - a.totalElevation);
   ranking.forEach((e, i) => {
     e.position = i + 1;
-    e.points = getEliminatedPoints(e.position);
+    // Barème L54 si l'édition le porte, sinon barème d'origine
+    e.points = eliminatedPointsForEdition(e.position, seasonSize);
   });
   return ranking;
 }
@@ -454,8 +460,15 @@ function computeEliminatedChallengeRankingForSeason({
   seasonBonusesCache,
   frozenRoundsMap
 }) {
+  // Taille de la saison (barème L54) : joueurs en lice à son premier round figé
+  const seasonRounds = Object.values(frozenRoundsMap || {})
+    .filter(r => r && Number(r.seasonNumber) === Number(seasonNumber))
+    .sort((a, b) => Number(a.roundNumber) - Number(b.roundNumber));
+  const rosterSize = seasonRounds[0]?.activeParticipants?.length
+    || (eliminatedList.length + (Number(currentEdition().config.finalistsCount) || 0));
+
   // 1. Classement brut : D+ post-élimination par athlète
-  const ranking = calculateEliminatedChallenge(activities, eliminatedList, seasonDates, currentDate);
+  const ranking = calculateEliminatedChallenge(activities, eliminatedList, seasonDates, currentDate, rosterSize);
 
   // 2. Appliquer les bonus SAISONNIERS (one-shot) pour chaque athlète
   // 3. Itérer sur chaque round GLOBAL de la saison pour appliquer les bonus ÉPHÉMÈRES
@@ -503,7 +516,8 @@ function computeEliminatedChallengeRankingForSeason({
   ranking.sort((a, b) => b.totalElevation - a.totalElevation);
   ranking.forEach((e, i) => {
     e.position = i + 1;
-    e.points = getEliminatedPoints(e.position);
+    // Barème L54 si l'édition le porte, sinon barème d'origine
+    e.points = eliminatedPointsForEdition(e.position, rosterSize);
   });
 
   return ranking;

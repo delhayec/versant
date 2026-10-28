@@ -28,6 +28,7 @@
 
 const crypto = require('crypto');
 const { newInviteCode, newAdminCode } = require('./accounts');
+const EditionRules = require('../../public/shared/edition-rules.js');
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -247,7 +248,9 @@ function registerLeagueRoutes(app, { store, requireAuth, checkAdmin, isLeagueAdm
         zeroElevationRuleFromRound: 1,
         elevationGaugeStartRound: null,
         // Mécanique du rescapé retirée (L44) : jamais pour une nouvelle édition
-        rescapeLastSeason: 0
+        rescapeLastSeason: 0,
+        // Règles des nouvelles éditions (L54) : barème, jokers, bonus, calendrier
+        rules: EditionRules.defaultRules()
       };
       const settingsError = applyEditionSettings(body, config);
       if (settingsError) return res.status(400).json({ error: settingsError });

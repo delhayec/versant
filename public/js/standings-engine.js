@@ -41,7 +41,7 @@ import {
   getParticipantById, getRoundDates, getSeasonNumber, getSeasonDates,
   getRoundInSeason, isFinaleRound,
   getRoundsPerSeason, getRoundsForSeason, getSeasonStartRound, getSeasonType,
-  getMainChallengePoints, getEliminatedChallengePoints, getMainPointsMultiplier,
+  getMainChallengePoints, getEliminatedChallengePoints, eliminatedChallengeRosterSize, getMainPointsMultiplier,
   wasRegisteredBeforeStart,
   isParticipantInRound, getSeasonRoster, getSeasonRosterSize,
   formBalancedTeams, getTeamSettings, getTeamBalanceMap,
@@ -1425,7 +1425,7 @@ export function calculateEliminatedChallenge(activities, eliminatedList, seasonD
   ranking.sort((a, b) => b.totalElevation - a.totalElevation);
   ranking.forEach((e, i) => {
     e.position = i + 1;
-    e.points = getEliminatedChallengePoints(e.position);
+    e.points = getEliminatedChallengePoints(e.position, eliminatedChallengeRosterSize(eliminatedList));
   });
   return ranking;
 }
@@ -1567,14 +1567,14 @@ export function calculateYearlyStandings(activities, currentDate, frozenResultsC
     }
     // Valeur recalculée (pas de valeur figée) : appliquer le multiplicateur de
     // la saison, déjà inclus dans les mainPoints figés par le backend
-    mainPts = getMainChallengePoints(Math.max(1, Math.min(position, seasonRosterSize))) * getMainPointsMultiplier(s);
+    mainPts = getMainChallengePoints(Math.max(1, Math.min(position, seasonRosterSize)), seasonRosterSize) * getMainPointsMultiplier(s);
   }
   elimPts = elimPointsMap[p.id] || 0;
 } else if (sData.winner?.id === p.id) {
-        mainPts = getMainChallengePoints(1) * getMainPointsMultiplier(s);
+        mainPts = getMainChallengePoints(1, seasonRosterSize) * getMainPointsMultiplier(s);
         totals[p.id].wins++;
       } else if (sData.seasonComplete) {
-        mainPts = getMainChallengePoints(2) * getMainPointsMultiplier(s);
+        mainPts = getMainChallengePoints(2, seasonRosterSize) * getMainPointsMultiplier(s);
       } else {
         // Fallback : chercher directement les mainPoints attribués par le backend
         // dans le ranking figé du dernier round de la saison (cas finale team ou

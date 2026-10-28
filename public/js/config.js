@@ -242,10 +242,48 @@ export const ELIMINATED_CHALLENGE_POINTS = {
   default: 0,
 };
 
-export const getMainChallengePoints = (pos) =>
-  MAIN_CHALLENGE_POINTS[pos] ?? MAIN_CHALLENGE_POINTS.default ?? 0;
-export const getEliminatedChallengePoints = (pos) =>
-  ELIMINATED_CHALLENGE_POINTS[pos] ?? ELIMINATED_CHALLENGE_POINTS.default ?? 0;
+// Règles des nouvelles éditions (L54) : public/shared/edition-rules.js, chargé
+// en <script> classique (window.EditionRules), comme team-formation.js. Une
+// édition sans `rules` (versant-2026) garde les barèmes ci-dessus.
+export function rulesActive() {
+  return Number(CHALLENGE_CONFIG.rules?.version) >= 2;
+}
+
+export function editionRules() {
+  const rules = typeof window !== "undefined" ? window.EditionRules : null;
+  if (!rules) throw new Error("shared/edition-rules.js n'est pas chargé");
+  return rules;
+}
+
+/**
+ * Points du challenge principal pour une place.
+ * @param {number} [rosterSize] - joueurs au départ de la saison (barème L54) ;
+ *   par défaut, ceux de la saison en cours
+ */
+export const getMainChallengePoints = (pos, rosterSize) =>
+  rulesActive()
+    ? editionRules().mainPoints(pos, rosterSize ?? (getSeasonRosterSize(getSeasonNumber(new Date())) || PARTICIPANTS.length), CHALLENGE_CONFIG.finalistsCount)
+    : MAIN_CHALLENGE_POINTS[pos] ?? MAIN_CHALLENGE_POINTS.default ?? 0;
+
+/**
+ * Points du challenge des éliminés pour une place.
+ * @param {number} [rosterSize] - joueurs au départ de la saison (barème L54),
+ *   cf. eliminatedChallengeRosterSize
+ */
+export const getEliminatedChallengePoints = (pos, rosterSize = 0) =>
+  rulesActive()
+    ? editionRules().eliminatedPoints(pos, rosterSize)
+    : ELIMINATED_CHALLENGE_POINTS[pos] ?? ELIMINATED_CHALLENGE_POINTS.default ?? 0;
+
+/**
+ * Taille de la saison des éliminés (barème L54) : joueurs en lice à son premier
+ * round, comme le serveur ; à défaut, éliminés + finalistes.
+ */
+export function eliminatedChallengeRosterSize(eliminatedList) {
+  const season = (eliminatedList || []).find((e) => e.eliminatedSeason)?.eliminatedSeason;
+  return (season && getSeasonRosterSize(season)) ||
+    ((eliminatedList?.length || 0) + (Number(CHALLENGE_CONFIG.finalistsCount) || 0));
+}
 
 // ============================================
 // JAUGE DE D+ COLLECTIVE
