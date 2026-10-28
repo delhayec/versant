@@ -2581,6 +2581,8 @@ app.get('/api/admin/diagnostic', async (req, res) => {
     },
     // Quota d'appels Strava de l'application (L60), sans appel à Strava
     strava: stravaApi.status(),
+    // Fuseau des calculs de dates : les limites de round sont à minuit, heure de Paris
+    serverClock: { tz: process.env.TZ || null, utcOffsetMinutes: -new Date().getTimezoneOffset() },
     jokers: {
       totalUsed: jokers.length
     },

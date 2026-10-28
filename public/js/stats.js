@@ -21,6 +21,7 @@ import {
   isValidSport,
   getRoundDates,
   getRoundDuration,
+  getDayInRound,
   getGlobalRoundNumber,
   getRoundsForSeason,
   getSeasonNumber,
@@ -1255,8 +1256,7 @@ function calculateHourlyDistribution(data, groupBy) {
     else if (groupBy === 'roundDay') {
       const d = new Date(act.start_date);
       const globalRound = getGlobalRoundNumber(d);
-      const roundDates = getRoundDates(globalRound);
-      const dayOfRound = Math.min(getRoundDuration(globalRound), Math.max(1, Math.floor((d - roundDates.start) / (1000 * 60 * 60 * 24)) + 1));
+      const dayOfRound = Math.min(getRoundDuration(globalRound), Math.max(1, getDayInRound(d, globalRound)));
       key = `J${dayOfRound}`;
     } else {
       key = mapSportName(act.sport_type);

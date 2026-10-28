@@ -1272,10 +1272,17 @@ export function getRoundDates(globalRoundNumber) {
   return { start, end };
 }
 
-/** Jour courant dans un round (1 = premier jour). */
-export function getDayInRound(date = new Date()) {
-  const { start } = getRoundDates(getGlobalRoundNumber(date));
-  return Math.floor((new Date(date) - start) / (1000 * 60 * 60 * 24)) + 1;
+/**
+ * Jour courant dans un round (1 = premier jour), en jours du calendrier.
+ * Pas en tranches de 24 h : un round qui contient un changement d'heure a un
+ * jour de 23 h ou de 25 h, et le jour suivant aurait commencé à 23h (hiver)
+ * ou à 1h (été).
+ */
+export function getDayInRound(date = new Date(), globalRoundNumber = getGlobalRoundNumber(date)) {
+  const { start } = getRoundDates(globalRoundNumber);
+  const d = new Date(date);
+  const day = (x) => Date.UTC(x.getFullYear(), x.getMonth(), x.getDate());
+  return Math.round((day(d) - day(start)) / (1000 * 60 * 60 * 24)) + 1;
 }
 
 export function isFinaleRound(roundInSeason, seasonNumber, frozen = null) {

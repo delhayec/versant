@@ -1616,6 +1616,7 @@ document.getElementById('diagnosticBtn').addEventListener('click', async () => {
       <div>${a.passwordScrypt} mot(s) de passe au nouveau format ${a.passwordLegacyOnly ? `· <span class="warn">${a.passwordLegacyOnly} à l'ancien format seulement</span>` : ''}</div>
       <div>Webhooks sur 24 h : ${w.last24h} (${w.success} réussis${w.failed ? `, <span class="err">${w.failed} en échec</span>` : ''})${w.pendingRetry ? ` · <span class="warn">${w.pendingRetry} à rejouer</span>` : ''}</div>
       ${stravaQuotaLine(d.strava)}
+      ${d.serverClock ? `<div>Fuseau du serveur : <span class="${d.serverClock.tz === 'Europe/Paris' ? 'ok' : 'err'}">${escapeHtml(d.serverClock.tz || 'non défini')}</span> (UTC${d.serverClock.utcOffsetMinutes >= 0 ? '+' : ''}${d.serverClock.utcOffsetMinutes / 60})</div>` : ''}
       <div class="hint">au ${new Date(d.timestamp).toLocaleString('fr-FR')}</div>`;
   } catch (error) {
     box.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
