@@ -1324,6 +1324,21 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
         const from = editionConfig.rules.mechanics?.jokers;
         return res.status(403).json({ error: from ? `Les jokers arrivent à la saison ${from}` : 'Pas de jokers dans cette ligue' });
       }
+      // Règles L54, saison Équipes : un joker par joueur et par round, jamais sur sa propre équipe
+      if (roundSeason != null && isTeamSeason(roundSeason) && EditionRules.isActive(editionConfig)) {
+        const alreadyPlayed = (await readJokerUsage()).some(j =>
+          normalizeId(j.athlete_id) === normalizeId(req.athleteId) && Number(j.round_number) === Number(round_number) && j.status === 'active');
+        if (alreadyPlayed) {
+          return res.status(403).json({ error: 'En saison Équipes, un seul joker par joueur et par round' });
+        }
+        if (target_athlete_id) {
+          const teams = await teamsOfRound(round_number);
+          const myTeam = teams?.find(t => (t.members || []).some(m => normalizeId(m.id) === normalizeId(req.athleteId)));
+          if (myTeam && (myTeam.members || []).some(m => normalizeId(m.id) === normalizeId(target_athlete_id))) {
+            return res.status(400).json({ error: 'Impossible de viser un joueur de ta propre équipe' });
+          }
+        }
+      }
       if (roundSeason != null && isTeamSeason(roundSeason) && joker_id === 'bouclier') {
         return res.status(403).json({
           error: 'Le bouclier est désactivé en saison Équipes (toute l\'équipe est éliminée ou survit ensemble).'
@@ -2745,6 +2760,25 @@ const engineRunner = require('./engine-runner');
 const STANDINGS_REFRESH_DELAY_MS = 10000;
 const standingsRefreshTimers = new Map(); // un recalcul différé par édition
 let standingsRefreshChain = Promise.resolve();
+
+/**
+ * Équipes d'un round (figées, verrouillées ou tirées), telles que les renvoie
+ * GET /api/teams/round/:n pour l'édition en cours : la même logique, appelée en
+ * interne. null si ce n'est pas un round en équipes.
+ */
+async function teamsOfRound(roundNumber) {
+  const context = currentEdition();
+  const headers = { 'x-versant-internal': INTERNAL_TOKEN };
+  if (context !== LEGACY_CONTEXT) headers['x-versant-edition'] = context.leagueId;
+  try {
+    const res = await fetch(`${localApiBase()}/api/teams/round/${Number(roundNumber)}`, { headers });
+    if (!res.ok) return null;
+    return (await res.json()).teams || null;
+  } catch (error) {
+    console.warn(`Équipes du round ${roundNumber} :`, error.message);
+    return null;
+  }
+}
 
 /** Édition de l'appel en cours : null pour l'édition par défaut (chemin inchangé). */
 function internalEdition() {

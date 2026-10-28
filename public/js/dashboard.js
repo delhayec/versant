@@ -14,7 +14,7 @@ import {
   getRoundInSeason, getRoundsPerSeason,
   getAthleteColor, getAthleteInitials,
   fetchWithTimeout, loadSeasonPlanning,
-  getDayInRound as getDayInRoundAt, getRoundDuration, mechanicActive, mechanicStartSeason,
+  getDayInRound as getDayInRoundAt, getRoundDuration, mechanicActive, mechanicStartSeason, rulesActive,
   setFrozenCache,
   onDomReady
 } from './config.js';
@@ -1277,8 +1277,15 @@ if (canActivateNow) {
 function showJokerTargetModal(jokerId, joker) {
   fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
     .then(res => res.json())
-    .then(athletes => {
-      const opponents = athletes.filter(a => String(a.id) !== String(currentUser.id));
+    .then(async athletes => {
+      let opponents = athletes.filter(a => String(a.id) !== String(currentUser.id));
+      // Règles L54, saison Équipes : les coéquipiers ne sont pas des cibles
+      if (rulesActive() && isTeamSeason(getSeasonNumber(new Date()))) {
+        const data = await fetch(`${API_BASE}/teams/round/${getCurrentRound()}`).then(r => r.ok ? r.json() : null).catch(() => null);
+        const myTeam = (data?.teams || []).find(t => (t.members || []).some(m => String(m.id) === String(currentUser.id)));
+        const mates = new Set((myTeam?.members || []).map(m => String(m.id)));
+        opponents = opponents.filter(a => !mates.has(String(a.id)));
+      }
 
       const modal = document.createElement('div');
       modal.className = 'joker-selection-modal';
