@@ -2,13 +2,14 @@
  * ============================================
  * VERSANT - DÉMO ANIMÉE
  * ============================================
- * Cinq tableaux animés, aux couleurs des vrais classements, pour expliquer
+ * Six tableaux animés, aux couleurs des vrais classements, pour expliquer
  * les règles principales à un nouveau joueur :
  *   1. une activité Strava fait grimper un compteur et remonte un joueur ;
  *   2. fin du round : les 2 derniers sortent, les compteurs repartent de zéro ;
  *   3. challenge des éliminés : arrivées, compteurs cumulés jusqu'à la fin de saison ;
  *   4. finale, couronne, points, puis tout le monde revient en course ;
- *   5. classement général : points du principal et des éliminés.
+ *   5. classement général : points du principal et des éliminés ;
+ *   6. les jokers : carrousel des 4 cartes, puis un sabotage (nouvelles règles).
  * Joueurs et chiffres fictifs (même histoire d'une scène à l'autre), aucun
  * appel au serveur. Chaque scène est une suite d'étapes de durée fixe (les
  * chapitres de la barre de progression) et tourne en boucle tant qu'elle est
@@ -559,6 +560,82 @@
     };
   }
 
+  // ---------- Scène 6 : joker Sabotage (règles des nouvelles ligues) ----------
+  // Pas de cible choisie : le joueur le plus proche en D+ perd 30 % de son D+
+  // à la fin du round (EditionRules.sabotageTargets). Ici Sarah, 180 m devant
+  // Hugo : 1 500 m - 450 m = 1 050 m, elle passe derrière lui.
+  function sceneJokers(root) {
+    const table = new Table(root.querySelector('.tour-table'), { header: ['Pos.', 'Athlète', 'D+ du round'], dangerCount: 2 });
+    return {
+      rows: 5,
+      setup: () => table.reset([['lea', 2100], ['ines', 1800], ['sarah', 1500], ['hugo', 1320], ['tom', 980]]),
+      steps: [
+        [3000, 'Hugo est en zone danger. Il joue son joker Sabotage.', () => table.gift('hugo', '💣')],
+        [4400, 'Pas de cible à choisir : le sabotage frappe le joueur le plus proche de Hugo en D+, devant ou derrière lui.', async () => {
+          await sleep(300);
+          table.bubble('sarah', 'à 180 m', 'gap');
+          table.bubble('tom', 'à 340 m', 'gap');
+          table.bubble('ines', 'à 480 m', 'gap');
+        }],
+        [2800, 'Le plus proche : Sarah, 180 m devant. C\'est elle qui sera touchée.',
+          () => table.rows.get('sarah').classList.add('tour-target')],
+        [3800, 'Fin du round : Sarah perd 30 % de son D+, soit 450 m.', async () => {
+          table.bubble('sarah', '−30 % · −450 m', 'sabotage');
+          await sleep(500);
+          await table.count('sarah', 1050, 1800);
+        }],
+        [3400, 'Hugo passe devant et se sauve : c\'est Sarah qui tombe en zone danger.', async () => {
+          await reorder(table.body, r => Number(r.dataset.elev));
+          table.rows.get('sarah').classList.remove('tour-target');
+          table.refresh();
+        }],
+        [3600, 'En saison Équipes, le sabotage vise l\'équipe la plus proche en D+, jamais la tienne.']
+      ]
+    };
+  }
+
+  // ---------- Carrousel des cartes jokers ----------
+  // Défile tout seul quand il est visible ; une action de l'utilisateur
+  // (clic, glissement, molette) le met en pause quelques secondes. Conservé
+  // avec « Réduire les animations » : c'est lui qui présente les jokers.
+  function carousel(root) {
+    const track = root.querySelector('.tour-cards');
+    const cards = [...track.children];
+    const dots = root.querySelector('.tour-dots');
+    dots.innerHTML = cards.map(c => `<button type="button" class="tour-dot" aria-label="${c.querySelector('.tour-joker-name').textContent}"></button>`).join('');
+    const buttons = [...dots.children];
+    let current = 0;
+    let visible = false;
+    let hover = false;
+    let pausedUntil = 0;
+    const pause = () => { pausedUntil = Date.now() + 8000; };
+    const center = c => c.offsetLeft + c.offsetWidth / 2;
+    const go = (i, smooth = true) => {
+      current = (i + cards.length) % cards.length;
+      track.scrollTo({ left: center(cards[current]) - track.clientWidth / 2, behavior: smooth ? 'smooth' : 'auto' });
+    };
+    // Carte active : la plus proche du centre
+    const sync = () => {
+      const mid = track.scrollLeft + track.clientWidth / 2;
+      current = cards.reduce((best, c, i) => (Math.abs(center(c) - mid) < Math.abs(center(cards[best]) - mid) ? i : best), 0);
+      cards.forEach((c, i) => c.classList.toggle('is-active', i === current));
+      buttons.forEach((b, i) => b.setAttribute('aria-current', String(i === current)));
+    };
+    track.addEventListener('scroll', () => requestAnimationFrame(sync), { passive: true });
+    buttons.forEach((b, i) => b.addEventListener('click', () => { pause(); go(i); }));
+    cards.forEach((c, i) => c.addEventListener('click', () => { pause(); go(i); }));
+    for (const ev of ['pointerdown', 'wheel', 'touchstart']) track.addEventListener(ev, pause, { passive: true });
+    track.addEventListener('mouseenter', () => { hover = true; });
+    track.addEventListener('mouseleave', () => { hover = false; });
+    go(0, false);
+    sync();
+    setInterval(() => {
+      if (visible && !hover && !document.hidden && Date.now() > pausedUntil) go(current + 1);
+    }, 3500);
+    if (!('IntersectionObserver' in window)) { visible = true; return; }
+    new IntersectionObserver(entries => { visible = entries[0].isIntersecting; }, { threshold: 0.6 }).observe(track);
+  }
+
   // ---------- Barre de progression, un chapitre par étape ----------
   function progressBar(root, steps) {
     const total = steps.reduce((sum, [ms]) => sum + ms, 0);
@@ -689,9 +766,11 @@
       'round-end': sceneRoundEnd,
       eliminated: sceneEliminated,
       season: sceneSeason,
-      general: sceneGeneral
+      general: sceneGeneral,
+      jokers: sceneJokers
     };
     document.querySelectorAll('[data-scene]').forEach(root => play(root, scenes[root.dataset.scene]));
+    document.querySelectorAll('.tour-carousel').forEach(carousel);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

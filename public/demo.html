@@ -1,468 +1,840 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Versant - Comment ça marche</title>
-  <meta name="description" content="Fais du sport, Strava compte ton dénivelé, les derniers de ta ligue sont éliminés.">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Versant - Comment ça marche</title>
+    <meta
+      name="description"
+      content="Fais du sport, Strava compte ton dénivelé, les derniers de ta ligue sont éliminés."
+    />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20261027a">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css?v=20261027a" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭️️</text></svg>"
+    />
 
-  <style>
-    .tour-step {
-      max-width: 760px;
-      margin: 0 auto;
-      padding: var(--section-padding) var(--container-padding);
-    }
-    .tour-step .section-desc {
-      font-size: 1rem;
-      line-height: 1.6;
-      max-width: 620px;
-    }
+    <style>
+      .tour-step {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: var(--section-padding) var(--container-padding);
+      }
+      .tour-step .section-desc {
+        font-size: 1rem;
+        line-height: 1.6;
+        max-width: 620px;
+      }
 
-    /* Tableaux animés : mêmes classes que les vrais classements, 3 ou 4 colonnes */
-    .tour-table .ranking-header,
-    .tour-table .ranking-row {
-      grid-template-columns: 50px 1fr 130px;
-    }
-    .tour-table.with-points .ranking-header,
-    .tour-table.with-points .ranking-row {
-      grid-template-columns: 50px 1fr 110px 80px;
-    }
-    .tour-table .ranking-header > *:nth-child(n+3),
-    .tour-table .ranking-row > *:nth-child(n+3) {
-      display: block !important;
-      text-align: right;
-    }
-    .tour-rows { position: relative; }
-    /* Emplacement du tableau : hauteur de son plus grand état (demo-tour.js) */
-    .tour-table-slot { display: flow-root; }
-    .tour-row {
-      position: relative;
-      background: var(--bg-card);
-      transition: transform 0.8s var(--ease-out-expo), opacity 0.6s ease, background 0.4s ease;
-    }
-    .tour-row .athlete-info { flex-wrap: nowrap; gap: 6px; min-width: 0; }
-    .tour-row .athlete-name { white-space: nowrap; }
-    .tour-row .ranking-athlete { min-width: 0; }
-    .tour-row .ranking-elevation .tour-num {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--accent-primary);
-      transition: color 0.3s ease;
-    }
-    .tour-counting .ranking-elevation .tour-num { color: var(--text-primary); }
+      /* Tableaux animés : mêmes classes que les vrais classements, 3 ou 4 colonnes */
+      .tour-table .ranking-header,
+      .tour-table .ranking-row {
+        grid-template-columns: 50px 1fr 130px;
+      }
+      .tour-table.with-points .ranking-header,
+      .tour-table.with-points .ranking-row {
+        grid-template-columns: 50px 1fr 110px 80px;
+      }
+      .tour-table .ranking-header > *:nth-child(n + 3),
+      .tour-table .ranking-row > *:nth-child(n + 3) {
+        display: block !important;
+        text-align: right;
+      }
+      .tour-rows {
+        position: relative;
+      }
+      /* Emplacement du tableau : hauteur de son plus grand état (demo-tour.js) */
+      .tour-table-slot {
+        display: flow-root;
+      }
+      .tour-row {
+        position: relative;
+        background: var(--bg-card);
+        transition:
+          transform 0.8s var(--ease-out-expo),
+          opacity 0.6s ease,
+          background 0.4s ease;
+      }
+      .tour-row .athlete-info {
+        flex-wrap: nowrap;
+        gap: 6px;
+        min-width: 0;
+      }
+      .tour-row .athlete-name {
+        white-space: nowrap;
+      }
+      .tour-row .ranking-athlete {
+        min-width: 0;
+      }
+      .tour-row .ranking-elevation .tour-num {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--accent-primary);
+        transition: color 0.3s ease;
+      }
+      .tour-counting .ranking-elevation .tour-num {
+        color: var(--text-primary);
+      }
 
-    /* Compteur à rouleaux : une bande 0-9 par chiffre */
-    .odo { display: inline-flex; vertical-align: bottom; }
-    .tour-row .ranking-elevation .odo span { font-size: inherit; color: inherit; }
-    .odo-col { display: inline-block; height: 1.25em; overflow: hidden; }
-    .odo-strip { display: flex; flex-direction: column; will-change: transform; }
-    .odo-strip > span { height: 1.25em; line-height: 1.25em; text-align: center; }
-    .odo-sep { display: inline-block; width: 0.3em; }
+      /* Compteur à rouleaux : une bande 0-9 par chiffre */
+      .odo {
+        display: inline-flex;
+        vertical-align: bottom;
+      }
+      .tour-row .ranking-elevation .odo span {
+        font-size: inherit;
+        color: inherit;
+      }
+      .odo-col {
+        display: inline-block;
+        height: 1.25em;
+        overflow: hidden;
+      }
+      .odo-strip {
+        display: flex;
+        flex-direction: column;
+        will-change: transform;
+      }
+      .odo-strip > span {
+        height: 1.25em;
+        line-height: 1.25em;
+        text-align: center;
+      }
+      .odo-sep {
+        display: inline-block;
+        width: 0.3em;
+      }
 
-    /* Ligne qui se détache pour remonter, lignes repoussées comme par un aimant */
-    .tour-row.tour-lifted {
-      z-index: 5;
-      background: var(--bg-card-hover);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(249, 115, 22, 0.55);
-      transition: background 0.3s ease, box-shadow 0.3s ease;
-    }
-    .tour-row.tour-magnet {
-      transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25), background 0.4s ease;
-    }
+      /* Ligne qui se détache pour remonter, lignes repoussées comme par un aimant */
+      .tour-row.tour-lifted {
+        z-index: 5;
+        background: var(--bg-card-hover);
+        box-shadow:
+          0 12px 32px rgba(0, 0, 0, 0.55),
+          0 0 0 1px rgba(249, 115, 22, 0.55);
+        transition:
+          background 0.3s ease,
+          box-shadow 0.3s ease;
+      }
+      .tour-row.tour-magnet {
+        transition:
+          transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25),
+          background 0.4s ease;
+      }
 
-    /* Classement général : Rang, Athlète, Principal, Éliminés, Total */
-    .tour-standings .standings-header,
-    .tour-standings .standings-row {
-      grid-template-columns: 50px 1fr 90px 90px 80px;
-      padding: 10px 16px;
-    }
-    .tour-standings .standings-header > *,
-    .tour-standings .standings-row > * { display: block !important; }
-    .tour-standings .standings-header > *:nth-child(n+3),
-    .tour-standings .standings-row > *:nth-child(n+3) { text-align: right; }
-    .tour-standings .standings-athlete { display: flex !important; flex-wrap: nowrap; min-width: 0; }
-    .tour-standings .tour-name-line { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; }
-    .tour-standings .standings-points { font-weight: 700; }
-    .tour-standings .tour-main { color: #10b981; }
-    .tour-standings .tour-elim { color: #a855f7; }
-    .tour-standings .standings-total {
-      background: none;
-      -webkit-text-fill-color: currentColor;
-      color: var(--text-primary);
-    }
-    .tour-standings .standings-points,
-    .tour-standings .standings-total { font-family: var(--font-mono); }
+      /* Classement général : Rang, Athlète, Principal, Éliminés, Total */
+      .tour-standings .standings-header,
+      .tour-standings .standings-row {
+        grid-template-columns: 50px 1fr 90px 90px 80px;
+        padding: 10px 16px;
+      }
+      .tour-standings .standings-header > *,
+      .tour-standings .standings-row > * {
+        display: block !important;
+      }
+      .tour-standings .standings-header > *:nth-child(n + 3),
+      .tour-standings .standings-row > *:nth-child(n + 3) {
+        text-align: right;
+      }
+      .tour-standings .standings-athlete {
+        display: flex !important;
+        flex-wrap: nowrap;
+        min-width: 0;
+      }
+      .tour-standings .tour-name-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .tour-standings .standings-points {
+        font-weight: 700;
+      }
+      .tour-standings .tour-main {
+        color: #10b981;
+      }
+      .tour-standings .tour-elim {
+        color: #a855f7;
+      }
+      .tour-standings .standings-total {
+        background: none;
+        -webkit-text-fill-color: currentColor;
+        color: var(--text-primary);
+      }
+      .tour-standings .standings-points,
+      .tour-standings .standings-total {
+        font-family: var(--font-mono);
+      }
 
-    /* Barre de progression façon vidéo, un chapitre par étape */
-    .tour-progress {
-      display: flex;
-      gap: 3px;
-      margin-top: 10px;
-    }
-    .tour-chapter {
-      height: 4px;
-      border-radius: 2px;
-      background: rgba(255, 255, 255, 0.12);
-      overflow: hidden;
-    }
-    .tour-fill {
-      display: block;
-      width: 0;
-      height: 100%;
-      background: var(--accent-primary);
-    }
-    .tour-enter-left { transform: translateX(-110%); opacity: 0; }
-    .tour-leave-right { transform: translateX(110%) !important; opacity: 0; }
-    .tour-collapse {
-      height: 0 !important;
-      padding-top: 0 !important;
-      padding-bottom: 0 !important;
-      border-bottom-width: 0 !important;
-      overflow: hidden;
-      transition: height 0.4s ease, padding 0.4s ease !important;
-    }
+      /* Barre de progression façon vidéo, un chapitre par étape */
+      .tour-progress {
+        display: flex;
+        gap: 3px;
+        margin-top: 10px;
+      }
+      .tour-chapter {
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+      .tour-fill {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: var(--accent-primary);
+      }
+      .tour-enter-left {
+        transform: translateX(-110%);
+        opacity: 0;
+      }
+      .tour-leave-right {
+        transform: translateX(110%) !important;
+        opacity: 0;
+      }
+      .tour-collapse {
+        height: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        border-bottom-width: 0 !important;
+        overflow: hidden;
+        transition:
+          height 0.4s ease,
+          padding 0.4s ease !important;
+      }
 
-    /* Bulle « activité Strava », juste après le nom (le nom et le compteur restent visibles) */
-    .tour-bubble {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-family: var(--font-mono);
-      font-size: 0.78rem;
-      font-weight: 700;
-      white-space: nowrap;
-      color: #fff;
-      background: #fc4c02; /* couleur d'une activité Strava */
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-      pointer-events: none;
-      animation: tour-bubble 2.6s var(--ease-out-expo) forwards;
-    }
-    .tour-bubble-main { background: #10b981; }  /* points du challenge principal */
-    .tour-bubble-elim { background: #a855f7; }  /* points du challenge des éliminés */
-    .athlete-info:has(.tour-bubble) .athlete-status { display: none; }
-    @keyframes tour-bubble {
-      0% { opacity: 0; transform: translateX(-12px) scale(0.6); }
-      12% { opacity: 1; transform: none; }
-      75% { opacity: 1; transform: none; }
-      100% { opacity: 0; transform: translateY(-18px); }
-    }
+      /* Bulle « activité Strava », juste après le nom (le nom et le compteur restent visibles) */
+      .tour-bubble {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+        color: #fff;
+        background: #fc4c02; /* couleur d'une activité Strava */
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+        animation: tour-bubble 2.6s var(--ease-out-expo) forwards;
+      }
+      .tour-bubble-main {
+        background: #10b981;
+      } /* points du challenge principal */
+      .tour-bubble-elim {
+        background: #a855f7;
+      } /* points du challenge des éliminés */
+      .athlete-info:has(.tour-bubble) .athlete-status {
+        display: none;
+      }
+      @keyframes tour-bubble {
+        0% {
+          opacity: 0;
+          transform: translateX(-12px) scale(0.6);
+        }
+        12% {
+          opacity: 1;
+          transform: none;
+        }
+        75% {
+          opacity: 1;
+          transform: none;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-18px);
+        }
+      }
 
-    .tour-gift[hidden] { display: none !important; }
-    .tour-pop { animation: tour-pop 0.6s var(--ease-out-expo); display: inline-block; }
-    @keyframes tour-pop {
-      0% { transform: scale(0.3); }
-      60% { transform: scale(1.35); }
-      100% { transform: scale(1); }
-    }
+      .tour-gift[hidden] {
+        display: none !important;
+      }
+      .tour-pop {
+        animation: tour-pop 0.6s var(--ease-out-expo);
+        display: inline-block;
+      }
+      @keyframes tour-pop {
+        0% {
+          transform: scale(0.3);
+        }
+        60% {
+          transform: scale(1.35);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
 
-    .tour-caption {
-      min-height: 3em;
-      margin-top: 14px;
-      font-size: 0.95rem;
-      color: var(--text-secondary);
-      text-align: center;
-    }
-    .tour-caption-in { animation: tour-caption 0.5s ease; }
-    @keyframes tour-caption {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: none; }
-    }
+      .tour-caption {
+        min-height: 3em;
+        margin-top: 14px;
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+        text-align: center;
+      }
+      .tour-caption-in {
+        animation: tour-caption 0.5s ease;
+      }
+      @keyframes tour-caption {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
 
-    .tour-banner {
-      margin-bottom: 14px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-    .tour-flash .ranking-container { animation: tour-flash 0.7s ease; }
-    @keyframes tour-flash {
-      0%, 100% { box-shadow: none; }
-      40% { box-shadow: 0 0 0 3px var(--accent-danger), 0 0 40px rgba(239, 68, 68, 0.4); }
-    }
+      .tour-banner {
+        margin-bottom: 14px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .tour-flash .ranking-container {
+        animation: tour-flash 0.7s ease;
+      }
+      @keyframes tour-flash {
+        0%,
+        100% {
+          box-shadow: none;
+        }
+        40% {
+          box-shadow:
+            0 0 0 3px var(--accent-danger),
+            0 0 40px rgba(239, 68, 68, 0.4);
+        }
+      }
 
-    .tour-elim-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-    .tour-legend::before {
-      content: '';
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      margin: 0 5px 1px 10px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-    .tour-legends { white-space: nowrap; }
+      .tour-elim-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .tour-legend::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin: 0 5px 1px 10px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .tour-legends {
+        white-space: nowrap;
+      }
 
-    /* « FINALE » en or, avec un reflet qui passe */
-    .tour-finale {
-      display: inline-block;
-      margin-left: 4px;
-      font-family: var(--font-display);
-      font-size: 1.35rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      vertical-align: middle;
-      background: linear-gradient(110deg, #b45309 0%, #fbbf24 30%, #fff7cc 45%, #fbbf24 60%, #b45309 100%);
-      background-size: 250% 100%;
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.45));
-      animation: tour-shine 2.8s linear infinite;
-    }
-    @keyframes tour-shine {
-      from { background-position: 100% 0; }
-      to { background-position: -150% 0; }
-    }
+      /* « FINALE » en or, avec un reflet qui passe */
+      .tour-finale {
+        display: inline-block;
+        margin-left: 4px;
+        font-family: var(--font-display);
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        vertical-align: middle;
+        background: linear-gradient(
+          110deg,
+          #b45309 0%,
+          #fbbf24 30%,
+          #fff7cc 45%,
+          #fbbf24 60%,
+          #b45309 100%
+        );
+        background-size: 250% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.45));
+        animation: tour-shine 2.8s linear infinite;
+      }
+      @keyframes tour-shine {
+        from {
+          background-position: 100% 0;
+        }
+        to {
+          background-position: -150% 0;
+        }
+      }
 
-    /* Compteurs qui gardent leur valeur : brève mise en lumière */
-    .tour-keep { animation: tour-keep 1.6s ease 2; border-radius: 6px; }
-    @keyframes tour-keep {
-      0%, 100% { box-shadow: none; background: transparent; }
-      40% { box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.15); }
-    }
-    .tour-legend-main { color: #10b981; }
-    .tour-legend-elim { color: #a855f7; }
-    .tour-elim-head strong {
-      font-family: var(--font-display);
-      font-size: 1.4rem;
-      color: var(--accent-danger);
-      margin-right: 6px;
-    }
+      /* Compteurs qui gardent leur valeur : brève mise en lumière */
+      .tour-keep {
+        animation: tour-keep 1.6s ease 2;
+        border-radius: 6px;
+      }
+      @keyframes tour-keep {
+        0%,
+        100% {
+          box-shadow: none;
+          background: transparent;
+        }
+        40% {
+          box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.25);
+          background: rgba(249, 115, 22, 0.15);
+        }
+      }
+      .tour-legend-main {
+        color: #10b981;
+      }
+      .tour-legend-elim {
+        color: #a855f7;
+      }
+      .tour-elim-head strong {
+        font-family: var(--font-display);
+        font-size: 1.4rem;
+        color: var(--accent-danger);
+        margin-right: 6px;
+      }
 
-    /* Inscription */
-    .tour-one-more {
-      max-width: 560px;
-      margin: 0 auto;
-      padding: 0 var(--container-padding);
-      text-align: center;
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
-    .tour-one-more strong { color: var(--accent-orange, #f97316); }
-    .tour-join {
-      max-width: 560px;
-      margin: 0 auto;
-      padding: var(--section-padding) var(--container-padding) 80px;
-      text-align: center;
-    }
-    .tour-join h2 {
-      font-family: var(--font-display);
-      font-size: clamp(1.6rem, 5vw, 2.4rem);
-      margin-bottom: 12px;
-    }
-    .tour-join p { color: var(--text-secondary); line-height: 1.6; }
-    .tour-join-btn { display: inline-block; margin: 24px 0 12px; padding: 14px 32px; font-size: 1.05rem; }
-    .tour-join .tour-more { font-size: 0.85rem; color: var(--text-muted); }
-    .tour-join .tour-more a { color: var(--text-secondary); }
+      /* Jokers : petit carrousel de cartes */
+      .tour-one-more {
+        display: block;
+        font-size: 0.55em;
+        color: var(--accent-primary);
+      }
+      .tour-carousel {
+        margin-bottom: 28px;
+      }
+      .tour-cards {
+        position: relative;
+        display: flex;
+        gap: 14px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding: 6px calc(50% - min(130px, 36vw)) 10px;
+        scrollbar-width: none;
+      }
+      .tour-cards::-webkit-scrollbar {
+        display: none;
+      }
+      .tour-joker {
+        flex: 0 0 min(260px, 72vw);
+        scroll-snap-align: center;
+        padding: 22px 20px;
+        text-align: center;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        opacity: 0.45;
+        transform: scale(0.92);
+        cursor: pointer;
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s var(--ease-out-expo),
+          border-color 0.4s ease;
+      }
+      .tour-joker.is-active {
+        opacity: 1;
+        transform: none;
+        border-color: rgba(249, 115, 22, 0.55);
+        cursor: default;
+      }
+      .tour-joker-icon {
+        font-size: 2.6rem;
+        margin-bottom: 8px;
+      }
+      .tour-joker-name {
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .tour-joker-desc {
+        margin: 0;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        color: var(--text-secondary);
+      }
+      .tour-dots {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .tour-dot {
+        width: 8px;
+        height: 8px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        transition:
+          width 0.3s ease,
+          background 0.3s ease;
+      }
+      .tour-dot[aria-current="true"] {
+        width: 22px;
+        background: var(--accent-primary);
+      }
 
-    /* « Réduire les animations » (souvent activé dans Windows) : compteurs et
+      /* Sabotage : cible visée, puis touchée */
+      .tour-bubble-gap {
+        background: #475569;
+      }
+      .tour-bubble-sabotage {
+        background: var(--accent-danger);
+      }
+      .tour-row.tour-target {
+        box-shadow: inset 0 0 0 2px var(--accent-danger);
+        animation: tour-target 1s ease-in-out infinite;
+      }
+      @keyframes tour-target {
+        50% {
+          box-shadow:
+            inset 0 0 0 2px var(--accent-danger),
+            0 0 22px rgba(239, 68, 68, 0.45);
+        }
+      }
+      .tour-row.tour-target .ranking-elevation .tour-num {
+        color: var(--accent-danger);
+      }
+
+      /* Inscription */
+      .tour-join {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: var(--section-padding) var(--container-padding) 80px;
+        text-align: center;
+      }
+      .tour-join h2 {
+        font-family: var(--font-display);
+        font-size: clamp(1.6rem, 5vw, 2.4rem);
+        margin-bottom: 12px;
+      }
+      .tour-join p {
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+      .tour-join-btn {
+        display: inline-block;
+        margin: 24px 0 12px;
+        padding: 14px 32px;
+        font-size: 1.05rem;
+      }
+      .tour-join .tour-more {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+      .tour-join .tour-more a {
+        color: var(--text-secondary);
+      }
+
+      /* « Réduire les animations » (souvent activé dans Windows) : compteurs et
        déplacements des lignes conservés, car ce sont eux qui expliquent les
        règles ; seuls les effets décoratifs sont retirés. */
-    @media (prefers-reduced-motion: reduce) {
-      .tour-bubble { animation: none; }
-      .tour-pop, .tour-caption-in, .tour-flash .ranking-container, .tour-finale { animation: none; }
-    }
+      @media (prefers-reduced-motion: reduce) {
+        .tour-bubble {
+          animation: none;
+        }
+        .tour-pop,
+        .tour-caption-in,
+        .tour-flash .ranking-container,
+        .tour-finale,
+        .tour-row.tour-target {
+          animation: none;
+        }
+      }
 
-    @media (max-width: 768px) {
-      .tour-table .ranking-header,
-      .tour-table .ranking-row { grid-template-columns: 36px 1fr 96px; padding: 10px 12px; }
-      .tour-table.with-points .ranking-header,
-      .tour-table.with-points .ranking-row { grid-template-columns: 30px 1fr 84px 56px; }
-      .tour-standings .standings-header,
-      .tour-standings .standings-row { grid-template-columns: 26px 1fr 50px 50px 50px; padding: 10px 10px; gap: 4px; }
-      .tour-standings .standings-header { font-size: 0.55rem; letter-spacing: 0.04em; }
-      .tour-standings .athlete-avatar-small { display: none; }
-      .tour-standings .standings-points,
-      .tour-standings .standings-total { font-size: 0.95rem; }
-      .tour-table .ranking-athlete { gap: 10px; }
-      .tour-bubble { font-size: 0.72rem; padding: 3px 8px; }
-      .tour-row .long { display: none; }
-      .tour-banner .banner-block { padding: 10px 12px; min-width: 0; }
-      .tour-banner .banner-separator { display: none; }
-    }
-  </style>
-</head>
-<body>
-  <!-- Accroche -->
-  <section class="hero">
-    <div class="hero-bg"></div>
-    <div class="hero-content">
-      <span class="hero-eyebrow">Challenge Versant • Comment ça marche</span>
-      <h1 class="hero-title">
-        <span class="title-line">Fais du sport.</span>
-        <span class="title-line accent">Le dernier saute.</span>
-      </h1>
-      <p class="hero-description">
-        Tes sorties Strava comptent ton dénivelé positif. À la fin de chaque round,
-        les derniers de ta ligue sont éliminés. Tout comprendre en quelques points.
-      </p>
-    </div>
-  </section>
-
-  <!-- Navigation -->
-  <nav class="nav-sticky">
-    <div class="nav-container">
-      <a href="demo.html" class="nav-brand">
-        <span class="brand-icon">◭️️</span>
-        <span class="brand-text">Versant</span>
-      </a>
-      <div class="nav-links">
-        <a href="#rejoindre" class="btn-join">S'inscrire</a>
+      @media (max-width: 768px) {
+        .tour-table .ranking-header,
+        .tour-table .ranking-row {
+          grid-template-columns: 36px 1fr 96px;
+          padding: 10px 12px;
+        }
+        .tour-table.with-points .ranking-header,
+        .tour-table.with-points .ranking-row {
+          grid-template-columns: 30px 1fr 84px 56px;
+        }
+        .tour-standings .standings-header,
+        .tour-standings .standings-row {
+          grid-template-columns: 26px 1fr 50px 50px 50px;
+          padding: 10px 10px;
+          gap: 4px;
+        }
+        .tour-standings .standings-header {
+          font-size: 0.55rem;
+          letter-spacing: 0.04em;
+        }
+        .tour-standings .athlete-avatar-small {
+          display: none;
+        }
+        .tour-standings .standings-points,
+        .tour-standings .standings-total {
+          font-size: 0.95rem;
+        }
+        .tour-table .ranking-athlete {
+          gap: 10px;
+        }
+        .tour-bubble {
+          font-size: 0.72rem;
+          padding: 3px 8px;
+        }
+        .tour-row .long {
+          display: none;
+        }
+        .tour-banner .banner-block {
+          padding: 10px 12px;
+          min-width: 0;
+        }
+        .tour-banner .banner-separator {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Accroche -->
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <span class="hero-eyebrow">Challenge Versant • Comment ça marche</span>
+        <h1 class="hero-title">
+          <span class="title-line">Fais du D+</span>
+          <span class="title-line accent">Le dernier saute.</span>
+        </h1>
+        <p class="hero-description">
+          Tes sorties Strava comptent ton dénivelé positif. À la fin de chaque
+          round, les derniers de ta ligue sont éliminés. Tout comprendre en
+          quelques points.
+        </p>
       </div>
-    </div>
-  </nav>
+    </section>
 
-  <!-- 1. Une activité Strava -->
-  <section class="tour-step" data-scene="activity">
-    <div class="section-header">
-      <span class="section-number">01</span>
-      <h2 class="section-title">Bouge, Strava compte</h2>
-      <p class="section-desc">
-        Course, trail, rando, vélo, ski de rando… Chaque sortie enregistrée sur Strava ajoute
-        son dénivelé positif à ton compteur, automatiquement. Une bonne sortie et tu remontes au classement.
-      </p>
-    </div>
-    <div class="ranking-container tour-table"></div>
-    <p class="tour-caption" aria-live="polite"></p>
-  </section>
-
-  <!-- 2. Fin du round -->
-  <section class="tour-step" data-scene="round-end">
-    <div class="section-header">
-      <span class="section-number">02</span>
-      <h2 class="section-title">Les derniers sautent, tout le monde repart de zéro</h2>
-      <p class="section-desc">
-        Quand le compte à rebours arrive à zéro, les 2 derniers du round sont éliminés.
-        Le round suivant commence aussitôt, avec tous les compteurs à zéro : rien n'est jamais joué d'avance.
-      </p>
-    </div>
-    <div class="tour-banner">
-      <div class="banner-unified">
-        <div class="banner-block banner-round-block">
-          <span class="banner-label">Round</span>
-          <span class="banner-value" data-tour="round">1</span>
-          <span class="banner-day" data-tour="day">J5/5</span>
-        </div>
-        <div class="banner-separator"></div>
-        <div class="banner-block banner-stats-block">
-          <div class="banner-stat">
-            <span class="banner-stat-value" data-tour="active">5</span>
-            <span class="banner-stat-label">en course</span>
-          </div>
-          <div class="banner-stat">
-            <span class="banner-stat-value" data-tour="out">0</span>
-            <span class="banner-stat-label">éliminés</span>
-          </div>
-        </div>
-        <div class="banner-separator"></div>
-        <div class="banner-block banner-countdown-block">
-          <span class="banner-label">Fin du round</span>
-          <div class="banner-countdown-timer">
-            <span class="countdown-unit"><span class="countdown-num">00</span>j</span>
-            <span class="countdown-unit"><span class="countdown-num">00</span>h</span>
-            <span class="countdown-unit"><span class="countdown-num">00</span>m</span>
-            <span class="countdown-unit"><span class="countdown-num">05</span>s</span>
-          </div>
+    <!-- Navigation -->
+    <nav class="nav-sticky">
+      <div class="nav-container">
+        <a href="demo.html" class="nav-brand">
+          <span class="brand-icon">◭️️</span>
+          <span class="brand-text">Versant</span>
+        </a>
+        <div class="nav-links">
+          <a href="#rejoindre" class="btn-join">S'inscrire</a>
         </div>
       </div>
-    </div>
-    <div class="ranking-container tour-table"></div>
-    <p class="tour-caption" aria-live="polite"></p>
-  </section>
+    </nav>
 
-  <!-- 3. Challenge des éliminés -->
-  <section class="tour-step" data-scene="eliminated">
-    <div class="section-header">
-      <span class="section-number">03</span>
-      <h2 class="section-title">Éliminé ? Tu ne t'ennuies pas</h2>
-      <p class="section-desc">
-        Les éliminés jouent leur propre challenge jusqu'à la fin de la saison : leur D+ se cumule et leur
-        place rapporte des points au classement général. À chaque nouvelle saison, tout le monde repart.
+    <!-- 1. Une activité Strava -->
+    <section class="tour-step" data-scene="activity">
+      <div class="section-header">
+        <span class="section-number">01</span>
+        <h2 class="section-title">Bouge, Strava compte</h2>
+        <p class="section-desc">
+          Course, trail, rando, vélo, ski de rando… Chaque sortie enregistrée
+          sur Strava ajoute son dénivelé positif à ton compteur,
+          automatiquement. Une bonne sortie et tu remontes au classement.
+        </p>
+      </div>
+      <div class="ranking-container tour-table"></div>
+      <p class="tour-caption" aria-live="polite"></p>
+    </section>
+
+    <!-- 2. Fin du round -->
+    <section class="tour-step" data-scene="round-end">
+      <div class="section-header">
+        <span class="section-number">02</span>
+        <h2 class="section-title">
+          Les derniers sautent, tout le monde repart de zéro
+        </h2>
+        <p class="section-desc">
+          Quand le compte à rebours arrive à zéro, les 2 derniers du round sont
+          éliminés. Le round suivant commence aussitôt, avec tous les compteurs
+          à zéro : rien n'est jamais joué d'avance.
+        </p>
+      </div>
+      <div class="tour-banner">
+        <div class="banner-unified">
+          <div class="banner-block banner-round-block">
+            <span class="banner-label">Round</span>
+            <span class="banner-value" data-tour="round">1</span>
+            <span class="banner-day" data-tour="day">J5/5</span>
+          </div>
+          <div class="banner-separator"></div>
+          <div class="banner-block banner-stats-block">
+            <div class="banner-stat">
+              <span class="banner-stat-value" data-tour="active">5</span>
+              <span class="banner-stat-label">en course</span>
+            </div>
+            <div class="banner-stat">
+              <span class="banner-stat-value" data-tour="out">0</span>
+              <span class="banner-stat-label">éliminés</span>
+            </div>
+          </div>
+          <div class="banner-separator"></div>
+          <div class="banner-block banner-countdown-block">
+            <span class="banner-label">Fin du round</span>
+            <div class="banner-countdown-timer">
+              <span class="countdown-unit"
+                ><span class="countdown-num">00</span>j</span
+              >
+              <span class="countdown-unit"
+                ><span class="countdown-num">00</span>h</span
+              >
+              <span class="countdown-unit"
+                ><span class="countdown-num">00</span>m</span
+              >
+              <span class="countdown-unit"
+                ><span class="countdown-num">05</span>s</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ranking-container tour-table"></div>
+      <p class="tour-caption" aria-live="polite"></p>
+    </section>
+
+    <!-- 3. Challenge des éliminés -->
+    <section class="tour-step" data-scene="eliminated">
+      <div class="section-header">
+        <span class="section-number">03</span>
+        <h2 class="section-title">Éliminé ? Tu ne t'ennuies pas</h2>
+        <p class="section-desc">
+          Les éliminés jouent leur propre challenge jusqu'à la fin de la saison
+          : leur D+ se cumule et leur place rapporte des points au classement
+          général. À chaque nouvelle saison, tout le monde repart.
+        </p>
+      </div>
+      <div class="tour-elim-head">
+        <span>Challenge des éliminés</span>
+        <span><strong data-tour="count">2</strong>joueurs</span>
+      </div>
+      <div class="ranking-container tour-table with-points"></div>
+      <p class="tour-caption" aria-live="polite"></p>
+    </section>
+
+    <!-- 4. Fin de saison -->
+    <section class="tour-step" data-scene="season">
+      <div class="section-header">
+        <span class="section-number">04</span>
+        <h2 class="section-title">Une finale, puis tout le monde revient</h2>
+        <p class="section-desc">
+          La saison se termine par une finale à deux : le vainqueur est couronné
+          et chacun marque des points au classement général selon sa place. Puis
+          une nouvelle saison commence : tout le monde revient en course.
+        </p>
+      </div>
+      <div class="tour-elim-head">
+        <span data-tour="label"
+          >Saison 1 · <span class="tour-finale">Finale</span></span
+        >
+        <span><strong data-tour="active">2</strong>en course</span>
+      </div>
+      <div class="ranking-container tour-table"></div>
+      <p class="tour-caption" aria-live="polite"></p>
+    </section>
+
+    <!-- 5. Classement général -->
+    <section class="tour-step" data-scene="general">
+      <div class="section-header">
+        <span class="section-number">05</span>
+        <h2 class="section-title">Le classement général</h2>
+        <p class="section-desc">
+          À chaque fin de saison, tu marques des points au challenge principal
+          selon ta place finale, et au challenge des éliminés si tu as été
+          éliminé. Ils s'additionnent saison après saison.
+        </p>
+      </div>
+      <div class="tour-elim-head">
+        <span>Points</span>
+        <span class="tour-legends"
+          ><span class="tour-legend tour-legend-main">Principal</span>
+          <span class="tour-legend tour-legend-elim">Éliminés</span></span
+        >
+      </div>
+      <div class="standings-container tour-standings"></div>
+      <p class="tour-caption" aria-live="polite"></p>
+    </section>
+
+    <!-- 6. One more thing : les jokers -->
+    <section class="tour-step" data-scene="jokers">
+      <div class="section-header">
+        <span class="section-number">06</span>
+        <h2 class="section-title">
+          <span class="tour-one-more">One more thing…</span> les jokers 🃏
+        </h2>
+        <p class="section-desc">
+          Chaque saison, tu as 2 jokers de chaque type pour te sauver la mise
+          ou enfoncer tes adversaires. Ils se jouent pendant les 3 premiers
+          jours d'un round.
+        </p>
+      </div>
+      <div class="tour-carousel">
+        <div class="tour-cards">
+          <div class="tour-joker">
+            <div class="tour-joker-icon">✖️</div>
+            <div class="tour-joker-name">Multiplicateur</div>
+            <p class="tour-joker-desc">×1,25 sur tout ton D+ du round.</p>
+          </div>
+          <div class="tour-joker">
+            <div class="tour-joker-icon">🦹</div>
+            <div class="tour-joker-name">Voleur</div>
+            <p class="tour-joker-desc">
+              Choisis un adversaire : tu lui prends sa meilleure activité de
+              moins de 1 000 m de D+.
+            </p>
+          </div>
+          <div class="tour-joker">
+            <div class="tour-joker-icon">🛡️</div>
+            <div class="tour-joker-name">Bouclier</div>
+            <p class="tour-joker-desc">
+              Même dernier, tu n'es pas éliminé ce round. Pas en finale.
+            </p>
+          </div>
+          <div class="tour-joker">
+            <div class="tour-joker-icon">💣</div>
+            <div class="tour-joker-name">Sabotage</div>
+            <p class="tour-joker-desc">
+              Le joueur le plus proche de toi en D+ perd 30 % de son D+ du
+              round. Pas de cible à choisir.
+            </p>
+          </div>
+        </div>
+        <div class="tour-dots"></div>
+      </div>
+      <div class="tour-elim-head">
+        <span>Exemple : le sabotage</span>
+      </div>
+      <div class="ranking-container tour-table"></div>
+      <p class="tour-caption" aria-live="polite"></p>
+    </section>
+
+    <!-- Inscription -->
+    <section class="tour-join" id="rejoindre">
+      <h2>Prêt à grimper ?</h2>
+      <p>
+        Il te faut le code de ta ligue, donné par son admin, et ton compte
+        Strava.
       </p>
-    </div>
-    <div class="tour-elim-head">
-      <span>Challenge des éliminés</span>
-      <span><strong data-tour="count">2</strong>joueurs</span>
-    </div>
-    <div class="ranking-container tour-table with-points"></div>
-    <p class="tour-caption" aria-live="polite"></p>
-  </section>
+      <a href="inscription.html" class="btn-join tour-join-btn">S'inscrire</a>
+      <p class="tour-more"><a href="rules.html">Règles détaillées</a></p>
+    </section>
 
-  <!-- 4. Fin de saison -->
-  <section class="tour-step" data-scene="season">
-    <div class="section-header">
-      <span class="section-number">04</span>
-      <h2 class="section-title">Une finale, puis tout le monde revient</h2>
-      <p class="section-desc">
-        La saison se termine par une finale à deux : le vainqueur est couronné et chacun marque des points
-        au classement général selon sa place. Puis une nouvelle saison commence : tout le monde revient en course.
-      </p>
-    </div>
-    <div class="tour-elim-head">
-      <span data-tour="label">Saison 1 · <span class="tour-finale">Finale</span></span>
-      <span><strong data-tour="active">2</strong>en course</span>
-    </div>
-    <div class="ranking-container tour-table"></div>
-    <p class="tour-caption" aria-live="polite"></p>
-  </section>
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-brand">◭️️ Versant</div>
+        <p class="footer-text">
+          Challenge à élimination basé sur les données Strava
+        </p>
+      </div>
+    </footer>
 
-  <!-- 5. Classement général -->
-  <section class="tour-step" data-scene="general">
-    <div class="section-header">
-      <span class="section-number">05</span>
-      <h2 class="section-title">Le classement général</h2>
-      <p class="section-desc">
-        À chaque fin de saison, tu marques des points au challenge principal selon ta place finale,
-        et au challenge des éliminés si tu as été éliminé. Ils s'additionnent saison après saison.
-      </p>
-    </div>
-    <div class="tour-elim-head">
-      <span>Points</span>
-      <span class="tour-legends"><span class="tour-legend tour-legend-main">Principal</span> <span class="tour-legend tour-legend-elim">Éliminés</span></span>
-    </div>
-    <div class="standings-container tour-standings"></div>
-    <p class="tour-caption" aria-live="polite"></p>
-  </section>
-
-  <!-- Un dernier point : les jokers -->
-  <p class="tour-one-more">
-    <strong>One more thing…</strong> 🃏 Tu as aussi des jokers pour te sauver la mise ou enfoncer tes adversaires !
-  </p>
-
-  <!-- Inscription -->
-  <section class="tour-join" id="rejoindre">
-    <h2>Prêt à grimper ?</h2>
-    <p>
-      Il te faut le code de ta ligue, donné par son admin, et ton compte Strava.
-    </p>
-    <a href="inscription.html" class="btn-join tour-join-btn">S'inscrire</a>
-    <p class="tour-more"><a href="rules.html">Règles détaillées</a></p>
-  </section>
-
-  <footer class="footer">
-    <div class="footer-content">
-      <div class="footer-brand">◭️️ Versant</div>
-      <p class="footer-text">Challenge à élimination basé sur les données Strava</p>
-    </div>
-  </footer>
-
-  <script src="js/demo-tour.js?v=20261028b"></script>
-</body>
+    <script src="js/demo-tour.js?v=20261029a"></script>
+  </body>
 </html>
