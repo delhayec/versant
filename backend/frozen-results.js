@@ -456,6 +456,24 @@ async function importFrozenResults(importData, options = { merge: true }) {
 // ============================================
 
 /**
+ * La saison est-elle terminée après ce round figé ?
+ * Règle unique, partagée avec server.js (jokers, équipes du round).
+ *  - round final des éliminés d'une saison Équipes (teamFinalRound) : oui ;
+ *  - finale forcée par le configurateur admin (configForcedFinale) : oui ;
+ *  - finale d'une saison Équipes (isFinalePrincipale) : NON, même si elle
+ *    élimine tout le monde : elle est suivie du round final des éliminés,
+ *    qui pose teamFinalRound et clôt la saison ;
+ *  - sinon : oui s'il reste 1 actif ou moins après les éliminations.
+ */
+function seasonEndedAfter(round) {
+  if (!round) return false;
+  if (round.teamFinalRound === true || round.configForcedFinale === true) return true;
+  if (round.seasonType === 'team' && round.isFinalePrincipale === true) return false;
+  const survivors = (round.activeParticipants?.length || 0) - (round.eliminations?.length || 0);
+  return survivors <= 1;
+}
+
+/**
  * Détecte la saison/round-in-season pour un round donné en s'appuyant
  * sur les rounds précédents déjà figés. Plus robuste que le calcul naïf
  * `Math.ceil((totalParticipants - 1) / 2)` qui se trompe quand des règles
@@ -491,14 +509,11 @@ function detectSeasonContext(roundNumber, previousRounds) {
   //         sinon il continue à tort d'éliminer les finalistes restants (cf. bug
   //         round 32 qui a hérité des 4 finalistes de R31 et les a réduits à 1).
   // Cas 3 : on regarde si des actifs restent.
+  // Exception : la finale d'une saison Équipes (isFinalePrincipale) élimine
+  // tout le monde, mais la saison continue avec le round final des éliminés.
   const prevSeasonNumber = lastFrozen.seasonNumber;
-  const activeAtStart = (lastFrozen.activeParticipants?.length || 0);
-  const eliminatedCount = (lastFrozen.eliminations?.length || 0);
-  const survivorsAfter = activeAtStart - eliminatedCount;
-  const wasTeamFinalRound = lastFrozen.teamFinalRound === true;
-  const wasConfigForcedFinale = lastFrozen.configForcedFinale === true;
 
-  if (survivorsAfter <= 1 || wasTeamFinalRound || wasConfigForcedFinale) {
+  if (seasonEndedAfter(lastFrozen)) {
     // Saison terminée → on commence une nouvelle saison
     return { seasonNumber: prevSeasonNumber + 1, roundInSeason: 1 };
   }
@@ -2820,6 +2835,8 @@ async function getSeasonPlan(athletes, config, now = new Date()) {
 }
 
 module.exports = {
+  seasonEndedAfter,
+  detectSeasonContext,
   computeElevationGauge,
   computeRescapeInfo,
   getSeasonPlan,

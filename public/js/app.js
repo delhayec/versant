@@ -514,7 +514,12 @@ async function renderAll() {
     if (rankingContainer) {
       const seasonType = getSeasonType(currentSeasonNumber);
 
-      if (seasonType?.isTeamBased) {
+      // Plus personne en course (ex. saison Équipes : la finale élimine les deux
+      // dernières équipes, puis un round se joue au seul challenge des éliminés).
+      // Le classement principal est vide : on le dit, sans interroger les équipes.
+      if (seasonData && !(seasonData.active?.length)) {
+        rankingContainer.innerHTML = '<div class="empty-state empty-state--all-out"><p>Tout le monde est éliminé ce round</p></div>';
+      } else if (seasonType?.isTeamBased) {
         // MODE ÉQUIPE : récupérer les équipes depuis le backend (single source of truth)
         // Le backend gère le tirage équilibré + les noms d'animaux + le cache 30s.
         rankingContainer.innerHTML = '<div class="empty-state"><p>Chargement des équipes...</p></div>';
