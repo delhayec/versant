@@ -3369,6 +3369,15 @@ function renderEfficiencyCard(top3, flop3) {
   `;
 }
 
+/** D+ réel d'une entrée de classement figé : avant jokers et bonus. */
+function realElevation(entry) {
+  return entry.originalElevation ?? entry.elevation ?? 0;
+}
+/** D+ réel du principal sur un round figé (somme de son classement). */
+function roundRealElevation(round) {
+  return (round.ranking || []).reduce((t, e) => t + realElevation(e), 0);
+}
+
 function computeSeasonRecap(seasonNumber, frozen) {
   const elimSeason = frozen?.eliminatedChallengeRankings?.[String(seasonNumber)];
   if (!elimSeason) return null;
@@ -3474,20 +3483,22 @@ function computeSeasonRecap(seasonNumber, frozen) {
   }
 
   // ===== 3. TOP D+ SAISON =====
-  // Somme : D+ principal (tous les rounds de la saison) + D+ challenge éliminés
+  // D+ RÉEL : originalElevation (avant jokers et bonus ; `elevation` est le D+
+  // compté, où une sortie volée compte chez chaque voleur). Somme du
+  // principal et du challenge éliminés (rawElevation, sans bonus).
   const elevByAthlete = {};
   for (const r of seasonRounds) {
     for (const entry of (r.ranking || [])) {
       const id = String(entry.id);
       if (!elevByAthlete[id]) elevByAthlete[id] = { id, name: entry.name, value: 0 };
-      elevByAthlete[id].value += (entry.elevation || 0);
+      elevByAthlete[id].value += realElevation(entry);
     }
   }
   for (const entry of (elimSeason.ranking || [])) {
     const id = String(entry.id || entry.participant?.id);
     const name = entry.name || entry.participant?.name;
     if (!elevByAthlete[id]) elevByAthlete[id] = { id, name, value: 0 };
-    elevByAthlete[id].value += (entry.totalElevation || 0);
+    elevByAthlete[id].value += (entry.rawElevation ?? entry.totalElevation ?? 0);
   }
   const topElevation = Object.values(elevByAthlete)
     .map(e => ({ ...e, value: Math.round(e.value) }))
@@ -3585,9 +3596,12 @@ function computeSeasonRecap(seasonNumber, frozen) {
   const flopEfficiency = [...ratioList].sort((a, b) => b.value - a.value).slice(0, 3);
 
   // ===== 9. D+ LIGUE SAISON (absolu + normalisé par jour) =====
+  // D+ réel du principal (classement de chaque round) : pas stats.totalElevation,
+  // qui compte les sorties volées plusieurs fois et, après la finale, le D+ des
+  // éliminés déjà compté dans leur challenge.
   let totalLeagueElev = 0;
   for (const r of seasonRounds) {
-    totalLeagueElev += r.stats?.totalElevation || 0;
+    totalLeagueElev += roundRealElevation(r);
   }
   // Ajouter les D+ challenge éliminés (rawElevation = sans bonus, pour éviter double-comptage)
   let totalEliminatedElev = 0;
@@ -3614,7 +3628,7 @@ function computeSeasonRecap(seasonNumber, frozen) {
     const prevSeasonRounds = Object.values(frozen.rounds || {}).filter(r => r.seasonNumber === seasonNumber - 1);
     if (prevSeasonRounds.length > 0) {
       let prevTotal = 0;
-      for (const r of prevSeasonRounds) prevTotal += r.stats?.totalElevation || 0;
+      for (const r of prevSeasonRounds) prevTotal += roundRealElevation(r);
       const prevElim = frozen.eliminatedChallengeRankings?.[String(seasonNumber - 1)];
       if (prevElim) {
         for (const e of (prevElim.ranking || [])) prevTotal += e.rawElevation || 0;
@@ -3648,10 +3662,11 @@ function computeSeasonRecap(seasonNumber, frozen) {
   const roundsHeat = seasonRounds.map(r => ({
     roundNumber: r.roundNumber,
     roundInSeason: r.roundInSeason,
-    totalElevation: r.stats?.totalElevation || 0,
+    totalElevation: roundRealElevation(r),
     totalActivities: r.stats?.totalActivities || 0
   }));
-  const hottestByElev = [...roundsHeat].sort((a, b) => b.totalElevation - a.totalElevation)[0];
+  // D+ : rounds du principal seulement (après la finale, plus de classement)
+  const hottestByElev = [...roundsHeat].filter(r => r.totalElevation > 0).sort((a, b) => b.totalElevation - a.totalElevation)[0];
   const hottestByActs = [...roundsHeat].sort((a, b) => b.totalActivities - a.totalActivities)[0];
 
   // ===== 11. SPORT LE PLUS PRATIQUÉ + 12. PLUS GROSSE ACTIVITÉ SOLO =====
