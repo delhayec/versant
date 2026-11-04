@@ -3500,20 +3500,26 @@ function computeSeasonRecap(seasonNumber, frozen) {
     if (!usageByAthlete[id]) usageByAthlete[id] = { id, name: athleteName, value: 0 };
     usageByAthlete[id].value++;
   };
+  // Les rounds figés gardent les jokers en snake_case (athlete_id) ; les
+  // anciennes archives en camelCase (athleteId) : on lit les deux.
+  const jokerAthlete = j => j.athlete_id || j.athleteId;
+  const jokerTarget = j => j.target_athlete_id || j.targetId;
+  // Un bonus compté dans un round ne doit pas l'être deux fois avec les
+  // bonus de saison : on le repère par son joueur, son type et son round.
+  const bonusKey = b => [b.athlete_id, b.bonus_id, b.used_in_round || b.round_number || ''].join('|');
+  const countedBonuses = new Set();
   for (const r of seasonRounds) {
     for (const j of (r.jokersUsed || [])) {
-      if (j.athleteId) incrUsage(j.athleteId, j.athleteName);
+      if (jokerAthlete(j)) incrUsage(jokerAthlete(j), j.athlete_name || j.athleteName);
     }
     for (const b of (r.bonusesUsed || [])) {
-      if (b.athlete_id) incrUsage(b.athlete_id, b.athlete_name);
+      if (b.athlete_id) { incrUsage(b.athlete_id, b.athlete_name); countedBonuses.add(bonusKey(b)); }
     }
   }
-  // Compter aussi les bonus saisonniers (qui sont archivés dans seasonBonuses)
+  // Bonus de saison (archivés dans seasonBonuses) pas déjà vus dans un round
   const seasonBonuses = frozen.seasonBonuses?.[String(seasonNumber)] || [];
   for (const b of seasonBonuses) {
-    // Éviter de double-compter avec bonusesUsed des rounds : un bonus avec used_in_round
-    // a déjà été compté ci-dessus.
-    if (b.used_in_round) continue;
+    if (countedBonuses.has(bonusKey(b))) continue;
     if (b.athlete_id) incrUsage(b.athlete_id, b.athlete_name);
   }
   const topJokerUsage = Object.values(usageByAthlete).sort((a, b) => b.value - a.value);
@@ -3528,14 +3534,14 @@ function computeSeasonRecap(seasonNumber, frozen) {
   };
   for (const r of seasonRounds) {
     for (const j of (r.jokersUsed || [])) {
-      if (j.targetId) incrTarget(j.targetId, j.targetName);
+      if (jokerTarget(j)) incrTarget(jokerTarget(j), j.target_athlete_name || j.targetName);
     }
     for (const b of (r.bonusesUsed || [])) {
       if (b.target_athlete_id) incrTarget(b.target_athlete_id, b.target_athlete_name);
     }
   }
   for (const b of seasonBonuses) {
-    if (b.used_in_round) continue;
+    if (countedBonuses.has(bonusKey(b))) continue;
     if (b.target_athlete_id) incrTarget(b.target_athlete_id, b.target_athlete_name);
   }
   const topTargeted = Object.values(targetedByAthlete).sort((a, b) => b.value - a.value);
