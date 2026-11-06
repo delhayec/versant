@@ -20,7 +20,7 @@ export function roundSituationNote(round, myIdx, cut, wasRank, date = new Date()
     if (lead < 150) return `${H.hv('Premier', { 0: 'A3', 1: '1' })} ! ${H.muted(H.small('(pour le moment)'))}`;
     if (wasRank === 1 && lead >= 1000) return H.circle(H.hv('MACHINE'), 'circle-06');
     if (lead >= 400) return `${H.small('SOLIDE')} ${H.under(H.hv('Premier', { 0: '', 1: '1', 2: '1', 6: '2' }), 'emphasis-02')}`;
-    return `${H.hv('Tu', { 0: '1' })} mènes le ${H.under(`${H.hv('ROUND', { 0: 'A3', 2: '1', 3: '2', 4: '2' })} ${H.hv('!', { 0: '1' })}`, 'trait-S', '', true)}`;
+    return `${H.hv('Tu', { 0: '1' })} ${H.hv('mènes', { 2: '3', 4: '3' })} le ${H.under(`${H.hv('ROUND', { 0: 'A3', 2: '1', 3: '2', 4: '2' })} ${H.hv('!', { 0: '1' })}`, 'trait-S', '', true)}`;
   }
 
   // pas de coupe à ce round (sans élimination) : ta place, ou la blague du ventre mou

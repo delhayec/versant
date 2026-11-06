@@ -728,7 +728,8 @@ html.da-atelier .da-draw::after {
   -webkit-mask: var(--draw) center / 100% 100% no-repeat;
   mask: var(--draw) center / 100% 100% no-repeat;
 }
-html.da-atelier .da-draw--acc::after { background: var(--accent-text); }
+/* Feutre orange : la même encre que le marqueur, dans les deux thèmes */
+html.da-atelier .da-draw--acc::after { background: var(--accent); opacity: var(--mk-opacity); mix-blend-mode: var(--mk-blend); }
 html.da-atelier .da-draw--sub::after { background: var(--sub); }
 html.da-atelier .da-draw--under::after { left: -4%; right: -4%; bottom: -0.3em; height: 0.36em; }
 html.da-atelier .da-draw--thin::after { bottom: -0.2em; height: 0.24em; }
@@ -736,7 +737,9 @@ html.da-atelier .da-draw--circle { margin: 0 0.3em; }
 html.da-atelier .da-draw--circle::after { inset: -0.32em -0.42em -0.26em; transform: rotate(-2deg); }
 html.da-atelier .da-draw--circle-06 { margin: 0 0.5em 0 0.7em; }
 html.da-atelier .da-draw--circle-06::after { inset: -0.42em -0.5em -0.36em -0.7em; transform: rotate(5deg); }
-html.da-atelier .da-draw--strike::after { inset: 0.05em -0.12em; opacity: 0.9; }
+html.da-atelier .da-draw--thick::after { left: -6%; right: -3%; bottom: -0.34em; height: 0.5em; }
+html.da-atelier .da-doodle { display: inline-block; width: 1.45em; height: 1.1em; margin-left: 0.15em; vertical-align: -0.28em; background: currentColor; -webkit-mask: var(--draw) center / contain no-repeat; mask: var(--draw) center / contain no-repeat; }
+html.da-atelier .da-draw--strike::after { inset: 0.05em -0.12em; }
 /* racine et somme dessinées (absentes de la police) */
 html.da-atelier .da-math { width: 0.62em; height: 0.78em; vertical-align: -0.08em; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 html.da-atelier .da-sqrt { white-space: nowrap; }

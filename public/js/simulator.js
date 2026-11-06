@@ -19,6 +19,7 @@ import { filterByPeriod, calculateRanking } from './standings-engine.js';
 import { applyJokerEffects, getActiveJokersForRound, getBonusesUsedInRound } from './jokers.js';
 import { formatElevation } from './ui.js?v=20261110b';
 import { picto, animalIcon } from './pictos.js';
+import * as H from './da-hand.js';
 
 // ============================================
 // EXTRACTION DES EFFETS LISIBLES (commun aux 2 modes)
@@ -291,7 +292,7 @@ function renderSimulationHTML(sim) {
   `;
 
   if (!sim.hasEffects) {
-    return banner + `<div class="sim-empty">Aucun joker ni bonus actif sur ce round pour le moment.</div>`;
+    return banner + `<div class="sim-empty">${H.hv('Aucun joker ni bonus actif sur ce round pour le moment.', { 12: '1', 13: '3', 15: 'A2', 16: '3', 35: 'A1', 40: '1', 50: '1', 53: '1', 54: 'A3' })}</div>`;
   }
 
   return banner + (sim.mode === 'team' ? renderTeamHTML(sim) : renderIndividualHTML(sim));

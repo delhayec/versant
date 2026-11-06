@@ -853,7 +853,7 @@ function buildRoundNotes() {
     const el = daNotes.elim;
     const i = el.findIndex(e => String(e.participant.id) === me);
     if (i === 0 && el.length > 1) notes.push({ text: `Tu mènes le challenge ${H.circle(H.accent(H.small('des éliminés')))} ${H.meters(el[0].totalElevation - el[1].totalElevation)} d'avance` });
-    else if (i > 0) notes.push({ text: `${nth(i + 1)} au challenge des éliminés, à ${m(el[i - 1].totalElevation - el[i].totalElevation)} du ${nth(i)}` });
+    else if (i > 0) notes.push({ text: `${H.rank(i + 1)} au challenge des éliminés, à ${H.meters(el[i - 1].totalElevation - el[i].totalElevation)} du ${H.rank(i, [], '3')}` });
   } else if (daNotes.elimTeams) {
     const et = daNotes.elimTeams;
     const i = et.findIndex(t => (t.members || []).some(x => String(x.id) === me));
@@ -868,13 +868,13 @@ function buildRoundNotes() {
     const target = j.targetId || j.target_athlete_id;
     if (String(target) !== me) return;
     const type = JOKER_TYPES?.[j.jokerId];
-    notes.push({ text: `${who(j.athleteId || j.athlete_id || j.participantId)} te vise : ${(type?.name || j.jokerId).toLowerCase()}`, circled: true });
+    notes.push({ text: `${who(j.athleteId || j.athlete_id || j.participantId)} te vise : ${H.circle((type?.name || j.jokerId).toLowerCase(), 'circle-03', '')}` });
   });
   (bonusesCache || []).forEach(b => {
     if (String(b.target_athlete_id) !== me || b.bonus_id === 'marquage') return;
     if (b.elimination_round && b.elimination_round < seasonStart) return;
     if (bonusDisplayStatus(b, currentRoundNumber).status !== 'active') return;
-    notes.push({ text: `${who(b.athlete_id)} te vise : ${(BONUS_TYPES?.[b.bonus_id]?.name || b.bonus_id).toLowerCase()}`, circled: true });
+    notes.push({ text: `${who(b.athlete_id)} te vise : ${H.circle((BONUS_TYPES?.[b.bonus_id]?.name || b.bonus_id).toLowerCase(), 'circle-03', '')}` });
   });
   return notes;
 }
@@ -1520,10 +1520,10 @@ function buildStandingsNotes(standings) {
   if (best) {
     const gap = best[0].totalPoints - best[best.length - 1].totalPoints;
     const names = best.map(first);
-    const who = names.length === 3 ? `${names[0]}, ${names[1]} et ${names[2]}` : `${names[0]} et ${names[1]}`;
+    const who = names.length === 3 ? `${H.hv(names[0], { 0: '1' })}, ${names[1]} et ${H.hv(names[2], { 0: '1' })}` : `${H.hv(names[0], { 0: '1' })} et ${names[1]}`;
     notes[best[best.length - 1].rank] = gap === 0
       ? `${who} : <span class="da-key">à égalité</span>`
-      : `${who} se tiennent en <span class="da-key">${pts(gap)}</span>`;
+      : `${who} se tiennent en ${pts(gap)}`;
   }
 
   const before = standings
@@ -1535,7 +1535,7 @@ function buildStandingsNotes(standings) {
     if (gained >= 4 && (!climb || gained > climb.gained)) climb = { e: x.e, gained };
   });
   if (climb && !notes[climb.e.rank]) {
-    notes[climb.e.rank] = `${first(climb.e)} : <span class="da-key">+${climb.gained} places</span> en deux saisons`;
+    notes[climb.e.rank] = `${first(climb.e)} : +${climb.gained} places en ${H.circle('deux saisons', 'circle-06')}`;
   }
   return notes;
 }
@@ -1560,7 +1560,7 @@ function bonusDisplayStatus(bonus, roundNumber) {
     return { status: 'active', statusLabel: '<span class="da-stat-key">En cours</span> · effet à la fin du round' };
   }
   if (bonus.status === 'active' && !bonus.used_in_round) {
-    return { status: 'active', statusLabel: bonus.bonus_id === 'trap' ? 'Piège <span class="da-stat-key">posé</span>' : `<span class="da-stat-key">Actif</span> jusqu'à la fin de la saison` };
+    return { status: 'active', statusLabel: bonus.bonus_id === 'trap' ? `Piège posé${H.doodle('smiley-03')}` : `<span class="da-stat-key">Actif</span> jusqu'à la fin de la saison` };
   }
   return { status: 'used', statusLabel: `${picto('valide', '✓')} <span class="da-stat-key">Utilisé</span> ce round` };
 }
@@ -2235,7 +2235,7 @@ function renderCompletedEliminatedChallenge(summary) {
         <span class="history-rank">${medal || (idx + 1)}</span>
         <div class="history-name-block">
           <span class="history-name">${name}</span>
-          <span class="history-elim-round">Éliminé R${elimRound}</span>
+          <span class="history-elim-round">${H.elimRound(elimRound, elimRound + idx)}</span>
           ${bonusHtml ? `<div class="history-bonus-list">${bonusHtml}</div>` : ''}
         </div>
         <span class="history-elevation">${formatElevation(elevation, false)}</span>

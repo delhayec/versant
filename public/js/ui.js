@@ -162,7 +162,7 @@ export function renderCombinedBanner(container, data) {
 
         <div class="banner-block banner-countdown-block">
           <span class="banner-label">FIN DU ROUND</span>
-          ${days < 1 ? '<span class="da-note da-note--count da-only" aria-hidden="true"><span class="da-key">dernier jour</span> !</span>' : ''}
+          ${days < 1 ? '<span class="da-note da-note--count da-only" aria-hidden="true"><span class="da-draw da-draw--under da-draw--trait-T da-draw--thick" style="--draw:url(/assets/manic/trait-T.svg)">Dernier JOUR !</span></span>' : ''}
           <div class="banner-countdown-timer" id="countdownTimer" data-end="${roundDates.end.getTime()}">
             <span class="countdown-unit"><span class="countdown-num">${pad(days)}</span>j</span>
             <span class="countdown-unit"><span class="countdown-num">${pad(hours)}</span>h</span>

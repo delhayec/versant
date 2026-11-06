@@ -87,6 +87,15 @@ export function mathJoke(n, seed) {
   return `Position = ${forms[seed % forms.length]()}`;
 }
 
+/** « Éliminé R2 » dans une des quatre versions de l'éditeur ; seed garde la même sur une ligne. */
+export function elimRound(round, seed = 0) {
+  const versions = [{}, { 2: '1', 3: '1', 6: 'A1' }, { 1: '2', 2: '1', 3: '3', 4: '1', 5: '1' }, { 1: '2', 2: '1', 3: 'A1', 4: '3', 5: '1' }];
+  return `<span class="da-hand-set">${hv('Éliminé', versions[Math.abs(seed) % versions.length])} R${round}</span>`;
+}
+
+/** Petit dessin MANIC à la suite d'un texte. */
+export const doodle = (name) => `<span class="da-doodle" style="--draw:url(/assets/manic/${name}.svg)" aria-hidden="true"></span>`;
+
 /** Tirage stable sur la journée : même version du matin au soir. */
 export function dailyPick(list, key, date = new Date()) {
   let h = 0;
