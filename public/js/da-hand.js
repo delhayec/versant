@@ -37,7 +37,7 @@ export const under = (html, name = 'emphasis-02', color = '', thin = false) => d
 /** Cercle autour du passage (orange par défaut). */
 export const circle = (html, name = 'circle-05', color = 'acc') => drawn('circle', name, html, color);
 /** Rature par-dessus le passage (orange par défaut). */
-export const strike = (html, name = 'scribble-03', color = 'acc') => drawn('strike', name, html, color);
+export const strike = (html, name = 'line-02', color = 'acc') => drawn('strike', name, html, color);
 
 export const small = (html, k = 0.8) => `<span class="da-sz" style="--k:${k}">${html}</span>`;
 export const muted = (html) => `<span class="da-mut">${html}</span>`;
