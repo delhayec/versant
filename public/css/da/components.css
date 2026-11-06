@@ -566,6 +566,30 @@ html.da-atelier:not(.pictos-v1) .picto--succes-hiker { --pi: url("../../assets/p
 html.da-atelier.pictos-v1 :is(.picto--trap, .picto--medaille, .picto--hausse, .picto--baisse, .picto--stable, .picto--recap, .picto--valide, .picto--refuse, .picto--elimines, [class*="picto--succes-"]) { display: inline; width: auto; height: auto; background: none; -webkit-mask: none; mask: none; }
 html.da-atelier.pictos-v1 :is(.picto--trap, .picto--medaille, .picto--hausse, .picto--baisse, .picto--stable, .picto--recap, .picto--valide, .picto--refuse, .picto--elimines, [class*="picto--succes-"]) .picto__emoji { display: inline; }
 
+/* Animaux des équipes (assets/pictos/animaux/) : un peu plus grands que les
+   autres pictos, leurs détails doivent rester lisibles à côté du nom */
+html.da-atelier .picto--animal-loup { --pi: url("../../assets/pictos/animaux/loup.png?v=20261112a"); }
+html.da-atelier .picto--animal-renard { --pi: url("../../assets/pictos/animaux/renard.png?v=20261112a"); }
+html.da-atelier .picto--animal-lynx { --pi: url("../../assets/pictos/animaux/lynx.png?v=20261112a"); }
+html.da-atelier .picto--animal-ours { --pi: url("../../assets/pictos/animaux/ours.png?v=20261112a"); }
+html.da-atelier .picto--animal-sanglier { --pi: url("../../assets/pictos/animaux/sanglier.png?v=20261112a"); }
+html.da-atelier .picto--animal-mammouth { --pi: url("../../assets/pictos/animaux/mammouth.png?v=20261112a"); }
+html.da-atelier .picto--animal-marmotte { --pi: url("../../assets/pictos/animaux/marmotte.png?v=20261112a"); }
+html.da-atelier .picto--animal-loutre { --pi: url("../../assets/pictos/animaux/loutre.png?v=20261112a"); }
+html.da-atelier .picto--animal-raton { --pi: url("../../assets/pictos/animaux/raton.png?v=20261112a"); }
+html.da-atelier .picto--animal-ecureuil { --pi: url("../../assets/pictos/animaux/ecureuil.png?v=20261112a"); }
+html.da-atelier .picto--animal-lapin { --pi: url("../../assets/pictos/animaux/lapin.png?v=20261112a"); }
+html.da-atelier .picto--animal-chouette { --pi: url("../../assets/pictos/animaux/chouette.png?v=20261112a"); }
+html.da-atelier .picto--animal-bouquetin { --pi: url("../../assets/pictos/animaux/bouquetin.png?v=20261112a"); }
+html.da-atelier .picto--animal-chamois { --pi: url("../../assets/pictos/animaux/chamois.png?v=20261112a"); }
+html.da-atelier .picto--animal-aigle { --pi: url("../../assets/pictos/animaux/aigle.png?v=20261112a"); }
+html.da-atelier .picto--animal-mouflon { --pi: url("../../assets/pictos/animaux/mouflon.png?v=20261112a"); }
+html.da-atelier .picto--animal-cerf { --pi: url("../../assets/pictos/animaux/cerf.png?v=20261112a"); }
+html.da-atelier .picto--animal-corbeau { --pi: url("../../assets/pictos/animaux/corbeau.png?v=20261112a"); }
+html.da-atelier .picto--animal-panda { --pi: url("../../assets/pictos/animaux/panda.png?v=20261112a"); }
+html.da-atelier .picto--animal-chenille { --pi: url("../../assets/pictos/animaux/chenille.png?v=20261112a"); }
+html.da-atelier [class*="picto--animal-"] { width: 1.75em; height: 1.75em; vertical-align: -0.5em; }
+
 /* Médailles 1, 2, 3 : la rosette, un coup de marqueur or, gris ou brun dessus */
 html.da-atelier .da-medal { position: relative; display: inline-block; line-height: 1; vertical-align: middle; isolation: isolate; margin-right: 0.3em; --medal: var(--team-or); }
 html.da-atelier .da-medal[data-n="2"] { --medal: var(--medal-silver); }

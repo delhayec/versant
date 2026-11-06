@@ -17,6 +17,8 @@ const DRAWN = new Set([
   ...['king', 'points_king', 'elim_prince', 'champion', 'ricrac', 'untouchable', 'finalist',
     'jokers', 'target', 'best24h', 'bestRound', 'biggestAct', 'efficient', 'lost', 'steep', 'worker',
     'nightowl', 'earlybird', 'weekend', 'distance', 'marathoner', 'flat', 'runner', 'skier', 'hiker'].map(id => 'succes-' + id),
+  // animaux des équipes, panda et chenille pour les anciennes saisons
+  ...['loup', 'renard', 'lynx', 'ours', 'sanglier', 'mammouth', 'marmotte', 'loutre', 'raton', 'ecureuil', 'lapin', 'chouette', 'bouquetin', 'chamois', 'aigle', 'mouflon', 'cerf', 'corbeau', 'panda', 'chenille'].map(id => 'animal-' + id),
 ]);
 
 /** Picto d'un joker ou bonus par son identifiant (ex. 'bouclier'), avec son émoji de repli. */
@@ -24,6 +26,12 @@ export function picto(id, emoji = '', label = '') {
   if (!DRAWN.has(id)) return emoji;
   const a11y = label ? ` role="img" aria-label="${label}"` : '';
   return `<span class="picto picto--${id}"${a11y}><span class="picto__emoji" aria-hidden="true">${emoji}</span></span>`;
+}
+
+/** Dessin de l'animal d'une équipe, ou son émoji si l'animal n'a pas de dessin (canard des anciennes saisons). */
+export function animalIcon(animal) {
+  if (!animal) return '';
+  return DRAWN.has('animal-' + animal.id) ? picto('animal-' + animal.id, animal.emoji || '') : (animal.emoji || '');
 }
 
 /** Médaille du rang 1, 2 ou 3 (rosette dessinée, rang écrit dessus) ; '' au-delà. */

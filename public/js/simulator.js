@@ -18,7 +18,7 @@ import { getRoundDates, getParticipantById, getSeasonType, getSeasonNumber } fro
 import { filterByPeriod, calculateRanking } from './standings-engine.js';
 import { applyJokerEffects, getActiveJokersForRound, getBonusesUsedInRound } from './jokers.js';
 import { formatElevation } from './ui.js?v=20261110b';
-import { picto } from './pictos.js';
+import { picto, animalIcon } from './pictos.js';
 
 // ============================================
 // EXTRACTION DES EFFETS LISIBLES (commun aux 2 modes)
@@ -258,7 +258,7 @@ function renderTeamHTML(sim) {
       </div>
     `).join('');
 
-    const animalEmoji = team.animal.emoji || '';
+    const animalEmoji = animalIcon(team.animal);
     const animalName = team.animal.name || 'Équipe';
 
     return `

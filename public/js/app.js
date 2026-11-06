@@ -86,7 +86,7 @@ import {
 } from './standings-engine.js';
 
 import { toggleSimulator } from './simulator.js';
-import { picto, medal as medalPicto } from './pictos.js';
+import { picto, medal as medalPicto, animalIcon } from './pictos.js';
 import { motifClass } from './motifs.js';
 import * as H from './da-hand.js';
 import { roundSituationNote } from './da-notes.js';
@@ -916,7 +916,7 @@ function renderTeamRanking(container, data) {
 
     // Nom équipe = animal en priorité, sinon couleur (fallback)
     const teamLabel = animal
-      ? `${animal.emoji} ${animal.name}`
+      ? `${animalIcon(animal)} ${animal.name}`
       : `Équipe ${teamColor.name}`;
 
     // Badge danger : "ÉLIMINÉE" si round figé, "ZONE D'ÉLIMINATION" sinon
@@ -1130,7 +1130,7 @@ for (let rn = startRound; rn <= endRound; rn++) {
     const animal = team.animal;
     const position = teamPosition + 1;
     const medal = medalPicto(position);
-    const teamLabel = animal ? `${animal.emoji} ${animal.name}` : `Équipe`;
+    const teamLabel = animal ? `${animalIcon(animal)} ${animal.name}` : `Équipe`;
     const elimBadge = `<span class="team-elim-round-badge">Éliminée R${team.eliminatedAtRound}</span>`;
 
     html += `
@@ -2323,7 +2323,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
   // Trouver l'équipe éliminée
   const eliminatedTeam = teams.find(t => t.members.some(m => eliminatedIds.has(m.id)));
   const eliminatedTeamLabel = eliminatedTeam?.animal
-    ? `${eliminatedTeam.animal.emoji} ${eliminatedTeam.animal.name}`
+    ? `${animalIcon(eliminatedTeam.animal)} ${eliminatedTeam.animal.name}`
     : (eliminatedTeam?.color?.name || 'Dernière');
 
   // Construire le HTML du classement par équipe
@@ -2335,7 +2335,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
     const animal = team.animal || null;
     const position = idx + 1;
     const teamLabel = animal
-      ? `${animal.emoji} ${animal.name}`
+      ? `${animalIcon(animal)} ${animal.name}`
       : `Équipe ${teamColor.name}`;
 
     const membersHtml = team.members
@@ -2401,7 +2401,7 @@ function renderFrozenTeamEliminatedChallengeHistory(roundInSeason, frozenRound) 
     const animal = team.animal || null;
     const position = idx + 1;
     const teamLabel = animal
-      ? `${animal.emoji} ${animal.name}`
+      ? `${animalIcon(animal)} ${animal.name}`
       : `Équipe ${teamColor.name}`;
 
     const membersHtml = [...(team.members || [])]
@@ -3306,7 +3306,7 @@ function renderTeamFinalePodium(finaleTeams) {
           <div class="recap-team-block ${i === 0 ? 'winner' : 'loser'}" data-team="${t.color?.name?.toLowerCase() || ''}" style="border-left-color:${t.color?.border || '#fbbf24'};">
             <div class="recap-team-header">
               <span class="recap-team-medal">${i === 0 ? `${medalPicto(1)} Vainqueur` : `${picto('duel', '⚔️')} Finaliste vaincu`}</span>
-              <span class="recap-team-name">${t.animal?.emoji || ''} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
+              <span class="recap-team-name">${animalIcon(t.animal)} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
               <span class="recap-team-elev">${formatElevation(t.totalElevation || 0, false)} m</span>
             </div>
             <ol class="recap-team-members">
@@ -3358,7 +3358,7 @@ function renderTeamEliminatedRanking(teams) {
           <li class="recap-team-row" data-team="${t.color?.name?.toLowerCase() || ''}" style="border-left-color:${t.color?.border || '#888'};">
             <div class="recap-team-row-header">
               <span class="recap-pos">#${i + 1}</span>
-              <span class="recap-team-name-inline">${t.animal?.emoji || ''} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
+              <span class="recap-team-name-inline">${animalIcon(t.animal)} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
               <span class="recap-value">${formatElevation(t.totalElevation || 0, false)} m</span>
             </div>
             <div class="recap-team-row-members">
