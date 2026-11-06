@@ -3497,6 +3497,13 @@ async function catchUpAutoFreezeOnStartup() {
 }
 
 initializeServer().then(async () => {
+  // Adresse inconnue (déclaré après toutes les routes) : JSON pour l'API,
+  // page 404 du site pour le reste
+  app.use((req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Route inconnue' });
+    res.status(404).sendFile(path.join(__dirname, '../public/404.html'));
+  });
+
   app.listen(PORT, () => {
     console.log('');
     console.log('╔════════════════════════════════════════╗');

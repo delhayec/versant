@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 42 37">
+  <!-- Logo Versant ◭ : moitié gauche pleine, quatre traits qui dépassent aux angles.
+       Une seule couleur (noir) : recoloré en CSS par mask-image. -->
+  <path d="M20 4 L3.4 31 L20 31 Z" fill="#000"/>
+  <g fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round">
+    <path d="M21.4 1.8 L1.6 33"/>
+    <path d="M18.6 1.8 L38.6 32.8"/>
+    <path d="M0.4 31.3 L39.8 30.7"/>
+    <path d="M20.2 1 L19.8 34"/>
+  </g>
+</svg>

@@ -1,0 +1,1399 @@
+/* ============================================
+   DA « ATELIER » : PAGE D'ACCUEIL
+   Bloc du round, télex des sorties, classements, arsenal, historique.
+   Les couleurs posées en ligne par le JS (avatars, équipes) sont
+   neutralisées avec !important : c'est voulu, la DA n'a qu'un accent.
+   ============================================ */
+
+/* Repères communs (--lbl, --row-rule) : dans tokens.css */
+
+/* Les cartes et conteneurs perdent leurs arrondis, dégradés et ombres */
+html.da-atelier :is(.ranking-container, .standings-container, .arsenal-card, .team-block,
+  .history-item, .history-controls, .bonus-item, .season-banner, .ranking-toggle,
+  .ranking-toggle-btn, .sim-button, .recap-toggle-btn, .recap-panel) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* --- Hero : sobre, sans halo --- */
+html.da-atelier .hero-bg { display: none; }
+html.da-atelier .hero-title { font-family: var(--f-sans); font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; }
+html.da-atelier .hero-title .accent { color: var(--ink); -webkit-text-fill-color: currentColor; background: none; }
+html.da-atelier .hero-eyebrow { font: var(--lbl); letter-spacing: 0.14em; color: var(--accent-text); }
+
+/* ============================================
+   01 · LE ROUND (bandeau saison / round / compte à rebours)
+   ============================================ */
+html.da-atelier .season-banner-wrapper {
+  width: calc(100% - 2 * var(--container-padding));
+  max-width: 1400px;
+  margin: 32px auto 0;
+  padding: 0;
+}
+html.da-atelier .season-banner {
+  position: relative;
+  overflow: visible;
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+}
+html.da-atelier .banner-unified {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "count season round" "count stats stats";
+  align-items: stretch;
+  justify-content: stretch;
+}
+html.da-atelier .banner-separator { display: none; }
+html.da-atelier .banner-block {
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  padding: 14px 20px;
+  background: none;
+  border: 0;
+}
+html.da-atelier .banner-label,
+html.da-atelier .banner-stat-label {
+  font: var(--lbl);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+html.da-atelier .banner-value,
+html.da-atelier .banner-stat-value {
+  font: 700 16px/1.2 var(--f-mono);
+  color: var(--ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Cartouche : Saison | 9 et Round | 4 en cases bordées */
+html.da-atelier .banner-season-block,
+html.da-atelier .banner-round-block {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  border-left: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+}
+html.da-atelier .banner-season-block { grid-area: season; }
+html.da-atelier .banner-round-block { grid-area: round; }
+html.da-atelier .banner-day,
+html.da-atelier .banner-rule-badge {
+  padding: 2px 6px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: none;
+  font: 700 12px/1.2 var(--f-mono);
+  color: var(--ink);
+}
+html.da-atelier .banner-stats-block {
+  grid-area: stats;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  border-left: 1.5px solid var(--ink);
+}
+html.da-atelier .banner-stat { display: flex; align-items: baseline; gap: 6px; }
+
+/* Temps restant, en grand */
+html.da-atelier .banner-countdown-block {
+  grid-area: count;
+  padding: 18px 24px 14px;
+  background: none;
+  border: 0;
+}
+html.da-atelier .banner-countdown-timer { gap: 10px; margin-top: 8px; }
+html.da-atelier .countdown-unit {
+  font: 500 16px/1 var(--f-mono);
+  color: var(--sub);
+  background: none;
+  padding: 0;
+}
+html.da-atelier .countdown-num {
+  font: 700 clamp(34px, 5vw, 56px)/1 var(--f-mono);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+html.da-atelier .banner-countdown-timer.countdown-ended .countdown-num { color: var(--sub); }
+
+/* Jauge en règle : cadre et graduations nets, partie écoulée au marqueur B */
+html.da-atelier .da-round-gauge {
+  position: relative;
+  padding: 16px 24px 12px;
+  border-top: 1.5px solid var(--ink);
+}
+html.da-atelier .da-round-gauge__track {
+  position: relative;
+  height: 16px;
+}
+/* Cadre et graduations (une par jour) tracés au-dessus du marqueur :
+   on les voit au travers de l'encre translucide. */
+html.da-atelier .da-round-gauge__track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 1.5px solid var(--ink);
+  background: linear-gradient(90deg, var(--ink) 1px, transparent 1px) -1px 0 / calc(100% / var(--days, 5)) 100% repeat-x;
+  pointer-events: none;
+}
+html.da-atelier .da-round-gauge__fill {
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  bottom: -6px;
+  width: calc(var(--elapsed) + 5px);
+}
+html.da-atelier .da-round-gauge__fill::after { inset: 0; }
+html.da-atelier .da-round-gauge__track::after {
+  /* repère « aujourd'hui » */
+  content: "";
+  position: absolute;
+  left: var(--elapsed);
+  top: -10px;
+  bottom: -10px;
+  border-left: 1.5px solid var(--ink);
+  z-index: 1;
+}
+html.da-atelier .da-round-gauge__marks {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font: 500 11px/1 var(--f-mono);
+  color: var(--sub);
+}
+html.da-atelier .da-round-gauge__today {
+  position: absolute;
+  left: var(--elapsed);
+  transform: translateX(-50%);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  html.da-atelier .season-banner-wrapper { width: calc(100% - 16px); margin-top: 20px; }
+  html.da-atelier .banner-unified {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "count count" "season round" "stats stats";
+  }
+  html.da-atelier .banner-countdown-block { padding: 14px 14px 10px; }
+  html.da-atelier .banner-season-block,
+  html.da-atelier .banner-round-block,
+  html.da-atelier .banner-stats-block { padding: 10px 14px; border-top: 1.5px solid var(--ink); border-bottom: 0; }
+  html.da-atelier .banner-season-block { border-left: 0; }
+  html.da-atelier .banner-stats-block { border-left: 0; }
+  html.da-atelier .da-round-gauge { padding: 14px 14px 10px; }
+}
+
+/* ============================================
+   TÉLEX DES SORTIES (bande perforée)
+   ============================================ */
+/* Pas de « position » ici : le télex ordinateur reste fixé en bas d'écran
+   (style injecté par app.js), celui du téléphone reste dans la navigation. */
+html.da-atelier .activity-ticker {
+  height: 34px;
+  background: var(--panel);
+  border: 0;
+  border-top: 1.5px solid var(--ink);
+  font-family: var(--f-ticket);
+}
+html.da-atelier .activity-ticker-desktop { border-top: 1.5px solid var(--ink); }
+html.da-atelier .activity-ticker-mobile { position: relative; margin-top: 14px; border-bottom: 1.5px solid var(--ink); }
+html.da-atelier .activity-ticker::before {
+  content: "Sorties";
+  position: relative;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  background: var(--ink);
+  color: var(--panel);
+  font: var(--lbl);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+/* Perforations sur la bande qui défile : elles avancent avec le texte.
+   --perf : pas des trous, recalé par js/da-atelier.js pour tomber juste
+   sur un tour de boucle (sinon les trous sautent au raccord). */
+html.da-atelier .ticker-track {
+  height: 100%;
+  line-height: 34px;
+  background-image:
+    radial-gradient(circle, var(--bg) 2px, transparent 2.5px),
+    radial-gradient(circle, var(--bg) 2px, transparent 2.5px);
+  background-size: var(--perf, 12px) 6px, var(--perf, 12px) 6px;
+  background-position: 0 2px, 0 calc(100% - 2px);
+  background-repeat: repeat-x;
+}
+html.da-atelier .ticker-item {
+  gap: 8px;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+html.da-atelier :is(.ticker-date, .ticker-sep, .ticker-activity, .ticker-sport) { color: var(--sub); font-weight: 500; }
+html.da-atelier .ticker-athlete { color: var(--ink); font-weight: 700; }
+html.da-atelier .ticker-elev { color: var(--accent-text) !important; font-weight: 700; }
+html.da-atelier .ticker-div { color: transparent; font-size: 0; margin: 0 12px; }
+html.da-atelier .ticker-div::before { content: "///"; color: var(--sub); font-size: 19px; }
+html.da-atelier .ticker-no-activity { color: var(--sub); font-size: 19px; padding: 0 12px; }
+@media (min-width: 769px) {
+  html.da-atelier body { padding-bottom: 36px; }
+}
+
+/* ============================================
+   02 · CLASSEMENT DU ROUND (individuel)
+   ============================================ */
+html.da-atelier .ranking-toggle {
+  display: inline-flex;
+  gap: 0;
+  padding: 0;
+  border: 2px solid var(--ink);
+  background: none;
+}
+html.da-atelier .ranking-toggle-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 700 13px/1 var(--f-mono);
+}
+html.da-atelier .ranking-toggle-btn + .ranking-toggle-btn { border-left: 2px solid var(--ink); }
+html.da-atelier .ranking-toggle-btn { white-space: nowrap; }
+@media (max-width: 600px) {
+  html.da-atelier .ranking-toggle { display: flex; width: 100%; }
+  html.da-atelier .ranking-toggle-btn { flex: 1 1 0; padding: 0 8px; font-size: 12px; }
+}
+html.da-atelier .ranking-toggle-btn.active { background: var(--ink); color: var(--panel); }
+
+html.da-atelier .ranking-container {
+  border: 0;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+  background: none;
+}
+html.da-atelier .ranking-header {
+  background: none;
+  border-bottom: 1.5px solid var(--ink);
+  font: var(--lbl);
+  letter-spacing: 0.14em;
+  color: var(--sub);
+}
+html.da-atelier .ranking-row {
+  border-bottom: var(--row-rule);
+  border-left: 0;
+  background: none;
+}
+html.da-atelier .ranking-row:hover { background: var(--accent-soft); }
+html.da-atelier .ranking-row .position,
+html.da-atelier .ranking-row .elevation-cell,
+html.da-atelier .ranking-row .elevation-secondary { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+html.da-atelier .ranking-row .position { font-weight: 700; color: var(--ink); }
+/* La position, écrite à la main (chiffres seulement, sans variantes : js/da-atelier.js la relit) */
+html.da-atelier .ranking-row .position { font: 600 26px/1 var(--f-hand); }
+html.da-atelier .ranking-row .elevation-cell { font-weight: 700; color: var(--ink); }
+html.da-atelier .athlete-name { color: var(--ink); font-weight: 600; }
+html.da-atelier .elevation-primary { color: var(--ink); font-family: var(--f-mono); }
+html.da-atelier .elevation-secondary { color: var(--sub); font-family: var(--f-mono); }
+html.da-atelier .bonus-tag {
+  border-radius: 0;
+  border: 1px solid currentColor;
+  background: none;
+  color: var(--ink);
+  font-family: var(--f-mono);
+}
+html.da-atelier .joker-badge {
+  border-radius: 0;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  font-family: var(--f-mono);
+}
+
+/* Sous la coupe : hachures et texte atténué */
+html.da-atelier .ranking-row.danger-zone {
+  background: repeating-linear-gradient(135deg, transparent 0 9px, var(--hatch) 9px 10px);
+  border-left: 0;
+  color: var(--sub);
+}
+html.da-atelier .ranking-row.danger-zone :is(.athlete-name, .elevation-cell, .elevation-primary, .position) { color: var(--sub); }
+
+/* Ta ligne */
+html.da-atelier .ranking-row.is-me,
+html.da-atelier .standings-row.is-me { background: var(--me); }
+/* Ton nom : entouré au stylo (components.css), pas de graisse ni de soulignement */
+html.da-atelier .ranking-row.is-me .athlete-name,
+html.da-atelier .standings-row.is-me .standings-athlete > span:first-of-type { font-weight: 700; margin: 0 8px 0 6px; }
+
+/* Ligne de coupe : pointillé orange 14-6-3-6, étiquette au centre */
+html.da-atelier .da-cut-line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-bottom: var(--row-rule);
+}
+html.da-atelier .da-cut-line::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2.5px;
+  margin-top: -1px;
+  background: var(--accent);
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 20px, #000 20px 23px, transparent 23px 29px);
+  mask: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 20px, #000 20px 23px, transparent 23px 29px);
+}
+html.da-atelier .da-cut-line__label {
+  position: relative;
+  padding: 0 12px;
+  background: var(--panel);
+  font: var(--lbl);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+/* Marge : écart à la coupe, sous le D+ */
+html.da-atelier .da-margin {
+  display: block;
+  font: 500 12px/1.3 var(--f-mono);
+  color: var(--note);
+}
+html.da-atelier .da-margin.is-down { color: var(--down); }
+
+/* Étiquettes d'état (zone danger, rescapé, protégé) */
+html.da-atelier .athlete-status {
+  border-radius: 0;
+  border: 1.5px solid currentColor;
+  background: none;
+  font: 700 10px/1.3 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+html.da-atelier .athlete-status.danger { color: var(--accent-text); }
+html.da-atelier .athlete-status:is(.rescape, .protected) { color: var(--ink); }
+
+/* Avatars : initiales à l'encre, sans les couleurs de chaque joueur */
+html.da-atelier :is(.athlete-avatar, .athlete-avatar-small) {
+  background: transparent !important;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--f-mono);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+/* Bannières finale / D+ pur (ancienne apparence dans components.css) */
+html.da-atelier .special-round-banner {
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: none;
+  font: 800 14px/1.3 var(--f-sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+html.da-atelier .special-round-banner--finale { border-width: 2px; box-shadow: none; }
+html.da-atelier .special-round-banner--pur { color: var(--accent-text); }
+html.da-atelier .special-rule-banner { border-radius: 0; border: 1.5px dashed var(--ink); background: none; }
+
+/* ============================================
+   CLASSEMENT PAR ÉQUIPES / VERSANT ÉLIMINÉ EN ÉQUIPE
+   ============================================ */
+html.da-atelier .team-ranking-header {
+  font: var(--lbl);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+html.da-atelier .team-block {
+  margin-top: 12px;
+  border: 1.5px solid var(--ink);
+  border-left-width: 6px !important;   /* la couleur d'équipe reste en liseré */
+  background: var(--panel) !important;
+  transform: none !important;
+}
+html.da-atelier .team-block-header { border-bottom: 1.5px solid var(--ink); padding-bottom: 8px; }
+html.da-atelier :is(.team-total-elevation, .team-member-elevation) { font-family: var(--f-mono); font-weight: 700; color: var(--ink); }
+html.da-atelier .team-name { color: var(--ink); font-weight: 800; }
+html.da-atelier .team-member-row { border-bottom: var(--row-rule); }
+html.da-atelier .team-member-row:last-child { border-bottom: 0; }
+html.da-atelier .team-member-name { color: var(--ink); }
+html.da-atelier :is(.team-elim-round-badge, .team-badge, .team-winner-badge) {
+  border-radius: 0;
+  border: 1.5px solid var(--ink);
+  background: none;
+  color: var(--ink);
+  font: 700 10px/1.3 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ============================================
+   JOKERS ET BONUS (arsenal)
+   ============================================ */
+html.da-atelier .sim-button {
+  min-height: 44px;
+  border: 1.5px dashed var(--ink);
+  background: none;
+  color: var(--ink);
+  font: 700 12px/1 var(--f-mono);
+}
+html.da-atelier .arsenal-card {
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+}
+html.da-atelier .arsenal-card:hover { border-color: var(--ink); }
+html.da-atelier .arsenal-card-title {
+  color: var(--ink);
+  font: var(--lbl);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+html.da-atelier .arsenal-recap { background: var(--panel); border-style: dashed; }
+html.da-atelier .arsenal-recap :is(.arsenal-card-title, strong) { color: var(--ink); }
+html.da-atelier :is(.recap-content, .recap-list li) { color: var(--ink); }
+html.da-atelier .recap-list li { border-left-color: var(--ink); }
+html.da-atelier .arsenal-empty { color: var(--sub); font-style: normal; }
+html.da-atelier .bonus-item,
+html.da-atelier .bonus-item.active {
+  border: 1.5px solid var(--ink);
+  background: none;
+  color: var(--ink);
+}
+html.da-atelier :is(.bonus-owner, .bonus-name) { color: var(--ink); font-weight: 800; }
+html.da-atelier .bonus-status {
+  border-radius: 0;
+  border: 1.5px solid currentColor;
+  background: none;
+  color: var(--ink);
+  font: 700 10px/1.3 var(--f-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+html.da-atelier :is(.bonus-item-details, .bonus-detail-target, .bonus-detail-effect) { color: var(--ink); }
+html.da-atelier .bonus-detail-target strong { color: var(--ink); }
+html.da-atelier .bonus-hover-hint { color: var(--sub); }
+
+/* ============================================
+   04 · CLASSEMENT GÉNÉRAL : grille, toutes cellules bordées
+   ============================================ */
+html.da-atelier .standings-container {
+  border: 1px solid var(--ink);
+  background: var(--panel);
+  counter-reset: da-col;
+}
+html.da-atelier :is(.standings-header, .standings-row) {
+  grid-template-columns: 64px minmax(0, 1fr) 120px 160px 110px;
+  padding: 0;
+  border-bottom: 1px solid var(--ink);
+}
+html.da-atelier .standings-row:last-child { border-bottom: 0; }
+html.da-atelier :is(.standings-header, .standings-row) > * {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 9px 12px;
+  border-left: 1px solid var(--ink);
+}
+html.da-atelier :is(.standings-header, .standings-row) > :first-child { border-left: 0; }
+html.da-atelier .standings-header {
+  background: none;
+  font: var(--lbl);
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+/* Numéros de colonnes (1), (2)… au-dessus des intitulés */
+html.da-atelier .standings-header > * {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 4px;
+}
+html.da-atelier .standings-header > *::before {
+  counter-increment: da-col;
+  content: "(" counter(da-col) ")";
+  font: 500 10px/1 var(--f-mono);
+  letter-spacing: 0;
+  color: var(--sub);
+}
+html.da-atelier .standings-header > .hide-mobile { display: flex; }
+html.da-atelier .standings-row:hover { background: var(--accent-soft); }
+html.da-atelier .standings-row.eliminated { opacity: 1; background: none; }
+html.da-atelier .standings-row.eliminated.is-me { background: var(--me); }
+html.da-atelier .standings-rank { font: 700 16px/1 var(--f-mono); color: var(--ink); background: none; -webkit-text-fill-color: currentColor; }
+html.da-atelier .standings-athlete { gap: 8px; color: var(--ink); font-weight: 600; }
+html.da-atelier .standings-points { font-family: var(--f-mono); color: var(--sub); justify-content: flex-end; }
+html.da-atelier :is(.pts-text-main, .pts-text-elim, .pts-text-rescape, .pts-text-gauge) { color: var(--ink); font-family: var(--f-mono); }
+html.da-atelier .pts-text-elim { color: var(--sub); }
+html.da-atelier .standings-total {
+  justify-content: flex-end;
+  font: 700 24px/1 var(--f-mono);
+  color: var(--ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+html.da-atelier :is(.header-main, .header-elim) { color: inherit; }
+html.da-atelier :is(.wins-badge, .elim-badge, .active-badge) {
+  border-radius: 0;
+  border: 1.5px solid currentColor;
+  background: none;
+  font: 700 10px/1.3 var(--f-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* Saisons gagnées : la couronne et le nombre, sans cadre */
+html.da-atelier .wins-badge { color: var(--ink); border: 0; padding: 0; }
+html.da-atelier .elim-badge { color: var(--sub); }
+html.da-atelier .active-badge { color: var(--up); }
+
+@media (max-width: 768px) {
+  html.da-atelier :is(.standings-header, .standings-row) { grid-template-columns: 48px minmax(0, 1fr) 76px; }
+  html.da-atelier .standings-header > .hide-mobile,
+  html.da-atelier .standings-row > .hide-mobile { display: none; }
+  html.da-atelier .standings-total { font-size: 20px; }
+}
+
+/* ============================================
+   05 · HISTORIQUE DES SAISONS
+   ============================================ */
+html.da-atelier .history-timeline::before { background: var(--ink); width: 1.5px; }
+/* Sélecteur de saison : sans cadre, le menu déroulant suffit */
+html.da-atelier .history-controls { border: 0; background: none; padding: 0 0 4px; }
+html.da-atelier .season-select { min-width: 0; text-overflow: ellipsis; }
+@media (max-width: 600px) {
+  /* Un peu à gauche dans la marge de la frise, sans toucher sa ligne verticale */
+  html.da-atelier .history-controls { margin-left: -16px; gap: 8px; }
+  html.da-atelier .season-select { padding: 8px 10px; font-size: 13px; }
+}
+html.da-atelier .history-controls label { font: var(--lbl); letter-spacing: 0.14em; text-transform: uppercase; color: var(--sub); }
+html.da-atelier .season-select {
+  min-height: 44px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--ink);
+  font: 500 14px/1 var(--f-mono);
+}
+html.da-atelier .history-item { border: 1.5px solid var(--ink); background: var(--panel); }
+html.da-atelier .history-item::before { background: var(--ink); border-color: var(--ink); box-shadow: none; }
+html.da-atelier .history-round { font: var(--lbl); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
+html.da-atelier .history-toggle-icon { color: var(--ink); }
+html.da-atelier :is(.history-label, .history-eliminated) { color: var(--ink); }
+html.da-atelier .eliminated-name { color: var(--accent-text); font-weight: 800; }
+html.da-atelier .eliminated-gap { color: var(--sub); }
+html.da-atelier :is(.history-ranking-title) { font: var(--lbl); letter-spacing: 0.14em; text-transform: uppercase; color: var(--sub); }
+html.da-atelier .history-team-block { background: none; border-bottom: var(--row-rule); }
+html.da-atelier :is(.history-rank, .history-elevation) { font-family: var(--f-mono); color: var(--ink); background: none; }
+html.da-atelier :is(.history-elim-badge, .history-pts-badge, .history-rescape-badge) {
+  border-radius: 0;
+  border: 1.5px solid currentColor;
+  background: none;
+  color: var(--ink);
+  font-family: var(--f-mono);
+}
+
+/* --- Récap de la saison précédente --- */
+/* même gabarit que le bloc 01 et les sections (1 400 px, mêmes marges) */
+html.da-atelier .recap-wrapper {
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--container-padding));
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 8px 0;
+}
+@media (max-width: 700px) { html.da-atelier .recap-wrapper { width: calc(100% - 16px); } }
+html.da-atelier .recap-toggle-btn {
+  min-height: 44px;
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+  color: var(--ink);
+  font: 700 13px/1 var(--f-mono);
+}
+html.da-atelier .recap-panel { border: 1.5px solid var(--ink); background: var(--panel); color: var(--ink); }
+
+/* --- Écran de chargement et états vides --- */
+html.da-atelier .loading-screen { background: var(--bg); }
+html.da-atelier :is(.loading-title, .loading-text) { color: var(--ink); font-family: var(--f-mono); }
+html.da-atelier .loading-icon { color: var(--ink); }
+html.da-atelier .loading-spinner { border-color: var(--rule); border-top-color: var(--ink); }
+html.da-atelier .empty-state { color: var(--sub); font-family: var(--f-mono); font-size: 13px; }
+
+/* ============================================
+   CONTRASTE : teinte kraft (--panel-2) sur les repères de lecture
+   (en-têtes de tableau, cartouche, en-têtes d'équipe et de cartes)
+   ============================================ */
+html.da-atelier :is(.ranking-header, .standings-header) { background: var(--panel-2); }
+html.da-atelier :is(.banner-season-block, .banner-round-block, .banner-stats-block) { background: var(--panel-2); }
+html.da-atelier .team-block-header {
+  margin: -12px -16px 6px;
+  padding: 10px 16px;
+  background: var(--panel-2);
+}
+html.da-atelier :is(.arsenal-card, .history-item) { --card-pad: 20px; padding: var(--card-pad); }
+@media (max-width: 768px) { html.da-atelier :is(.arsenal-card, .history-item) { --card-pad: 14px; } }
+html.da-atelier .arsenal-card-title {
+  margin: calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad)) 14px;
+  padding: 10px var(--card-pad);
+  background: var(--panel-2);
+  border-bottom: 1.5px solid var(--ink);
+}
+html.da-atelier .arsenal-recap .arsenal-card-title { border-bottom-style: dashed; }
+html.da-atelier .history-round-header { margin: calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad)) 14px; padding: 12px var(--card-pad); background: var(--panel-2); border-bottom: 1.5px solid var(--ink); }
+
+/* ============================================
+   CARNET : cartouche remplie à la main, notes, équipes au crayon
+   ============================================ */
+
+/* Cartouche : libellés imprimés, valeurs écrites au stylo */
+html.da-atelier .banner-value,
+html.da-atelier .banner-stat-value {
+  font: 600 34px/0.9 var(--f-hand);
+  color: var(--pen);
+}
+/* Saison et round : les grands chiffres de la cartouche */
+html.da-atelier .banner-value { font-size: 44px; }
+html.da-atelier .banner-day {
+  font: 600 19px/1 var(--f-hand);
+  color: var(--pen);
+  padding: 1px 7px 2px;
+}
+html.da-atelier .da-round-gauge__marks {
+  font: 500 18px/1 var(--f-hand);
+  text-transform: lowercase;
+  color: var(--pen);
+}
+html.da-atelier .da-round-gauge__today { color: var(--pen); font-weight: 700; }
+
+/* « dernier jour ! » griffonné à côté du compte à rebours */
+html.da-atelier .banner-countdown-block { position: relative; }
+html.da-atelier .da-note--count {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  font-size: 26px;
+  transform: rotate(-5deg);
+}
+
+/* Notes au stylo sur ta situation (js/app.js buildRoundNotes), sur PC
+   seulement, dans la place libre à droite du compte à rebours.
+   Une note sur ce qui te vise est entourée (js/da-atelier.js). */
+html.da-atelier .da-round-notes:empty { display: none; }
+html.da-atelier .da-round-notes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 14px;
+}
+html.da-atelier .da-round-note {
+  margin: 0;
+  width: fit-content;
+  font: 600 22px/1.15 var(--f-hand);
+  color: var(--pen);
+  transform: rotate(-1.5deg);
+}
+html.da-atelier .da-round-note:nth-child(2n) { transform: rotate(1deg) translateX(10px); }
+html.da-atelier .da-round-note + .da-round-note { margin-top: 8px; }
+html.da-atelier .da-round-note sup { font-size: 0.6em; }
+html.da-atelier .da-round-note--circled { margin: 8px 0 8px 16px; color: var(--accent-text); }
+
+/* Notes écrites lettre à lettre (js/da-hand.js) : variantes, tailles et
+   dessins MANIC posés sur un passage (soulignés, cercles, ratures) */
+html.da-atelier :is(.da-af1, .da-af2, .da-af3) { font-family: "MANIC A1", var(--f-hand); }
+html.da-atelier .da-af2 { font-family: "MANIC A2", var(--f-hand); }
+html.da-atelier .da-af3 { font-family: "MANIC A3", var(--f-hand); }
+html.da-atelier .da-sz { font-size: calc(var(--k) * 1em); }
+html.da-atelier .da-mut { color: var(--sub); }
+html.da-atelier .da-acc { color: var(--accent-text); }
+html.da-atelier .da-nb { white-space: nowrap; }
+html.da-atelier .da-draw { position: relative; display: inline-block; white-space: nowrap; }
+html.da-atelier .da-draw::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  background: currentColor;
+  -webkit-mask: var(--draw) center / 100% 100% no-repeat;
+  mask: var(--draw) center / 100% 100% no-repeat;
+}
+html.da-atelier .da-draw--acc::after { background: var(--accent-text); }
+html.da-atelier .da-draw--sub::after { background: var(--sub); }
+html.da-atelier .da-draw--under::after { left: -4%; right: -4%; bottom: -0.3em; height: 0.36em; }
+html.da-atelier .da-draw--thin::after { bottom: -0.2em; height: 0.24em; }
+html.da-atelier .da-draw--circle { margin: 0 0.3em; }
+html.da-atelier .da-draw--circle::after { inset: -0.32em -0.42em -0.26em; transform: rotate(-2deg); }
+html.da-atelier .da-draw--circle-06 { margin: 0 0.5em 0 0.7em; }
+html.da-atelier .da-draw--circle-06::after { inset: -0.42em -0.5em -0.36em -0.7em; transform: rotate(5deg); }
+html.da-atelier .da-draw--strike::after { inset: 0.05em -0.12em; opacity: 0.9; }
+/* racine et somme dessinées (absentes de la police) */
+html.da-atelier .da-math { width: 0.62em; height: 0.78em; vertical-align: -0.08em; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+html.da-atelier .da-sqrt { white-space: nowrap; }
+html.da-atelier .da-sqrt__in { display: inline-block; border-top: 0.07em solid currentColor; margin-left: -0.08em; padding: 0.04em 0.06em 0; line-height: 1; transform: rotate(-1deg); }
+html.da-atelier .da-sigma-lim { font-size: 0.55em; vertical-align: -0.25em; margin-right: 0.1em; }
+@media (max-width: 899px) {
+  /* Réservées au PC, où elles occupent la place libre du bandeau */
+  html.da-atelier .da-round-notes { display: none; }
+}
+@media (min-width: 900px) {
+  html.da-atelier .banner-countdown-block {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-auto-rows: auto;
+    column-gap: 56px;
+    align-items: end;
+  }
+  html.da-atelier .banner-countdown-block > .banner-label,
+  html.da-atelier .banner-countdown-block > .banner-countdown-timer { grid-column: 1; }
+  /* « dernier jour ! » sous le compte à rebours, plus sur les notes */
+  html.da-atelier .banner-countdown-block > .da-note--count { position: static; grid-column: 1; justify-self: start; margin-top: 10px; transform: rotate(-3deg); }
+  html.da-atelier .da-round-notes {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
+    margin-top: 0;
+    font-size: 24px;
+  }
+  /* la première note, la plus importante, est la plus grande */
+  html.da-atelier .da-round-note { font-size: 30px; }
+  html.da-atelier .da-round-note:first-child { font-size: 34px; }
+}
+
+/* « ça se joue à 38 m ! » posé sur la ligne de coupe, côté droit */
+html.da-atelier .da-note--cut {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  padding: 0 6px;
+  background: var(--panel);
+  transform: translateY(-55%) rotate(-3deg);
+}
+@media (max-width: 600px) {
+  html.da-atelier .da-cut-line:has(.da-note) { justify-content: flex-start; padding-left: 4px; }
+  html.da-atelier .da-note--cut { font-size: 19px; right: 4px; }
+  html.da-atelier .da-note--count { font-size: 22px; top: 10px; right: 12px; }
+}
+
+/* Classement : graisse normale, le marqueur fait la mise en valeur du premier */
+html.da-atelier .standings-total { font-weight: 500; }
+
+/* Équipes : la couleur devient un aplat hachuré au crayon de couleur */
+html.da-atelier [data-team="orange"] { --team: var(--team-orange); }
+html.da-atelier [data-team="cyan"] { --team: var(--team-cyan); }
+html.da-atelier [data-team="violet"] { --team: var(--team-violet); }
+html.da-atelier [data-team="vert"] { --team: var(--team-vert); }
+html.da-atelier [data-team="rose"] { --team: var(--team-rose); }
+html.da-atelier [data-team="or"] { --team: var(--team-or); }
+html.da-atelier .team-block[data-team] {
+  position: relative;
+  padding-left: 32px;
+  border-left: 1.5px solid var(--ink) !important;
+}
+html.da-atelier .team-block[data-team]::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  border-right: 1.5px solid var(--ink);
+  background: repeating-linear-gradient(-62deg, var(--team) 0 1.6px, transparent 1.6px 4px);
+  pointer-events: none;
+}
+html.da-atelier .team-block[data-team] .team-block-header {
+  margin-left: -32px;
+  padding-left: 32px;
+  background: color-mix(in srgb, var(--team) 18%, var(--panel));
+}
+html.da-atelier .team-block[data-team] .athlete-avatar-small {
+  background: color-mix(in srgb, var(--team) 24%, transparent) !important;
+}
+html.da-atelier .team-total-elevation { color: var(--ink); background: none; -webkit-text-fill-color: currentColor; }
+html.da-atelier :is(.history-team-block, .recap-team-block, .recap-team-row)[data-team] {
+  border-left: 6px solid var(--team) !important;
+}
+html.da-atelier .history-team-block[data-team] span[style*="color"] { color: var(--ink) !important; }
+
+/* Plus aucun angle arrondi hérité de l'ancienne DA dans les blocs
+   (les avatars et les indicateurs ronds gardent leur forme) */
+html.da-atelier section *:not([class*="avatar"]):not([class*="spinner"]):not([class*="loader"]):not([class*="dot"]) {
+  border-radius: 0 !important;
+}
+
+/* Historique : champion et éliminés pour inactivité, sans encadré */
+html.da-atelier .history-season-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+html.da-atelier .history-season-summary::before {
+  content: "";
+  width: 30px;
+  height: 30px;
+  flex: none;
+  background: var(--ink);
+  -webkit-mask: url("../../assets/pictos/couronne.svg") center / contain no-repeat;
+  mask: url("../../assets/pictos/couronne.svg") center / contain no-repeat;
+}
+html.da-atelier .history-season-summary h3 {
+  margin: 0;
+  font: 800 18px/1.2 var(--f-sans);
+  color: var(--ink);
+}
+html.da-atelier .history-zero-warning {
+  margin-top: 8px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: 500 12px/1.4 var(--f-mono);
+  color: var(--sub);
+}
+
+/* Étiquettes d'info (« Actif jusqu'à la fin de la saison », « Éliminée R2 »…) :
+   une note manuscrite à côté, sans cadre ni flèche */
+html.da-atelier :is(.bonus-status, .team-elim-round-badge, .team-danger-badge, .team-winner-badge,
+                    .history-rescape-badge, .history-elim-badge, .sim-team-elim-badge) {
+  display: inline-block;
+  padding: 0 2px;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  animation: none !important;
+  font: 600 20px/1 var(--f-hand) !important;
+  letter-spacing: 0 !important;
+  text-transform: lowercase !important;
+  color: var(--pen) !important;
+  transform: rotate(-2deg);
+}
+html.da-atelier :is(.bonus-status, .team-elim-round-badge, .team-danger-badge, .team-winner-badge,
+                    .history-rescape-badge, .history-elim-badge, .sim-team-elim-badge)::first-letter { text-transform: uppercase; }
+html.da-atelier :is(.team-danger-badge, .team-elim-round-badge, .history-elim-badge, .sim-team-elim-badge) { color: var(--accent-text) !important; }
+
+/* Historique, classement d'un round : nom et pictos des jokers à gauche ;
+   à droite, dans l'ordre : points, « Éliminé », puis le D+ toujours au bord */
+html.da-atelier .history-ranking-row > .history-rank { order: 0; }
+html.da-atelier .history-ranking-row > .history-name { order: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+html.da-atelier .history-ranking-row > :is(.history-pts-badge, .history-rescape-badge) { order: 2; }
+html.da-atelier .history-ranking-row > .history-elim-badge { order: 3; }
+html.da-atelier .history-ranking-row > .history-elevation {
+  order: 4;
+  display: inline-flex;
+  flex-direction: row-reverse;   /* pilules de bonus à gauche, chiffre au bord */
+  align-items: center;
+  gap: 6px;
+  min-width: 56px;
+}
+/* Jokers posés (encre) et subis (rouge brique) à côté du nom */
+html.da-atelier .history-row-jokers { display: inline-flex; gap: 6px; }
+html.da-atelier .history-row-joker { display: inline-flex; width: 20px; height: 20px; font-size: 17px; line-height: 1; color: var(--ink); }
+html.da-atelier .history-row-joker .picto { display: block; width: 100%; height: 100%; vertical-align: 0; }
+html.da-atelier .history-row-joker.is-target { color: var(--accent-text); }
+
+/* Cartouche, case Round (proposition A4) : « Round 4 » puis, en dessous,
+   « jour 2 / 5 » : libellé imprimé, chiffre du jour écrit à la main, sans cadre */
+html.da-atelier .banner-round-block {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 14px;   /* place pour le souligné du numéro */
+}
+html.da-atelier .banner-round-block :is(.banner-day, .banner-rule-badge) { grid-column: 1 / -1; justify-self: start; }
+html.da-atelier .banner-round-block .banner-day {
+  padding: 0;
+  border: 0;
+  font: 700 11px/1 var(--f-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+html.da-atelier .banner-day b {
+  margin: 0 3px;
+  font: 600 32px/0.8 var(--f-hand);
+  letter-spacing: 0;
+  color: var(--pen);
+}
+
+/* ============================================
+   PLEIN ÉCRAN, proposition B1 : le classement à gauche, une colonne à droite
+   (récap, jokers en jeu, bonus éphémères) qui reste visible en défilant.
+   Grille CSS seule : l'ordre du HTML ne change pas ; sous 1200 px, tout
+   reste empilé comme avant.
+   ============================================ */
+@media (min-width: 1200px) {
+  html.da-atelier #ranking {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    column-gap: 32px;
+    align-items: start;
+  }
+  html.da-atelier #ranking > * { grid-column: 1; min-width: 0; }
+  html.da-atelier #ranking > .section-header { grid-column: 1 / -1; }
+  html.da-atelier #ranking > .arsenal-container {
+    grid-column: 2;
+    grid-row: 3 / span 20;   /* sous l'en-tête et la jauge collective */
+    position: sticky;
+    top: 136px;   /* la barre collée fait 100 px : un peu d'air en dessous */
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+    margin: 0;
+    padding: 0 0 0 24px;
+    border-left: 1.5px solid var(--ink);
+  }
+  /* Dans la colonne : des listes, plus de cadres dans des cadres */
+  html.da-atelier #ranking > .arsenal-container :is(.arsenal-card, .arsenal-recap) {
+    --card-pad: 0px;
+    margin: 0 0 22px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  html.da-atelier #ranking > .arsenal-container .arsenal-card-title {
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    border: 0;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  html.da-atelier #ranking > .arsenal-container :is(.bonus-item, .bonus-item.active) {
+    margin: 0;
+    padding: 10px 0;
+    border: 0;
+    border-bottom: var(--row-rule);
+  }
+  html.da-atelier #ranking > .arsenal-container :is(.bonus-list, .active-jokers-list) {
+    display: block;
+  }
+}
+
+/* ============================================
+   HISTORIQUE : classements harmonisés (round, équipes, challenge des éliminés)
+   Lignes simples sur le papier, plus de fonds colorés ni de cadres arrondis.
+   ============================================ */
+html.da-atelier .history-ranking-dropdown {
+  margin-top: 16px;
+  padding: 0;
+  background: none;
+  border: 0;
+  animation: none;
+}
+html.da-atelier .history-ranking-list { gap: 0; }
+html.da-atelier .history-ranking-row,
+html.da-atelier .history-ranking-row:is(.eliminated, .rescape, .top-three, .eliminated-row) {
+  padding: 9px 4px;
+  background: none !important;
+  border: 0 !important;
+  border-bottom: var(--row-rule) !important;
+}
+html.da-atelier .history-ranking-row:last-child { border-bottom: 0 !important; }
+html.da-atelier .history-ranking-row:hover { background: var(--accent-soft) !important; }
+html.da-atelier .history-ranking-row .history-rank { font: 700 14px/1 var(--f-mono); color: var(--ink) !important; }
+html.da-atelier .history-ranking-row :is(.history-name, .history-elevation) { color: var(--ink); }
+html.da-atelier .history-ranking-row .history-elevation { font: 700 14px/1 var(--f-mono); }
+html.da-atelier .history-pts-badge { padding: 0 !important; border: 0 !important; font: 700 13px/1 var(--f-mono); color: var(--ink); }
+html.da-atelier .history-points { font: 700 14px/1 var(--f-mono); color: var(--sub); }
+html.da-atelier .history-points.has-points { color: var(--ink); }
+/* « Éliminé R2 » : une note à la main sous le nom */
+html.da-atelier .history-name-block .history-elim-round {
+  font: 600 19px/1 var(--f-hand);
+  color: var(--accent-text);
+}
+/* Effets des bonus : du texte avec son picto, sans pastille */
+html.da-atelier .history-bonus-list { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 2px; }
+html.da-atelier .history-bonus-detail,
+html.da-atelier .history-bonus-detail:is(.gained, .lost, .info) {
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 500 12px/1.4 var(--f-sans);
+}
+html.da-atelier .history-bonus-detail.gained { color: var(--up); }
+html.da-atelier .history-bonus-detail.lost { color: var(--down); }
+html.da-atelier .history-bonus-detail.info { color: var(--sub); }
+
+/* ============================================
+   CHALLENGE DES ÉLIMINÉS : le D+ toujours au bord droit,
+   « Éliminé R2 » juste à sa gauche, les points encore à gauche
+   ============================================ */
+/* Équipes : la mention d'élimination passe devant le total */
+html.da-atelier .team-block-header > .team-total-elevation { order: 3; }
+html.da-atelier .team-block-header > :is(.team-elim-round-badge, .team-danger-badge, .team-winner-badge) { order: 2; }
+/* « Éliminée R2 » garde sa casse (le reste des notes passe en minuscules) */
+html.da-atelier :is(.team-elim-round-badge, .history-elim-round) { text-transform: none !important; }
+
+/* Joueurs : en-tête et lignes réordonnés de la même façon */
+html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) {
+  grid-template-columns: 60px minmax(0, 1fr) 90px 110px 140px;
+}
+html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(5), .ranking-row > .ranking-points) { order: 3; }
+html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(4), .ranking-row > .ranking-round) { order: 4; }
+html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(3), .ranking-row > .ranking-elevation) {
+  order: 5;
+  justify-self: end;
+  text-align: right;
+}
+html.da-atelier #eliminatedChallengeContainer .ranking-row > .ranking-round {
+  font: 600 20px/1 var(--f-hand);
+  color: var(--accent-text);
+}
+@media (max-width: 768px) {
+  html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) {
+    grid-template-columns: 28px minmax(0, 1fr) 44px 36px 68px;
+  }
+}
+
+/* ============================================
+   SIMULATEUR DES EFFETS (js/simulator.js) : même langage que les classements
+   ============================================ */
+html.da-atelier #simulatorPanel.open { animation: none; }
+html.da-atelier .sim-banner {
+  margin: 0 0 14px;
+  padding: 0 0 8px;
+  background: none;
+  border: 0;
+  border-bottom: 1.5px solid var(--ink);
+  border-radius: 0;
+  font: var(--lbl);
+  letter-spacing: 0.08em;
+  color: var(--sub);
+}
+html.da-atelier .sim-banner.sim-error {
+  background: none;
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+html.da-atelier .sim-empty {
+  padding: 18px 0;
+  font: 600 22px/1.2 var(--f-hand);
+  font-style: normal;
+  color: var(--pen);
+  text-align: left;
+}
+html.da-atelier .sim-table { background: none; border-radius: 0; border-top: 1.5px solid var(--ink); }
+html.da-atelier .sim-table thead th {
+  font: var(--lbl);
+  letter-spacing: 0.14em;
+  color: var(--sub);
+  border-bottom: 1.5px solid var(--ink);
+}
+html.da-atelier .sim-table tbody td { border-bottom: var(--row-rule); color: var(--ink); }
+html.da-atelier .sim-row-moved { background: none; }
+html.da-atelier .sim-pos-final { font: 700 16px/1 var(--f-mono); color: var(--ink); }
+html.da-atelier .sim-name { color: var(--ink); }
+html.da-atelier :is(.sim-elev-final, .sim-tm-elev, .sim-team-total) { font-family: var(--f-mono); color: var(--ink); }
+html.da-atelier .sim-mvt { padding: 0; border-radius: 0; background: none !important; font-family: var(--f-mono); }
+html.da-atelier :is(.sim-mvt-up, .sim-delta-gain, .sim-eff-gain) { color: var(--up); }
+html.da-atelier :is(.sim-mvt-down, .sim-delta-loss, .sim-eff-loss) { color: var(--down); }
+html.da-atelier :is(.sim-mvt-same, .sim-no-effect) { color: var(--sub); }
+html.da-atelier .sim-effect { color: var(--sub); }
+html.da-atelier .sim-team {
+  position: relative;
+  margin: 0;
+  padding: 12px 14px 12px 30px;
+  background: none;
+  border: 0;
+  border-bottom: var(--row-rule);
+  border-radius: 0;
+}
+/* Bande hachurée à la couleur de l'équipe, comme dans le classement */
+html.da-atelier .sim-team::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  border-right: 1.5px solid var(--ink);
+  background: repeating-linear-gradient(-62deg, var(--team, var(--sub)) 0 1.6px, transparent 1.6px 4px);
+}
+html.da-atelier .sim-team-eliminated { background: none; border-color: var(--rule); }
+html.da-atelier .sim-team-rank { font: 700 16px/1 var(--f-mono); color: var(--ink); }
+html.da-atelier .sim-team-animal { color: var(--ink); }
+html.da-atelier .sim-team-members { border-top: var(--row-rule); }
+html.da-atelier .sim-tm-name { color: var(--ink); }
+@media (max-width: 640px) {
+  html.da-atelier .sim-table tr { background: none; border: 0; border-bottom: var(--row-rule); border-radius: 0; }
+}
+
+/* Classement général : notes à la main (coude-à-coude, remontée), posées sur
+   la ligne sans en changer la hauteur. Dans la marge à droite si l'écran en
+   laisse une ; par-dessus la ligne, dans le blanc à droite du nom, dès
+   740 px (téléphone en paysage) ; absentes en dessous. */
+html.da-atelier .standings-row { position: relative; }
+html.da-atelier .standings-row > .da-standings-note {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: calc(76px + 14px);
+  padding: 0;
+  border: 0;
+  font: 600 22px/1 var(--f-hand);
+  color: var(--pen);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateY(-50%) rotate(-2deg);
+}
+@media (min-width: 740px) {
+  html.da-atelier .standings-row > .da-standings-note { display: block; }
+}
+@media (min-width: 769px) {
+  html.da-atelier .standings-row > .da-standings-note { right: calc(390px + 14px); }
+}
+@media (min-width: 1880px) {
+  html.da-atelier .standings-container { overflow: visible; }   /* la note va dans la marge */
+  html.da-atelier .standings-row > .da-standings-note {
+    right: auto;
+    left: calc(100% + 52px);   /* au-delà du cadre de la section */
+    font-size: 24px;
+    white-space: normal;
+    width: 210px;
+  }
+}
+
+/* Récap de saison : le top 5 toujours visible (le 1er est déjà en grand au-dessus),
+   plus de liste déroulante ; noms et valeurs clés écrits à la main */
+html.da-atelier .recap-achievement .recap-top5 {
+  position: static;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  margin: 10px 0 0;
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 1px dashed var(--rule);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+html.da-atelier .recap-achievement .recap-top5-list li:first-child { display: none; }
+html.da-atelier .recap-achievement .recap-top5-title { font: var(--lbl); letter-spacing: .12em; color: var(--sub); }
+html.da-atelier .recap-achievement .recap-top5-title::after { content: " · les suivants"; text-transform: none; letter-spacing: 0; }
+html.da-atelier :is(.recap-top1-name, .recap-hottest-value) { font: 600 30px/1 var(--f-hand); color: var(--pen); }
+html.da-atelier .recap-biggest-elev { font: 600 40px/1.1 var(--f-hand); color: var(--pen); margin-bottom: 6px; }
+html.da-atelier .recap-top1-value { font-size: 14px; }
+
+/* Récap de saison sur écran étroit : moins de grandes cases blanches à la
+   suite. Fonds alternés gris et kraft, bord en pointillés, cases un peu de
+   travers, noms clés en orange, et un smiley MANIC sur quelques cases. */
+@media (max-width: 700px) {
+  html.da-atelier .recap-grid { gap: 18px; }
+  html.da-atelier .recap-card {
+    position: relative;
+    background: var(--bg) !important;
+    border: 1px dashed var(--sub) !important;
+    box-shadow: none !important;
+  }
+  html.da-atelier .recap-card:nth-child(3n+2) { background: var(--panel-2) !important; transform: rotate(0.6deg); }
+  html.da-atelier .recap-card:nth-child(3n) { transform: rotate(-0.5deg); }
+  /* deux cases restent blanches, pour respirer : la finale et la plus grosse activité */
+  html.da-atelier .recap-grid > .recap-card:is(.recap-card-finale, .recap-card--plus-grosse-activite) { background: var(--panel) !important; }
+  html.da-atelier :is(.recap-top1-name, .recap-hottest-value, .recap-biggest-elev) { color: var(--accent-text); }
+  html.da-atelier .recap-card-title { padding-right: 52px; }
+  html.da-atelier :is(.recap-card--plus-grosse-surperformance, .recap-card--plus-grosse-sous-performance,
+                      .recap-card--plus-cible-par-jokers-bonus,
+                      .recap-card--plus-grosse-activite, .recap-card--total-points-saison)::after {
+    content: "";
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: 44px;
+    height: 40px;
+    background: var(--ink);
+    -webkit-mask: var(--smiley) center / contain no-repeat;
+    mask: var(--smiley) center / contain no-repeat;
+    transform: rotate(-8deg);
+    pointer-events: none;
+  }
+  html.da-atelier .recap-card--plus-grosse-surperformance { --smiley: url("/assets/manic/smiley-02.svg"); }
+  html.da-atelier .recap-card--total-points-saison { --smiley: url("/assets/manic/smiley-01.svg"); }
+  html.da-atelier .recap-card--plus-grosse-sous-performance { --smiley: url("/assets/manic/smiley-04.svg"); }
+  html.da-atelier .recap-card--plus-cible-par-jokers-bonus { --smiley: url("/assets/manic/smiley-03.svg"); }
+  html.da-atelier .recap-card--plus-grosse-activite { --smiley: url("/assets/manic/shine-01.svg"); }
+}
+
+/* Jauge collective de D+ : même dessin que la règle du temps écoulé (cadre,
+   graduations, partie remplie au marqueur), sur toute la largeur du bloc 01 */
+html.da-atelier .elevation-gauge {
+  margin: 0 0 28px;
+  padding: 4px 0 14px;
+  background: none;
+  border: 0;
+  border-bottom: 1.5px solid var(--ink);
+  border-radius: 0;
+  color: var(--ink);
+}
+html.da-atelier .elevation-gauge.is-preview { border-bottom-style: dashed; }
+html.da-atelier .gauge-title { font: var(--lbl); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+html.da-atelier .gauge-values { font: 500 13px var(--f-mono); color: var(--sub); }
+html.da-atelier .gauge-values strong { font: 600 30px/1 var(--f-hand); color: var(--pen); margin-left: 6px; }
+html.da-atelier .gauge-track {
+  height: 16px;
+  margin-top: 14px;
+  overflow: visible;
+  border-radius: 0;
+  background: none;
+}
+html.da-atelier .gauge-track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 1.5px solid var(--ink);
+  pointer-events: none;
+}
+html.da-atelier .gauge-zone { display: none; }
+html.da-atelier .gauge-fill,
+html.da-atelier .elevation-gauge[class*="tier-"] .gauge-fill {
+  position: absolute;   /* .da-mk-host le remettrait en relative (largeur ignorée) */
+  top: -6px;
+  bottom: -6px;
+  left: -5px;
+  border-radius: 0;
+  background: none;
+  transition: none;
+}
+html.da-atelier .gauge-fill::after { inset: 0; }
+/* le marqueur de la jauge collective est celui du stylo : l'orange reste au temps */
+html.da-atelier .gauge-fill { --accent: var(--pen); }
+/* objectif (100 %) : un coup de marqueur vertical à l'encre (trait MANIC) */
+html.da-atelier .gauge-target {
+  top: -13px;
+  bottom: -13px;
+  width: 9px;
+  margin-left: -4.5px;
+  border: 0;
+  background: var(--ink);
+  opacity: 0.85;
+  -webkit-mask: url("/assets/manic/trait-vertical.svg") center / 100% 100% no-repeat;
+  mask: url("/assets/manic/trait-vertical.svg") center / 100% 100% no-repeat;
+  z-index: 2;
+}
+html.da-atelier .gauge-ticks { height: 22px; margin-top: 6px; font: 500 11px/1 var(--f-mono); color: var(--sub); }
+html.da-atelier .gauge-tick::before {
+  /* graduation des paliers, tracée dans la règle (l'étiquette est centrée
+     sur sa position : le trait part de son milieu) */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  height: 16px;
+  border-left: 1px solid var(--ink);
+}
+/* « 100 % » écrit à la main sous l'objectif, à l'encre (sa graduation : le trait de l'objectif) */
+html.da-atelier .gauge-tick--goal { font: 600 20px/1 var(--f-hand); color: var(--ink); margin-top: 2px; }
+html.da-atelier .gauge-tick--goal::before { display: none; }
+html.da-atelier :is(.gauge-status, .gauge-sub) { font: 500 13px/1.5 var(--f-sans); color: var(--sub); }
+html.da-atelier .gauge-status strong { color: var(--ink); }
+/* Palier de la jauge : écrit à la main, plus grand, entouré d'orange */
+html.da-atelier .gauge-status .gauge-tier-word {
+  margin: 0 0.55em 0 0.45em;
+  font: 600 1.55em/1 var(--f-hand);
+  vertical-align: -0.08em;
+}
+html.da-atelier .gauge-status .gauge-tier-word::after { inset: -0.3em -0.4em -0.24em; }
+@media (min-width: 1200px) {
+  /* au-dessus du classement ET de la colonne des jokers et bonus */
+  html.da-atelier #ranking > #elevationGaugeContainer { grid-column: 1 / -1; }
+}
+
+/* Classement du round : places gagnées / perdues depuis minuit (à partir du
+   jour 2), façon F1 : la flèche MANIC et le nombre écrit à la main */
+html.da-atelier .da-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 10px;
+  font: 600 22px/1 var(--f-hand);
+  vertical-align: -2px;
+}
+html.da-atelier .da-delta .picto { width: 0.8em; height: 0.8em; }
+html.da-atelier .da-delta--up { color: var(--up); }
+html.da-atelier .da-delta--down { color: var(--down); }
+
+/* Classement général : une note sans la place de s'écrire n'apparaît pas */
+html.da-atelier .standings-row > .da-standings-note.da-no-room { visibility: hidden; }
+
+/* Classement principal vide (tout le monde éliminé) : une note à la main */
+html.da-atelier .empty-state--all-out { padding: 28px 16px; }
+html.da-atelier .empty-state--all-out p {
+  margin: 0;
+  font: 600 28px/1.2 var(--f-hand);
+  color: var(--pen);
+  transform: rotate(-2deg);
+}
+
+/* Activités d'un joueur (clic sur son nom) : plus de bloc gris. Une liste
+   en retrait sous le nom, reliée à la ligne par un trait d'encre, chaque
+   sortie sur sa ligne de carnet (pointillés) */
+html.da-atelier .athlete-activities-panel {
+  margin: 0 16px 8px 92px;
+  --tree: 20px;
+  padding: 2px 0 6px var(--tree);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  animation: none;
+}
+html.da-atelier .team-members .athlete-activities-panel { --tree: 16px; margin: 0 0 6px 28px; padding-bottom: 4px; }
+html.da-atelier .athlete-activities-list { gap: 0; }
+html.da-atelier .athlete-activity-row {
+  position: relative;
+  gap: 14px;
+  padding: 7px 0;
+  background: none;
+  border-radius: 0;
+  border-bottom: 1px dotted var(--sub);
+}
+html.da-atelier .athlete-activity-row:last-child { border-bottom: 0; }
+html.da-atelier .athlete-activity-row:hover { background: none; }
+/* l'arbre : un tronçon vertical par sortie et une branche vers elle ; le
+   tronc part de la ligne du joueur et s'arrête à la branche de la dernière */
+html.da-atelier .athlete-activity-row::before,
+html.da-atelier .athlete-activities-empty::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--tree));
+  top: 50%;
+  width: calc(var(--tree) * 0.6);
+  border-top: 1.5px solid var(--ink);
+}
+html.da-atelier .athlete-activity-row::after,
+html.da-atelier .athlete-activities-empty::after {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--tree));
+  top: 0;
+  bottom: 0;
+  border-left: 1.5px solid var(--ink);
+}
+html.da-atelier .athlete-activity-row:first-child::after { top: -2px; }
+html.da-atelier .athlete-activity-row:last-child::after,
+html.da-atelier .athlete-activities-empty::after { bottom: calc(50% - 1.5px); }
+html.da-atelier .athlete-activities-empty::after { top: -8px; }
+html.da-atelier .athlete-activity-sport { min-width: 48px; font: var(--lbl); letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); }
+html.da-atelier .athlete-activity-name { color: var(--ink); font: 500 14px/1.3 var(--f-sans); }
+html.da-atelier .athlete-activity-name:hover { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+html.da-atelier .athlete-activity-elevation { font: 700 14px/1 var(--f-mono); color: var(--ink); }
+html.da-atelier .athlete-activity-date { font: 500 11px/1 var(--f-mono); color: var(--sub); }
+html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; font: 600 20px/1.2 var(--f-hand); color: var(--pen); }
+@media (max-width: 700px) {
+  html.da-atelier .athlete-activities-panel { --tree: 14px; margin: 0 8px 8px 30px; }
+  html.da-atelier .athlete-activity-row { gap: 4px 10px; }
+}

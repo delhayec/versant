@@ -1,0 +1,626 @@
+/* ============================================
+   DA « ATELIER » : COMPOSANTS
+   En-tête, logo, navigation, cadres de section F2.
+   Tout est sous html.da-atelier : aucune classe ni structure modifiée.
+   ============================================ */
+
+/* --- Bannières finale / D+ pur (ui.js) ---
+   Anciennement en styles en ligne : reprises ici à l'identique, hors DA,
+   pour que ?da=off rende la page d'origine. La version DA est dans home.css. */
+.special-round-banner {
+  padding: 16px 20px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+.special-round-banner--finale {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #1f2937;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+  font-size: 16px;
+}
+.special-round-banner--pur {
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* --- Marqueur B (forme pleine de feutre biseauté) ---
+   La forme est calculée par js/da-atelier.js à la taille réelle de l'élément
+   et posée dans --da-mk ; ici on ne fait que la colorer. */
+html.da-atelier .da-mk-host { position: relative; isolation: isolate; }
+html.da-atelier .da-mk-host::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  background: var(--accent);
+  opacity: var(--mk-opacity);
+  mix-blend-mode: var(--mk-blend);
+  -webkit-mask: var(--da-mk) no-repeat 0 0 / 100% 100%;
+  mask: var(--da-mk) no-repeat 0 0 / 100% 100%;
+  pointer-events: none;
+}
+
+/* --- En-tête : boîte encadrée à ombre dure, sur le papier --- */
+html.da-atelier .nav-sticky {
+  padding: 14px var(--container-padding) 14px;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+  background-attachment: fixed;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 0;
+}
+html.da-atelier body { background-attachment: fixed; }
+
+/* Cadrage F4 : pas de bordure, quatre équerres aux angles, sur fond blanc. */
+html.da-atelier .nav-container {
+  --sq: 18px;   /* longueur d'une branche d'équerre */
+  --sw: 2px;    /* épaisseur du trait */
+  position: relative;
+  max-width: 1400px;
+  padding: 6px 12px 6px 16px;
+  border: 0;
+  box-shadow: none;
+  gap: 8px 20px;
+  background:
+    linear-gradient(var(--ink), var(--ink)) left top / var(--sq) var(--sw),
+    linear-gradient(var(--ink), var(--ink)) left top / var(--sw) var(--sq),
+    linear-gradient(var(--ink), var(--ink)) right top / var(--sq) var(--sw),
+    linear-gradient(var(--ink), var(--ink)) right top / var(--sw) var(--sq),
+    linear-gradient(var(--ink), var(--ink)) left bottom / var(--sq) var(--sw),
+    linear-gradient(var(--ink), var(--ink)) left bottom / var(--sw) var(--sq),
+    linear-gradient(var(--ink), var(--ink)) right bottom / var(--sq) var(--sw),
+    linear-gradient(var(--ink), var(--ink)) right bottom / var(--sw) var(--sq),
+    var(--panel);
+  background-repeat: no-repeat;
+}
+
+/* --- Logo ◭ : le glyphe texte est masqué, le dessin net le remplace --- */
+html.da-atelier .nav-brand { gap: 10px; color: var(--ink); min-height: 44px; }
+html.da-atelier .brand-icon {
+  display: inline-block;
+  flex: none;
+  width: 40px;
+  height: 35px;
+  font-size: 0;
+  color: transparent;
+  overflow: hidden;
+  background: var(--ink);
+  -webkit-mask: url("../../assets/pictos/logo.svg") no-repeat center / contain;
+  mask: url("../../assets/pictos/logo.svg") no-repeat center / contain;
+}
+html.da-atelier .brand-text {
+  font-family: var(--f-sans);
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* --- Navigation : mono, onglet actif souligné au marqueur B --- */
+html.da-atelier .nav-links { gap: 2px 20px; }
+html.da-atelier .nav-link,
+html.da-atelier .nav-links .btn-join {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 3px;
+  font-family: var(--f-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+}
+html.da-atelier .nav-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 5px;
+}
+html.da-atelier .nav-link.active { color: var(--ink); font-weight: 700; }
+html.da-atelier .nav-link.active:hover { text-decoration: none; }
+html.da-atelier .nav-link.active::after { left: -7px; right: -7px; bottom: 9px; height: 12px; }
+
+/* Pastille de notification du Dashboard : encre pleine, lisible dans les deux thèmes */
+html.da-atelier .nav-badge {
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--panel);
+  box-shadow: none;
+  font-family: var(--f-mono);
+}
+
+@media (max-width: 768px) {
+  html.da-atelier .nav-sticky { padding: 8px 8px 6px; }
+  html.da-atelier .nav-container { --sq: 14px; gap: 6px 10px; padding: 4px 8px 4px 10px; }
+  html.da-atelier .nav-links { gap: 0 10px; }
+  html.da-atelier .nav-link { font-size: 13px; padding: 0 2px; }
+  html.da-atelier .brand-icon { width: 34px; height: 30px; }
+}
+@media (max-width: 380px) {
+  html.da-atelier .nav-links { gap: 0 7px; }
+  html.da-atelier .nav-link { font-size: 12px; }
+}
+
+/* --- Cadre F2 : sections numérotées (accueil, stats) ---
+   Le cadre entoure la section ; le numéro et le titre deviennent deux onglets
+   posés sur son bord haut. Le texte de description passe dans le cadre. */
+html.da-atelier section:has(> .section-header > .section-number) {
+  --f2-pad-x: 24px;
+  --f2-pad-top: 20px;
+  position: relative;
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--container-padding));
+  max-width: 1400px;
+  margin: 108px auto 0;   /* espace entre les sections */
+  padding: var(--f2-pad-top) var(--f2-pad-x) 24px;
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+}
+html.da-atelier section:has(> .section-header > .section-number) > .section-header {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: end;
+  margin: calc(-1 * (var(--f2-pad-top) + 44px + 1.5px)) 0 18px calc(-1 * (var(--f2-pad-x) + 1.5px));
+}
+html.da-atelier .section-header > .section-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 48px;
+  height: 44px;
+  margin: 0;
+  border: 1.5px solid var(--ink);
+  border-bottom: 0;
+  /* onglet numéro en encre pleine : repère de lecture fort */
+  background: var(--ink);
+  font: 700 16px/1 var(--f-mono);
+  letter-spacing: 0;
+  color: var(--panel);
+}
+html.da-atelier .section-header > .section-number + .section-title {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 44px;
+  margin: 0 0 0 -1.5px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ink);
+  border-bottom: 0;
+  background: var(--panel);
+  font: 800 15px/1.1 var(--f-sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+html.da-atelier .section-header > .section-number ~ .section-desc {
+  grid-column: 1 / -1;
+  margin: 16px 0 0 calc(var(--f2-pad-x) + 1.5px);
+  font: 700 11px/1.5 var(--f-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+/* Démo : de vrais paragraphes, pas des libellés ; on garde du texte courant */
+html.da-atelier .tour-step .section-header > .section-desc {
+  font: 400 16px/1.6 var(--f-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@media (max-width: 600px) {
+  html.da-atelier section:has(> .section-header > .section-number) {
+    --f2-pad-x: 12px;
+    --f2-pad-top: 14px;
+    width: calc(100% - 16px);
+    margin-top: 116px;   /* onglet de 44 px compris : ~70 px de vide visible */
+  }
+  html.da-atelier .section-header > .section-number { width: 40px; font-size: 14px; }
+  html.da-atelier .section-header > .section-number + .section-title { padding: 0 12px; font-size: 13px; }
+}
+
+/* ============================================
+   CARNET : la main qui annote la page
+   Stylo bleu (--pen) pour l'écriture, marqueur orange pour souligner.
+   On préfère un coup de marqueur à une graisse plus forte.
+   ============================================ */
+
+/* Marqueur calé sur le texte d'une cellule plus large que son contenu */
+html.da-atelier .da-mk-fit::after {
+  left: var(--mk-x);
+  top: var(--mk-y);
+  width: var(--mk-w);
+  height: var(--mk-h);
+}
+
+/* Coup de marqueur posé à la main dans le HTML (<span class="da-mk">) :
+   sur une seule ligne, le texte reste à l'encre */
+html.da-atelier .da-mk { white-space: nowrap; color: var(--ink) !important; }
+/* Dans le texte courant, la police fine se perd sous l'encre : on l'épaissit */
+html.da-atelier :is(p, li, .desc) .da-mk { font-weight: 700; }
+
+/* Tracé au surligneur, de droite à gauche, à la première apparition */
+html.da-atelier .da-mk-wait::after { clip-path: inset(0 0 0 100%); }
+html.da-atelier .da-mk-wait.da-mk-in::after {
+  clip-path: inset(0);
+  transition: clip-path 0.42s cubic-bezier(0.25, 0.7, 0.2, 1) 0.1s;
+}
+
+/* Nom entouré au stylo (forme tirée au hasard par js/da-atelier.js) */
+/* Le nom peut être coupé en « … » sur téléphone : pour le tien, on laisse
+   déborder (les noms sont courts), sinon le cercle serait rogné. */
+html.da-atelier .da-circled { position: relative; overflow: visible !important; text-overflow: clip !important; }
+html.da-atelier .da-circled::before {
+  content: "";
+  position: absolute;
+  left: -15px;
+  top: -10px;
+  width: calc(100% + 30px);
+  height: calc(100% + 20px);
+  background: var(--accent);
+  -webkit-mask: var(--da-circle) no-repeat 0 0 / 100% 100%;
+  mask: var(--da-circle) no-repeat 0 0 / 100% 100%;
+  pointer-events: none;
+}
+
+/* Mot-clé souligné au stylo : UN trait de MANIC Sketches (dessin extrait de
+   la police, assets/manic/trait-*.svg), étiré sur la largeur du mot. Les
+   traits sont très allongés : étirés en largeur, ils gardent leur épaisseur.
+   --ul (le dessin) et --ul-h (sa hauteur) sont tirés par js/da-atelier.js. */
+html.da-atelier .da-key { position: relative; display: inline-block; white-space: nowrap; }
+html.da-atelier .da-key::after {
+  content: "";
+  position: absolute;
+  left: -0.1em;
+  right: -0.18em;
+  bottom: calc(-0.12em - var(--ul-h, 0.25em) / 2);
+  height: var(--ul-h, 0.25em);
+  background: currentColor;
+  -webkit-mask: var(--ul, url("/assets/manic/trait-P.svg")) center / 100% 100% no-repeat;
+  mask: var(--ul, url("/assets/manic/trait-P.svg")) center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+/* Statut écrit à la main : le mot-clé en capitales, plus grand
+   (« ACTIF jusqu'à la fin de la saison ») */
+html.da-atelier .da-stat-key { text-transform: uppercase; font-size: 1.3em; letter-spacing: 0.02em; }
+
+/* Rature à la main (MANIC Sketches) : le mot est rayé pour de vrai */
+html.da-atelier .da-struck { position: relative; display: inline-block; }
+html.da-atelier .da-struck::after {
+  content: "IIIIIIII";
+  position: absolute;
+  left: -0.15em;
+  right: -0.15em;
+  top: 50%;
+  height: 1.8em;
+  transform: translateY(calc(-50% + 0.45em));   /* le gribouillis est dessiné haut dans sa case */
+  overflow: hidden;
+  font: 400 1.8em/1em "MANIC Sketches";
+  letter-spacing: -0.6em;
+  white-space: nowrap;
+  color: var(--ink);
+  pointer-events: none;
+}
+
+/* Note manuscrite dans la marge */
+html.da-atelier .da-note {
+  display: inline-block;
+  font: 600 22px/1 var(--f-hand);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--pen);
+  white-space: nowrap;
+  transform: rotate(-3deg);
+  pointer-events: none;
+}
+
+/* ============================================
+   PICTOS DESSINÉS (pack « doodle », assets/pictos/)
+   Posés en masque : ils prennent la couleur du texte (currentColor).
+   ============================================ */
+html.da-atelier .picto {
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.25em;
+  background: currentColor;
+  -webkit-mask: var(--pi) center / contain no-repeat;
+  mask: var(--pi) center / contain no-repeat;
+  flex: none;   /* dans une ligne flex, il garde sa taille */
+}
+html.da-atelier .picto__emoji { display: none; }
+html.da-atelier .picto--bouclier { --pi: url("../../assets/pictos/bouclier.svg"); }
+html.da-atelier .picto--multiplicateur { --pi: url("../../assets/pictos/multiplicateur.svg"); }
+html.da-atelier .picto--voleur { --pi: url("../../assets/pictos/voleur.svg"); }
+html.da-atelier .picto--embuscade { --pi: url("../../assets/pictos/embuscade.svg"); }
+html.da-atelier .picto--ravitaillement { --pi: url("../../assets/pictos/ravitaillement.svg"); }
+html.da-atelier .picto--brouillard { --pi: url("../../assets/pictos/brouillard.svg"); }
+html.da-atelier .picto--marquage { --pi: url("../../assets/pictos/marquage.svg"); }
+html.da-atelier .picto--second_souffle { --pi: url("../../assets/pictos/second_souffle.svg"); }
+html.da-atelier .picto--kamikaze { --pi: url("../../assets/pictos/kamikaze.svg"); }
+html.da-atelier .picto--malediction { --pi: url("../../assets/pictos/malediction.svg"); }
+html.da-atelier .picto--sabotage { --pi: url("../../assets/pictos/sabotage.svg"); }
+html.da-atelier .picto--duel { --pi: url("../../assets/pictos/duel.svg"); }
+html.da-atelier .picto--cible { --pi: url("../../assets/pictos/cible.svg"); }
+html.da-atelier .picto--cadeau { --pi: url("../../assets/pictos/cadeau.svg"); }
+html.da-atelier .picto--jokers { --pi: url("../../assets/pictos/jokers.svg"); }
+
+/* Navigation : un picto devant chaque lien (repéré par son adresse) */
+html.da-atelier .nav-link:is([href="#ranking"], [href="index.html"]) { --pi: url("../../assets/pictos/classement.svg"); }
+html.da-atelier .nav-link[href="rules.html"] { --pi: url("../../assets/pictos/regles.svg"); }
+html.da-atelier .nav-link[href="stats.html"] { --pi: url("../../assets/pictos/stats.svg"); }
+html.da-atelier .nav-link[href="dashboard.html"] { --pi: url("../../assets/pictos/dashboard.svg"); }
+html.da-atelier .nav-link:is([href="login.html"], [href="inscription.html"]) { --pi: url("../../assets/pictos/connexion.svg"); }
+html.da-atelier .nav-link#logoutBtn { --pi: url("../../assets/pictos/deconnexion.svg"); }
+html.da-atelier .nav-link::before {
+  content: "";
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-right: 7px;
+  background: currentColor;
+  -webkit-mask: var(--pi, none) center / contain no-repeat;
+  mask: var(--pi, none) center / contain no-repeat;
+}
+/* Sur téléphone, la place manque : les mots seuls */
+@media (max-width: 600px) {
+  html.da-atelier .nav-link::before { display: none; }
+}
+
+/* Notification du Dashboard : une cloche au lieu du « ! » */
+html.da-atelier .nav-badge {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 0;
+  animation: none;
+}
+html.da-atelier .nav-badge::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background: var(--panel);
+  -webkit-mask: url("../../assets/pictos/notif.svg") center / contain no-repeat;
+  mask: url("../../assets/pictos/notif.svg") center / contain no-repeat;
+}
+
+/* Saisons gagnées et vainqueur : la couronne */
+html.da-atelier .picto--couronne { --pi: url("../../assets/pictos/couronne.svg"); }
+html.da-atelier :is(.wins-badge, .team-winner-badge)::before {
+  content: "";
+  display: inline-block;
+  width: 1.3em;
+  height: 1.3em;
+  margin-right: 3px;
+  vertical-align: -0.35em;
+  background: currentColor;
+  -webkit-mask: url("../../assets/pictos/couronne.svg") center / contain no-repeat;
+  mask: url("../../assets/pictos/couronne.svg") center / contain no-repeat;
+}
+html.da-atelier .arsenal-card-title .picto { width: 20px; height: 20px; vertical-align: -5px; }
+
+/* ============================================
+   NAVIGATION COLLÉE EN HAUT (classe da-nav-stuck posée par js/da-atelier.js)
+   Sur grand écran, la barre se cale juste sous le trait intérieur du cadre
+   de page : elle ne croise plus les traits ni les repères A-F. L'espace
+   est le même collée ou non, pour que la page ne saute pas.
+   ============================================ */
+html.da-atelier .nav-links { margin-left: auto; justify-content: flex-end; }
+@media (min-width: 900px) {
+  html.da-atelier .nav-sticky { padding-top: calc(var(--frame-gap) + 18px); }
+}
+/* Collée : sur téléphone, le logo s'efface pour laisser la place aux liens
+   (sur grand écran, il reste en entier : la barre a la place) */
+@media (max-width: 600px) {
+  html.da-atelier.da-nav-stuck .nav-brand { display: none; }
+}
+
+/* Rature au stylo rouge (js/da-atelier.js) : éliminés de l'historique,
+   ancienne position d'une ligne qui a bougé depuis ta dernière visite */
+html.da-atelier .da-strike { position: relative; }
+html.da-atelier .da-strike::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  pointer-events: none;
+  -webkit-mask: var(--da-strike) 0 0 / 100% 100% no-repeat;
+  mask: var(--da-strike) 0 0 / 100% 100% no-repeat;
+}
+html.da-atelier .history-item .eliminated-name.da-strike { color: var(--sub); }
+html.da-atelier .da-was-host { position: relative; overflow: visible; }
+html.da-atelier .da-was {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  margin-top: -10px;
+  font: 600 20px/1 var(--f-hand);
+  color: var(--pencil);
+  transform: rotate(-6deg);
+  -webkit-text-fill-color: currentColor;
+}
+
+/* ============================================
+   MOTIFS DES JOUEURS (js/motifs.js)
+   Un motif tracé à la main et une couleur de crayon par joueur, en fond de
+   pastille ; les initiales restent lisibles sur une tache de papier ronde et estompée.
+   Dans un bloc d'équipe, la couleur devient celle de l'équipe.
+   ============================================ */
+html.da-atelier .da-motif { position: relative; isolation: isolate; overflow: hidden; }
+html.da-atelier .da-motif::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--crayon, var(--sub));
+  -webkit-mask: var(--motif) 0 0 / 12px repeat;
+  mask: var(--motif) 0 0 / 12px repeat;
+}
+/* Tache de papier ronde sous les initiales, qui se fond dans le motif */
+html.da-atelier .da-motif::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(closest-side, var(--panel) 30%, color-mix(in srgb, var(--panel) 60%, transparent) 58%, transparent 88%);
+}
+html.da-atelier .da-motif .da-initials {
+  line-height: 1;
+}
+html.da-atelier .team-block[data-team] .da-motif { --crayon: var(--team); background: none !important; }
+html.da-atelier .da-crayon--0 { --crayon: var(--crayon-0); }
+html.da-atelier .da-crayon--1 { --crayon: var(--crayon-1); }
+html.da-atelier .da-crayon--2 { --crayon: var(--crayon-2); }
+html.da-atelier .da-crayon--3 { --crayon: var(--crayon-3); }
+html.da-atelier .da-crayon--4 { --crayon: var(--crayon-4); }
+html.da-atelier .da-crayon--5 { --crayon: var(--crayon-5); }
+html.da-atelier .da-motif--0 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M-2%208%20L8%20-2%20M-2%2020%20L20%20-2%20M4%2026%20L26%204%20M16%2026%20L26%2016%22%2F%3E%3C%2Fsvg%3E"); } /* hachures */
+html.da-atelier .da-motif--1 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M-2%208%20L8%20-2%20M-2%2020%20L20%20-2%20M4%2026%20L26%204%20M16%2026%20L26%2016%20M-2%2016%20L8%2026%20M-2%204%20L20%2026%20M4%20-2%20L26%2020%20M16%20-2%20L26%208%22%2F%3E%3C%2Fsvg%3E"); } /* contre-hachures */
+html.da-atelier .da-motif--2 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M-1%207%20Q5%202%2012%207%20T25%207%20M-1%2019%20Q5%2014%2012%2019%20T25%2019%22%2F%3E%3C%2Fsvg%3E"); } /* vagues */
+html.da-atelier .da-motif--3 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M-1%209%20L5%203%20L11%209%20L17%203%20L23%209%20M-1%2021%20L5%2015%20L11%2021%20L17%2015%20L23%2021%22%2F%3E%3C%2Fsvg%3E"); } /* zigzag */
+html.da-atelier .da-motif--4 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Ccircle%20cx%3D%226%22%20cy%3D%226%22%20r%3D%221.8%22%2F%3E%3Ccircle%20cx%3D%2218%22%20cy%3D%2218%22%20r%3D%221.8%22%2F%3E%3Ccircle%20cx%3D%2217%22%20cy%3D%225%22%20r%3D%221.2%22%2F%3E%3Ccircle%20cx%3D%226%22%20cy%3D%2217%22%20r%3D%221.2%22%2F%3E%3C%2Fsvg%3E"); } /* points */
+html.da-atelier .da-motif--5 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M5%201%20L5.6%2023%20M12%202%20L11.6%2022%20M19%201%20L19.4%2023%22%2F%3E%3C%2Fsvg%3E"); } /* traits verticaux */
+html.da-atelier .da-motif--6 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M0%206%20L24%206.6%20M0%2018%20L24%2017.4%20M6%200%20L6.6%2024%20M18%200%20L17.4%2024%22%2F%3E%3C%2Fsvg%3E"); } /* quadrillage */
+html.da-atelier .da-motif--7 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Ccircle%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%226.5%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221.6%22%2F%3E%3C%2Fsvg%3E"); } /* cercles */
+html.da-atelier .da-motif--8 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20x%3D%224%22%20y%3D%224%22%20width%3D%227%22%20height%3D%227%22%2F%3E%3Crect%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20x%3D%2214%22%20y%3D%2214%22%20width%3D%226%22%20height%3D%226%22%2F%3E%3C%2Fsvg%3E"); } /* petits carrés */
+html.da-atelier .da-motif--9 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M3%205%20L7%203%20M15%204%20L17%208%20M5%2015%20L4%2019%20M14%2016%20L19%2018%20M20%2011%20L22%209%20M9%2010%20L11%2012%22%2F%3E%3C%2Fsvg%3E"); } /* tirets épars */
+html.da-atelier .da-motif--10 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M-1%2012%20C3%204%209%204%207%2010%20C5%2016%2012%2016%2013%2010%20C14%204%2021%205%2025%2012%22%2F%3E%3C%2Fsvg%3E"); } /* boucles */
+html.da-atelier .da-motif--11 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M12%2012%20m-1%200%20a1.5%201.5%200%201%201%203%200%20a3.5%203.5%200%201%201%20-6%20-1%20a6%206%200%201%201%209%206%22%2F%3E%3C%2Fsvg%3E"); } /* spirales */
+html.da-atelier .da-motif--12 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M6%203%20L6%209%20M3%206%20L9%206%20M18%2015%20L18%2021%20M15%2018%20L21%2018%22%2F%3E%3C%2Fsvg%3E"); } /* croix */
+html.da-atelier .da-motif--13 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M2%209%20L8%204%20L14%209%20M10%2020%20L16%2015%20L22%2020%22%2F%3E%3C%2Fsvg%3E"); } /* chevrons */
+html.da-atelier .da-motif--14 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%20d%3D%22M2%2014%20C4%204%209%2020%2011%209%20C13%200%2016%2022%2019%2010%20C21%203%2023%2013%2022%2016%22%2F%3E%3C%2Fsvg%3E"); } /* gribouillis */
+html.da-atelier .da-motif--15 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20stroke%3D%22%23000%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20d%3D%22M-2%2010%20L10%20-2%20M-2%2026%20L26%20-2%20M14%2026%20L26%2014%22%2F%3E%3C%2Fsvg%3E"); } /* rayures épaisses */
+
+/* ============================================
+   PICTOS COMIGO (pack « CoMiGo Fantasy Icons », CC0, assets/pictos/comigo/)
+   Trait d'encre plus libre, mêlé au pack « doodle » : CoMiGo pour les
+   jokers, bonus, repères, médailles et succès ; « doodle » pour le logo, la
+   navigation, le thème, la page Stats, brouillard, second souffle et
+   kamikaze. ?pictos=v1 remet l'ancien set partout (comparaison).
+   ============================================ */
+html.da-atelier:not(.pictos-v1) .picto--bouclier { --pi: url("../../assets/pictos/comigo/bouclier.png"); }
+html.da-atelier:not(.pictos-v1) .picto--multiplicateur { --pi: url("../../assets/pictos/comigo/multiplicateur.png"); }
+html.da-atelier:not(.pictos-v1) .picto--voleur { --pi: url("../../assets/pictos/comigo/voleur.png"); }
+html.da-atelier:not(.pictos-v1) .picto--sabotage { --pi: url("../../assets/pictos/comigo/sabotage.png"); }
+html.da-atelier:not(.pictos-v1) .picto--embuscade { --pi: url("../../assets/pictos/comigo/embuscade.png"); }
+html.da-atelier:not(.pictos-v1) .picto--ravitaillement { --pi: url("../../assets/pictos/comigo/ravitaillement.png"); }
+html.da-atelier:not(.pictos-v1) .picto--duel { --pi: url("../../assets/pictos/comigo/duel.png"); }
+html.da-atelier:not(.pictos-v1) .picto--marquage { --pi: url("../../assets/pictos/comigo/marquage.png"); }
+html.da-atelier:not(.pictos-v1) .picto--malediction { --pi: url("../../assets/pictos/comigo/malediction.png"); }
+html.da-atelier:not(.pictos-v1) .picto--cible { --pi: url("../../assets/pictos/comigo/cible.png"); }
+html.da-atelier:not(.pictos-v1) .picto--cadeau { --pi: url("../../assets/pictos/comigo/cadeau.png"); }
+html.da-atelier:not(.pictos-v1) .picto--jokers { --pi: url("../../assets/pictos/comigo/jokers.png"); }
+html.da-atelier:not(.pictos-v1) .picto--trap { --pi: url("../../assets/pictos/comigo/trap.png"); }
+/* Section jeu */
+html.da-atelier:not(.pictos-v1) .picto--medaille { --pi: url("../../assets/pictos/comigo/medaille.png"); }
+/* évolution : les flèches de MANIC Sketches, plus nettes que celles du pack */
+html.da-atelier .picto--hausse { --pi: url("../../assets/manic/fleche-haut.svg"); }
+html.da-atelier .picto--baisse { --pi: url("../../assets/manic/fleche-bas.svg"); }
+html.da-atelier .picto--stable { --pi: url("../../assets/manic/fleche-droite.svg"); }
+html.da-atelier:not(.pictos-v1) .picto--recap { --pi: url("../../assets/pictos/comigo/recap.png"); }
+html.da-atelier:not(.pictos-v1) .picto--valide { --pi: url("../../assets/pictos/comigo/valide.png"); }
+html.da-atelier:not(.pictos-v1) .picto--refuse { --pi: url("../../assets/pictos/comigo/refuse.png"); }
+html.da-atelier:not(.pictos-v1) .picto--elimines { --pi: url("../../assets/pictos/comigo/elimines.png"); }
+/* Succès de la page Stats (provisoires pour une partie, cf. design/INVENTAIRE-ILLUSTRATIONS.md) */
+html.da-atelier:not(.pictos-v1) .picto--succes-king { --pi: url("../../assets/pictos/comigo/succes-king.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-points_king { --pi: url("../../assets/pictos/comigo/succes-points_king.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-elim_prince { --pi: url("../../assets/pictos/comigo/succes-elim_prince.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-champion { --pi: url("../../assets/pictos/comigo/succes-champion.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-ricrac { --pi: url("../../assets/pictos/comigo/succes-ricrac.png?v=20261111b"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-untouchable { --pi: url("../../assets/pictos/comigo/succes-untouchable.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-finalist { --pi: url("../../assets/pictos/comigo/succes-finalist.png?v=20261111c"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-jokers { --pi: url("../../assets/pictos/comigo/succes-jokers.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-target { --pi: url("../../assets/pictos/comigo/succes-target.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-best24h { --pi: url("../../assets/pictos/comigo/succes-best24h.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-bestRound { --pi: url("../../assets/pictos/comigo/succes-bestRound.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-biggestAct { --pi: url("../../assets/pictos/comigo/succes-biggestAct.png?v=20261111a"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-efficient { --pi: url("../../assets/pictos/comigo/succes-efficient.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-lost { --pi: url("../../assets/pictos/comigo/succes-lost.png?v=20261111b"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-steep { --pi: url("../../assets/pictos/comigo/succes-steep.png?v=20261111a"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-worker { --pi: url("../../assets/pictos/comigo/succes-worker.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-nightowl { --pi: url("../../assets/pictos/comigo/succes-nightowl.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-earlybird { --pi: url("../../assets/pictos/comigo/succes-earlybird.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-weekend { --pi: url("../../assets/pictos/comigo/succes-weekend.png?v=20261111a"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-distance { --pi: url("../../assets/pictos/comigo/succes-distance.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-marathoner { --pi: url("../../assets/pictos/comigo/succes-marathoner.png?v=20261111a"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-flat { --pi: url("../../assets/pictos/comigo/succes-flat.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-runner { --pi: url("../../assets/pictos/comigo/succes-runner.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-skier { --pi: url("../../assets/pictos/comigo/succes-skier.png"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-hiker { --pi: url("../../assets/pictos/comigo/succes-hiker.png"); }
+/* Sans dessin dans l'ancien set : en v1, ils gardent leur émoji */
+html.da-atelier.pictos-v1 :is(.picto--trap, .picto--medaille, .picto--hausse, .picto--baisse, .picto--stable, .picto--recap, .picto--valide, .picto--refuse, .picto--elimines, [class*="picto--succes-"]) { display: inline; width: auto; height: auto; background: none; -webkit-mask: none; mask: none; }
+html.da-atelier.pictos-v1 :is(.picto--trap, .picto--medaille, .picto--hausse, .picto--baisse, .picto--stable, .picto--recap, .picto--valide, .picto--refuse, .picto--elimines, [class*="picto--succes-"]) .picto__emoji { display: inline; }
+
+/* Médailles 1, 2, 3 : la rosette, un coup de marqueur or, gris ou brun dessus */
+html.da-atelier .da-medal { position: relative; display: inline-block; line-height: 1; vertical-align: middle; isolation: isolate; margin-right: 0.3em; --medal: var(--team-or); }
+html.da-atelier .da-medal[data-n="2"] { --medal: var(--medal-silver); }
+html.da-atelier .da-medal[data-n="3"] { --medal: var(--medal-bronze); }
+html.da-atelier .da-medal .picto { width: 1.7em; height: 1.7em; vertical-align: top; }
+html.da-atelier:not(.pictos-v1) .da-medal::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -32%;
+  top: 8%;
+  width: 164%;
+  height: 46%;
+  background: var(--medal);
+  opacity: var(--mk-opacity);
+  mix-blend-mode: var(--mk-blend);
+  -webkit-mask: url("../../assets/pictos/marqueur.svg") no-repeat center / 100% 100%;
+  mask: url("../../assets/pictos/marqueur.svg") no-repeat center / 100% 100%;
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+html.da-atelier { --medal-silver: #A3A6A8; --medal-bronze: #935528; }
+html.da-atelier[data-theme="dark"] { --medal-silver: #C3CBD3; --medal-bronze: #AB8365; }
+@media (prefers-color-scheme: dark) { html.da-atelier:not([data-theme="light"]) { --medal-silver: #C3CBD3; --medal-bronze: #AB8365; } }
+
+/* Succès de la page Stats : plus de pastille, un cercle à la main autour du
+   dessin (tracé à l'apparition, il bout au survol de la carte), à la couleur
+   de la catégorie : légendaire en or, normal en lagune, fun en terre cuite */
+html.da-atelier .achievement-badge {
+  width: 48px;
+  height: 48px;
+  background: none !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  color: var(--ink);
+  margin: 6px 8px;
+  --circle: var(--team-cyan);
+}
+html.da-atelier .achievement-badge.legendary { --circle: var(--team-or); }
+html.da-atelier .achievement-badge.fun { --circle: var(--team-orange); }
+html.da-atelier .achievement-badge.da-circled::before { background: var(--circle); }
+html.da-atelier .achievement-badge .picto { width: 34px; height: 34px; }
+
+/* Bulle d'info au toucher (js/da-atelier.js touchInfo) : le texte d'un
+   title, qu'un téléphone n'affiche jamais */
+html.da-atelier .da-touch-tip {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 8px 12px;
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  font: 500 13px/1.4 var(--f-sans);
+  pointer-events: none;
+}

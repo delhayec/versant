@@ -38,6 +38,14 @@ import {
   calculatePointsForSeason
 } from './standings-engine.js';
 
+// DA « Atelier » : graphiques dessinés à la main (présentation seule)
+import { isDA, cssVar } from './da-sketch.js?v=20261109a';
+import { picto, medal as medalPicto } from './pictos.js';
+import {
+  SPORT_STYLE, styleSocialDA, drawSportBand, drawRankingBars, drawCalendarDots, drawHatchBars,
+  drawCompare, drawPoints, drawMoneyTime, drawRidgeline
+} from './stats-da.js?v=20261109c';
+
 // ============================================
 // CONSTANTES & HELPERS
 // ============================================
@@ -76,6 +84,8 @@ function mapSportName(sportType) {
 function getSportColor(sportOrCategory) {
   // Si on nous passe un type brut (TrailRun, BackcountrySki...), on mappe
   const cat = SPORT_COLORS[sportOrCategory] ? sportOrCategory : SPORT_CATEGORY[sportOrCategory];
+  // DA : couleurs de la palette (tokens.css), lues au moment du rendu
+  if (isDA()) return cssVar('--sport-' + String(cat).toLowerCase()) || cssVar('--sub');
   return SPORT_COLORS[cat] || '#888888';
 }
 
@@ -636,8 +646,7 @@ let sportPieChart = null;
 function renderSportPieChart(data) {
   const dom = document.getElementById('sportPieChart');
   if (!dom) return;
-  if (sportPieChart) { sportPieChart.dispose(); }
-  sportPieChart = echarts.init(dom);
+  if (sportPieChart) { sportPieChart.dispose(); sportPieChart = null; }
 
   const bySport = {};
   for (const a of data) {
@@ -649,6 +658,8 @@ function renderSportPieChart(data) {
     .map(([name, value]) => ({ name, value, itemStyle: { color: getSportColor(name) } }))
     .sort((a, b) => b.value - a.value);
 
+  if (isDA()) { drawSportBand(dom, pieData.map(p => ({ name: p.name, value: p.value }))); return; }
+  sportPieChart = echarts.init(dom);
   sportPieChart.setOption({
     backgroundColor: 'transparent',
     tooltip: {
@@ -702,6 +713,8 @@ function renderMiniRanking(data) {
   const stats = [...byAthlete.entries()]
     .map(([id, el]) => ({ id, total_elevation: el }))
     .sort((a, b) => b.total_elevation - a.total_elevation);
+
+  if (isDA()) { drawRankingBars(slider, stats, getAthleteName); return; }
 
   const maxEl = stats[0]?.total_elevation || 1;
 
@@ -762,7 +775,9 @@ function initMap() {
   map = L.map('map', { center: [46.5, 2.5], zoom: 5 });
   // Fond sombre Esri : utilisable sans clé API (les fonds CARTO en exigent
   // désormais une et affichaient « API KEY REQUIRED »).
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  // DA : fond gris clair, blanchi ou passé au bleu de cyanotype en CSS (css/da/stats.css)
+  const base = isDA() ? 'World_Light_Gray_Base' : 'World_Dark_Gray_Base';
+  L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${base}/MapServer/tile/{z}/{y}/{x}`, {
     attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
     maxZoom: 16
   }).addTo(map);
@@ -1070,6 +1085,10 @@ function renderSankey(data) {
     return;
   }
 
+  // DA : couleurs d'origine, un trait d'encre très fin autour des nœuds et des flux
+  const ink = isDA() ? cssVar('--ink') : null;
+  if (ink) nodes.forEach(n => { n.itemStyle = { ...n.itemStyle, borderColor: ink, borderWidth: 0.8 }; });
+
   sankeyChart.setOption({
     backgroundColor: 'transparent',
     tooltip: {
@@ -1093,9 +1112,13 @@ function renderSankey(data) {
       nodeAlign: 'left',
       data: nodes,
       links,
-      label: { color: '#fff', fontFamily: "'Inter',sans-serif", fontSize: 12 },
-      lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.4 },
-      itemStyle: { borderWidth: 0 }
+      label: isDA()
+        ? { color: cssVar('--ink'), fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, formatter: p => (SPORT_STYLE[p.name]?.label || p.name).toUpperCase() }
+        : { color: '#fff', fontFamily: "'Inter',sans-serif", fontSize: 12 },
+      lineStyle: ink
+        ? { color: 'gradient', curveness: 0.5, opacity: 0.5, borderColor: ink, borderWidth: 0.5 }
+        : { color: 'gradient', curveness: 0.5, opacity: 0.4 },
+      itemStyle: ink ? {} : { borderWidth: 0 }
     }]
   });
 }
@@ -1108,8 +1131,7 @@ let calendarChart = null;
 function renderCalendar(data) {
   const dom = document.getElementById('calendarHeatmap');
   if (!dom) return;
-  if (calendarChart) calendarChart.dispose();
-  calendarChart = echarts.init(dom);
+  if (calendarChart) { calendarChart.dispose(); calendarChart = null; }
 
   const year = CHALLENGE_YEAR;
   const dailyEl = {};
@@ -1125,6 +1147,13 @@ function renderCalendar(data) {
   const startStr = CHALLENGE_CONFIG.yearStartDate;
   const endStr = `${year}-12-31`;
 
+  if (isDA()) {
+    drawCalendarDots(dom, dailyEl, startStr, endStr);
+    renderWeeklyBars(data, year);
+    renderMonthlyBars(data, year);
+    return;
+  }
+  calendarChart = echarts.init(dom);
   calendarChart.setOption({
     backgroundColor: 'transparent',
     tooltip: {
@@ -1190,6 +1219,16 @@ function renderWeeklyBars(data, year) {
     allWeeks.push({ week: `S${i}`, value: weeklyData.get(i) || 0 });
   }
 
+  if (isDA()) {
+    drawHatchBars(container, allWeeks.map((w, i) => ({
+      value: w.value,
+      tick: (i + 1) % 4 === 1 ? `S${i + 1}` : '',
+      tip: `<b>S${i + 1}</b><br>${formatElevationCompact(w.value)} m`,
+      best: `${formatElevationCompact(w.value)} m`
+    })));
+    return;
+  }
+
   const maxValue = Math.max(...allWeeks.map(w => w.value), 1);
 
   const barsHTML = allWeeks.map((w, i) => {
@@ -1219,6 +1258,16 @@ function renderMonthlyBars(data, year) {
     const d = new Date(a.start_date);
     if (d.getFullYear() !== year) continue;
     monthlyData[d.getMonth()] += a.total_elevation_gain || 0;
+  }
+
+  if (isDA()) {
+    drawHatchBars(container, monthlyData.map((v, i) => ({
+      value: v,
+      tick: monthNames[i],
+      tip: `<b>${monthNames[i]}</b><br>${formatElevationCompact(v)} m`,
+      best: `${formatElevationCompact(v)} m`
+    })));
+    return;
   }
 
   const maxValue = Math.max(...monthlyData, 1);
@@ -1274,12 +1323,18 @@ let ridgelineChart = null;
 function renderRidgelineBySport(data) {
   const dom = document.getElementById('ridgelineChart');
   if (!dom) return;
-  if (ridgelineChart) ridgelineChart.dispose();
-  ridgelineChart = echarts.init(dom);
+  if (ridgelineChart) { ridgelineChart.dispose(); ridgelineChart = null; }
 
   const distrib = calculateHourlyDistribution(data, 'sport');
   const sports = Object.keys(distrib);
   if (sports.length === 0) { dom.innerHTML = '<div class="chart-loading">Aucune donnée</div>'; return; }
+  if (isDA()) {
+    // Comme la première version : un motif et un crayon par sport
+    const RIDGE = { Run: { motif: 0, crayon: '--sport-run' }, Bike: { motif: 6, crayon: '--sport-bike' }, Hike: { motif: 2, crayon: '--sport-hike' }, Ski: { motif: 4, crayon: '--sport-ski' } };
+    renderRidgelineDA(dom, distrib, sports, true, s => RIDGE[s] || { motif: 9, crayon: '--sub' }, s => (SPORT_STYLE[s] || { label: s }).label);
+    return;
+  }
+  ridgelineChart = echarts.init(dom);
 
   renderRidgeline(ridgelineChart, distrib, sports, {
     sortByVolume: true,
@@ -1291,13 +1346,19 @@ function renderRidgelineBySport(data) {
 function renderRidgelineByRoundDay(data) {
   const dom = document.getElementById('roundRidgelineChart');
   if (!dom) return;
-  if (window.roundRidgeChart) window.roundRidgeChart.dispose();
-  window.roundRidgeChart = echarts.init(dom);
+  if (window.roundRidgeChart) { window.roundRidgeChart.dispose(); window.roundRidgeChart = null; }
 
   const distrib = calculateHourlyDistribution(data, 'roundDay');
   // Trier explicitement J1 → J5
   const keys = ['J1', 'J2', 'J3', 'J4', 'J5'].filter(k => distrib[k]);
   if (keys.length === 0) { dom.innerHTML = '<div class="chart-loading">Aucune donnée</div>'; return; }
+  if (isDA()) {
+    // Du J1 au J5, des motifs de plus en plus serrés (comme le money time)
+    const DAY = { J1: { motif: 4, crayon: '--sub' }, J2: { motif: 9, crayon: '--sub' }, J3: { motif: 5, crayon: '--ink' }, J4: { motif: 1, crayon: '--ink' }, J5: { motif: 0, crayon: '--accent' } };
+    renderRidgelineDA(dom, distrib, keys, false, k => DAY[k], k => 'Jour ' + k.slice(1));
+    return;
+  }
+  window.roundRidgeChart = echarts.init(dom);
 
   // Couleurs graduées du J1 (plus clair) au J5 (accent danger rouge)
   const dayColors = {
@@ -1312,6 +1373,21 @@ function renderRidgelineByRoundDay(data) {
     sortByVolume: false,
     getColor: k => dayColors[k] || '#888',
     title: null
+  });
+}
+
+/** DA : mêmes tranches de 15 min que le moteur ECharts, dessinées à la main */
+function renderRidgelineDA(dom, distributions, orderedKeys, sortByVolume, styleOf, labelOf) {
+  const keys = [...orderedKeys];
+  if (sortByVolume) keys.sort((a, b) => distributions[a].length - distributions[b].length);
+  const slots = [];
+  for (let h = 0; h < 24; h += 0.25) slots.push(h);
+  const vals = {};
+  for (const k of keys) vals[k] = slots.map(h => distributions[k].filter(x => x >= h && x < h + 0.25).length * 0.25);
+  drawRidgeline(dom, keys, vals, styleOf, labelOf, (k, i) => {
+    const h = slots[i], hInt = Math.floor(h), mins = Math.round((h - hInt) * 60);
+    const time = `${String(hInt).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    return `<b>${time}</b><br>${labelOf(k)} : ${Math.round(vals[k][i] * 60)} min`;
   });
 }
 
@@ -1489,6 +1565,7 @@ function renderSocialGraph(groups) {
 
   const tooltip = d3.select(container)
     .append('div')
+    .attr('class', 'social-tip')
     .style('position', 'fixed')
     .style('background', 'rgba(10,10,15,0.98)')
     .style('border', '1px solid rgba(255,255,255,0.15)')
@@ -1549,6 +1626,7 @@ function renderSocialGraph(groups) {
     .selectAll('path')
     .data(ribbonData)
     .join('path')
+    .attr('class', 'soc-ribbon')
     .attr('d', d => ribbon({
       source: { startAngle: d.sourceStartAngle, endAngle: d.sourceEndAngle },
       target: { startAngle: d.targetStartAngle, endAngle: d.targetEndAngle }
@@ -1559,7 +1637,7 @@ function renderSocialGraph(groups) {
     .style('opacity', 0.65)
     .style('cursor', 'pointer')
     .on('mouseover', function(event, d) {
-      if (selectedIndex !== null) return;
+      if (selectedIndex !== null && d.source !== selectedIndex && d.target !== selectedIndex) return;
       d3.select(this).style('opacity', 0.95).attr('stroke-width', 1);
       const a1 = athleteIds[d.source];
       const a2 = athleteIds[d.target];
@@ -1579,7 +1657,7 @@ function renderSocialGraph(groups) {
         .style('opacity', 1);
     })
     .on('mouseout', function() {
-      if (selectedIndex !== null) return;
+      if (selectedIndex !== null) { d3.select(this).style('opacity', 0.9).attr('stroke-width', 0.5); tooltip.style('opacity', 0); return; }
       d3.select(this).style('opacity', 0.65).attr('stroke-width', 0.5);
       tooltip.style('opacity', 0);
     });
@@ -1589,6 +1667,7 @@ function renderSocialGraph(groups) {
     .selectAll('path')
     .data(chords.groups)
     .join('path')
+    .attr('class', 'soc-arc')
     .attr('d', arc)
     .attr('fill', d => getAthleteColor(athleteIds[d.index]))
     .attr('stroke', '#0a0a0f')
@@ -1629,10 +1708,11 @@ function renderSocialGraph(groups) {
     });
 
   // Labels
-  svg.append('g')
+  const labels = svg.append('g')
     .selectAll('text')
     .data(chords.groups)
     .join('text')
+    .attr('class', 'soc-label')
     .attr('dy', '.35em')
     .attr('transform', d => {
       const angle = (d.startAngle + d.endAngle) / 2;
@@ -1647,6 +1727,32 @@ function renderSocialGraph(groups) {
     .style('text-shadow', '0 1px 3px rgba(0,0,0,0.8)')
     .text(d => getAthleteName(athleteIds[d.index]));
 
+  // Clic sur un nom (ou son arc) : ses sorties ressortent, le reste passe en grisé.
+  // Nouveau clic, ou clic dans le vide : tout revient.
+  const linked = d => d.source === selectedIndex || d.target === selectedIndex;
+  const partnerOf = i => i === selectedIndex || ribbonData.some(r => linked(r) && (r.source === i || r.target === i));
+  const applySelection = () => {
+    const on = selectedIndex !== null;
+    ribbons.style('opacity', d => !on ? 0.65 : linked(d) ? 0.9 : 0.05);
+    groupArcs.style('opacity', d => !on || partnerOf(d.index) ? 0.9 : 0.18);
+    labels.style('opacity', d => !on || partnerOf(d.index) ? 1 : 0.25)
+      .style('font-weight', d => on && d.index === selectedIndex ? '700' : null);
+  };
+  const toggle = (event, d) => {
+    event.stopPropagation();
+    selectedIndex = selectedIndex === d.index ? null : d.index;
+    tooltip.style('opacity', 0);
+    applySelection();
+  };
+  groupArcs.on('click', toggle);
+  labels.style('cursor', 'pointer').on('click', toggle);
+  d3.select(container).select('svg').on('click', () => {
+    if (selectedIndex === null) return;
+    selectedIndex = null;
+    applySelection();
+  });
+
+  if (isDA()) styleSocialDA(container, athleteIds);
   renderSocialLegend([...sportsUsed]);
   renderSocialStats(athleteIds, individualLinks, groups);
 }
@@ -1661,7 +1767,7 @@ function renderSocialLegend(sports) {
   legendContainer.innerHTML = sports.map(s => `
     <div class="social-legend-item">
       <div class="social-legend-color" style="background:${getSportColor(s)}"></div>
-      <span>${s}</span>
+      <span>${isDA() ? (SPORT_STYLE[s]?.label || s) : s}</span>
     </div>`).join('');
 }
 
@@ -1928,13 +2034,36 @@ async function renderPointsChart() {
     return;
   }
 
-  if (pointsChart) pointsChart.dispose();
-  pointsChart = echarts.init(dom);
+  if (pointsChart) { pointsChart.dispose(); pointsChart = null; }
 
   const { seasons, byAthlete } = data;
 
   // Filtre : si on a sélectionné un athlète, on met en surbrillance les autres
   const selectedAthleteId = document.getElementById('athleteSelect').value;
+
+  if (isDA()) {
+    // Mêmes informations que les infobulles ECharts ci-dessous
+    const ordinal = n => n === 1 ? '1er' : `${n}ème`;
+    const tipFor = (id, i) => {
+      const info = byAthlete[id];
+      const head = `<b>${info.name}</b> — Saison ${seasons[i]}<br>`;
+      if (pointsMode !== 'cumulative') {
+        const r = info.ranks[i]?.rank;
+        return head + `${r}<sup>${r === 1 ? 'er' : 'e'}</sup> au classement`;
+      }
+      const c = info.cumulative[i], bd = c?.breakdown, sb = info.seasonBreakdown?.[i];
+      const lines = [];
+      if (sb?.mainPoints > 0) lines.push(`Challenge principal : ${ordinal(sb.mainRank)} (+${sb.mainPoints}pts)`);
+      if (sb?.elimPoints > 0) lines.push(`Challenge des Éliminés : ${ordinal(sb.elimRank)} (+${sb.elimPoints}pts)`);
+      if (sb?.rescapePoints > 0) lines.push(`Jeton rescapé (+${sb.rescapePoints}pts)`);
+      return head + `<b>${c?.points}</b> pts cumulés` +
+        (bd ? `<br><small>Principal : ${bd.main} • Éliminés : ${bd.elim} • Rescapé : ${bd.rescape} • Bonus : ${bd.bonus}</small>` : '') +
+        (lines.length ? `<br>${lines.join('<br>')}` : '');
+    };
+    drawPoints(dom, seasons, byAthlete, pointsMode, selectedAthleteId, tipFor);
+    return;
+  }
+  pointsChart = echarts.init(dom);
 
   if (pointsMode === 'cumulative') {
     // Line chart cumulatif (points totaux saison par saison)
@@ -2185,10 +2314,16 @@ async function renderMoneyTimeChart() {
     return;
   }
 
-  if (moneyTimeChart) moneyTimeChart.dispose();
-  moneyTimeChart = echarts.init(dom);
+  if (moneyTimeChart) { moneyTimeChart.dispose(); moneyTimeChart = null; }
 
   const labels = ['J1', 'J2', 'J3', 'J4', 'J5 (avant 19h)', 'Money Time (J5 ≥ 19h)'];
+  if (isDA()) {
+    const short = ['J1', 'J2', 'J3', 'J4', 'J5 avant 19h', 'Money time'];
+    drawMoneyTime(dom, entries, short, (e, i) =>
+      `<b>${e.name}</b><br>${labels[i]} : <b>${e.pct[i].toFixed(1)}%</b> (${formatElevationCompact(e.buckets[i])} m)`);
+    return;
+  }
+  moneyTimeChart = echarts.init(dom);
   const colors = ['#22d3ee', '#10b981', '#fbbf24', '#f97316', '#ef4444', '#ce2828'];
 
   // Construire les séries : une par bucket
@@ -2321,8 +2456,7 @@ async function renderCompareChart() {
   const data2025 = await loadElevation2025();
   const data2026 = getFilteredData(); // activités 2026 (déjà filtrées par athlète si sélection)
 
-  if (compareChart) compareChart.dispose();
-  compareChart = echarts.init(dom);
+  if (compareChart) { compareChart.dispose(); compareChart = null; }
 
   const selectedAthleteId = document.getElementById('athleteSelect')?.value;
   const isFilteredByAthlete = !!selectedAthleteId;
@@ -2370,6 +2504,11 @@ async function renderCompareChart() {
   const rgb2026 = hexToRgba(color2026, 0.3);
   const rgb2026Transparent = hexToRgba(color2026, 0);
 
+  if (isDA()) {
+    drawCompare(dom, s2025, s2026, title2025, title2026, isFilteredByAthlete ? selectedAthleteId : '');
+    return;
+  }
+  compareChart = echarts.init(dom);
   compareChart.setOption({
     backgroundColor: 'transparent',
     tooltip: {
@@ -2674,7 +2813,7 @@ function renderRankingTable(stats) {
         : '-';
       const stravaLink = s.best_activity ? `https://www.strava.com/activities/${s.best_activity.id}` : '#';
       const elevPerPt = s.total_points > 0 ? s.elevation_per_point.toLocaleString('fr-FR') : '-';
-      const wins = s.seasons_won > 0 ? '🏆'.repeat(Math.min(s.seasons_won, 5)) : '-';
+      const wins = s.seasons_won > 0 ? picto('couronne', '🏆', 'Saison gagnée').repeat(Math.min(s.seasons_won, 5)) : '-';
       return `<tr>
         <td style="color:${getAthleteColor(s.athlete_id)}">${getAthleteName(s.athlete_id)}</td>
         <td>${Math.round(s.total_elevation).toLocaleString('fr-FR')}</td>
@@ -2726,44 +2865,42 @@ function renderAchievements(stats) {
   if (!grid) return;
 
   const achievements = [
-    // === ACHIEVEMENTS PRINCIPAUX CHALLENGE ===
-    { id: 'king', emoji: '👑', name: 'Roi du D+', desc: 'Le plus de dénivelé total', type: 'legendary',
-      getValue: s => s.total_elevation, format: v => `${formatElevationCompact(v)} m` },
+    // === PALMARÈS ===
+    { id: 'champion', emoji: '🥇', name: 'Champion', desc: 'Saisons remportées', type: 'legendary',
+      getValue: s => s.seasons_won, format: v => `${v} saison${v > 1 ? 's' : ''}` },
     { id: 'points_king', emoji: '🏆', name: 'Roi des Points', desc: 'Plus de points au challenge principal', type: 'legendary',
       getValue: s => s.main_points, format: v => `${v} pts` },
     { id: 'elim_prince', emoji: '👻', name: 'Prince des Éliminés', desc: 'Plus de points au challenge éliminés', type: 'legendary',
       getValue: s => s.eliminated_points, format: v => `${v} pts` },
-    { id: 'champion', emoji: '🥇', name: 'Champion', desc: 'Saisons remportées', type: 'legendary',
-      getValue: s => s.seasons_won, format: v => `${v} saison${v > 1 ? 's' : ''}` },
+    { id: 'finalist', emoji: '🏁', name: 'Habitué des Finales', desc: 'Finales disputées', type: 'normal',
+      getValue: s => s.finals_played, format: v => `${v} finale${v > 1 ? 's' : ''}` },
 
-    // === JEU (rounds figés) ===
+    // === DÉNIVELÉ ET RECORDS ===
+    { id: 'king', emoji: '👑', name: 'Roi du D+', desc: 'Le plus de dénivelé total', type: 'legendary',
+      getValue: s => s.total_elevation, format: v => `${formatElevationCompact(v)} m` },
+    { id: 'biggestAct', emoji: '⛰️', name: 'Sortie Légende', desc: 'La plus grosse sortie unique', type: 'legendary',
+      getValue: s => s.best_elevation, format: v => `${formatElevationCompact(v)} m` },
+    { id: 'best24h', emoji: '🔥', name: 'Journée de Feu', desc: 'Le plus gros D+ en 24h', type: 'legendary',
+      getValue: s => s.best_24h_elevation, format: v => `${formatElevationCompact(v)} m` },
+    { id: 'bestRound', emoji: '⚡', name: 'Round de Folie', desc: 'Le plus gros D+ sur un round (5j)', type: 'legendary',
+      getValue: s => s.best_round_elevation, format: v => `${formatElevationCompact(v)} m` },
+
+    // === SURVIE ET JEU (rounds figés) ===
+    { id: 'untouchable', emoji: '🧘', name: 'Intouchable', desc: 'La plus grande marge moyenne sur la zone d’élimination', type: 'normal',
+      getValue: s => s.elim_margin_avg ?? 0,
+      format: v => `${v.toFixed(2)} pl.`,
+      formatWinner: s => `${s.elim_margin_avg.toFixed(2)} pl. (${s.elim_margin_rounds} rounds)` },
     { id: 'ricrac', emoji: '🦎', name: 'RicRac', desc: 'Survit au plus près de l’élimination (places au-dessus de la zone, en moyenne sur les rounds survécus)', type: 'fun',
       lowerIsBetter: true,
       getValue: s => s.elim_margin_avg,
       format: v => `${v.toFixed(2)} pl.`,
       formatWinner: s => `${s.elim_margin_avg.toFixed(2)} pl. (${s.elim_margin_rounds} rounds)` },
-    { id: 'untouchable', emoji: '🧘', name: 'Intouchable', desc: 'La plus grande marge moyenne sur la zone d’élimination', type: 'normal',
-      getValue: s => s.elim_margin_avg ?? 0,
-      format: v => `${v.toFixed(2)} pl.`,
-      formatWinner: s => `${s.elim_margin_avg.toFixed(2)} pl. (${s.elim_margin_rounds} rounds)` },
-    { id: 'closecall', emoji: '😅', name: 'Sur le fil', desc: 'Rounds sauvés à une place près', type: 'fun',
-      getValue: s => s.close_calls, format: v => `${v} fois` },
-    { id: 'finalist', emoji: '🏁', name: 'Habitué des Finales', desc: 'Finales disputées', type: 'normal',
-      getValue: s => s.finals_played, format: v => `${v} finale${v > 1 ? 's' : ''}` },
     { id: 'jokers', emoji: '🃏', name: 'Joker Addict', desc: 'Le plus de jokers utilisés', type: 'fun',
       getValue: s => s.jokers_used, format: v => `${v} joker${v > 1 ? 's' : ''}` },
     { id: 'target', emoji: '🎯', name: 'Cible n°1', desc: 'Le plus ciblé par les jokers et bonus', type: 'fun',
       getValue: s => s.times_targeted, format: v => `${v} fois` },
 
-    // === RECORDS PUNCTUELS ===
-    { id: 'best24h', emoji: '🔥', name: 'Journée de Feu', desc: 'Le plus gros D+ en 24h', type: 'legendary',
-      getValue: s => s.best_24h_elevation, format: v => `${formatElevationCompact(v)} m` },
-    { id: 'bestRound', emoji: '⚡', name: 'Round de Folie', desc: 'Le plus gros D+ sur un round (5j)', type: 'legendary',
-      getValue: s => s.best_round_elevation, format: v => `${formatElevationCompact(v)} m` },
-    { id: 'biggestAct', emoji: '⛰️', name: 'Sortie Légende', desc: 'La plus grosse sortie unique', type: 'legendary',
-      getValue: s => s.best_elevation, format: v => `${formatElevationCompact(v)} m` },
-
-    // === EFFICACITÉ ===
+    // === STYLE ===
     { id: 'efficient', emoji: '⚡', name: 'Efficace', desc: 'Le plus de D+ par sortie', type: 'normal',
       getValue: s => parseFloat(s.elevation_per_activity), format: v => `${formatElevationCompact(v)} m/sortie` },
     { id: 'lost', emoji: '🤷', name: 'A pas compris', desc: 'Plus de sorties pour peu de D+ (moins de D+ par sortie)', type: 'fun',
@@ -2776,35 +2913,35 @@ function renderAchievements(stats) {
       formatWinner: s => `${s.elevation_per_activity} m/sortie (${s.activity_count} act.)` },
     { id: 'steep', emoji: '🧗', name: 'Accro à la Pente', desc: 'Le plus de D+ par km', type: 'normal',
       getValue: s => parseFloat(s.elevation_per_distance), format: v => `${v} m/km` },
+    { id: 'flat', emoji: '🪜', name: 'Plat Pays', desc: 'Activités à moins de 100 m de D+', type: 'fun',
+      getValue: s => s.activities_low_elevation, format: v => `${v} activités` },
     { id: 'worker', emoji: '💪', name: 'Le Travailleur', desc: 'Le plus de D+ pour 1 point', type: 'normal',
       getValue: s => s.total_points > 0 ? s.elevation_per_point : 0,
       format: v => `${formatElevationCompact(v)} m/pt` },
-
-    // === HABITUDES ===
-    { id: 'nightowl', emoji: '🦉', name: 'Oiseau de Nuit', desc: 'Activités après 20h', type: 'fun',
-      getValue: s => s.night_activities, format: v => `${v} sorties` },
-    { id: 'earlybird', emoji: '🐓', name: 'Lève-tôt', desc: 'Activités 4h-7h', type: 'normal',
-      getValue: s => s.morning_activities, format: v => `${v} sorties` },
-    { id: 'weekend', emoji: '🏖️', name: 'Weekend Warrior', desc: 'Activités le weekend', type: 'fun',
-      getValue: s => s.weekend_activities, format: v => `${v} sorties` },
 
     // === VOLUMES ===
     { id: 'distance', emoji: '🛣️', name: 'Forrest Gump', desc: 'La plus grande distance', type: 'normal',
       getValue: s => s.total_distance, format: v => `${(v/1000).toFixed(0)} km` },
     { id: 'marathoner', emoji: '⏱️', name: 'Marathonien', desc: 'Plus longue activité', type: 'normal',
       getValue: s => s.longest_activity_time, format: v => `${(v/3600).toFixed(1)} h` },
-    { id: 'flat', emoji: '🪜', name: 'Plat Pays', desc: 'Activités à moins de 100 m de D+', type: 'fun',
-      getValue: s => s.activities_low_elevation, format: v => `${v} activités` },
 
-    // === SPORTS ===
-    { id: 'cyclist', emoji: '🚴', name: 'Roi de la Pédale', desc: 'Le plus de D+ à vélo', type: 'normal',
-      getValue: s => s.elevation_by_sport['Bike'] || 0, format: v => `${formatElevationCompact(v)} m` },
+    // === HABITUDES ===
+    { id: 'earlybird', emoji: '🐓', name: 'Lève-tôt', desc: 'Activités 4h-7h', type: 'normal',
+      getValue: s => s.morning_activities, format: v => `${v} sorties` },
+    { id: 'nightowl', emoji: '🦉', name: 'Oiseau de Nuit', desc: 'Activités après 20h', type: 'fun',
+      getValue: s => s.night_activities, format: v => `${v} sorties` },
+    { id: 'weekend', emoji: '🏖️', name: 'Weekend Warrior', desc: 'Activités le weekend', type: 'fun',
+      getValue: s => s.weekend_activities, format: v => `${v} sorties` },
+
+    // === SPORTS (ordre des sports du site) ===
     { id: 'runner', emoji: '🏃', name: 'Crapahute', desc: 'Le plus de D+ en trail/run', type: 'normal',
       getValue: s => s.elevation_by_sport['Run'] || 0, format: v => `${formatElevationCompact(v)} m` },
-    { id: 'skier', emoji: '⛷️', name: 'Collant Pipette', desc: 'Le plus de D+ en ski', type: 'normal',
-      getValue: s => s.elevation_by_sport['Ski'] || 0, format: v => `${formatElevationCompact(v)} m` },
+    { id: 'cyclist', emoji: '🚴', name: 'Roi de la Pédale', desc: 'Le plus de D+ à vélo', type: 'normal',
+      getValue: s => s.elevation_by_sport['Bike'] || 0, format: v => `${formatElevationCompact(v)} m` },
     { id: 'hiker', emoji: '🥾', name: 'Randonneur', desc: 'Le plus de D+ en rando', type: 'normal',
-      getValue: s => s.elevation_by_sport['Hike'] || 0, format: v => `${formatElevationCompact(v)} m` }
+      getValue: s => s.elevation_by_sport['Hike'] || 0, format: v => `${formatElevationCompact(v)} m` },
+    { id: 'skier', emoji: '⛷️', name: 'Collant Pipette', desc: 'Le plus de D+ en ski', type: 'normal',
+      getValue: s => s.elevation_by_sport['Ski'] || 0, format: v => `${formatElevationCompact(v)} m` }
   ];
 
   // Tooltip custom
@@ -2846,7 +2983,7 @@ function renderAchievements(stats) {
     const winnerText = ach.formatWinner ? ach.formatWinner(winner) : ach.format(ach.getValue(winner));
     cards.push(`
       <div class="achievement-card" data-idx="${aIdx}">
-        <div class="achievement-badge ${ach.type}">${ach.emoji}</div>
+        <div class="achievement-badge ${ach.type}">${picto('succes-' + ach.id, ach.emoji)}</div>
         <div class="achievement-info">
           <div class="achievement-name">${ach.name}</div>
           <div class="achievement-desc">${ach.desc}</div>
@@ -2871,9 +3008,9 @@ function renderAchievements(stats) {
     const sorted = rankForAchievement(ach).slice(0, 3);
 
     card.addEventListener('mouseenter', () => {
-      let html = `<div style="font-weight:600;margin-bottom:10px;font-size:13px">${ach.emoji} ${ach.name}</div>`;
+      let html = `<div style="font-weight:600;margin-bottom:10px;font-size:13px">${picto('succes-' + ach.id, ach.emoji)} ${ach.name}</div>`;
       sorted.forEach((s, i) => {
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
+        const medal = medalPicto(i + 1);
         const txt = ach.formatWinner ? ach.formatWinner(s) : ach.format(ach.getValue(s));
         html += `
           <div style="display:flex;align-items:center;gap:8px;margin:6px 0">
@@ -3070,6 +3207,12 @@ async function init() {
         });
       });
     });
+
+    // DA : le sankey (canvas) suit le thème clair / cyanotype
+    if (isDA()) {
+      new MutationObserver(() => renderSankey(getFilteredData()))
+        .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    }
 
     // Resize handler global
     window.addEventListener('resize', () => {

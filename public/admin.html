@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="da-atelier">
 <head>
   <meta charset="UTF-8">
+  <!-- DA Atelier : thème posé avant le premier rendu -->
+  <script src="js/da-atelier.js?v=20261110c"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Administration - Versant</title>
 
@@ -69,6 +71,11 @@
       .admin-grid { grid-template-columns: 1fr; }
     }
   </style>
+  <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
+  <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
+  <link rel="stylesheet" href="css/da/base.css?v=20261106a">
+  <link rel="stylesheet" href="css/da/components.css?v=20261111c">
+  <link rel="stylesheet" href="css/da/admin.css?v=20261109a">
 </head>
 <body>
   <nav class="nav-sticky">
@@ -121,6 +128,18 @@
         <p class="section-desc" id="adminScope">Chargement...</p>
       </div>
 
+      <!-- Par où commencer : pour un admin de ligue qui découvre le site -->
+      <details class="admin-box admin-guide" id="adminGuide" open style="margin-bottom: 24px;">
+        <summary style="cursor: pointer;"><h3 style="display: inline;">Par où commencer</h3></summary>
+        <p class="hand">l'essentiel tourne tout seul : tu n'interviens qu'à quelques moments.</p>
+        <ol>
+          <li><strong>Inviter les joueurs</strong> (fiche « Ma ligue ») : copie le lien d'inscription et envoie-le à ta ligue. Chacun s'inscrit avec son compte Strava.</li>
+          <li><strong>Lancer l'édition</strong> (« Ma ligue ») : choisis ses dates. Les réglages par défaut conviennent pour une première fois ; chaque option est expliquée sous son choix.</li>
+          <li><strong>Pendant la saison</strong> : les activités arrivent seules depuis Strava, et chaque round terminé est figé automatiquement à 00h15. Tu peux exclure une activité qui ne respecte pas les règles (« Gestion des activités »).</li>
+        </ol>
+        <p class="desc" style="margin: 0;">Avant toute modification importante, une fiche te dit ce qui va changer et te demande de confirmer. Rien n'est enregistré tant que tu n'as pas confirmé.</p>
+      </details>
+
       <!-- Toutes les ligues (super-admin, L51c) : liste, création, admins -->
       <div class="admin-box" id="leaguesBox" data-super-only style="margin-bottom: 24px;">
         <h3>Toutes les ligues</h3>
@@ -139,6 +158,7 @@
       <!-- Ma ligue (L51) : code d'invitation, éditions, confirmations, lancement -->
       <div class="admin-box" id="leagueBox" style="margin-bottom: 24px;">
         <h3>Ma ligue</h3>
+        <p class="desc">Le code d'invitation de ta ligue, ses éditions (une édition = une année de jeu) et la prochaine à lancer.</p>
         <div id="leagueContent"><p class="muted">Chargement...</p></div>
       </div>
 
@@ -197,22 +217,10 @@
           </div>
         </div>
 
-        <!-- Reset mot de passe : super-admin seul -->
-        <div class="admin-box" data-super-only>
-          <h3>Reset mot de passe</h3>
-          <p class="desc">Réinitialiser le mot de passe d'un joueur qui l'a oublié.</p>
-          <div class="stack">
-            <select id="resetPasswordAthlete"><option value="">-- Choisir un athlète --</option></select>
-            <input type="text" id="resetPasswordNew" placeholder="Nouveau mot de passe (6 caractères min.)">
-            <button id="resetPasswordBtn" class="btn btn-block" style="background: linear-gradient(135deg, #f97316, #f43f5e); color: white;">Réinitialiser le mot de passe</button>
-          </div>
-          <div id="resetPasswordResult" style="margin-top: 12px; font-size: 14px;"></div>
-        </div>
-
         <!-- Activités -->
         <div class="admin-box wide">
           <h3>Gestion des activités</h3>
-          <p class="desc">Exclure ou réintégrer des activités qui ne respectent pas les règles du challenge.</p>
+          <p class="desc">Exclure une activité qui ne respecte pas les règles du challenge (sortie en voiture, doublon, erreur de GPS…) : son D+ ne compte plus. Une activité exclue peut être réintégrée à tout moment.</p>
           <div class="row">
             <input type="text" id="activitySearch" placeholder="Rechercher (nom, athlète...)" style="min-width: 200px;">
             <select id="activityFilter" style="flex: 0 1 auto;">
@@ -228,13 +236,14 @@
         <!-- Athlètes -->
         <div class="admin-box wide">
           <h3>Participants</h3>
+          <p class="desc">Les joueurs inscrits à l'édition gérée ici.</p>
           <div id="athletesList" class="scroll" style="max-height: 400px;"><p class="muted">Chargement...</p></div>
         </div>
 
         <!-- Jokers -->
         <div class="admin-box wide">
-          <h3>🃏 Gestion des jokers</h3>
-          <p class="desc">Stock restant de chaque athlète (usages figés inclus). Les boutons +/- enregistrent immédiatement.</p>
+          <h3><span class="picto picto--jokers"><span class="picto__emoji" aria-hidden="true">🃏</span></span> Gestion des jokers</h3>
+          <p class="desc">Stock restant de chaque athlète (usages figés inclus). À n'utiliser que pour corriger une erreur : chaque − ou + demande une confirmation, puis s'enregistre aussitôt.</p>
           <div class="row">
             <button id="resetAllJokersBtn" class="btn btn-danger">Remettre tous les stocks au départ</button>
           </div>
@@ -243,7 +252,7 @@
 
         <!-- Bonus éphémères -->
         <div class="admin-box wide">
-          <h3>🎁 Bonus éphémères</h3>
+          <h3><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span> Bonus éphémères</h3>
           <p class="desc">Choix en attente des meilleurs éliminés et bonus de la saison en cours. Les bonus des saisons closes sont archivés.</p>
           <div id="bonusesAdmin" class="scroll"><p class="muted">Chargement...</p></div>
         </div>
@@ -279,7 +288,7 @@
               </div>
             </div>
             <div class="sub-box">
-              <label>🏅 Challenge des éliminés</label>
+              <label><span class="picto picto--elimines"><span class="picto__emoji" aria-hidden="true">🏅</span></span> Challenge des éliminés</label>
               <div class="row" style="margin: 0;">
                 <input type="number" id="elimSeasonNumber" placeholder="N° saison" min="1">
                 <button id="freezeElimBtn" class="btn btn-success">Figer</button>
@@ -320,6 +329,6 @@
     </div>
   </footer>
 
-  <script src="js/admin.js?v=20261028d"></script>
+  <script src="js/admin.js?v=20261110a"></script>
 </body>
 </html>

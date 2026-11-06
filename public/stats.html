@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="da-atelier">
 <head>
   <meta charset="UTF-8">
+  <!-- DA Atelier : thème posé avant le premier rendu -->
+  <script src="js/da-atelier.js?v=20261110c"></script>
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
   <script src="shared/edition-session.js?v=20261028a"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +21,7 @@
   <!-- CSS principal (variables, nav, footer) -->
   <link rel="stylesheet" href="css/style.css?v=20261027a">
   <!-- CSS spécifique à la page stats -->
-  <link rel="stylesheet" href="css/stats.css?v=20260417">
+  <link rel="stylesheet" href="css/stats.css?v=20261109a">
 
   <!-- Leaflet pour la carte -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -27,6 +29,12 @@
         crossorigin=""/>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
+  <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
+  <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
+  <link rel="stylesheet" href="css/da/base.css?v=20261106a">
+  <link rel="stylesheet" href="css/da/components.css?v=20261111c">
+  <link rel="stylesheet" href="css/da/pages.css?v=20261105a">
+  <link rel="stylesheet" href="css/da/stats.css?v=20261105a">
 </head>
 <body>
   <!-- Loading Screen -->
@@ -101,16 +109,16 @@
 
     <div id="statsContainer" class="stats-grid">
       <div class="stat-card stat-primary">
-        <div class="stat-icon">↑</div>
+        <div class="stat-icon" style="--ico: url(/assets/pictos/doodle/trend-up.svg)">↑</div>
         <div class="stat-content">
-          <span class="stat-value" id="totalElevation">0</span>
+          <span class="stat-value da-mk" id="totalElevation">0</span>
           <span class="stat-unit">m D+</span>
         </div>
         <span class="stat-label">Dénivelé cumulé</span>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">◉</div>
+        <div class="stat-icon" style="--ico: url(/assets/pictos/doodle/flag.svg)">◉</div>
         <div class="stat-content">
           <span class="stat-value" id="totalActivities">0</span>
         </div>
@@ -118,7 +126,7 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">→</div>
+        <div class="stat-icon" style="--ico: url(/assets/pictos/doodle/map.svg)">→</div>
         <div class="stat-content">
           <span class="stat-value" id="totalDistance">0</span>
           <span class="stat-unit">km</span>
@@ -127,7 +135,7 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">◷</div>
+        <div class="stat-icon" style="--ico: url(/assets/pictos/doodle/stopwatch.svg)">◷</div>
         <div class="stat-content">
           <span class="stat-value" id="totalTime">0</span>
           <span class="stat-unit">h</span>
@@ -136,7 +144,7 @@
       </div>
 
       <div class="stat-card stat-highlight">
-        <div class="stat-icon">★</div>
+        <div class="stat-icon" style="--ico: url(/assets/pictos/doodle/sun.svg)">★</div>
         <div class="stat-content">
           <span class="stat-value-small" id="bestDay">-</span>
         </div>
@@ -144,13 +152,14 @@
       </div>
 
       <div class="stat-card stat-highlight">
-        <div class="stat-icon">◆</div>
+        <div class="stat-icon" style="--ico: url(/assets/pictos/doodle/calendar.svg)">◆</div>
         <div class="stat-content">
           <span class="stat-value-small" id="bestWeek">-</span>
         </div>
         <span class="stat-label">Meilleure semaine</span>
       </div>
 
+      <div class="stat-duo">
       <div class="stat-card stat-chart">
         <div class="stat-label" style="margin-bottom: 12px;">Répartition par sport</div>
         <div id="sportPieChart"></div>
@@ -164,6 +173,7 @@
           <button class="ranking-nav-btn ranking-next" id="rankingNext">›</button>
         </div>
         <div class="ranking-dots" id="rankingDots"></div>
+      </div>
       </div>
     </div>
   </section>
@@ -362,7 +372,7 @@
             <th data-sort="total_elevation">D+ (m)</th>
             <th data-sort="total_points">Points</th>
             <th data-sort="elevation_per_point">D+/Pt</th>
-            <th data-sort="seasons_won">🏆</th>
+            <th data-sort="seasons_won" title="Saisons gagnées"><span class="picto picto--couronne" role="img" aria-label="Saisons gagnées"><span class="picto__emoji" aria-hidden="true">🏆</span></span></th>
             <th data-sort="activity_count">Activités</th>
             <th data-sort="total_distance">Distance (km)</th>
             <th data-sort="total_time">Temps (h)</th>
@@ -417,6 +427,6 @@
   <!-- Module principal -->
   <script src="shared/team-formation.js?v=20260417"></script>
   <script src="shared/edition-rules.js?v=20261028d"></script>
-  <script type="module" src="js/stats.js?v=20261028a"></script>
+  <script type="module" src="js/stats.js?v=20261109c"></script>
 </body>
 </html>

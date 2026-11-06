@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="da-atelier">
 <head>
   <meta charset="UTF-8">
+  <!-- DA Atelier : thème posé avant le premier rendu -->
+  <script src="js/da-atelier.js?v=20261110c"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connexion - Versant</title>
   
@@ -9,14 +11,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛰️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
+  <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
+  <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
+  <link rel="stylesheet" href="css/da/base.css?v=20261106a">
+  <link rel="stylesheet" href="css/da/components.css?v=20261111c">
+  <link rel="stylesheet" href="css/da/pages.css?v=20261105a">
 </head>
 <body>
   <!-- Navigation -->
   <nav class="nav-sticky">
     <div class="nav-container">
       <a href="index.html" class="nav-brand">
-        <span class="brand-icon">c</span>
+        <span class="brand-icon">◭</span>
         <span class="brand-text">Versant</span>
       </a>
       <div class="nav-links">
@@ -74,7 +81,7 @@
       <div class="info-box" id="loginBox" style="padding: 40px;">
         <div style="text-align: center; margin-bottom: 32px;">
           <h2 style="font-family: 'Syne', sans-serif; font-size: 24px; margin-bottom: 8px;">
-            Accéder à mon compte
+            Accéder à <span class="da-mk">mon compte</span>
           </h2>
           <p style="color: rgba(255,255,255,0.6); font-size: 14px;">
             Entrez vos identifiants pour accéder à votre dashboard

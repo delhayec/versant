@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="da-atelier">
 <head>
   <meta charset="UTF-8">
+  <!-- DA Atelier : thème posé avant le premier rendu -->
+  <script src="js/da-atelier.js?v=20261110c"></script>
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
   <script src="shared/edition-session.js?v=20261028a" data-auth="optional"></script>
   <script src="shared/edition-rules.js?v=20261028d"></script>
@@ -505,6 +507,11 @@
       }
     }
   </style>
+  <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
+  <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
+  <link rel="stylesheet" href="css/da/base.css?v=20261106a">
+  <link rel="stylesheet" href="css/da/components.css?v=20261111c">
+  <link rel="stylesheet" href="css/da/pages.css?v=20261105a">
 </head>
 <body>
   <!-- Navigation -->
@@ -529,7 +536,7 @@
   <div class="rules-container">
     <!-- Header -->
     <div class="rules-header">
-      <h1 class="rules-title">Règles du Challenge</h1>
+      <h1 class="rules-title"><span class="da-mk">Règles</span> du Challenge</h1>
       <p class="rules-subtitle">
         Tout ce que tu dois savoir pour participer au <span data-edition="fullName">Challenge Versant 2026</span>
       </p>
@@ -550,7 +557,7 @@
             <h4>Composition des équipes</h4>
             <p>
               4 équipes de 4 joueurs sont tirées au sort
-              <strong>à chaque round</strong>. L'algorithme d'équilibrage minimise
+              <strong class="da-mk">à chaque round</strong>. L'algorithme d'équilibrage minimise
               l'écart de D+ entre les équipes, en utilisant le D+ cumulé de chaque
               joueur depuis le 1er janvier (arrêté au début du round).
             </p>
@@ -570,7 +577,7 @@
           </div>
 
           <div class="team-rule-card">
-            <h4>🛡️ Jokers autorisés</h4>
+            <h4><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span> Jokers autorisés</h4>
             <p>
               Le <strong>bouclier est désactivé</strong> en saison Équipes
               (toute l'équipe est éliminée ou survit ensemble). Voleur,
@@ -615,7 +622,7 @@
           </div>
 
           <div class="team-rule-card">
-            <h4>🎁 Bonus éphémères</h4>
+            <h4><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span> Bonus éphémères</h4>
             <p>
               Comme dans les saisons standard, à chaque round (R1 et R2), le
               meilleur des éliminés (= meilleur D+ individuel dans l'équipe
@@ -644,7 +651,7 @@
         <h4>Le concept</h4>
         <p>
           Le Challenge Versant est une compétition de dénivelé positif (D+) basée sur tes activités Strava.
-          Chaque semaine, les joueurs s'affrontent et les derniers sont éliminés. Le but : survivre le plus longtemps possible
+          Chaque semaine, les joueurs s'affrontent et les derniers sont éliminés. Le but : <span class="da-mk">survivre le plus longtemps</span> possible
           et accumuler un maximum de points.
         </p>
       </div>
@@ -654,7 +661,7 @@
         <p>
           Une saison dure environ 1 mois et se compose de plusieurs rounds de <span data-rules-value="roundDurationDays">5</span> jours chacun.
           À chaque round, les <span data-rules-value="eliminationsPerRound">2</span> derniers joueurs du classement D+ sont éliminés et rejoignent le Challenge des Éliminés.
-          La saison se termine quand il ne reste qu'un seul joueur actif : le champion !
+          La saison se termine quand il ne reste qu'un seul joueur actif : <span class="da-mk">le champion</span> !
         </p>
       </div>
 
@@ -681,9 +688,9 @@
             Points par round selon le classement
           </p>
           <table class="points-table" id="pointsMainTable">
-            <tr><td>🥇 1ère place</td><td style="color: #fbbf24;">24 pts</td></tr>
-            <tr><td>🥈 2ème place</td><td style="color: #d1d5db;">21 pts</td></tr>
-            <tr><td>🥉 3ème place</td><td style="color: #cd7f32;">18 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="1"><span class="picto picto--medaille" role="img" aria-label="1er"><span class="picto__emoji" aria-hidden="true">🥇</span></span></span> 1ère place</td><td style="color: #fbbf24;">24 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="2"><span class="picto picto--medaille" role="img" aria-label="2e"><span class="picto__emoji" aria-hidden="true">🥈</span></span></span> 2ème place</td><td style="color: #d1d5db;">21 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="3"><span class="picto picto--medaille" role="img" aria-label="3e"><span class="picto__emoji" aria-hidden="true">🥉</span></span></span> 3ème place</td><td style="color: #cd7f32;">18 pts</td></tr>
             <tr><td>4ème place</td><td>15 pts</td></tr>
             <tr><td>5ème place</td><td>12 pts</td></tr>
             <tr><td>6ème place</td><td>10 pts</td></tr>
@@ -705,9 +712,9 @@
             Points selon le D+ cumulé depuis l'élimination
           </p>
           <table class="points-table" id="pointsElimTable">
-            <tr><td>🥇 1ère place</td><td style="color: #fbbf24;">10 pts</td></tr>
-            <tr><td>🥈 2ème place</td><td style="color: #d1d5db;">8 pts</td></tr>
-            <tr><td>🥉 3ème place</td><td style="color: #cd7f32;">6 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="1"><span class="picto picto--medaille" role="img" aria-label="1er"><span class="picto__emoji" aria-hidden="true">🥇</span></span></span> 1ère place</td><td style="color: #fbbf24;">10 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="2"><span class="picto picto--medaille" role="img" aria-label="2e"><span class="picto__emoji" aria-hidden="true">🥈</span></span></span> 2ème place</td><td style="color: #d1d5db;">8 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="3"><span class="picto picto--medaille" role="img" aria-label="3e"><span class="picto__emoji" aria-hidden="true">🥉</span></span></span> 3ème place</td><td style="color: #cd7f32;">6 pts</td></tr>
             <tr><td>4ème place</td><td>5 pts</td></tr>
             <tr><td>5ème place</td><td>4 pts</td></tr>
             <tr><td>6ème place</td><td>3 pts</td></tr>
@@ -770,43 +777,43 @@
     <!-- Les Jokers -->
     <section class="rules-section" data-mechanic="jokers">
       <h2 class="section-title">
-        <span class="section-title-icon">🃏</span>
+        <span class="section-title-icon"><span class="picto picto--jokers"><span class="picto__emoji" aria-hidden="true">🃏</span></span></span>
         Les Jokers
       </h2>
 
       <div class="rules-card">
         <p>
-          Chaque joueur dispose de <strong style="color: #f97316;">8 jokers</strong> au total (2 de chaque type)
+          Chaque joueur dispose de <strong class="da-mk" style="color: #f97316;">8 jokers</strong> au total (2 de chaque type)
           à utiliser stratégiquement durant la saison. Les jokers s'activent généralement au round suivant.
 
-          Les jokers peuvent etre jouer lors des 3 premiers jours d'un round, une petite icone apparait sur le classement général pour prevenir tes adversaires
+          Les jokers peuvent etre jouer lors des <span class="da-mk">3 premiers jours</span> d'un round, une petite icone apparait sur le classement général pour prevenir tes adversaires
         </p>
       </div>
 
       <div class="cards-grid">
         <div class="joker-card" data-joker="voleur">
-          <div class="icon">🦹</div>
+          <div class="icon"><span class="picto picto--voleur"><span class="picto__emoji" aria-hidden="true">🦹</span></span></div>
           <div class="name">Voleur</div>
           <div class="desc">Vole la meilleure activité (plus gros D+) d'un adversaire de ton choix.</div>
           <div class="stock">×2 par saison</div>
         </div>
 
         <div class="joker-card" data-joker="multiplicateur">
-          <div class="icon">✖️</div>
+          <div class="icon"><span class="picto picto--multiplicateur"><span class="picto__emoji" aria-hidden="true">✖️</span></span></div>
           <div class="name">Multiplicateur</div>
           <div class="desc">Multiplie ton D+ du round par ×1.5. Un boost considérable !</div>
           <div class="stock">×2 par saison</div>
         </div>
 
         <div class="joker-card">
-          <div class="icon">🛡️</div>
+          <div class="icon"><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span></div>
           <div class="name">Bouclier</div>
           <div class="desc">Évite l'élimination même si tu es dernier. NON utilisable en finale.</div>
           <div class="stock">×2 par saison</div>
         </div>
 
         <div class="joker-card" data-joker="sabotage">
-          <div class="icon">💣</div>
+          <div class="icon"><span class="picto picto--sabotage"><span class="picto__emoji" aria-hidden="true">💣</span></span></div>
           <div class="name">Sabotage</div>
           <div class="desc">Retire 30% du D+ d'un adversaire ciblé. Idéal pour déstabiliser un concurrent.</div>
           <div class="stock">×2 par saison</div>
@@ -817,14 +824,14 @@
     <!-- Bonus Éphémères -->
     <section class="rules-section" data-mechanic="eliminatedBonuses">
       <h2 class="section-title">
-        <span class="section-title-icon">🎁</span>
+        <span class="section-title-icon"><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span></span>
         Bonus Éphémères (Challenge des Éliminés)
       </h2>
 
       <div class="rules-card">
         <h4>Comment ça marche ?</h4>
         <p>
-          Quand tu es éliminé, si tu es le <strong style="color: #a855f7;">meilleur des 2 éliminés</strong> du round,
+          Quand tu es éliminé, si tu es le <strong class="da-mk" style="color: #a855f7;">meilleur des 2 éliminés</strong> du round,
           tu reçois un bonus spécial ! Tu choisis 1 bonus parmi 2 tirés au sort.
         </p>
         <p>
@@ -834,7 +841,7 @@
 
       <div class="cards-grid">
         <div class="joker-card bonus-ephemere-card" data-bonus="embuscade">
-          <div class="icon">🏹</div>
+          <div class="icon"><span class="picto picto--embuscade"><span class="picto__emoji" aria-hidden="true">🏹</span></span></div>
           <div class="name">Embuscade</div>
           <div class="desc">
             Tu tends une embuscade à un joueur actif et lui voles une activité aléatoire (+20min).
@@ -843,11 +850,11 @@
             et <span style="color:#10b981">ajouté</span> à ton total dans le challenge des éliminés.
           </div>
           <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
-          <div class="category">⚔️ Offensif</div>
+          <div class="category"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span> Offensif</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
-          <div class="icon">🎒</div>
+          <div class="icon"><span class="picto picto--ravitaillement"><span class="picto__emoji" aria-hidden="true">🎒</span></span></div>
           <div class="name">Ravitaillement</div>
           <div class="desc">
             Tu ravitailles un joueur actif en lui offrant une de tes activités aléatoire (+20min).
@@ -860,7 +867,7 @@
         </div>
 
         <div class="joker-card bonus-ephemere-card">
-          <div class="icon">⚔️</div>
+          <div class="icon"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span></div>
           <div class="name">Duel</div>
           <div class="desc">
             Tu défies automatiquement ton co-éliminé (l'autre joueur éliminé en même temps que toi).
@@ -873,7 +880,7 @@
         </div>
 
         <div class="joker-card bonus-ephemere-card">
-          <div class="icon">🌫️</div>
+          <div class="icon"><span class="picto picto--brouillard"><span class="picto__emoji" aria-hidden="true">🌫️</span></span></div>
           <div class="name">Brouillard</div>
           <div class="desc">
             Tu te caches dans le brouillard jusqu'à la fin de la saison. Tapi dans l'ombre !
@@ -883,11 +890,11 @@
             Révélation à la fin de la saison.
           </div>
           <div class="timing">Activation : dans les 48h après élimination<br>Effet : fin de saison</div>
-          <div class="category">🛡️ Défensif</div>
+          <div class="category"><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span> Défensif</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
-          <div class="icon">🎯</div>
+          <div class="icon"><span class="picto picto--marquage"><span class="picto__emoji" aria-hidden="true">🎯</span></span></div>
           <div class="name">Marquage</div>
           <div class="desc">
             En début de round, tu marques un joueur actif. C'est un pari sur son élimination !
@@ -900,7 +907,7 @@
         </div>
 
         <div class="joker-card bonus-ephemere-card">
-          <div class="icon">🪤</div>
+          <div class="icon"><span class="picto picto--trap"><span class="picto__emoji" aria-hidden="true">🪤</span></span></div>
           <div class="name">It's a TRAP !</div>
           <div class="desc">
             Tu poses un piège passif qui reste actif jusqu'à ce qu'il se déclenche.
@@ -909,11 +916,11 @@
             <span style="color:#10b981">le D+ de sa dernière activité</span> du round (c'est une copie, pas un vol - il garde son D+).
           </div>
           <div class="timing">Activation : automatique dès réception<br>Effet : au prochain éliminé dernier</div>
-          <div class="category">🪤 Piège</div>
+          <div class="category"><span class="picto picto--trap"><span class="picto__emoji" aria-hidden="true">🪤</span></span> Piège</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card">
-          <div class="icon">🔥</div>
+          <div class="icon"><span class="picto picto--second_souffle"><span class="picto__emoji" aria-hidden="true">🔥</span></span></div>
           <div class="name">Second Souffle</div>
           <div class="desc">
             Récompense la régularité ! Sois constant dans tes efforts.
@@ -926,7 +933,7 @@
         </div>
 
         <div class="joker-card bonus-ephemere-card" data-bonus="kamikaze">
-          <div class="icon">💣</div>
+          <div class="icon"><span class="picto picto--kamikaze"><span class="picto__emoji" aria-hidden="true">💣</span></span></div>
           <div class="name">Kamikaze</div>
           <div class="desc">
             Tu te sacrifies pour entraîner un adversaire dans ta chute.
@@ -935,11 +942,11 @@
             mais ta cible (joueur actif de ton choix) <span style="color:#ef4444">perd aussi 25%</span> de son D+ du round.
           </div>
           <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
-          <div class="category">⚔️ Offensif</div>
+          <div class="category"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span> Offensif</div>
         </div>
 
         <div class="joker-card bonus-ephemere-card" data-bonus="malediction">
-          <div class="icon">🪬</div>
+          <div class="icon"><span class="picto picto--malediction"><span class="picto__emoji" aria-hidden="true">🪬</span></span></div>
           <div class="name">Malédiction</div>
           <div class="desc">
             Tu maudis l'un des responsables de ton élimination. Son succès devient ta vengeance.
@@ -949,7 +956,7 @@
             et <span style="color:#10b981">ajouté à ton total</span>. L'effet cesse quand il est éliminé.
           </div>
           <div class="timing">Activation : automatique dès le choix<br>Effet : chaque fin de round</div>
-          <div class="category">⚔️ Offensif</div>
+          <div class="category"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span> Offensif</div>
         </div>
       </div>
 
@@ -976,7 +983,7 @@
           • L'activité doit être enregistrée pendant la période du round en cours<br>
           • Le D+ est celui calculé par Strava<br>
           • Les activités manuelles sont acceptées mais peuvent être vérifiées<br>
-          • Les activités sur home trainer (sans D+ réel) ne comptent pas
+          • Les activités sur home trainer (sans D+ réel) <span class="da-mk">ne comptent pas</span>
         </p>
       </div>
     </section>
@@ -1108,7 +1115,7 @@
         const N = Math.max(PARTICIPANTS.length, 2);
         const F = Number(CHALLENGE_CONFIG.finalistsCount) || 1;
         const rules = editionRules();
-        const medal = ['🥇', '🥈', '🥉'];
+        const medal = ['🥇', '🥈', '🥉'].map((e, i) => `<span class="da-medal" data-n="${i + 1}"><span class="picto picto--medaille"><span class="picto__emoji" aria-hidden="true">${e}</span></span></span>`);
         const row = (p, pts) => `<tr><td>${medal[p - 1] ? medal[p - 1] + ' ' : ''}${p}${p === 1 ? 're' : 'e'} place</td><td>${pts} pt${pts > 1 ? 's' : ''}</td></tr>`;
         document.getElementById('pointsMainTable').innerHTML =
           Array.from({ length: N }, (_, i) => row(i + 1, rules.mainPoints(i + 1, N, F))).join('');

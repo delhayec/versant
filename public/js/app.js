@@ -37,8 +37,8 @@ import {
   renderJokersGuide, renderArsenal, showNotification,
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
-  renderAthleteActivitiesPanel
-} from './ui.js';
+  renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge
+} from './ui.js?v=20261110b';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 
@@ -86,6 +86,10 @@ import {
 } from './standings-engine.js';
 
 import { toggleSimulator } from './simulator.js';
+import { picto, medal as medalPicto } from './pictos.js';
+import { motifClass } from './motifs.js';
+import * as H from './da-hand.js';
+import { roundSituationNote } from './da-notes.js';
 
 
 // ============================================
@@ -102,6 +106,8 @@ let bonusesCache = []; // Cache des bonus éphémères
 let seasonBonusesCache = {}; // Cache des bonus archivés par saison (depuis frozen_results)
 // Cache des configurations de round (round_configs.json)
 let roundConfigsCache = {};
+// DA Atelier : classements du rendu en cours, relus pour les annotations du bandeau
+let daNotes = {};
 
 async function loadRoundConfigs() {
   try {
@@ -177,11 +183,36 @@ async function loadBonuses() {
 }
 
 /**
+ * DA : pictos des jokers posés et subis par un joueur dans un round, pour les
+ * lignes de l'historique (affichage seul, à partir des jokers du round).
+ */
+function historyJokerIcons(athleteId, jokers) {
+  const id = String(athleteId);
+  const icons = [];
+  for (const j of jokers || []) {
+    // Deux formes selon l'origine : enrichie (jokerId, athleteId) ou brute (joker_id, athlete_id)
+    const jokerId = j.jokerId ?? j.joker_id;
+    const type = JOKER_TYPES[jokerId];
+    if (!type) continue;
+    const user = j.participantId ?? j.athleteId ?? j.athlete_id;
+    const target = j.targetId ?? j.target_athlete_id;
+    const by = j.participantName || j.athleteName || j.athlete_name || '';
+    if (user != null && String(user) === id) {
+      icons.push(`<span class="history-row-joker" title="${type.name}">${picto(jokerId, type.icon, type.name)}</span>`);
+    }
+    if (target != null && String(target) === id) {
+      icons.push(`<span class="history-row-joker is-target" title="${type.name} subi${by ? ' (' + by + ')' : ''}">${picto(jokerId, type.icon, type.name)}</span>`);
+    }
+  }
+  return icons.length ? `<span class="history-row-jokers">${icons.join('')}</span>` : '';
+}
+
+/**
  * Génère la description d'un bonus pour l'historique
  */
 function getBonusHistoryDescription(bonus) {
   const bonusType = BONUS_TYPES?.[bonus.bonus_id];
-  const icon = bonusType?.icon || '🎁';
+  const icon = picto(bonus.bonus_id, bonusType?.icon || '🎁', bonusType?.name);
   const athleteName = bonus.athlete_name || 'Joueur';
   const targetName = bonus.target_athlete_name;
   const effectResult = bonus.effect_result;
@@ -486,6 +517,7 @@ async function renderAll() {
     currentSeasonNumber = getSeasonNumber(today, frozenResultsCache);
 
     currentRoundNumber = getGlobalRoundNumber(today);
+    daNotes = {};
 
     seasonData = simulateSeasonEliminations(allActivities, currentSeasonNumber, today, frozenResultsCache, yearlyStandingsCache);
 
@@ -634,8 +666,23 @@ async function renderAll() {
         ephemeralEffects[e.participant.id] = getEphemeralBonusEffectsForActiveAthlete(e.participant.id, currentRoundNumber, bonusesCache, seasonBonusesCache);
       });
 
+      // DA : places gagnées / perdues depuis minuit, à partir du jour 2 du round.
+      // Même calcul que le classement en cours, activités coupées à 00 h.
+      // Présentation seule : n'entre dans aucun score.
+      let dayStartRanks = null;
+      const midnight = new Date(today); midnight.setHours(0, 0, 0, 0);
+      if (midnight > new Date(roundDates.start) && midnight < new Date(roundDates.end)) {
+        let r0 = calculateRanking(filterByPeriod(allActivities, roundDates.start, new Date(midnight.getTime() - 1)), seasonData?.active || [], currentRule);
+        r0 = applyJokerEffects(r0, currentRoundNumber);
+        if (currentRule === 'handicap' && yearlyStandingsCache) r0 = applyHandicapRule(r0, yearlyStandingsCache);
+        dayStartRanks = Object.fromEntries(r0.map((e, i) => [String(e.participant.id), i + 1]));
+      }
+
+daNotes.round = ranking;
+daNotes.roundStart = dayStartRanks;
 renderRanking(rankingContainer, {
         ranking,
+        dayStartRanks,
         seasonData,
         currentSeasonNumber,
         seasonStats,
@@ -694,6 +741,9 @@ renderRanking(rankingContainer, {
       renderEliminatedChallenge(eliminatedContainer);
     }
 
+    // DA Atelier : annotations du bandeau (après les classements qu'elles relisent)
+    renderRoundNotes(buildRoundNotes());
+
     // Classement Général
     const finalStandingsContainer = document.getElementById('finalStandingsContainer');
     if (finalStandingsContainer) {
@@ -751,6 +801,84 @@ renderRanking(rankingContainer, {
 // RENDU: CLASSEMENT ÉQUIPES
 // ============================================
 
+/**
+ * DA Atelier : notes manuscrites du bandeau pour le joueur connecté.
+ * Relit les classements que le rendu vient de calculer (daNotes) et les bonus
+ * en cache ; ne calcule aucun score. Le marquage garde sa cible secrète,
+ * comme dans l'arsenal.
+ */
+function buildRoundNotes() {
+  let me = null;
+  try { me = localStorage.getItem('versant_athlete_id'); } catch { /* stockage bloqué */ }
+  if (!me) return [];
+  const notes = [];
+  const m = (v) => `<span class="da-key">${formatElevation(Math.abs(v))}</span>`;
+  const nth = (n) => n === 1 ? '1<sup>er</sup>' : `${n}<sup>e</sup>`;
+
+  const round = daNotes.round;
+  const teams = daNotes.teams;
+  const myIdx = round ? round.findIndex(e => String(e.participant.id) === me) : -1;
+  const myTeamIdx = teams ? teams.findIndex(t => (t.members || []).some(x => String(x.id) === me)) : -1;
+
+  // Personne n'a encore de D+ : pas de « 1er : 0 m d'avance », un mot d'accueil
+  const allZero = (list) => list && list.length && list.every(x => !x.totalElevation);
+  if (allZero(round) || (myIdx < 0 && allZero(teams))) {
+    notes.push({ text: getRoundInSeason(getCurrentDate()) === 1 ? 'Nouvelle saison, <span class="da-key">nouveau round</span>' : '<span class="da-key">Nouveau round</span>' });
+  } else if (myIdx >= 0) {
+    const e = round[myIdx];
+    const cut = round.findIndex((x, i) => x.isInDangerZone && i > 0 && !round[i - 1].isInDangerZone);
+    if (!e.totalElevation && !e.isProtected) notes.push({ text: 'Inactif à ce round → <span class="da-key">Éliminé</span>' });
+    else notes.push({ text: roundSituationNote(round, myIdx, cut, daNotes.roundStart?.[me]) });
+  } else if (myTeamIdx >= 0) {
+    const last = teams.length - 1;
+    const t = teams[myTeamIdx];
+    if (teams.length < 2) { /* rien à comparer */ }
+    else if (myTeamIdx === last) {
+      const gap = teams[last - 1].totalElevation - t.totalElevation;
+      notes.push({ text: H.dailyPick([
+        () => `Ton équipe est dernière : il vous manque ${H.meters(gap)}`,
+        () => `Ton équipe est ${H.hv('DERNIÈRE')} : il vous manque ${H.meters(gap, ['1'])}`,
+      ], 'equipe-derniere')() });
+    } else {
+      // l'avance se mesure sur la dernière équipe : « les autres » seulement en tête
+      const gap = t.totalElevation - teams[last].totalElevation;
+      const tail = myTeamIdx === 0 ? "d'avance sur les autres" : "d'avance sur la dernière";
+      const pos = `${H.hv(myTeamIdx + 1)}${H.small(myTeamIdx === 0 ? 'ère' : 'e')}`;
+      notes.push({ text: H.dailyPick([
+        () => `Ton équipe est ${pos} : ${H.under(H.meters(gap, ['1']), 'trait-M', '', true)} ${H.under(tail, 'emphasis-03')}`,
+        () => `Ton équipe est ${pos} : ${H.meters(gap, ['1'])} ${tail}`,
+      ], 'equipe')() });
+    }
+  } else if (daNotes.elim) {
+    const el = daNotes.elim;
+    const i = el.findIndex(e => String(e.participant.id) === me);
+    if (i === 0 && el.length > 1) notes.push({ text: `Tu mènes le challenge ${H.circle(H.accent(H.small('des éliminés')))} ${H.meters(el[0].totalElevation - el[1].totalElevation)} d'avance` });
+    else if (i > 0) notes.push({ text: `${nth(i + 1)} au challenge des éliminés, à ${m(el[i - 1].totalElevation - el[i].totalElevation)} du ${nth(i)}` });
+  } else if (daNotes.elimTeams) {
+    const et = daNotes.elimTeams;
+    const i = et.findIndex(t => (t.members || []).some(x => String(x.id) === me));
+    if (i === 0 && et.length > 1) notes.push({ text: `ton équipe mène le challenge des éliminés, ${m(et[0].totalElevation - et[1].totalElevation)} d'avance` });
+    else if (i > 0) notes.push({ text: `ton équipe, ${nth(i + 1)} au challenge des éliminés, à ${m(et[i - 1].totalElevation - et[i].totalElevation)} de la ${nth(i)}` });
+  }
+
+  // Ce qui te vise : jokers du round, bonus en cours (cible visible dans l'arsenal)
+  const seasonStart = getSeasonStartRound(currentSeasonNumber);
+  const who = (id) => getParticipantById(id)?.name || "quelqu'un";
+  getActiveJokersForRound(currentRoundNumber).forEach(j => {
+    const target = j.targetId || j.target_athlete_id;
+    if (String(target) !== me) return;
+    const type = JOKER_TYPES?.[j.jokerId];
+    notes.push({ text: `${who(j.athleteId || j.athlete_id || j.participantId)} te vise : ${(type?.name || j.jokerId).toLowerCase()}`, circled: true });
+  });
+  (bonusesCache || []).forEach(b => {
+    if (String(b.target_athlete_id) !== me || b.bonus_id === 'marquage') return;
+    if (b.elimination_round && b.elimination_round < seasonStart) return;
+    if (bonusDisplayStatus(b, currentRoundNumber).status !== 'active') return;
+    notes.push({ text: `${who(b.athlete_id)} te vise : ${(BONUS_TYPES?.[b.bonus_id]?.name || b.bonus_id).toLowerCase()}`, circled: true });
+  });
+  return notes;
+}
+
 function renderTeamRanking(container, data) {
   const { teams, seasonData, currentSeasonNumber, currentRoundNumber, isFrozen, roundActivities, specialRule } = data;
 
@@ -761,6 +889,7 @@ function renderTeamRanking(container, data) {
 
   // Trier les équipes par D+ total décroissant
   const sortedTeams = [...teams].sort((a, b) => b.totalElevation - a.totalElevation);
+  daNotes.teams = sortedTeams;
   const lastTeamIdx = sortedTeams.length - 1;
 
   // Détecter le type de round (finale principale = 2 équipes restantes)
@@ -783,7 +912,7 @@ function renderTeamRanking(container, data) {
     const position = teamPosition + 1;
 
     // Médaille pour le top 3
-    const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '';
+    const medal = medalPicto(position);
 
     // Nom équipe = animal en priorité, sinon couleur (fallback)
     const teamLabel = animal
@@ -802,7 +931,7 @@ function renderTeamRanking(container, data) {
           : '');
 
     html += `
-      <div class="team-block ${isLastTeam ? 'team-danger' : ''}" style="border-left: 4px solid ${teamColor.border}; background: ${teamColor.bg};">
+      <div class="team-block ${isLastTeam ? 'team-danger' : ''}" data-team="${teamColor.name?.toLowerCase() || ''}" style="border-left: 4px solid ${teamColor.border}; background: ${teamColor.bg};">
         <div class="team-block-header">
           <span class="team-position">${medal || '#' + position}</span>
           <span class="team-name">${teamLabel}</span>
@@ -823,7 +952,7 @@ function renderTeamRanking(container, data) {
       html += `
           <div class="team-member-row ${isLastTeam ? 'in-danger' : ''}">
             <div class="team-member-info">
-              <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${color},${color}88)">${initials}</div>
+              <div class="athlete-avatar-small ${motifClass(member.id)}" style="background:linear-gradient(135deg,${color},${color}88)"><span class="da-initials">${initials}</span></div>
               <span class="team-member-name athlete-name-clickable" onclick="toggleAthleteActivities('${member.id}')">${name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${member.id}">▾</span></span>
             </div>
             <span class="team-member-elevation">${formatElevation(member.elevation || 0)}</span>
@@ -986,6 +1115,7 @@ for (let rn = startRound; rn <= endRound; rn++) {
 
   // Trier les équipes par D+ cumulé décroissant
   teamsWithStats.sort((a, b) => b.totalElevation - a.totalElevation);
+  daNotes.elimTeams = teamsWithStats;
 
   // === RENDU HTML ===
   let html = `
@@ -999,12 +1129,12 @@ for (let rn = startRound; rn <= endRound; rn++) {
     const teamColor = team.color || TEAM_COLORS[teamPosition % TEAM_COLORS.length];
     const animal = team.animal;
     const position = teamPosition + 1;
-    const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '';
+    const medal = medalPicto(position);
     const teamLabel = animal ? `${animal.emoji} ${animal.name}` : `Équipe`;
     const elimBadge = `<span class="team-elim-round-badge">Éliminée R${team.eliminatedAtRound}</span>`;
 
     html += `
-      <div class="team-block" style="border-left: 4px solid ${teamColor.border}; background: ${teamColor.bg};">
+      <div class="team-block" data-team="${teamColor.name?.toLowerCase() || ''}" style="border-left: 4px solid ${teamColor.border}; background: ${teamColor.bg};">
         <div class="team-block-header">
           <span class="team-position">${medal || '#' + position}</span>
           <span class="team-name">${teamLabel}</span>
@@ -1023,7 +1153,7 @@ for (let rn = startRound; rn <= endRound; rn++) {
       html += `
           <div class="team-member-row">
             <div class="team-member-info">
-              <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${color},${color}88)">${initials}</div>
+              <div class="athlete-avatar-small ${motifClass(member.id)}" style="background:linear-gradient(135deg,${color},${color}88)"><span class="da-initials">${initials}</span></div>
               <span class="team-member-name">${name}</span>
             </div>
             <span class="team-member-elevation">${formatElevation(member.elevation || 0)}</span>
@@ -1108,11 +1238,27 @@ function renderEliminatedChallenge(container) {
     e.position = i + 1;
     e.points = getEliminatedChallengePoints(e.position, eliminatedChallengeRosterSize(eliminatedList));
   });
+  daNotes.elim = ranking;
+
+  // DA : places gagnées / perdues depuis minuit (même calcul, activités
+  // coupées à 00 h, mêmes bonus). Présentation seule.
+  let elimStartRanks = null;
+  const elimMidnight = new Date(getCurrentDate()); elimMidnight.setHours(0, 0, 0, 0);
+  if (elimMidnight > new Date(seasonDates.start)) {
+    const before = new Date(elimMidnight.getTime() - 1);
+    const r0 = calculateEliminatedChallenge(filterByPeriod(allActivities, seasonDates.start, before), eliminatedList, seasonDates, before);
+    r0.forEach(e => {
+      const fx = bonusEffectsByAthlete[e.participant.id];
+      if (fx && fx.gained !== fx.lost) e.totalElevation = Math.max(0, e.totalElevation + fx.gained - fx.lost);
+    });
+    r0.sort((a, b) => b.totalElevation - a.totalElevation);
+    elimStartRanks = Object.fromEntries(r0.map((e, i) => [String(e.participant.id), i + 1]));
+  }
 
   let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
   ranking.forEach(e => {
     const hasBonus = bonusRecipients.has(String(e.participant.id));
-    const bonusBadge = hasBonus ? '<span class="bonus-badge" title="Meilleur des 2 éliminés - A reçu un bonus éphémère">🎁</span>' : '';
+    const bonusBadge = hasBonus ? `<span class="bonus-badge" title="Meilleur des 2 éliminés - A reçu un bonus éphémère">${picto('cadeau', '🎁')}</span>` : '';
 
     // Calculer les pilules de bonus éphémères
     const bonusEffects = bonusEffectsByAthlete[e.participant.id] || { gained: 0, lost: 0, details: [] };
@@ -1122,34 +1268,34 @@ function renderEliminatedChallenge(container) {
     for (const detail of (bonusEffects.details || [])) {
       switch (detail.type) {
         case 'embuscade_gain':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Embuscade sur ${detail.from}">🏹 dont ${formatElevation(detail.amount, false)} m volés</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Embuscade sur ${detail.from}">${picto('embuscade', '🏹', 'Embuscade')} dont ${formatElevation(detail.amount, false)} m volés</span>`;
           break;
         case 'trap_gain':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Piège déclenché sur ${detail.from}">🪤 dont ${formatElevation(detail.amount, false)} m piégés</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Piège déclenché sur ${detail.from}">${picto('trap', '🪤')} dont ${formatElevation(detail.amount, false)} m piégés</span>`;
           break;
         case 'second_souffle':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Second Souffle : x2 sur ${detail.activityName}">🔥 dont ${formatElevation(detail.amount, false)} m (second souffle)</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Second Souffle : x2 sur ${detail.activityName}">${picto('second_souffle', '🔥', 'Second souffle')} dont ${formatElevation(detail.amount, false)} m (second souffle)</span>`;
           break;
         case 'malediction_gain':
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Malédiction sur ${detail.from}">🪬 dont ${formatElevation(detail.amount, false)} m maudits</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Malédiction sur ${detail.from}">${picto('malediction', '🪬', 'Malédiction')} dont ${formatElevation(detail.amount, false)} m maudits</span>`;
           break;
         case 'marquage':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Marqué par ${detail.by}">🎯 -${formatElevation(detail.amount, false)} m</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Marqué par ${detail.by}">${picto('marquage', '🎯', 'Marquage')} -${formatElevation(detail.amount, false)} m</span>`;
           break;
         case 'malediction_victim':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Maudit par ${detail.by}">🪬 -${formatElevation(detail.amount, false)} m</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Maudit par ${detail.by}">${picto('malediction', '🪬', 'Malédiction')} -${formatElevation(detail.amount, false)} m</span>`;
           break;
         case 'kamikaze_victim':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Kamikaze par ${detail.by}">💣 -${formatElevation(detail.amount, false)} m</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Kamikaze par ${detail.by}">${picto('kamikaze', '💣', 'Kamikaze')} -${formatElevation(detail.amount, false)} m</span>`;
           break;
         case 'kamikaze_self':
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Kamikaze (auto)">💣 -${formatElevation(detail.amount, false)} m</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Kamikaze (auto)">${picto('kamikaze', '💣', 'Kamikaze')} -${formatElevation(detail.amount, false)} m</span>`;
           break;
         case 'duel':
-          bonusPills += `<span class="bonus-tag ephemeral-info" title="Duel en cours">⚔️ Duel</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-info" title="Duel en cours">${picto('duel', '⚔️')} Duel</span>`;
           break;
         case 'brouillard':
-          bonusPills += `<span class="bonus-tag ephemeral-info" title="D+ masqué">🌫️ Brouillard</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-info" title="D+ masqué">${picto('brouillard', '🌫️', 'Brouillard')} Brouillard</span>`;
           break;
       }
     }
@@ -1157,10 +1303,11 @@ function renderEliminatedChallenge(container) {
     html += `<div class="ranking-row">
       <div class="ranking-position">${e.position}</div>
       <div class="ranking-athlete">
-        <div class="athlete-avatar" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)">${getAthleteInitials(e.participant.id)}</div>
+        <div class="athlete-avatar ${motifClass(e.participant.id)}" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)"><span class="da-initials">${getAthleteInitials(e.participant.id)}</span></div>
         <div class="athlete-info">
           <span class="athlete-name">${e.participant.name} ${bonusBadge}</span>
           <span class="athlete-status eliminated">${e.daysSinceElimination}j depuis élim.</span>
+          ${deltaBadge(elimStartRanks, e.participant.id, e.position)}
         </div>
       </div>
       <div class="ranking-elevation">
@@ -1269,8 +1416,23 @@ function renderFinalStandings(container) {
       <div>Total</div>
     </div>`;
 
+  // DA Atelier : surligner « ta ligne » (présentation seule)
+  let meId = null;
+  try { meId = localStorage.getItem('versant_athlete_id'); } catch { /* stockage bloqué */ }
+
+  const standingsNotes = buildStandingsNotes(enrichedStandings);
+
+  // DA : places gagnées / perdues depuis la dernière fin de saison. Tant que
+  // la saison en cours n'a pas de points, fin de S-1 contre fin de S-2.
+  const seasonStarted = enrichedStandings.some(e => e.currentSeasonTotal > 0);
+  const refPoints = (e) => e.totalPoints - (seasonStarted ? (e.currentSeasonTotal || 0) : (e.previousSeasonTotal || 0) + (e.currentSeasonTotal || 0));
+  const refOrder = [...enrichedStandings].sort((a, b) => refPoints(b) - refPoints(a));
+  const standingsRef = refOrder.some(refPoints) ? Object.fromEntries(refOrder.map((e, i) => [String(e.participant.id), i + 1])) : null;
+  const refLabel = seasonStarted ? `depuis la fin de la saison ${currentSeasonNumber - 1}` : `sur la saison ${currentSeasonNumber - 1}`;
+
   enrichedStandings.forEach(e => {
     const isActive = activeIds.has(e.participant.id);
+    const isMe = meId && String(e.participant.id) === String(meId);
     const wins = e.wins > 0 ? `<span class="wins-badge">×${e.wins}</span>` : '';
     const isCurrentSeasonEliminated = seasonData?.eliminated?.some(el => el.id === e.participant.id);
 
@@ -1309,19 +1471,73 @@ function renderFinalStandings(container) {
     if (e.bonusPoints > 0) hoverParts.push(`Bonus: +${e.bonusPoints}`);
     const hoverTitle = hoverParts.length > 1 ? hoverParts.join(' \u00B7 ') : '';
 
-    html += `<div class="standings-row ${isActive ? '' : 'eliminated'}">
+    html += `<div class="standings-row ${isActive ? '' : 'eliminated'}${isMe ? ' is-me' : ''}">
       <div class="standings-rank">${e.rank}</div>
       <div class="standings-athlete">
-        <div class="athlete-avatar-small" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)">${getAthleteInitials(e.participant.id)}</div>
-        <span>${e.participant.name}</span>${wins}${statusBadge}
+        <div class="athlete-avatar-small ${motifClass(e.participant.id)}" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)"><span class="da-initials">${getAthleteInitials(e.participant.id)}</span></div>
+        <span>${e.participant.name}</span>${wins}${statusBadge}${deltaBadge(standingsRef, e.participant.id, e.rank, refLabel)}
       </div>
       <div class="standings-points prev hide-mobile">${e.previousSeasonTotal || '-'}</div>
       <div class="standings-points current hide-mobile">${currentSeasonHtml}</div>
       <div class="standings-total"${hoverTitle ? ` title="${hoverTitle}"` : ''}>${e.totalPoints}</div>
+      ${standingsNotes[e.rank] ? `<span class="da-standings-note da-only" aria-hidden="true">${standingsNotes[e.rank]}</span>` : ''}
     </div>`;
   });
 
   container.innerHTML = html;
+}
+
+/**
+ * DA Atelier : une ou deux notes à la main sous le classement général, à
+ * partir de la saison 3 (avant, les écarts ne disent rien). Relit le
+ * classement déjà calculé, ne calcule aucun score. Renvoie { rang: html } ;
+ * la note est posée sur la ligne de ce rang, sans en changer la hauteur
+ * (dans la marge sur grand écran, par-dessus la ligne en largeur moyenne,
+ * absente sur téléphone : voir css/da/home.css).
+ *  - coude-à-coude : 2 ou 3 joueurs consécutifs à 3 pts ou moins (le groupe
+ *    le plus haut, un trio de préférence) ;
+ *  - remontée : places gagnées en deux saisons, par rapport au rang qu'aurait
+ *    le joueur sans elles (4 places au moins ; la plus forte).
+ */
+function buildStandingsNotes(standings) {
+  const notes = {};
+  if (currentSeasonNumber < 3 || standings.length < 4) return notes;
+  const first = (e) => e.participant.name.split(' ')[0];
+  const pts = (n) => `${n} pt${n > 1 ? 's' : ''}`;
+
+  let best = null;
+  for (let i = 0; i < standings.length - 1; i++) {
+    for (const size of [3, 2]) {
+      const g = standings.slice(i, i + size);
+      if (g.length < size || !g[0].totalPoints) continue;
+      const gap = g[0].totalPoints - g[size - 1].totalPoints;
+      if (gap > 3) continue;
+      if (!best || size > best.length) best = g;
+      break;
+    }
+    if (best && best.length === 3) break;
+  }
+  if (best) {
+    const gap = best[0].totalPoints - best[best.length - 1].totalPoints;
+    const names = best.map(first);
+    const who = names.length === 3 ? `${names[0]}, ${names[1]} et ${names[2]}` : `${names[0]} et ${names[1]}`;
+    notes[best[best.length - 1].rank] = gap === 0
+      ? `${who} : <span class="da-key">à égalité</span>`
+      : `${who} se tiennent en <span class="da-key">${pts(gap)}</span>`;
+  }
+
+  const before = standings
+    .map(e => ({ e, old: e.totalPoints - (e.previousSeasonTotal || 0) - (e.currentSeasonTotal || 0) }))
+    .sort((a, b) => b.old - a.old);
+  let climb = null;
+  before.forEach((x, i) => {
+    const gained = (i + 1) - x.e.rank;
+    if (gained >= 4 && (!climb || gained > climb.gained)) climb = { e: x.e, gained };
+  });
+  if (climb && !notes[climb.e.rank]) {
+    notes[climb.e.rank] = `${first(climb.e)} : <span class="da-key">+${climb.gained} places</span> en deux saisons`;
+  }
+  return notes;
 }
 
 // ============================================
@@ -1341,12 +1557,12 @@ function bonusDisplayStatus(bonus, roundNumber) {
     return { status: 'available', statusLabel: 'Disponible' };
   }
   if (bonus.used_in_round === roundNumber && !bonus.effect_applied) {
-    return { status: 'active', statusLabel: 'En cours · effet à la fin du round' };
+    return { status: 'active', statusLabel: '<span class="da-stat-key">En cours</span> · effet à la fin du round' };
   }
   if (bonus.status === 'active' && !bonus.used_in_round) {
-    return { status: 'active', statusLabel: bonus.bonus_id === 'trap' ? 'Piège posé' : "Actif jusqu'à la fin de la saison" };
+    return { status: 'active', statusLabel: bonus.bonus_id === 'trap' ? 'Piège <span class="da-stat-key">posé</span>' : `<span class="da-stat-key">Actif</span> jusqu'à la fin de la saison` };
   }
-  return { status: 'used', statusLabel: '✓ Utilisé ce round' };
+  return { status: 'used', statusLabel: `${picto('valide', '✓')} <span class="da-stat-key">Utilisé</span> ce round` };
 }
 
 async function renderArsenalSection(container, roundNumber) {
@@ -1858,7 +2074,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
     return `
       <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''} ${isRescape ? 'rescape' : ''}">
         <span class="history-rank">${position}</span>
-        <span class="history-name">${entry.participant.name}</span>
+        <span class="history-name">${entry.participant.name}${historyJokerIcons(entry.participant.id, activeJokers)}</span>
         <span class="history-elevation">${formatElevation(entry.totalElevation, false)}</span>
         ${isEliminated ? '<span class="history-elim-badge">Éliminé</span>' : ''}
         ${pointsBadges}
@@ -1892,17 +2108,17 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
       switch(joker.jokerId) {
         case 'sabotage':
           const sabotageAmount = targetEntry?.jokerEffects?.bonuses?.sabotaged?.amount || 0;
-          return `${joker.jokerIcon} ${joker.participantName} a saboté ${joker.targetName} (-${formatElevation(sabotageAmount, false)})`;
+          return `${picto(joker.jokerId, joker.jokerIcon, joker.jokerName)} ${joker.participantName} a saboté ${joker.targetName} (-${formatElevation(sabotageAmount, false)})`;
         case 'voleur':
           const stolenAmount = targetEntry?.jokerEffects?.bonuses?.stolen?.amount || 0;
-          return `${joker.jokerIcon} ${joker.participantName} a volé ${joker.targetName} (-${formatElevation(stolenAmount, false)})`;
+          return `${picto(joker.jokerId, joker.jokerIcon, joker.jokerName)} ${joker.participantName} a volé ${joker.targetName} (-${formatElevation(stolenAmount, false)})`;
         case 'multiplicateur':
           const bonusAmount = rankingWithEffects.find(e => e.participant.id === joker.participantId)?.jokerEffects?.bonuses?.multiplier?.amount || 0;
-          return `${joker.jokerIcon} ${joker.participantName} a utilisé le multiplicateur (+${formatElevation(bonusAmount, false)})`;
+          return `${picto(joker.jokerId, joker.jokerIcon, joker.jokerName)} ${joker.participantName} a utilisé le multiplicateur (+${formatElevation(bonusAmount, false)})`;
         case 'bouclier':
-          return `${joker.jokerIcon} ${joker.participantName} a utilisé le bouclier (protection)`;
+          return `${picto(joker.jokerId, joker.jokerIcon, joker.jokerName)} ${joker.participantName} a utilisé le bouclier (protection)`;
         default:
-          return `${joker.jokerIcon} ${joker.participantName} a utilisé ${joker.jokerName}`;
+          return `${picto(joker.jokerId, joker.jokerIcon, joker.jokerName)} ${joker.participantName} a utilisé ${joker.jokerName}`;
       }
     });
 
@@ -1960,10 +2176,13 @@ function renderCompletedEliminatedChallenge(summary) {
   `;
 
   summary.eliminatedRanking.forEach((entry, idx) => {
-    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+    const medal = medalPicto(idx + 1);
     const rankClass = idx < 3 ? 'top-three' : '';
     const name = entry.participant?.name || 'Inconnu';
-    const elimRound = entry.eliminatedRound || '?';
+    // Round d'élimination compté dans la saison (R1, R2…), pas en round global
+    const seasonStart = getSeasonStartRound(seasonNumber, frozenResultsCache);
+    const elimRound = !entry.eliminatedRound ? '?'
+      : (entry.eliminatedRound >= seasonStart ? entry.eliminatedRound - seasonStart + 1 : entry.eliminatedRound);
     const elevation = entry.totalElevation || 0;
     const points = entry.points || 0;
 
@@ -1978,34 +2197,34 @@ function renderCompletedEliminatedChallenge(summary) {
       const fmtAmt = formatElevation(detail.amount, false);
       switch (detail.type) {
         case 'embuscade_gain':
-          desc = `<span class="history-bonus-detail gained">🏹 <span class="bonus-long">+${fmtAmt} m volés à ${detail.from}</span><span class="bonus-short">+embuscade : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail gained">${picto('embuscade', '🏹', 'Embuscade')} <span class="bonus-long">+${fmtAmt} m volés à ${detail.from}</span><span class="bonus-short">+embuscade : ${fmtAmt} m</span></span>`;
           break;
         case 'trap_gain':
-          desc = `<span class="history-bonus-detail gained">🪤 <span class="bonus-long">+${fmtAmt} m piégés sur ${detail.from}</span><span class="bonus-short">+piège : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail gained">${picto('trap', '🪤')} <span class="bonus-long">+${fmtAmt} m piégés sur ${detail.from}</span><span class="bonus-short">+piège : ${fmtAmt} m</span></span>`;
           break;
         case 'second_souffle':
-          desc = `<span class="history-bonus-detail gained">🔥 <span class="bonus-long">+${fmtAmt} m (second souffle : x2 sur "${detail.activityName}")</span><span class="bonus-short">+second souffle : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail gained">${picto('second_souffle', '🔥', 'Second souffle')} <span class="bonus-long">+${fmtAmt} m (second souffle : x2 sur "${detail.activityName}")</span><span class="bonus-short">+second souffle : ${fmtAmt} m</span></span>`;
           break;
         case 'malediction_gain':
-          desc = `<span class="history-bonus-detail gained">🪬 <span class="bonus-long">+${fmtAmt} m maudits à ${detail.from}</span><span class="bonus-short">+malédiction : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail gained">${picto('malediction', '🪬', 'Malédiction')} <span class="bonus-long">+${fmtAmt} m maudits à ${detail.from}</span><span class="bonus-short">+malédiction : ${fmtAmt} m</span></span>`;
           break;
         case 'marquage':
-          desc = `<span class="history-bonus-detail lost">🎯 <span class="bonus-long">-${fmtAmt} m (marqué par ${detail.by})</span><span class="bonus-short">-marquage : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail lost">${picto('marquage', '🎯', 'Marquage')} <span class="bonus-long">-${fmtAmt} m (marqué par ${detail.by})</span><span class="bonus-short">-marquage : ${fmtAmt} m</span></span>`;
           break;
         case 'malediction_victim':
-          desc = `<span class="history-bonus-detail lost">🪬 <span class="bonus-long">-${fmtAmt} m (maudit par ${detail.by})</span><span class="bonus-short">-malédiction : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail lost">${picto('malediction', '🪬', 'Malédiction')} <span class="bonus-long">-${fmtAmt} m (maudit par ${detail.by})</span><span class="bonus-short">-malédiction : ${fmtAmt} m</span></span>`;
           break;
         case 'kamikaze_victim':
-          desc = `<span class="history-bonus-detail lost">💣 <span class="bonus-long">-${fmtAmt} m (kamikaze par ${detail.by})</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail lost">${picto('kamikaze', '💣', 'Kamikaze')} <span class="bonus-long">-${fmtAmt} m (kamikaze par ${detail.by})</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
           break;
         case 'kamikaze_self':
-          desc = `<span class="history-bonus-detail lost">💣 <span class="bonus-long">-${fmtAmt} m (kamikaze auto)</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
+          desc = `<span class="history-bonus-detail lost">${picto('kamikaze', '💣', 'Kamikaze')} <span class="bonus-long">-${fmtAmt} m (kamikaze auto)</span><span class="bonus-short">-kamikaze : ${fmtAmt} m</span></span>`;
           break;
         case 'duel':
-          desc = `<span class="history-bonus-detail info">⚔️ <span class="bonus-long">Duel en cours</span><span class="bonus-short">Duel</span></span>`;
+          desc = `<span class="history-bonus-detail info">${picto('duel', '⚔️', 'Duel')} <span class="bonus-long">Duel en cours</span><span class="bonus-short">Duel</span></span>`;
           break;
         case 'brouillard':
-          desc = `<span class="history-bonus-detail info">🌫️ <span class="bonus-long">Brouillard actif</span><span class="bonus-short">Brouillard</span></span>`;
+          desc = `<span class="history-bonus-detail info">${picto('brouillard', '🌫️', 'Brouillard')} <span class="bonus-long">Brouillard actif</span><span class="bonus-short">Brouillard</span></span>`;
           break;
       }
       if (desc) bonusHtml += desc;
@@ -2042,7 +2261,7 @@ function renderCompletedSeasonHistory(container, summary) {
   const roundsPerSeason = getRoundsPerSeason();
 
 
-  let html = `<div class="history-season-summary"><h3>Champion : ${summary.winner?.name || 'N/A'}</h3></div>`;
+  let html = `<div class="history-season-summary"><h3>Champion : <span class="history-champion-name">${summary.winner?.name || 'N/A'}</span></h3></div>`;
 
   summary.rounds.forEach(r => {
     const globalRound = r.globalRound;
@@ -2133,7 +2352,7 @@ function renderFrozenTeamRoundHistory(roundInSeason, frozenRound) {
         </div>`;
       }).join('');
 
-    return `<div class="history-team-block ${isElimTeam ? 'eliminated' : ''}" style="border-left: 3px solid ${teamColor.border};">
+    return `<div class="history-team-block ${isElimTeam ? 'eliminated' : ''}" data-team="${teamColor.name?.toLowerCase() || ''}" style="border-left: 3px solid ${teamColor.border};">
       <div class="history-team-header">
         <span class="history-rank">#${position}</span>
         <span style="color: ${teamColor.border}; font-weight: 600;">${teamLabel}</span>
@@ -2197,7 +2416,7 @@ function renderFrozenTeamEliminatedChallengeHistory(roundInSeason, frozenRound) 
         </div>`;
       }).join('');
 
-    return `<div class="history-team-block" style="border-left: 3px solid ${teamColor.border};">
+    return `<div class="history-team-block" data-team="${teamColor.name?.toLowerCase() || ''}" style="border-left: 3px solid ${teamColor.border};">
       <div class="history-team-header">
         <span class="history-rank">#${position}</span>
         <span style="color: ${teamColor.border}; font-weight: 600;">${teamLabel}</span>
@@ -2333,7 +2552,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
       if (bonus.bonus_id === 'embuscade' && String(bonus.target_athlete_id) === entryId) {
         const amount = result.stolenElevation || 0;
         if (amount > 0) {
-          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Embuscade par ${bonus.athlete_name}">🏹 -${formatElevation(amount, false)} m</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-stolen" title="Embuscade par ${bonus.athlete_name}">${picto('embuscade', '🏹', 'Embuscade')} -${formatElevation(amount, false)} m</span>`;
         }
       }
 
@@ -2341,7 +2560,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
       if (bonus.bonus_id === 'ravitaillement' && String(bonus.target_athlete_id) === entryId) {
         const amount = result.bonusElevation || 0;
         if (amount > 0) {
-          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Ravitaillement de ${bonus.athlete_name}">🍖 +${formatElevation(amount, false)} m</span>`;
+          bonusPills += `<span class="bonus-tag ephemeral-gained" title="Ravitaillement de ${bonus.athlete_name}">${picto('ravitaillement', '🍖', 'Ravitaillement')} +${formatElevation(amount, false)} m</span>`;
         }
       }
 
@@ -2351,7 +2570,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
     return `
       <div class="history-ranking-row ${isEliminated ? 'eliminated' : ''} ${isRescape ? 'rescape' : ''}">
         <span class="history-rank">${position}</span>
-        <span class="history-name">${entry.name}</span>
+        <span class="history-name">${entry.name}${historyJokerIcons(entry.id, jokersUsed)}</span>
         <span class="history-elevation">${formatElevation(entry.elevation || 0, false)}${bonusPills ? ` ${bonusPills}` : ''}</span>
         ${isEliminated ? '<span class="history-elim-badge">Éliminé</span>' : ''}
         ${pointsBadges}
@@ -2386,7 +2605,7 @@ function renderFrozenRoundHistory(roundInSeason, frozenRound) {
   if (jokersUsed.length > 0) {
     const jokerDescriptions = jokersUsed.map(joker => {
       const jokerType = JOKER_TYPES[joker.jokerId];
-      const jokerIcon = jokerType?.icon || '🃏';
+      const jokerIcon = picto(joker.jokerId, jokerType?.icon || '🃏', jokerType?.name);
       const participantName = joker.athleteName || joker.participantName || 'Inconnu';
       const targetName = joker.targetName || 'Inconnu';
 
@@ -3033,10 +3252,10 @@ function renderSeasonRecap(panel, seasonNumber, frozen) {
       ${renderTopSportsCard(recap.topSports)}
 
       <!-- Top usage jokers/bonus -->
-      ${renderAchievementCard('🃏', 'Top usage jokers/bonus', recap.topJokerUsage, '', 'fois')}
+      ${renderAchievementCard(picto('jokers', '🃏'), 'Top usage jokers/bonus', recap.topJokerUsage, '', 'fois')}
 
       <!-- Top ciblé -->
-      ${renderAchievementCard('🎯', 'Plus ciblé par jokers/bonus', recap.topTargeted, '', 'fois')}
+      ${renderAchievementCard(picto('cible', '🎯'), 'Plus ciblé par jokers/bonus', recap.topTargeted, '', 'fois')}
 
       <!-- Surperformance -->
       ${renderAchievementCard('', 'Plus grosse surperformance', recap.topSurperf, '', 'pl.', true)}
@@ -3045,6 +3264,12 @@ function renderSeasonRecap(panel, seasonNumber, frozen) {
       ${renderAchievementCard('', 'Plus grosse sous-performance', recap.topSousperf, '', 'pl.', true)}
     </div>
   `;
+  // DA : chaque case nommée d'après son titre (recap-card--plus-grosse-activite…)
+  panel.querySelectorAll('.recap-card').forEach(card => {
+    const title = card.querySelector('.recap-card-title')?.textContent || '';
+    const slug = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (slug) card.classList.add('recap-card--' + slug);
+  });
 }
 
 /** Podium finale en mode individuel (saisons standard) */
@@ -3055,7 +3280,7 @@ function renderIndividualFinalePodium(podium) {
       <ol class="recap-podium">
         ${podium.map((p, i) => `
           <li class="recap-podium-row ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}">
-            <span class="recap-medal">${['🥇','🥈','🥉'][i]}</span>
+            <span class="recap-medal">${medalPicto(i + 1)}</span>
             <span class="recap-podium-name">${p.name}</span>
             <span class="recap-podium-value">${formatElevation(p.elevation, false)} m • ${p.mainPoints} pts</span>
           </li>
@@ -3078,9 +3303,9 @@ function renderTeamFinalePodium(finaleTeams) {
       <h3 class="recap-card-title">Finale principale (équipes)</h3>
       <div class="recap-team-finale">
         ${finaleTeams.map((t, i) => `
-          <div class="recap-team-block ${i === 0 ? 'winner' : 'loser'}" style="border-left-color:${t.color?.border || '#fbbf24'};">
+          <div class="recap-team-block ${i === 0 ? 'winner' : 'loser'}" data-team="${t.color?.name?.toLowerCase() || ''}" style="border-left-color:${t.color?.border || '#fbbf24'};">
             <div class="recap-team-header">
-              <span class="recap-team-medal">${i === 0 ? '🥇 Vainqueur' : '⚔️ Finaliste vaincu'}</span>
+              <span class="recap-team-medal">${i === 0 ? `${medalPicto(1)} Vainqueur` : `${picto('duel', '⚔️')} Finaliste vaincu`}</span>
               <span class="recap-team-name">${t.animal?.emoji || ''} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
               <span class="recap-team-elev">${formatElevation(t.totalElevation || 0, false)} m</span>
             </div>
@@ -3130,7 +3355,7 @@ function renderTeamEliminatedRanking(teams) {
       <h3 class="recap-card-title">Challenge éliminés (équipes)</h3>
       <ol class="recap-team-list">
         ${teams.map((t, i) => `
-          <li class="recap-team-row" style="border-left-color:${t.color?.border || '#888'};">
+          <li class="recap-team-row" data-team="${t.color?.name?.toLowerCase() || ''}" style="border-left-color:${t.color?.border || '#888'};">
             <div class="recap-team-row-header">
               <span class="recap-pos">#${i + 1}</span>
               <span class="recap-team-name-inline">${t.animal?.emoji || ''} ${t.animal?.name || t.color?.name || 'Équipe'}</span>
@@ -3199,7 +3424,7 @@ function renderAchievementCard(icon, title, leaderboard, unitBefore = '', unitAf
 function renderLeagueStatsCard(stats, seasonNumber) {
   if (!stats) return '';
   const cmp = stats.comparison;
-  const deltaIcon = cmp ? (cmp.deltaTotal > 0 ? '📈' : cmp.deltaTotal < 0 ? '📉' : '➡️') : '';
+  const deltaIcon = cmp ? (cmp.deltaTotal > 0 ? picto('hausse', '📈') : cmp.deltaTotal < 0 ? picto('baisse', '📉') : picto('stable', '➡️')) : '';
   return `
     <div class="recap-card">
       <h3 class="recap-card-title">D+ ligue saison</h3>
@@ -3239,7 +3464,7 @@ function renderHottestRoundCard(byElev, byActs) {
   if (!byElev && !byActs) return '';
   return `
     <div class="recap-card">
-      <h3 class="recap-card-title">🔥 Round le plus chaud</h3>
+      <h3 class="recap-card-title">${picto('succes-best24h', '🔥')} Round le plus chaud</h3>
       <div class="recap-hottest">
         ${byElev ? `
           <div class="recap-hottest-row">
@@ -3279,7 +3504,7 @@ function renderBiggestActivityCard(act) {
     <div class="recap-card">
       <h3 class="recap-card-title">Plus grosse activité</h3>
       <div class="recap-biggest-act">
-        <div class="recap-biggest-elev">${formatElevation(act.elevation, false)} m</div>
+        <div class="recap-biggest-elev"><span class="da-key">${formatElevation(act.elevation, false)} m</span></div>
         <div class="recap-biggest-name">${act.name}</div>
         <div class="recap-biggest-meta">${act.athleteName} • ${dateStr}</div>
       </div>
@@ -3342,7 +3567,7 @@ function renderEfficiencyCard(top3, flop3) {
       <div class="recap-efficiency">
         ${top3.length > 0 ? `
           <div class="recap-eff-group">
-            <div class="recap-eff-title">🎯 Plus efficaces (peu de D+ / pt)</div>
+            <div class="recap-eff-title">${picto('succes-efficient', '🎯')} Plus efficaces (peu de D+ / pt)</div>
             <ol class="recap-eff-list">
               ${top3.map((e, i) => `
                 <li><span>${i+1}. ${e.name}</span>

@@ -1,0 +1,278 @@
+/* ============================================
+   DA « ATELIER » : PAGES SECONDAIRES
+   Connexion, inscription (et les suivantes) : en-tête, encadrés, formulaires,
+   pied de page. Ces pages portent beaucoup de styles en ligne (ancienne DA
+   sombre) : les règles qui les contredisent passent en !important.
+   ============================================ */
+
+/* --- En-tête de page : sobre, sans halo --- */
+html.da-atelier .hero-bg { display: none; }
+html.da-atelier .hero { min-height: 0 !important; padding-bottom: 8px; }
+html.da-atelier :is(.hero-title, .inscription-title) {
+  font-family: var(--f-sans);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+html.da-atelier :is(.hero-eyebrow) { font: var(--lbl); letter-spacing: 0.14em; color: var(--accent-text); }
+html.da-atelier .inscription-subtitle { color: var(--sub) !important; }
+
+/* --- Encadrés : une fiche de papier, bord net, sans arrondi --- */
+html.da-atelier :is(.info-box, .signup-card) {
+  background: var(--panel) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--ink);
+  backdrop-filter: none !important;
+}
+html.da-atelier :is(.info-box, .signup-card, #forgotPasswordModal) :is(h2, h3, h4) {
+  font-family: var(--f-sans) !important;
+  font-weight: 800;
+  color: var(--ink) !important;
+  -webkit-text-fill-color: currentColor;
+  background: none;
+}
+html.da-atelier :is(.info-box, .signup-card, #forgotPasswordModal) p { color: var(--sub) !important; }
+html.da-atelier :is(.info-box, .signup-card) a,
+html.da-atelier :is(.login-link, .admin-notice) a { color: var(--accent-text) !important; }
+/* Séparateurs internes (bordures blanches transparentes en ligne) */
+html.da-atelier .info-box [style*="border-top"] { border-top: 1px solid var(--rule) !important; }
+
+/* Liste « Ce que nous collectons » : coches au stylo */
+html.da-atelier .info-box li { color: var(--ink); }
+html.da-atelier .info-box li::before { color: var(--pen) !important; }
+
+/* --- Formulaires --- */
+html.da-atelier .form-label {
+  font: var(--lbl) !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase;
+  color: var(--sub) !important;
+}
+html.da-atelier :is(.form-input, .code-input) {
+  background: var(--panel) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+html.da-atelier :is(.form-input, .code-input)::placeholder { color: var(--sub); opacity: 1; }
+html.da-atelier :is(.form-input, .code-input):focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--ink) !important;
+}
+html.da-atelier .form-input:disabled { background: var(--panel-2) !important; color: var(--sub) !important; }
+html.da-atelier .code-input { font-family: var(--f-mono) !important; }
+html.da-atelier .code-input.valid { border-color: var(--up) !important; }
+html.da-atelier .code-input.invalid { border-color: var(--accent) !important; }
+html.da-atelier .code-status.ok { color: var(--up); }
+html.da-atelier .code-status.ko { color: var(--accent-text); }
+
+/* Bouton principal : encre pleine, angles nets ; secondaire : trait seul.
+   Le bouton Strava garde sa charte (orange Strava) mais perd l'arrondi. */
+html.da-atelier :is(.info-box, .signup-card, #forgotPasswordModal) button[type="submit"],
+html.da-atelier .submit-btn {
+  background: var(--ink) !important;
+  color: var(--panel) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font: 700 14px/1 var(--f-mono) !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: none !important;
+}
+html.da-atelier :is(.info-box, .signup-card, #forgotPasswordModal) button[type="submit"]:hover:not(:disabled),
+html.da-atelier .submit-btn:hover:not(:disabled) { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
+html.da-atelier :is(.info-box, .signup-card, #forgotPasswordModal) button[type="submit"]:disabled,
+html.da-atelier .submit-btn:disabled { opacity: 0.45; box-shadow: none !important; }
+html.da-atelier :is(#closeResetModal, .email-code-btn) {
+  background: none !important;
+  color: var(--ink) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  font: 700 12px/1 var(--f-mono) !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+html.da-atelier :is(#closeResetModal, .email-code-btn):hover:not(:disabled) { background: var(--accent-soft) !important; }
+html.da-atelier .strava-connect-btn { border-radius: 0 !important; box-shadow: none !important; transform: none !important; }
+/* Verrouillé (étape précédente pas faite) : gris papier lisible, pas blanc sur blanc */
+html.da-atelier .strava-connect-btn:disabled { background: var(--panel-2) !important; color: var(--sub) !important; border: 1px solid var(--rule) !important; }
+
+/* Lien « Mot de passe oublié ? », accès admin replié */
+html.da-atelier #forgotPasswordLink { color: var(--sub) !important; text-decoration: underline !important; text-underline-offset: 3px; }
+html.da-atelier .info-box summary { color: var(--sub) !important; font: var(--lbl); letter-spacing: 0.14em; text-transform: uppercase; }
+
+/* --- Messages --- */
+html.da-atelier :is(.error-message, .success-message) {
+  background: var(--panel) !important;
+  border: 0 !important;
+  border-left: 4px solid var(--accent) !important;
+  border-radius: 0 !important;
+  color: var(--ink) !important;
+}
+html.da-atelier .success-message { border-left-color: var(--up) !important; }
+html.da-atelier .success-message h3 { color: var(--ink) !important; }
+html.da-atelier :is(#adminPending, .admin-notice) {
+  background: var(--panel-2) !important;
+  border: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  color: var(--ink) !important;
+}
+html.da-atelier #forgotResult { color: var(--ink) !important; }
+
+/* --- Fenêtre « Mot de passe oublié » --- */
+html.da-atelier #forgotPasswordModal { background: rgba(20, 18, 15, 0.55) !important; backdrop-filter: none !important; }
+html.da-atelier #forgotPasswordModal > div {
+  background: var(--panel) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--ink);
+}
+
+/* --- Inscription : étapes numérotées comme des cotes --- */
+html.da-atelier .signup-step { border-bottom: 1px solid var(--rule) !important; }
+html.da-atelier .step-num {
+  border-radius: 0 !important;
+  background: var(--ink) !important;
+  color: var(--panel) !important;
+  font-family: var(--f-mono) !important;
+}
+html.da-atelier .signup-step.done .step-num { background: var(--up) !important; color: var(--ink) !important; }
+html.da-atelier :is(.step-help, .step-lock, .login-link) { color: var(--sub) !important; }
+/* Formulaire du compte (étape 3) : plus de cadre sombre arrondi */
+html.da-atelier .registration-form { background: none !important; border: 0 !important; border-radius: 0 !important; padding: 8px 0 !important; }
+html.da-atelier .athlete-preview {
+  background: var(--panel-2) !important;
+  border: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+}
+html.da-atelier .athlete-info h4 { color: var(--ink) !important; }
+html.da-atelier .athlete-info p { color: var(--sub) !important; }
+
+/* --- Pied de page --- */
+html.da-atelier .footer { background: none !important; border-top: 1.5px solid var(--ink) !important; }
+html.da-atelier :is(.footer-brand, .footer-text) { color: var(--ink) !important; }
+html.da-atelier .footer-brand { font-family: var(--f-sans); font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
+html.da-atelier .footer-text { color: var(--sub) !important; }
+
+/* ============================================
+   RÈGLES (rules.html) : un carnet de fiches
+   ============================================ */
+html.da-atelier .rules-title {
+  font-family: var(--f-sans) !important;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--ink) !important;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.da-atelier .rules-subtitle { color: var(--sub) !important; }
+html.da-atelier .rules-container .section-title {
+  font-family: var(--f-sans) !important;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--ink) !important;
+  border-bottom: 1.5px solid var(--ink);
+  padding-bottom: 8px;
+}
+html.da-atelier .section-title-icon { color: var(--ink); }
+
+/* Toutes les fiches : papier, bord net, pas d'ombre, pas de couleur de fond */
+html.da-atelier :is(.rules-card, .points-table-container, .special-rule-card, .joker-card,
+                    .team-season-card, .team-rule-card, .rules-container .info-box) {
+  background: var(--panel) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  color: var(--ink);
+}
+html.da-atelier .team-rule-card { box-shadow: none !important; border-color: var(--rule) !important; }
+html.da-atelier :is(.rules-card, .special-rule-card, .team-rule-card, .team-season-card) :is(h4, h3) {
+  font-family: var(--f-sans) !important;
+  font-weight: 800;
+  color: var(--ink) !important;
+}
+html.da-atelier .team-season-title { color: var(--ink) !important; background: none !important; -webkit-text-fill-color: currentColor; }
+/* Textes posés en ligne en blanc transparent ou en couleurs vives */
+html.da-atelier .rules-container :is(p, li, td, .desc, .team-season-intro, .step-text) { color: var(--sub) !important; }
+html.da-atelier .rules-container :is(p, li, .desc) strong { color: var(--ink) !important; }
+html.da-atelier .rules-container strong[style*="#f97316"] { color: var(--accent-text) !important; }
+html.da-atelier .rules-container [style*="#a855f7"], html.da-atelier .rules-container [style*="#c084fc"] { color: var(--pen) !important; }
+html.da-atelier .rules-container span[style*="#10b981"] { color: var(--up) !important; font-weight: 600; }
+html.da-atelier .rules-container span[style*="#ef4444"] { color: var(--down) !important; font-weight: 600; }
+
+/* Barème des points */
+html.da-atelier .points-table-title { color: var(--ink) !important; font-family: var(--f-sans) !important; font-weight: 900; text-transform: uppercase; }
+html.da-atelier .points-table tr { border-bottom: var(--row-rule) !important; background: none !important; }
+html.da-atelier .points-table td:first-child { color: var(--ink) !important; }
+html.da-atelier .points-table td:last-child { color: var(--ink) !important; font-family: var(--f-mono); font-weight: 700; }
+html.da-atelier .points-table tr:first-child td:last-child { color: var(--accent-text) !important; }
+
+/* Astuce : une note encadrée d'un trait de stylo */
+html.da-atelier .rules-container .info-box {
+  background: var(--panel-2) !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-left: 3px solid var(--pen) !important;
+}
+html.da-atelier .rules-container .info-box strong { color: var(--pen) !important; }
+
+/* Jauge collective : les paliers comme des lignes de tableau */
+html.da-atelier .special-rule-step { background: none !important; border: 0 !important; border-bottom: var(--row-rule) !important; border-radius: 0 !important; }
+html.da-atelier .special-rule-step .step-text strong { color: var(--ink) !important; }
+html.da-atelier .special-rule-warning {
+  background: none !important;
+  border: 0 !important;
+  border-left: 3px solid var(--accent) !important;
+  border-radius: 0 !important;
+  color: var(--ink) !important;
+}
+html.da-atelier .special-rule-warning strong { color: var(--accent-text) !important; }
+
+/* Jokers et bonus : fiches à picto dessiné */
+/* Pas d'annotation de catégorie (Offensif, Pari, Piège…) sous les bonus */
+html.da-atelier .bonus-ephemere-card .category { display: none !important; }
+html.da-atelier .joker-card .icon { font-size: 44px; color: var(--ink); filter: none; }
+html.da-atelier .joker-card .name { color: var(--ink) !important; font-family: var(--f-sans) !important; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
+html.da-atelier :is(.joker-card .stock, .bonus-ephemere-card .category) {
+  background: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  font: 600 20px/1 var(--f-hand) !important;
+  color: var(--pen) !important;
+  text-transform: none;
+}
+html.da-atelier .bonus-ephemere-card .timing {
+  background: var(--panel-2) !important;
+  border: 0 !important;
+  border-top: var(--row-rule) !important;
+  border-radius: 0 !important;
+  font-family: var(--f-mono);
+  color: var(--sub) !important;
+}
+html.da-atelier .team-points-list li::before { color: var(--pen) !important; }
+
+/* Bouton « Voir le classement » en bas de page */
+html.da-atelier .btn-login {
+  background: var(--ink) !important;
+  color: var(--panel) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font: 700 13px/1 var(--f-mono) !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+html.da-atelier .btn-login:hover { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }

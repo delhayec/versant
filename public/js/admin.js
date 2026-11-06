@@ -19,6 +19,52 @@ function escapeHtml(value) {
   }[c]));
 }
 
+/**
+ * Confirmation en clair avant une modification importante : une fiche posée
+ * au-dessus de la page (css/da/admin.css), plus lisible qu'une fenêtre du
+ * navigateur pour un admin de ligue qui découvre le site.
+ * { title, body: [phrases], warn, ok, danger } → Promise<boolean>.
+ * Échap, clic à côté ou « Annuler » : false.
+ */
+function askConfirm({ title, body = [], warn = '', ok = 'Confirmer', danger = false }) {
+  return new Promise(resolve => {
+    const prev = document.activeElement;
+    const wrap = document.createElement('div');
+    wrap.className = 'da-confirm';
+    wrap.innerHTML = `
+      <div class="da-confirm__card${danger ? ' is-danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="daConfirmTitle">
+        <h2 class="da-confirm__title" id="daConfirmTitle">${escapeHtml(title)}</h2>
+        <div class="da-confirm__body">${body.filter(Boolean).map(t => `<p>${escapeHtml(t)}</p>`).join('')}</div>
+        ${warn ? `<p class="da-confirm__warn">${escapeHtml(warn)}</p>` : ''}
+        <div class="da-confirm__actions">
+          <button type="button" class="is-cancel">Annuler</button>
+          <button type="button" class="is-ok">${escapeHtml(ok)}</button>
+        </div>
+      </div>`;
+    const done = (value) => {
+      document.removeEventListener('keydown', onKey, true);
+      wrap.remove();
+      if (prev && prev.focus) prev.focus();
+      resolve(value);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); done(false); }
+      if (e.key === 'Tab') {   // le focus reste dans la fiche
+        const btns = [...wrap.querySelectorAll('button')];
+        const i = btns.indexOf(document.activeElement);
+        e.preventDefault();
+        btns[(i + (e.shiftKey ? btns.length - 1 : 1)) % btns.length].focus();
+      }
+    };
+    wrap.querySelector('.is-cancel').addEventListener('click', () => done(false));
+    wrap.querySelector('.is-ok').addEventListener('click', () => done(true));
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) done(false); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(wrap);
+    wrap.querySelector('.is-cancel').focus();
+  });
+}
+
 function formatDate(value) {
   return value ? new Date(value).toLocaleDateString('fr-FR') : '-';
 }
@@ -282,7 +328,6 @@ async function loadDashboardData() {
     updateExcludedCount();
 
     renderAthletesList(athletes);
-    if (isSuperAdmin()) renderResetPasswordOptions(athletes);
     renderActivitiesList();
 
     addLog(`${athletes.length} athlètes, ${allActivities.length} activités`);
@@ -494,6 +539,12 @@ async function saveRoundConfigFromUI(roundNumber) {
     body.nbEliminations = nbElim;
   }
 
+  if (!await askConfirm({
+    title: `Changer le réglage du round ${roundNumber} ?`,
+    body: [`Éliminés : ${body.nbEliminations ?? 'valeur par défaut'}.`, "Les joueurs verront le changement dès l'enregistrement."],
+    warn: 'Un round déjà figé ne change pas.',
+    ok: 'Enregistrer',
+  })) return;
   try {
     await adminJson(ed(`/admin/round-configs/${roundNumber}`), { method: 'POST', body });
     addLog(`Config R${roundNumber} : type=${type}, règle=${specialRule}, élim=${body.nbEliminations ?? 'défaut'}`);
@@ -505,7 +556,11 @@ async function saveRoundConfigFromUI(roundNumber) {
 }
 
 async function deleteRoundConfigFromUI(roundNumber) {
-  if (!confirm(`Supprimer la config personnalisée du R${roundNumber} ?`)) return;
+  if (!await askConfirm({
+    title: `Revenir au réglage par défaut du round ${roundNumber} ?`,
+    body: ["Le type de round, la règle spéciale et le nombre d'éliminés reprennent leurs valeurs par défaut."],
+    ok: 'Revenir au défaut',
+  })) return;
   try {
     await adminJson(ed(`/admin/round-configs/${roundNumber}`), { method: 'DELETE' });
     addLog(`Config R${roundNumber} supprimée`);
@@ -612,7 +667,12 @@ async function saveSeasonType(seasonNumber) {
   }
 
   const summary = body.deadline ? ` avec fin le ${formatDate(body.deadline + 'T12:00:00')}` : '';
-  if (!confirm(`Saison ${seasonNumber} en mode « ${label} »${summary} ?`)) {
+  if (!await askConfirm({
+    title: `Saison ${seasonNumber} en mode « ${label} » ?`,
+    body: [body.deadline ? `Fin de la saison le ${formatDate(body.deadline + 'T12:00:00')}.` : '', "Le changement s'applique dès l'enregistrement, pour tous les joueurs."],
+    warn: 'Une saison dont un round est déjà figé ne peut plus changer de mode.',
+    ok: 'Enregistrer',
+  })) {
     loadSeasonPlanning();
     return;
   }
@@ -642,6 +702,12 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
   const result = document.getElementById('syncResult');
   const startDate = document.getElementById('syncStartDate').value;
   const endDate = document.getElementById('syncEndDate').value;
+  if (!await askConfirm({
+    title: 'Lancer une synchronisation Strava ?',
+    body: ['Normalement inutile : les activités arrivent en direct, et une synchro a lieu avant chaque gel.',
+      'Chaque athlète synchronisé consomme un appel au quota Strava du site.'],
+    ok: 'Synchroniser',
+  })) return;
 
   btn.disabled = true;
   btn.textContent = 'Synchronisation...';
@@ -712,6 +778,12 @@ function getRoundInput() {
 document.getElementById('autoFreezeBtn').addEventListener('click', async () => {
   const btn = document.getElementById('autoFreezeBtn');
   const label = btn.textContent;
+  if (!await askConfirm({
+    title: 'Figer les rounds terminés ?',
+    body: ['Chaque round terminé et pas encore figé est calculé avec les activités reçues, puis gravé.',
+      'Normalement inutile : le gel est automatique chaque nuit à 00h15.'],
+    ok: 'Figer',
+  })) return;
   btn.disabled = true;
   btn.textContent = 'Figement en cours...';
 
@@ -733,7 +805,13 @@ document.getElementById('autoFreezeBtn').addEventListener('click', async () => {
 document.getElementById('freezeRoundBtn').addEventListener('click', async () => {
   const roundNumber = getRoundInput();
   if (!roundNumber) return;
-  if (!confirm(`Figer le round ${roundNumber} avec les données actuelles ?`)) return;
+  if (!await askConfirm({
+    title: `Figer le round ${roundNumber} ?`,
+    body: ['Le classement du round est calculé avec les activités reçues à cet instant, puis gravé : éliminations et points en découlent.',
+      'Normalement inutile : chaque round terminé est figé automatiquement à 00h15.'],
+    warn: 'Une activité qui arriverait ensuite ne comptera pas pour ce round (sauf à le défiger).',
+    ok: 'Figer le round',
+  })) return;
 
   try {
     const data = await adminJson(ed(`/admin/freeze-round/${roundNumber}`), { method: 'POST', body: {} });
@@ -749,7 +827,13 @@ document.getElementById('freezeRoundBtn').addEventListener('click', async () => 
 document.getElementById('unfreezeRoundBtn').addEventListener('click', async () => {
   const roundNumber = getRoundInput();
   if (!roundNumber) return;
-  if (!confirm(`Défiger le round ${roundNumber} ?\n\nIl sera recalculé au prochain gel.`)) return;
+  if (!await askConfirm({
+    title: `Défiger le round ${roundNumber} ?`,
+    body: ['Le résultat gravé est effacé. Le round sera recalculé au prochain gel (automatique à 00h15, ou bouton « Figer »).'],
+    warn: "D'ici là, les éliminations et les points de ce round peuvent changer sur le site.",
+    ok: 'Défiger',
+    danger: true,
+  })) return;
 
   try {
     const data = await adminJson(ed(`/admin/unfreeze-round/${roundNumber}`), { method: 'POST' });
@@ -787,47 +871,6 @@ document.querySelectorAll('.download-btn').forEach(btn => {
       alert('Erreur: ' + error.message);
     }
   });
-});
-
-// ============================================
-// RESET MOT DE PASSE
-// ============================================
-function renderResetPasswordOptions(athletes) {
-  const select = document.getElementById('resetPasswordAthlete');
-  const sorted = [...athletes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  select.innerHTML = '<option value="">-- Choisir un athlète --</option>' + sorted.map(a =>
-    `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} (${escapeHtml(a.email || 'pas d\'email')})</option>`
-  ).join('');
-}
-
-document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
-  const select = document.getElementById('resetPasswordAthlete');
-  const athleteId = select.value;
-  const newPassword = document.getElementById('resetPasswordNew').value;
-  const resultDiv = document.getElementById('resetPasswordResult');
-
-  if (!athleteId) {
-    resultDiv.innerHTML = '<span class="err">Veuillez sélectionner un athlète</span>';
-    return;
-  }
-  if (!newPassword || newPassword.length < 6) {
-    resultDiv.innerHTML = '<span class="err">Le mot de passe doit contenir au moins 6 caractères</span>';
-    return;
-  }
-
-  const athleteName = athletesCache[athleteId]?.name || athleteId;
-  if (!confirm(`Réinitialiser le mot de passe de ${athleteName} ?\n\nNouveau mot de passe : ${newPassword}`)) return;
-
-  try {
-    const data = await adminJson('/admin/reset-password', { method: 'POST', body: { athleteId, newPassword } });
-    resultDiv.innerHTML = `<span class="ok">${escapeHtml(data.message)}</span>`;
-    addLog(`Mot de passe réinitialisé pour ${athleteName}`);
-    document.getElementById('resetPasswordNew').value = '';
-    select.value = '';
-  } catch (error) {
-    resultDiv.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
-    addLog(`Erreur reset password: ${error.message}`);
-  }
 });
 
 // ============================================
@@ -919,6 +962,17 @@ function renderActivitiesList() {
 }
 
 async function toggleActivityExclusion(activityId, exclude) {
+  if (exclude) {
+    const a = allActivities.find(x => String(x.id) === String(activityId));
+    if (!await askConfirm({
+      title: 'Exclure cette activité ?',
+      body: [a ? `« ${a.name || 'Activité'} » de ${getAthleteName(a)}.` : '',
+        'Son D+ ne comptera plus dans les classements. Tu pourras la réintégrer à tout moment.'],
+      warn: 'Un round déjà figé ne change pas : son résultat reste celui calculé au gel.',
+      ok: 'Exclure',
+      danger: true,
+    })) return;
+  }
   try {
     const data = await adminJson(ed(`/admin/activities/${encodeURIComponent(activityId)}/exclude`), {
       method: 'POST',
@@ -1016,6 +1070,13 @@ async function adjustJoker(athleteId, jokerType, delta) {
   const currentValue = parseInt(span.textContent, 10) || 0;
   const newValue = Math.max(0, Math.min(JOKER_MAX_STOCK, currentValue + delta));
   if (newValue === currentValue) return;
+  const who = athletesCache[athleteId]?.name || athleteId;
+  const label = (JOKER_DISPLAY[jokerType] || { label: jokerType }).label;
+  if (!await askConfirm({
+    title: `${delta > 0 ? 'Ajouter' : 'Retirer'} un joker ${label} à ${who} ?`,
+    body: [`Son stock passe de ${currentValue} à ${newValue}.`, 'À faire seulement pour corriger une erreur ; le joueur voit le changement tout de suite.'],
+    ok: delta > 0 ? 'Ajouter' : 'Retirer',
+  })) return;
 
   const setValue = (value) => {
     span.textContent = value;
@@ -1042,7 +1103,13 @@ async function adjustJoker(athleteId, jokerType, delta) {
 window.adjustJoker = adjustJoker;
 
 document.getElementById('resetAllJokersBtn').addEventListener('click', async () => {
-  if (!confirm('Remettre le stock de jokers de TOUS les athlètes à sa valeur de départ ?\n\nLes jokers en attente sur le round en cours sont annulés. Action irréversible.')) return;
+  if (!await askConfirm({
+    title: 'Remettre tous les stocks de jokers au départ ?',
+    body: ["Chaque athlète de l'édition retrouve son stock de jokers de départ."],
+    warn: 'Les jokers en attente sur le round en cours sont annulés. Action irréversible.',
+    ok: 'Tout remettre au départ',
+    danger: true,
+  })) return;
 
   try {
     const data = await adminJson(ed('/admin/jokers/reset'), { method: 'POST' });
@@ -1253,9 +1320,9 @@ function renderLeague({ league, editions, participants }) {
           <details style="margin-bottom: 12px;">
             <summary class="muted" style="cursor: pointer; font-size: 13px;">Réglages (facultatif)</summary>
             <div class="row" style="margin-top: 8px;">
-              <label class="field">Jours par round <input type="number" id="launchRoundDays" min="1" placeholder="5"></label>
-              <label class="field">Éliminations par round <input type="number" id="launchEliminations" min="1" placeholder="2"></label>
-              <label class="field">Finalistes <input type="number" id="launchFinalists" min="1" placeholder="4"></label>
+              <label class="field">Jours par round <input type="number" id="launchRoundDays" min="1" placeholder="5"><small class="field-help">Durée d'un round. 5 par défaut.</small></label>
+              <label class="field">Éliminations par round <input type="number" id="launchEliminations" min="1" placeholder="2"><small class="field-help">Combien de derniers sautent à chaque fin de round. 2 par défaut.</small></label>
+              <label class="field">Finalistes <input type="number" id="launchFinalists" min="1" placeholder="4"><small class="field-help">Joueurs encore en course pour la finale de saison. 4 par défaut.</small></label>
             </div>
             <p class="hint" style="margin: 8px 0 4px;">Saison à partir de laquelle chaque mécanique entre en jeu (modifiable ensuite à tout moment) :</p>
             <div class="row">${mechanicsFields()}</div>
@@ -1283,6 +1350,14 @@ const MECHANIC_LABELS = [
   ['teams', 'Saison Équipes possible']
 ];
 const DEFAULT_MECHANICS = { jokers: 1, eliminatedBonuses: 2, specialRules: 3, gauge: 3, teams: 4 };
+// Ce que fait chaque mécanique, en une phrase (affichée sous son choix)
+const MECHANIC_HELP = {
+  jokers: 'Chaque joueur a des jokers (bouclier, voleur, multiplicateur, sabotage) à jouer en début de round.',
+  eliminatedBonuses: 'Les meilleurs éliminés gagnent des bonus pour gêner les joueurs encore en course.',
+  specialRules: 'Certains rounds changent de règle (handicap, pentes raides, hors bitume…).',
+  gauge: "Un objectif de D+ commun à toute la ligue, qui rapporte des points s'il est atteint.",
+  teams: 'Une saison peut se jouer en équipes, à choisir dans le planning des saisons.',
+};
 
 /** Choix de la saison de déblocage de chaque mécanique (« jamais » possible). */
 function mechanicsFields(values = DEFAULT_MECHANICS) {
@@ -1293,7 +1368,7 @@ function mechanicsFields(values = DEFAULT_MECHANICS) {
     const options = seasons
       .map(s => `<option value="${s}" ${current === s ? 'selected' : ''}>Saison ${s}</option>`).join('')
       + `<option value="" ${current === null ? 'selected' : ''}>Jamais</option>`;
-    return `<label class="field">${label} <select name="mechanic-${key}">${options}</select></label>`;
+    return `<label class="field">${label} <select name="mechanic-${key}">${options}</select><small class="field-help">${MECHANIC_HELP[key] || ''}</small></label>`;
   }).join('');
 }
 
@@ -1370,7 +1445,13 @@ document.getElementById('leagueContent').addEventListener('click', async (e) => 
     return;
   }
   if (e.target.id === 'regenerateInviteBtn') {
-    if (!confirm("Créer un nouveau code d'invitation ?\n\nL'ancien code et les liens déjà envoyés ne marcheront plus.")) return;
+    if (!await askConfirm({
+      title: "Créer un nouveau code d'invitation ?",
+      body: ['À faire si le code a circulé là où il ne fallait pas.'],
+      warn: "L'ancien code et les liens déjà envoyés ne marcheront plus : il faudra renvoyer le nouveau lien aux joueurs qui ne sont pas encore inscrits.",
+      ok: 'Nouveau code',
+      danger: true,
+    })) return;
     try {
       const data = await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/invite-code`, { method: 'POST' });
       addLog(`Nouveau code d'invitation : ${data.inviteCode || data.league?.inviteCode || ''}`);
@@ -1388,6 +1469,13 @@ document.getElementById('leagueContent').addEventListener('submit', async (e) =>
     e.preventDefault();
     const editionId = mechanicsForm.dataset.mechanicsForm;
     const result = mechanicsForm.querySelector('[data-mechanics-result]');
+    const chosen = readMechanics(mechanicsForm);
+    if (!await askConfirm({
+      title: `Changer les mécaniques de l'édition ${editionId} ?`,
+      body: MECHANIC_LABELS.map(([key, label]) => `${label} : ${chosen[key] === null ? 'jamais' : 'à partir de la saison ' + chosen[key]}`),
+      warn: 'Les rounds déjà figés ne changent pas ; le nouveau calendrier vaut pour la suite, saison en cours comprise.',
+      ok: 'Enregistrer',
+    })) return;
     try {
       await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions/${encodeURIComponent(editionId)}/mechanics`, { method: 'PUT', body: { mechanics: readMechanics(mechanicsForm) } });
       addLog(`Calendrier des mécaniques de l'édition ${editionId} enregistré`);
@@ -1411,7 +1499,11 @@ document.getElementById('leagueContent').addEventListener('submit', async (e) =>
       result.innerHTML = '<span class="err">La fin doit être après le début</span>';
       return;
     }
-    if (!confirm(`Modifier l'édition ${editionId} : du ${formatDay(body.startDate)} au ${formatDay(body.endDate)} ?`)) return;
+    if (!await askConfirm({
+      title: `Modifier l'édition ${editionId} ?`,
+      body: [`Nouvelles dates : du ${formatDay(body.startDate)} au ${formatDay(body.endDate)}.`, "L'édition n'a pas encore commencé : personne n'a encore de points."],
+      ok: 'Enregistrer',
+    })) return;
     try {
       await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions/${encodeURIComponent(editionId)}`, { method: 'PUT', body });
       addLog(`Édition ${editionId} modifiée (${body.startDate} → ${body.endDate})`);
@@ -1435,7 +1527,13 @@ document.getElementById('leagueContent').addEventListener('submit', async (e) =>
     result.innerHTML = '<span class="err">La fin doit être après le début</span>';
     return;
   }
-  if (!confirm(`Lancer l'édition ${body.editionId}, du ${formatDay(body.startDate)} au ${formatDay(body.endDate)} ?\n\nLes membres seront invités à confirmer leur participation.`)) return;
+  if (!await askConfirm({
+    title: `Lancer l'édition ${body.editionId} ?`,
+    body: [`Du ${formatDay(body.startDate)} au ${formatDay(body.endDate)}.`,
+      'Les membres de la ligue seront invités à confirmer leur participation depuis leur dashboard.',
+      "Tant qu'elle n'a pas commencé, tu pourras encore changer ses dates et ses réglages."],
+    ok: "Lancer l'édition",
+  })) return;
   try {
     const data = await adminJson(`/admin/leagues/${encodeURIComponent(managed.leagueId)}/editions`, { method: 'POST', body });
     addLog(`Édition ${body.editionId} lancée (${body.startDate} → ${body.endDate})${data.participantsAdded ? `, ${data.participantsAdded} inscrit(s) en attente ajouté(s)` : ''}`);
@@ -1529,7 +1627,12 @@ async function copyLink(link, label) {
 
 /** Nouveau lien admin (L59, super-admin) : l'ancien, s'il n'a pas servi, ne marche plus. */
 async function regenerateAdminCode(leagueId) {
-  if (!confirm("Créer un nouveau lien admin ?\n\nL'ancien lien, s'il n'a pas servi, ne marchera plus.")) return false;
+  if (!await askConfirm({
+    title: 'Créer un nouveau lien admin ?',
+    warn: "L'ancien lien, s'il n'a pas servi, ne marchera plus.",
+    ok: 'Nouveau lien',
+    danger: true,
+  })) return false;
   try {
     await adminJson(`/admin/leagues/${encodeURIComponent(leagueId)}/admin-code`, { method: 'POST' });
     addLog('Nouveau lien admin créé');
@@ -1560,7 +1663,11 @@ document.getElementById('leaguesContent').addEventListener('click', async (e) =>
   const athleteIds = [...box.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
   const league = leaguesCache.find(l => l.id === leagueId);
   const names = league.members.filter(m => athleteIds.includes(m.id)).map(m => m.name).join(', ') || 'aucun';
-  if (!confirm(`Admins de « ${league.name} » : ${names} ?`)) return;
+  if (!await askConfirm({
+    title: `Admins de « ${league.name} » ?`,
+    body: [`Admins : ${names}.`, 'Un admin gère la ligue : invitations, éditions, réglages, activités.'],
+    ok: 'Enregistrer',
+  })) return;
   try {
     await adminJson(`/admin/leagues/${encodeURIComponent(leagueId)}/admins`, { method: 'PUT', body: { athleteIds } });
     addLog(`🛡️ Admins de ${league.name} : ${names}`);
@@ -1576,7 +1683,11 @@ document.getElementById('createLeagueForm').addEventListener('submit', async (e)
   const input = document.getElementById('newLeagueName');
   const name = input.value.trim();
   if (!name) return;
-  if (!confirm(`Créer la ligue « ${name} » ?`)) return;
+  if (!await askConfirm({
+    title: `Créer la ligue « ${name} » ?`,
+    body: ["Ensuite : envoie le lien admin à l'organisateur."],
+    ok: 'Créer la ligue',
+  })) return;
   try {
     const { league } = await adminJson('/admin/leagues', { method: 'POST', body: { name } });
     addLog(`Ligue créée : ${league.name} (${league.id}), code ${league.inviteCode}`);
@@ -1611,7 +1722,11 @@ function getSeasonInput() {
 document.getElementById('freezeElimBtn').addEventListener('click', async () => {
   const seasonNumber = getSeasonInput();
   if (!seasonNumber) return;
-  if (!confirm(`Figer le classement du challenge des éliminés de la saison ${seasonNumber} ?`)) return;
+  if (!await askConfirm({
+    title: `Figer le challenge des éliminés de la saison ${seasonNumber} ?`,
+    body: ['Le classement des éliminés est gravé avec les activités reçues à cet instant ; les points du classement général en découlent.'],
+    ok: 'Figer',
+  })) return;
   try {
     await adminJson(ed(`/admin/freeze-elim-challenge/${seasonNumber}`), { method: 'POST', body: {} });
     addLog(`Challenge des éliminés S${seasonNumber} figé`);
@@ -1626,7 +1741,12 @@ document.getElementById('freezeElimBtn').addEventListener('click', async () => {
 document.getElementById('unfreezeElimBtn').addEventListener('click', async () => {
   const seasonNumber = getSeasonInput();
   if (!seasonNumber) return;
-  if (!confirm(`Défiger le challenge des éliminés de la saison ${seasonNumber} ?`)) return;
+  if (!await askConfirm({
+    title: `Défiger le challenge des éliminés de la saison ${seasonNumber} ?`,
+    warn: 'Le classement gravé est effacé : il sera recalculé, et les points du classement général peuvent changer.',
+    ok: 'Défiger',
+    danger: true,
+  })) return;
   try {
     const data = await adminJson(ed(`/admin/unfreeze-elim-challenge/${seasonNumber}`), { method: 'POST' });
     if (!data.success) throw new Error(`Le challenge des éliminés de la saison ${seasonNumber} n'était pas figé`);

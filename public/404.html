@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr" class="da-atelier">
+<head>
+  <meta charset="UTF-8">
+  <!-- Page servie à n'importe quelle adresse inconnue : chemins absolus -->
+  <script src="/js/da-atelier.js?v=20261110c"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Page introuvable · Versant</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◭</text></svg>">
+  <link rel="stylesheet" href="/css/da/tokens.css?v=20261109a">
+  <link rel="stylesheet" href="/css/da/base.css?v=20261106a">
+  <link rel="stylesheet" href="/css/da/components.css?v=20261111c">
+  <style>
+    .nf {
+      box-sizing: border-box;
+      width: calc(100% - 32px);
+      max-width: 720px;
+      margin: 72px auto 48px;
+      padding: 40px 32px 36px;
+      border: 1.5px solid var(--ink);
+      background: var(--panel);
+      color: var(--ink);
+      text-align: center;
+    }
+    .nf__code { margin: 0; font: 900 clamp(96px, 26vw, 180px)/0.9 var(--f-sans); letter-spacing: -0.04em; }
+    .nf__hand { display: inline-block; margin: 10px 0 0; font: 600 34px/1.15 var(--f-hand); color: var(--pen); transform: rotate(-2deg); }
+    .nf__text { max-width: 440px; margin: 22px auto 28px; font: 400 16px/1.55 var(--f-sans); color: var(--sub); }
+    .nf__actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .nf__actions a {
+      display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px;
+      border: 1.5px solid var(--ink); font: 700 13px/1 var(--f-mono); letter-spacing: 0.08em;
+      text-transform: uppercase; text-decoration: none; color: var(--ink); background: var(--panel);
+    }
+    .nf__actions a:first-child { background: var(--ink); color: var(--panel); }
+    @media (max-width: 600px) { .nf { margin-top: 32px; padding: 32px 18px 28px; } .nf__hand { font-size: 28px; } }
+  </style>
+</head>
+<body>
+  <nav class="nav-sticky">
+    <div class="nav-container">
+      <a href="/index.html" class="nav-brand">
+        <span class="brand-icon">◭</span>
+        <span class="brand-text">Versant</span>
+      </a>
+      <div class="nav-links">
+        <a href="/index.html" class="nav-link">Classement</a>
+        <a href="/rules.html" class="nav-link">Règles</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="nf">
+    <p class="nf__code">404</p>
+    <p class="nf__hand">hors sentier !</p>
+    <p class="nf__text">Cette page n'existe pas, ou plus. Le lien est peut-être incomplet : reprends depuis le classement.</p>
+    <div class="nf__actions">
+      <a href="/index.html">Le classement</a>
+      <a href="/rules.html">Les règles</a>
+    </div>
+  </main>
+</body>
+</html>

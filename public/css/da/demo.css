@@ -1,0 +1,227 @@
+/* ============================================
+   DA « ATELIER » : DÉMO (Comment ça marche)
+   La page d'entrée du site. Les tableaux animés reprennent les classes des
+   vrais classements (css/da/home.css) ; ici, ce qui est propre à la visite :
+   colonne de lecture, légendes écrites à la main, bulles en annotations,
+   cartes des jokers, appel à s'inscrire. Les styles en ligne de demo.html
+   (ancienne DA sombre) sont contredits ici.
+   ============================================ */
+
+/* --- Accroche --- */
+html.da-atelier .hero { min-height: 0; padding: 72px var(--container-padding) 8px; }
+html.da-atelier .hero-title { font-size: clamp(44px, 8vw, 104px); line-height: 0.95; }
+html.da-atelier .hero-title .title-line { display: block; }
+html.da-atelier .hero-title .accent { margin-top: 0.08em; }
+html.da-atelier .hero-description { max-width: 560px; margin: 22px auto 0; color: var(--sub); font: 400 18px/1.55 var(--f-sans); }
+
+/* --- Étapes : une colonne de lecture, même cadre numéroté que l'accueil --- */
+html.da-atelier section.tour-step:has(> .section-header > .section-number) {
+  max-width: 920px;
+  margin-top: 96px;
+}
+html.da-atelier .tour-step .section-desc { max-width: 640px; font-size: 16px; line-height: 1.6; }
+
+/* --- Tableaux animés --- */
+html.da-atelier .tour-row { background: var(--panel); }
+html.da-atelier .tour-row .ranking-elevation .tour-num { font: 700 17px/1 var(--f-mono); color: var(--ink); }
+html.da-atelier .tour-row.tour-lifted {
+  background: var(--panel);
+  box-shadow: 4px 4px 0 var(--ink), 0 0 0 1.5px var(--ink);
+}
+html.da-atelier .tour-row.tour-target { box-shadow: inset 0 0 0 2px var(--accent); animation: none; }
+html.da-atelier .tour-row.tour-target .ranking-elevation .tour-num { color: var(--accent-text); }
+html.da-atelier .tour-keep { border-radius: 0; animation-name: da-tour-keep; }
+@keyframes da-tour-keep {
+  0%, 100% { box-shadow: none; background: transparent; }
+  40% { box-shadow: 0 0 0 3px var(--accent); background: transparent; }
+}
+
+/* Bulles : des annotations au stylo à côté du nom, plus des pastilles colorées */
+html.da-atelier .tour-bubble {
+  padding: 0 0 0 4px;
+  border-radius: 0;
+  background: none !important;
+  box-shadow: none;
+  color: var(--pen);
+  font: 600 20px/1 var(--f-hand);
+  text-transform: none;
+}
+html.da-atelier .tour-bubble-main,
+html.da-atelier .tour-bubble-sabotage { color: var(--accent-text); }
+html.da-atelier .tour-bubble-elim,
+html.da-atelier .tour-bubble-gap { color: var(--sub); }
+
+/* Légende sous chaque tableau : la phrase écrite à la main */
+html.da-atelier .tour-caption {
+  min-height: 2.6em;
+  margin: 18px auto 0;
+  max-width: 600px;
+  font: 600 24px/1.25 var(--f-hand);
+  color: var(--pen);
+  transform: rotate(-1deg);
+}
+
+/* Barre de chapitres : un trait de crayon qui se remplit à l'encre */
+html.da-atelier .tour-progress { gap: 4px; margin-top: 12px; }
+html.da-atelier .tour-chapter { height: 3px; border-radius: 0; background: var(--rule); }
+html.da-atelier .tour-fill { background: var(--ink); }
+
+/* Têtes de tableau : repère en capitales, compteur écrit à la main */
+html.da-atelier .tour-elim-head { font: var(--lbl); letter-spacing: 0.12em; color: var(--sub); text-transform: uppercase; }
+html.da-atelier .tour-elim-head strong { font: 600 30px/1 var(--f-hand); color: var(--accent-text); margin-right: 8px; }
+html.da-atelier .tour-finale { background: none; -webkit-text-fill-color: currentColor; color: var(--accent-text); animation: none; }
+html.da-atelier :is(.tour-standings .tour-main, .tour-legend-main) { color: var(--ink); }
+html.da-atelier :is(.tour-standings .tour-elim, .tour-legend-elim) { color: var(--sub); }
+html.da-atelier .tour-legend::before { border-radius: 0; background: currentColor; }
+
+/* Bandeau du round (étape 02) : la fiche du bloc 01 de l'accueil */
+html.da-atelier .tour-banner { border: 1.5px solid var(--ink); background: var(--panel); border-radius: 0; box-shadow: none; }
+
+/* --- Jokers : fiches de papier, la fiche choisie posée devant --- */
+html.da-atelier .tour-one-more { font: 600 0.6em/1.1 var(--f-hand); color: var(--pen); text-transform: none; letter-spacing: 0; }
+html.da-atelier .section-title .picto { width: 1em; height: 1em; vertical-align: -0.12em; }
+html.da-atelier .tour-joker {
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--panel);
+  opacity: 0.5;
+}
+html.da-atelier .tour-joker.is-active { opacity: 1; border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+html.da-atelier .tour-joker-icon .picto { width: 56px; height: 56px; }
+html.da-atelier .tour-joker-name { font: 900 17px/1.2 var(--f-sans); text-transform: uppercase; letter-spacing: 0.02em; }
+html.da-atelier .tour-joker-desc { color: var(--sub); }
+html.da-atelier .tour-dot { border-radius: 0; background: var(--rule); }
+html.da-atelier .tour-dot[aria-current="true"] { background: var(--ink); }
+
+/* --- S'inscrire : la dernière fiche --- */
+html.da-atelier .tour-join {
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--container-padding));
+  max-width: 920px;
+  margin: 108px auto 72px;
+  padding: 44px 28px 36px;
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+html.da-atelier .tour-join h2 { font: 900 clamp(32px, 6vw, 56px)/1 var(--f-sans); text-transform: uppercase; color: var(--ink); }
+html.da-atelier .tour-join p { color: var(--sub); }
+html.da-atelier .tour-join-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 32px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--ink) !important;
+  color: var(--panel) !important;
+  box-shadow: none;
+  font: 700 14px/1 var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+html.da-atelier .tour-join-btn:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 var(--accent); }
+html.da-atelier .tour-join .tour-more a { color: var(--ink); }
+
+@media (max-width: 768px) {
+  html.da-atelier .hero { padding-top: 40px; }
+  html.da-atelier section.tour-step:has(> .section-header > .section-number) { margin-top: 72px; }
+  html.da-atelier .tour-caption { font-size: 21px; }
+  html.da-atelier .tour-bubble { font-size: 17px; }
+  html.da-atelier .tour-join { margin-top: 72px; padding: 32px 18px 28px; box-shadow: 4px 4px 0 var(--ink); }
+}
+
+/* Bouton de la navigation : même geste que l'appel du bas */
+html.da-atelier .nav-links .btn-join {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--panel);
+  box-shadow: none;
+  font: 700 12px/1 var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+/* Points du challenge des éliminés : écrits, pas en pastille */
+html.da-atelier .tour-table .points-badge {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--accent-text);
+  font: 600 20px/1 var(--f-hand);
+}
+html.da-atelier .tour-one-more { display: block; font-size: 0.95em; margin-bottom: 2px; }
+
+/* Accroche sur téléphone : le titre se coupe au lieu de déborder */
+html.da-atelier .hero-content { max-width: 100%; box-sizing: border-box; }
+html.da-atelier .hero-title .title-line { white-space: normal; overflow-wrap: anywhere; }
+html.da-atelier .tour-step .section-title .tour-one-more { font-size: 22px; }
+html.da-atelier .tour-table .points-badge { font-size: 20px !important; }
+
+/* Classement général de la démo : 5 colonnes, y compris sur téléphone */
+@media (max-width: 768px) {
+  html.da-atelier .hero-title { font-size: clamp(34px, 10.5vw, 56px); }
+  html.da-atelier .hero-description { font-size: 16px; }
+  html.da-atelier .tour-standings :is(.standings-header, .standings-row) { grid-template-columns: 30px minmax(0, 1fr) 46px 46px 52px; }
+  html.da-atelier .tour-standings :is(.standings-header, .standings-row) > * { padding: 9px 6px; }
+  html.da-atelier .tour-standings .standings-header > *::before { display: none; }
+  html.da-atelier .tour-standings .standings-header { font-size: 9px; letter-spacing: 0.04em; }
+  html.da-atelier .tour-standings .standings-total { font-size: 17px; }
+}
+
+/* Légendes sous les animations : en mono, plus vite lues que le manuscrit
+   pendant le temps court de chaque étape */
+html.da-atelier .tour-caption {
+  font: 500 14px/1.55 var(--f-mono);
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  transform: none;
+}
+
+/* Bandeau du round (étape 02) : pas de bloc saison ici, sa propre grille
+   (compte à rebours | round au-dessus des compteurs), traits continus */
+html.da-atelier .tour-banner .banner-unified {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "count round" "count stats";
+}
+html.da-atelier .tour-banner .banner-round-block { border-left: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); border-top: 0; }
+html.da-atelier .tour-banner .banner-stats-block { border-left: 1.5px solid var(--ink); border-top: 0; }
+@media (max-width: 700px) {
+  html.da-atelier .tour-banner .banner-unified {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "count count" "round stats";
+  }
+  html.da-atelier .tour-banner .banner-round-block { border-left: 0; border-bottom: 0; border-top: 1.5px solid var(--ink); }
+  html.da-atelier .tour-banner .banner-stats-block { border-top: 1.5px solid var(--ink); }
+}
+
+/* Challenge des éliminés (étape 04) : un autre classement, un autre fond */
+html.da-atelier .tour-step--elim .tour-table :is(.ranking-header, .ranking-row, .tour-row) { background: var(--panel-2); }
+html.da-atelier .tour-step--elim .tour-table { background: var(--panel-2); }
+html.da-atelier .tour-step--elim .tour-elim-head span:first-child { color: var(--ink); }
+
+/* Classement général (étape 05) : intitulés en entier, sur plusieurs lignes */
+html.da-atelier .tour-standings .standings-header > * { white-space: normal; line-height: 1.25; }
+@media (max-width: 768px) {
+  /* les compteurs expliquent l'élimination : visibles aussi sur téléphone */
+  html.da-atelier .tour-banner .banner-stats-block { display: flex !important; }
+  html.da-atelier .tour-standings :is(.standings-header, .standings-row) { grid-template-columns: 26px minmax(0, 1fr) 54px 54px 54px; }
+  html.da-atelier .tour-standings .standings-header { font-size: 8px; letter-spacing: 0.02em; }
+  html.da-atelier .tour-standings .standings-header > * { padding: 7px 4px; overflow-wrap: anywhere; hyphens: auto; }
+}
+@media (max-width: 768px) {
+  html.da-atelier .tour-standings :is(.standings-header, .standings-row) { grid-template-columns: 34px minmax(0, 1fr) 52px 54px 54px; }
+  html.da-atelier .tour-standings .standings-header > :first-child { overflow-wrap: normal; }
+}
+
+/* Classement général (étape 05) : numéro de colonne (1), (2)… à gauche,
+   intitulé aligné à droite comme les chiffres de la colonne */
+html.da-atelier .tour-standings .standings-header > * { display: flex !important; flex-direction: column; justify-content: flex-end; }
+html.da-atelier .tour-standings .standings-header > :nth-child(n + 3) { align-items: flex-end; text-align: right; }
+html.da-atelier .tour-standings .standings-header > ::before { display: block; }
+html.da-atelier .tour-standings .standings-header > :nth-child(n + 3)::before { align-self: flex-start; }

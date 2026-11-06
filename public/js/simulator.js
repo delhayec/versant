@@ -17,7 +17,8 @@
 import { getRoundDates, getParticipantById, getSeasonType, getSeasonNumber } from './config.js';
 import { filterByPeriod, calculateRanking } from './standings-engine.js';
 import { applyJokerEffects, getActiveJokersForRound, getBonusesUsedInRound } from './jokers.js';
-import { formatElevation } from './ui.js';
+import { formatElevation } from './ui.js?v=20261110b';
+import { picto } from './pictos.js';
 
 // ============================================
 // EXTRACTION DES EFFETS LISIBLES (commun aux 2 modes)
@@ -29,30 +30,30 @@ function extractEffects(entry, bonusByAthlete) {
   const b = je.bonuses || {};
 
   if (b.stolen && b.stolen.amount > 0) {
-    effects.push({ icon: '🦹', type: 'loss', text: `Volé par ${b.stolen.by}`, amount: -b.stolen.amount });
+    effects.push({ icon: '🦹', picto: 'voleur', type: 'loss', text: `Volé par ${b.stolen.by}`, amount: -b.stolen.amount });
   }
   if (Array.isArray(b.thief) && b.thief.length > 0) {
     const gained = b.thief.reduce((s, t) => s + t.amount, 0);
     const victims = b.thief.map(t => t.from).join(', ');
-    effects.push({ icon: '🦹', type: 'gain', text: `A volé ${victims}`, amount: gained });
+    effects.push({ icon: '🦹', picto: 'voleur', type: 'gain', text: `A volé ${victims}`, amount: gained });
   }
   if (b.sabotaged && b.sabotaged.amount > 0) {
-    effects.push({ icon: '💥', type: 'loss', text: `Saboté par ${b.sabotaged.by}`, amount: -b.sabotaged.amount });
+    effects.push({ icon: '💥', picto: 'sabotage', type: 'loss', text: `Saboté par ${b.sabotaged.by}`, amount: -b.sabotaged.amount });
   }
   if (Array.isArray(b.sabotageApplied) && b.sabotageApplied.length > 0) {
     const targets = b.sabotageApplied.map(s => s.to).join(', ');
-    effects.push({ icon: '💥', type: 'neutral', text: `A saboté ${targets}`, amount: 0 });
+    effects.push({ icon: '💥', picto: 'sabotage', type: 'neutral', text: `A saboté ${targets}`, amount: 0 });
   }
   if (b.multiplier && b.multiplier.amount > 0) {
-    effects.push({ icon: '✨', type: 'gain', text: `Multiplicateur ×${b.multiplier.factor}`, amount: b.multiplier.amount });
+    effects.push({ icon: '✨', picto: 'multiplicateur', type: 'gain', text: `Multiplicateur ×${b.multiplier.factor}`, amount: b.multiplier.amount });
   }
   if (b.shield) {
-    effects.push({ icon: '🛡️', type: 'neutral', text: 'Bouclier (protégé)', amount: 0 });
+    effects.push({ icon: '🛡️', picto: 'bouclier', type: 'neutral', text: 'Bouclier (protégé)', amount: 0 });
   }
   const bonus = bonusByAthlete[String(entry.participant.id)];
   if (bonus) {
     effects.push({
-      icon: bonus.bonusIcon || '🎁', type: 'neutral',
+      icon: bonus.bonusIcon || '🎁', picto: bonus.bonus_id || 'cadeau', type: 'neutral',
       text: `Bonus : ${bonus.bonusName}${bonus.targetName ? ' → ' + bonus.targetName : ''}`,
       amount: 0
     });
@@ -203,7 +204,7 @@ function effectsHTML(effects) {
       ? `<span class="sim-eff-loss">−${formatElevation(Math.abs(e.amount), false)}</span>`
       : '';
     return `<div class="sim-effect">
-      <span class="sim-eff-icon">${e.icon}</span>
+      <span class="sim-eff-icon">${e.picto ? picto(e.picto, e.icon) : e.icon}</span>
       <span class="sim-eff-text">${e.text}</span>
       ${amountStr}
     </div>`;
@@ -262,7 +263,7 @@ function renderTeamHTML(sim) {
 
     return `
       <div class="sim-team ${team.isEliminated ? 'sim-team-eliminated' : ''}"
-           style="--team-color: ${team.color || '#888'}">
+           data-team="${team.color?.name?.toLowerCase() || ''}" style="--team-color: ${team.color?.border || team.color || '#888'}">
         <div class="sim-team-header">
           <span class="sim-team-rank">${team.finalRank}</span>
           <span class="sim-team-animal">${animalEmoji} ${animalName}</span>

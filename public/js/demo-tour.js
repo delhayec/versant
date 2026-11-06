@@ -108,6 +108,13 @@
     }
   }
 
+  // DA Atelier : rangs en chiffres (comme l'accueil), icônes dessinées
+  const DA = document.documentElement.classList.contains('da-atelier');
+  const PICTO = { '🥇': 'couronne', '💣': 'sabotage', '🎁': 'cadeau' };
+  const iconHTML = (emoji) => DA && PICTO[emoji]
+    ? `<span class="picto picto--${PICTO[emoji]}"><span class="picto__emoji" aria-hidden="true">${emoji}</span></span>`
+    : emoji;
+
   // Bulle après le nom (activité Strava, bonus ou points gagnés)
   function bubble(row, html, kind = 'activity') {
     const b = document.createElement('span');
@@ -193,8 +200,9 @@
     refresh(order = [...this.body.children]) {
       order.forEach((row, i) => {
         const pos = row.querySelector('.ranking-position');
-        pos.className = 'ranking-position' + (this.medals && i < 3 ? ` ${['gold', 'silver', 'bronze'][i]}` : '');
-        pos.textContent = this.medals && i < 3 ? ['🥇', '🥈', '🥉'][i] : String(i + 1);
+        const medal = this.medals && !DA && i < 3;
+        pos.className = 'ranking-position' + (medal ? ` ${['gold', 'silver', 'bronze'][i]}` : '');
+        pos.textContent = medal ? ['🥇', '🥈', '🥉'][i] : String(i + 1);
         const danger = this.dangerCount > 0 && i >= order.length - this.dangerCount;
         row.classList.toggle('danger-zone', danger);
         row.querySelector('.athlete-status.danger').hidden = !danger;
@@ -287,7 +295,7 @@
 
     gift(id, emoji = '🎁') {
       const g = this.rows.get(id).querySelector('.tour-gift');
-      g.textContent = ` ${emoji}`;
+      g.innerHTML = ` ${iconHTML(emoji)}`;
       g.hidden = false;
       g.classList.remove('tour-pop');
       g.offsetHeight;
@@ -326,8 +334,8 @@
         <div class="standings-header">
           <div>Rang</div><div>Athlète</div>
           <div><span class="header-main">Principal</span></div>
-          <div><span class="header-elim">Éliminés</span></div>
-          <div>Total</div>
+          <div><span class="header-elim">Total points éliminés</span></div>
+          <div>Total points général</div>
         </div>
         <div class="tour-rows"></div>`;
       this.body = this.el.querySelector('.tour-rows');

@@ -1548,11 +1548,16 @@ export const ATHLETE_COLORS = [
 
 const colorMap = {};
 export function getAthleteColor(id) {
-  return (
+  const c =
     colorMap[id] ||
     (colorMap[id] =
-      ATHLETE_COLORS[Object.keys(colorMap).length % ATHLETE_COLORS.length])
-  );
+      ATHLETE_COLORS[Object.keys(colorMap).length % ATHLETE_COLORS.length]);
+  // DA « Atelier » : même rang de couleur, pris dans la palette (tokens.css --ath-N)
+  if (typeof document !== "undefined" && document.documentElement.classList.contains("da-atelier")) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue("--ath-" + ATHLETE_COLORS.indexOf(c)).trim();
+    if (v) return v;
+  }
+  return c;
 }
 
 export function getAthleteInitials(id) {

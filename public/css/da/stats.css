@@ -1,0 +1,253 @@
+/* ============================================
+   DA « ATELIER » : PAGE STATS
+   Fiches de papier, graphiques dessinés à la main (js/stats-da.js,
+   js/da-sketch.js). Sans la classe da-atelier, rien ne change.
+   ============================================ */
+
+/* --- En-tête : pas de halos colorés --- */
+html.da-atelier .stats-hero .hero-bg { display: none; }
+html.da-atelier .stats-hero .title-line { color: var(--ink); text-transform: uppercase; }
+html.da-atelier .stats-hero .title-line.accent { -webkit-text-fill-color: currentColor; background: none; }
+html.da-atelier .stats-hero .hero-eyebrow { font: var(--lbl); letter-spacing: .14em; color: var(--accent-text); }
+
+/* --- Barre de filtres : un bandeau kraft, pas une barre noire --- */
+html.da-atelier .stats-filters {
+  top: var(--da-nav-h, 100px) !important;   /* juste sous la navigation, quelle que soit sa hauteur */
+  background: var(--panel-2) !important;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+  backdrop-filter: none !important;
+}
+html.da-atelier .filter-group label { font: var(--lbl); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; }
+html.da-atelier .filter-group select {
+  background: var(--panel); color: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 0;
+  font-family: var(--f-sans);
+}
+html.da-atelier .btn-toggle-ranking,
+html.da-atelier .points-toggle-btn {
+  background: var(--panel); color: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 0;
+  font: 700 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase;
+  transform: none;
+}
+html.da-atelier .btn-toggle-ranking:hover,
+html.da-atelier .points-toggle-btn:hover { background: var(--accent-soft); color: var(--ink); }
+html.da-atelier .btn-toggle-ranking.active,
+html.da-atelier .points-toggle-btn.active { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+
+/* --- Fiches : papier, bord net, sans arrondi ni dégradé --- */
+html.da-atelier :is(.stat-card, .sankey-container, .heatmap-container, .ridgeline-container, .social-container,
+                    .points-chart-wrapper, .moneytime-chart-wrapper, .compare-chart-wrapper,
+                    .legend-panel, .country-panel, .achievement-card, .table-wrapper) {
+  background: var(--panel) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  transform: none !important;
+}
+html.da-atelier .stat-card::before { display: none; }
+html.da-atelier .stat-card:hover { border-color: var(--ink) !important; }
+html.da-atelier .stat-label { font: var(--lbl); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; }
+html.da-atelier .stat-value { color: var(--ink); -webkit-text-fill-color: currentColor; background: none; font-family: var(--f-sans); }
+html.da-atelier .stat-card.stat-primary .stat-value { color: var(--accent-text); }
+html.da-atelier .stat-value-small { color: var(--ink); white-space: pre-line; }
+html.da-atelier .stat-unit { color: var(--sub); font-family: var(--f-mono); }
+html.da-atelier .stat-icon { color: var(--sub); }
+/* Chiffres clés : deux rangées de trois sur PC (grille de 6),
+   le D+ total sur toute la largeur et les trois petits côte à côte sur téléphone */
+html.da-atelier .stats-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
+html.da-atelier .stats-grid > .stat-card { grid-column: span 2; padding: 22px 22px 18px; }
+html.da-atelier .stat-icon[style*="--ico"] {
+  font-size: 0; width: 38px; height: 38px; margin-bottom: 12px; opacity: 1;
+  background: var(--ink);
+  -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat;
+}
+html.da-atelier .stat-card.stat-primary .stat-icon { background: var(--accent-text); }
+/* Meilleur jour, meilleure semaine : notés à la main */
+html.da-atelier .stat-value-small { font: 600 21px/1.25 var(--f-hand); color: var(--pen); }
+@media (max-width: 900px) {
+  html.da-atelier .stats-grid { gap: 10px; }
+  html.da-atelier .stats-grid > .stat-card { padding: 16px 14px 14px; }
+  html.da-atelier .stats-grid > .stat-card.stat-primary { grid-column: 1 / -1; }
+  html.da-atelier .stats-grid > .stat-card.stat-highlight { grid-column: span 3; }
+  html.da-atelier .stat-icon[style*="--ico"] { width: 30px; height: 30px; margin-bottom: 8px; }
+  html.da-atelier .stats-grid .stat-value { font-size: 1.6rem; }
+  html.da-atelier .stats-grid .stat-primary .stat-value { font-size: 2.4rem; }
+  html.da-atelier .stat-value-small { font-size: 18px; }
+}
+
+/* Répartition par sport et classement D+ : une seule case, deux colonnes */
+html.da-atelier .stat-duo {
+  grid-column: 1 / -1;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  background: var(--panel); border: 1.5px solid var(--ink);
+}
+html.da-atelier .stat-duo > .stat-card { grid-column: auto; border: 0 !important; background: transparent !important; padding: 22px; }
+html.da-atelier .stat-duo > .stat-ranking-mini { border-left: 1px dashed var(--grid-major) !important; }
+html.da-atelier .stat-duo .stat-label { display: block; margin-bottom: 14px; }
+@media (max-width: 900px) {
+  html.da-atelier .stat-duo { grid-template-columns: 1fr; }
+  html.da-atelier .stat-duo > .stat-card { padding: 16px 14px; }
+  html.da-atelier .stat-duo > .stat-ranking-mini { border-left: 0 !important; border-top: 1px dashed var(--grid-major) !important; }
+}
+html.da-atelier #sportPieChart { height: auto; }
+html.da-atelier .mini-ranking-container { display: block; }
+html.da-atelier .mini-ranking-slider { display: block; overflow: visible; }
+html.da-atelier :is(.ranking-nav-btn, .ranking-dots) { display: none !important; }
+
+/* --- Conteneurs des graphiques : hauteur donnée par le dessin --- */
+html.da-atelier :is(#calendarHeatmap, #pointsChart, #moneyTimeChart, #compareChart, #ridgelineChart, #roundRidgelineChart) {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+html.da-atelier :is(.bars-wrapper, .bars-container) { display: block; height: auto; padding-bottom: 0; }
+html.da-atelier .heatmap-layout { display: block; }
+html.da-atelier :is(.heatmap-legend, .moneytime-legend) { display: none; }
+html.da-atelier .performance-section h4 { font: var(--lbl); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; }
+html.da-atelier .social-graph-wrapper { background: transparent; border-radius: 0; }
+
+/* ============================================
+   TRACÉS (SVG)
+   ============================================ */
+html.da-atelier .da-sketch {
+  display: block; width: 100%; height: auto; overflow: visible;
+  fill: none; stroke-linecap: round; stroke-linejoin: round;
+}
+/* Graphiques larges : à défiler de côté sur téléphone, le texte reste lisible */
+html.da-atelier .da-sketch.sk-wide { min-width: 560px; }
+html.da-atelier .da-sketch.sk-cal { min-width: 720px; }
+html.da-atelier .da-sketch text { stroke: none; }
+html.da-atelier .sk-ink { stroke: var(--ink); }
+html.da-atelier .sk-pencil { stroke: var(--pencil); }
+html.da-atelier .sk-pen { stroke: var(--pen); }
+html.da-atelier .sk-faint { stroke: var(--grid-major); }
+html.da-atelier .sk-mk { stroke: var(--accent); opacity: var(--mk-opacity); mix-blend-mode: var(--mk-blend); }
+html.da-atelier .sk-mk--solid { opacity: .9; }
+html.da-atelier .sk-mk--flat { stroke-linecap: butt; }
+html.da-atelier .sk-dot { fill: var(--ink); }
+html.da-atelier .sk-dot-acc { fill: var(--accent); }
+html.da-atelier .sk-rule { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 4; }
+html.da-atelier .sk-swatch { stroke: var(--ink); stroke-width: 1; }
+html.da-atelier .sk-ridge__paper { fill: var(--panel); }
+html.da-atelier .sk-hit { cursor: pointer; }
+
+html.da-atelier .sk-lbl { font: 700 10px/1 var(--f-mono); letter-spacing: .1em; fill: var(--sub); }
+html.da-atelier .sk-lbl--ink { fill: var(--ink); }
+html.da-atelier .sk-lbl--me { fill: var(--accent-text); }
+html.da-atelier .sk-hand { font: 600 18px/1 var(--f-hand); fill: var(--pen); }
+html.da-atelier .sk-hand-s { font: 600 16px/1 var(--f-hand); fill: var(--pencil); }
+html.da-atelier .sk-hand-ink { font: 700 17px/1 var(--f-hand); fill: var(--ink); }
+html.da-atelier .sk-hand-acc { font: 700 18px/1 var(--f-hand); fill: var(--accent-text); }
+
+/* Évolution des points : une couleur de crayon par joueur */
+html.da-atelier .sk-line__stroke { stroke: var(--line); }
+html.da-atelier .sk-line__dot { stroke: var(--line); stroke-width: 1.2; }
+html.da-atelier .sk-line__name { font: 700 15px/1 var(--f-hand); fill: var(--line); }
+html.da-atelier .sk-line { transition: opacity .2s; }
+html.da-atelier .sk-line.is-faded { opacity: .22; }
+html.da-atelier .sk-line.is-hot { opacity: 1; }
+html.da-atelier .sk-line.is-hot .sk-line__stroke { stroke-width: 2.6; }
+
+/* Infobulle : une étiquette de papier */
+html.da-atelier .da-tip {
+  position: absolute; z-index: 30; pointer-events: none;
+  max-width: 280px; padding: 7px 10px;
+  background: var(--panel); color: var(--ink);
+  border: 1.5px solid var(--ink);
+  font: 13px/1.45 var(--f-sans);
+}
+html.da-atelier .da-tip b { font-weight: 700; }
+html.da-atelier .da-tip small { color: var(--sub); }
+
+/* Tracé à la première apparition */
+@media (prefers-reduced-motion: no-preference) {
+  html.da-atelier .sk-wait :is(.dr, text, [fill^="url"], .sk-dot, .sk-dot-acc) { opacity: 0; }
+  html.da-atelier .sk-anim .dr { stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: sk-dr 1s cubic-bezier(.4, .1, .3, 1) forwards; }
+  html.da-atelier .sk-anim :is(text, [fill^="url"], .sk-dot, .sk-dot-acc) { opacity: 0; animation: sk-fi .5s .55s ease forwards; }
+}
+@keyframes sk-dr { to { stroke-dashoffset: 0; } }
+@keyframes sk-fi { to { opacity: 1; } }
+
+/* ============================================
+   02 EXPLORATIONS : carte blanche (clair) ou bleue (cyanotype)
+   ============================================ */
+html.da-atelier .map-container { border: 1.5px solid var(--ink) !important; border-radius: 0 !important; background: var(--panel) !important; }
+html.da-atelier .leaflet-container { background: var(--panel) !important; font-family: var(--f-sans); }
+/* Fond gris clair d'Esri, blanchi */
+html.da-atelier .leaflet-tile-pane { filter: grayscale(1) brightness(1.09) contrast(.92); }
+@media (prefers-color-scheme: dark) {
+  html.da-atelier:not([data-theme="light"]) .leaflet-tile-pane { filter: invert(1) grayscale(1) contrast(1.25); opacity: .5; }
+}
+html.da-atelier[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) grayscale(1) contrast(1.25); opacity: .5; }
+html.da-atelier .leaflet-popup-content-wrapper,
+html.da-atelier .leaflet-popup-tip { background: var(--panel); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 0; }
+html.da-atelier .leaflet-bar a { background: var(--panel); color: var(--ink); border-color: var(--ink); border-radius: 0 !important; }
+html.da-atelier .leaflet-control-attribution { background: color-mix(in srgb, var(--panel) 80%, transparent) !important; color: var(--sub); }
+html.da-atelier .leaflet-control-attribution a { color: var(--sub); }
+/* Panneaux : titres en capitales, pastilles cernées */
+html.da-atelier :is(.legend-panel, .country-panel) h3 { font: var(--lbl); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); border-bottom: 1px dashed var(--grid-major); }
+html.da-atelier .legend-item { border-radius: 0; padding: 5px 4px; }
+html.da-atelier .legend-item:hover { background: var(--accent-soft); }
+html.da-atelier .legend-color { width: 18px; height: 10px; border-radius: 0; border: 1px solid var(--ink); }
+html.da-atelier .legend-text { color: var(--ink); font-size: .8rem; }
+html.da-atelier .gps-counter { background: var(--panel-2); border: 1px solid var(--ink); border-radius: 0; }
+html.da-atelier .gps-counter-main { font-family: var(--f-mono); color: var(--ink); }
+html.da-atelier :is(.gps-counter-sub, .gps-counter-info, .country-stats-line, .country-summary) { color: var(--sub); }
+html.da-atelier .country-item { background: transparent; border-radius: 0; border-left: 0; border-bottom: 1px dashed var(--grid-major); transform: none !important; }
+html.da-atelier .country-item:hover { background: var(--accent-soft); }
+html.da-atelier .country-name { color: var(--ink); }
+html.da-atelier .country-badge { background: transparent; color: var(--ink); border: 1px solid var(--ink); border-radius: 0; font-family: var(--f-mono); }
+/* Zones actives : seulement quand il y a la place */
+@media (max-width: 1400px) {
+  html.da-atelier .country-panel { display: none; }
+  html.da-atelier .map-layout { grid-template-columns: 1fr minmax(170px, 210px); }
+}
+@media (max-width: 900px) {
+  html.da-atelier .map-layout { grid-template-columns: 1fr; grid-template-rows: 400px auto; }
+}
+
+/* ============================================
+   07 SORTIES EN GROUPE : panneaux de papier, arcs aux motifs des joueurs
+   ============================================ */
+html.da-atelier :is(.social-legend, .social-stats) { background: transparent; border: 1px dashed var(--grid-major); border-radius: 0; }
+html.da-atelier :is(.social-legend, .social-stats) h4 { font: var(--lbl); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); border-bottom: 1px dashed var(--grid-major); }
+html.da-atelier .social-legend-item { color: var(--ink); }
+html.da-atelier .social-legend-color { width: 22px; height: 10px; border-radius: 0; border: 1px solid var(--ink); }
+html.da-atelier .social-stat-item { border-bottom: 1px dashed var(--grid-major); color: var(--ink); }
+html.da-atelier .social-stat-value { font-family: var(--f-mono); color: var(--accent-text); }
+html.da-atelier .social-graph-wrapper { background: transparent; }
+html.da-atelier .da-social .soc-arc { stroke: var(--ink); stroke-width: 1.2; }
+html.da-atelier .da-social { overflow: visible; }
+html.da-atelier .da-social .soc-ribbon { stroke: var(--ink); stroke-opacity: .3; }
+html.da-atelier .da-social .soc-label { fill: var(--ink); text-shadow: none !important; font: 700 14px/1 var(--f-hand); }
+html.da-atelier .da-social .soc-label.is-me { fill: var(--accent-text); }
+html.da-atelier .social-tip {
+  background: var(--panel) !important; color: var(--ink) !important;
+  border: 1.5px solid var(--ink) !important; border-radius: 0 !important;
+}
+html.da-atelier .social-tip div:not(:first-child),
+html.da-atelier .social-tip span { color: var(--ink) !important; border-color: var(--grid-major) !important; }
+html.da-atelier .social-tip div:first-child { color: var(--accent-text) !important; }
+html.da-atelier .social-tip span[style*="border-radius:50%"] { display: none; }
+html.da-atelier .social-graph-wrapper { min-height: 0; overflow: visible; }
+html.da-atelier .da-social { display: block; width: 100%; max-width: 680px; height: auto; margin: 0 auto; }
+@media (max-width: 900px) {
+  html.da-atelier .map-layout { grid-template-rows: auto auto; }
+  html.da-atelier .map-container { height: 400px !important; max-height: none; }
+}
+@media (max-width: 520px) {
+  html.da-atelier .stats-grid .stat-card:not(.stat-primary) .stat-value { font-size: 1.3rem; }
+  html.da-atelier .stats-grid .stat-card:not(.stat-primary) .stat-unit { font-size: .75rem; }
+  html.da-atelier .stats-grid .stat-content { flex-wrap: wrap; gap: 2px 4px; }
+}
+html.da-atelier #socialGraph { min-height: 0; height: auto; }
+html.da-atelier #socialGraph svg.da-social { height: auto; }
+/* Pas de fines lignes claires entre les tuiles de la carte */
+html.da-atelier .leaflet-tile-container img.leaflet-tile { width: 256.5px !important; height: 256.5px !important; }
+
+/* 09 Money time : une couleur par jour, vive sur le papier, adoucie en cyanotype */
+/* (couleurs --mt-1 à --mt-5 : dans tokens.css) */
+/* Sorties en groupe : le grisé suit le clic */
+html.da-atelier .da-social :is(.soc-arc, .soc-ribbon, .soc-label) { transition: opacity .2s; }

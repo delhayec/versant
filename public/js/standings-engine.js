@@ -284,7 +284,7 @@ export function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCa
 
   for (const bonus of allAthleteBonus) {
     // Filtrage par saison : si seasonContext est fourni, on ne traite que les bonus
-    // de cette saison. Cela évite qu'un bonus saisonnier (ex: second_souffle de Baptiste
+    // de cette saison. Cela évite qu'un bonus saisonnier (ex: second_souffle d'un joueur
     // saison 2) soit appliqué dans le ranking d'une autre saison (saison 3 en cours).
     // Saison indéterminable (null) = donnée orpheline → on n'applique PAS : un bonus
     // légitime est toujours créé au gel de son round d'élimination, donc sa saison

@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="da-atelier">
 <head>
   <meta charset="UTF-8">
+  <!-- DA Atelier : thème posé avant le premier rendu -->
+  <script src="js/da-atelier.js?v=20261110c"></script>
   <!-- L50 : connexion obligatoire et édition affichée (avant tout autre script) -->
   <script src="shared/edition-session.js?v=20261028a"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -921,6 +923,11 @@
       }
     }
   </style>
+  <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
+  <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
+  <link rel="stylesheet" href="css/da/base.css?v=20261106a">
+  <link rel="stylesheet" href="css/da/components.css?v=20261111c">
+  <link rel="stylesheet" href="css/da/dashboard.css?v=20261106c">
 </head>
 <body>
   <!-- Navigation -->
@@ -932,7 +939,9 @@
       </a>
       <div class="nav-links">
         <a href="index.html" class="nav-link">Classement</a>
-        <a href="dashboard.html" class="nav-link active">Mon Dashboard</a>
+        <a href="rules.html" class="nav-link">Règles</a>
+        <a href="stats.html" class="nav-link">Stats</a>
+        <a href="dashboard.html" class="nav-link active">Dashboard</a>
       </div>
     </div>
   </nav>
@@ -992,7 +1001,7 @@
           </div>
           <div class="stat-row">
             <span class="stat-label">D+ total saison</span>
-            <span class="stat-value" id="totalElevation">-</span>
+            <span class="stat-value da-mk" id="totalElevation">-</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">Nombre d'activités</span>
@@ -1007,7 +1016,7 @@
 
       <!-- Prochain round -->
       <div class="dashboard-card">
-        <h2 class="card-title">🎯 Round Actuel</h2>
+        <h2 class="card-title"><span class="picto picto--cible"><span class="picto__emoji" aria-hidden="true">🎯</span></span> Round Actuel</h2>
         <div id="nextRoundContent">
           <div class="stat-row">
             <span class="stat-label">Round</span>
@@ -1035,7 +1044,7 @@
 
     <!-- Jokers -->
     <div class="dashboard-card" style="margin-bottom: 40px;">
-      <h2 class="card-title">🃏 Mes Jokers</h2>
+      <h2 class="card-title"><span class="picto picto--jokers"><span class="picto__emoji" aria-hidden="true">🃏</span></span> Mes Jokers</h2>
       <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">
         Utilisez vos jokers stratégiquement pour gagner un avantage ou vous protéger
       </p>
@@ -1046,7 +1055,7 @@
 
     <!-- Bonus Éphémère (Challenge des Éliminés) -->
     <div class="dashboard-card" id="bonusSection" style="margin-bottom: 40px; display: none;">
-      <h2 class="card-title">🎁 Mon Bonus Éphémère</h2>
+      <h2 class="card-title"><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span> Mon Bonus Éphémère</h2>
       <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">
         Bonus spécial du challenge des éliminés - À utiliser avant la fin de la saison !
       </p>
@@ -1059,7 +1068,7 @@
     <div id="bonusChoiceModal" class="bonus-choice-modal" style="display: none;">
       <div class="bonus-choice-container">
         <div class="bonus-choice-header">
-          <span class="bonus-choice-icon">🎁</span>
+          <span class="bonus-choice-icon"><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span></span>
           <div class="bonus-choice-text">
             <div class="bonus-choice-title">Choisis ton bonus !</div>
             <div class="bonus-choice-subtitle">Tu es le meilleur des 2 éliminés - Choisis 1 bonus parmi 2</div>
@@ -1089,6 +1098,6 @@
 
   <script src="shared/team-formation.js?v=20260505c"></script>
   <script src="shared/edition-rules.js?v=20261028d"></script>
-  <script type="module" src="js/dashboard.js?v=20261028d"></script>
+  <script type="module" src="js/dashboard.js?v=20261106b"></script>
 </body>
 </html>

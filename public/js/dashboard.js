@@ -18,7 +18,8 @@ import {
   setFrozenCache,
   onDomReady
 } from './config.js';
-import { formatDate, formatElevation } from './ui.js';
+import { picto } from './pictos.js';
+import { formatDate, formatElevation } from './ui.js?v=20261110b';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
@@ -391,11 +392,12 @@ async function renderStats() {
   if (challengeStatusEl) {
     if (isEliminated) {
       challengeStatusEl.innerHTML = `
-        <span style="color: #a855f7;">Éliminés</span>
-        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">(R${eliminationInfo.round})</span>
+        <span class="da-off-only"><span style="color: #a855f7;">Éliminés</span>
+        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">(R${eliminationInfo.round})</span></span>
+        <span class="da-only"><span class="da-elim-word">ÉLIMINÉ R${eliminationInfo.round}</span> <span class="da-struck">Actif</span></span>
       `;
     } else {
-      challengeStatusEl.innerHTML = `<span style="color: #10b981;">Principal</span>`;
+      challengeStatusEl.innerHTML = `<span class="da-off-only" style="color: #10b981;">Principal</span><span class="da-only">Actif</span>`;
     }
   }
 
@@ -709,7 +711,7 @@ const isDisabledByTeam = isTeamMode && id === 'bouclier';
 
     let statusClass = 'used';
     let statusText = 'Épuisé';
-    let statusIcon = '✗';
+    let statusIcon = picto('refuse', '✗');
 
     if (jokersLocked) {
       statusClass = 'disabled-nobonus';
@@ -735,7 +737,7 @@ const isDisabledByTeam = isTeamMode && id === 'bouclier';
 
     return `
       <div class="joker-card ${statusClass}" data-joker="${id}" ${isDisabledByTeam ? 'data-disabled-team="true"' : ''} ${isDisabledByNoBonus ? 'data-disabled-nobonus="true"' : ''}>
-        <div class="joker-icon">${joker.icon}</div>
+        <div class="joker-icon">${picto(id, joker.icon, joker.name)}</div>
         <div class="joker-name">${joker.name}</div>
         <div class="joker-desc">${joker.description}</div>
         <div class="joker-count ${statusClass}">
@@ -781,7 +783,7 @@ function renderBonus() {
     showBonusChoiceModal();
     content.innerHTML = `
       <div class="bonus-card" style="cursor: pointer;" onclick="window.showBonusChoiceModal()">
-        <div class="bonus-icon">🎁</div>
+        <div class="bonus-icon">${picto('cadeau', '🎁')}</div>
         <div class="bonus-name">Choisis ton bonus !</div>
         <div class="bonus-desc">Tu es le meilleur des 2 éliminés - Clique pour choisir ton bonus parmi 2 options</div>
         <div class="bonus-status">En attente de choix</div>
@@ -804,16 +806,16 @@ function renderBonus() {
 
     content.innerHTML = `
       <div class="bonus-card ${isUsed ? 'used' : 'available'}" ${!isUsed && canUse ? `onclick="window.handleBonusClick('${bonusData.bonus_id}')"` : ''}>
-        <div class="bonus-icon">${bonusType.icon}</div>
+        <div class="bonus-icon">${picto(bonusData.bonus_id, bonusType.icon, bonusType.name)}</div>
         <div class="bonus-name">${bonusType.name}</div>
         <div class="bonus-desc">${bonusType.effect}</div>
         ${bonusType.timing ? `<div class="bonus-timing">${bonusType.timing}</div>` : ''}
         <div class="bonus-status ${isUsed ? 'used' : ''}">
-          ${isUsed ? '✓ Utilisé' : (canUse ? '🎯 Cliquez pour utiliser' : (isAutomatic ? 'Actif automatiquement' : 'Pas encore activable'))}
+          ${isUsed ? `${picto('valide', '✓')} Utilisé` : (canUse ? `${picto('cible', '🎯')} Cliquez pour utiliser` : (isAutomatic ? 'Actif automatiquement' : 'Pas encore activable'))}
         </div>
         ${bonusData.target_athlete_name ? `
           <div class="bonus-target">
-            🎯 Cible : <strong>${bonusData.target_athlete_name}</strong>
+            ${picto('cible', '🎯')} Cible : <strong>${bonusData.target_athlete_name}</strong>
           </div>
         ` : ''}
         ${!canUse && !isUsed && !isAutomatic ? `
@@ -898,10 +900,10 @@ function showBonusChoiceModal() {
 
     // Catégorie avec icône
     const categoryMap = {
-      'offensif': '⚔️ Offensif',
+      'offensif': `${picto('duel', '⚔️')} Offensif`,
       'soutien': 'Soutien',
       'competitif': 'Compétitif',
-      'defensif': '🛡️ Défensif',
+      'defensif': `${picto('bouclier', '🛡️')} Défensif`,
       'pari': 'Pari',
       'piege': '🪤 Piège',
       'boost': 'Boost'
@@ -910,7 +912,7 @@ function showBonusChoiceModal() {
 
     return `
       <div class="bonus-choice-option" onclick="window.selectBonus('${bonusId}')">
-        <div class="bonus-icon">${bonus.icon}</div>
+        <div class="bonus-icon">${picto(bonusId, bonus.icon, bonus.name)}</div>
         <div class="bonus-name">${bonus.name}</div>
         <div class="bonus-desc">${bonus.effect}</div>
         ${bonus.timing ? `<div class="bonus-timing">${bonus.timing.replace(' · ', '<br>')}</div>` : ''}
@@ -994,7 +996,7 @@ function showBonusTargetModal(bonusId, bonusType) {
       modal.innerHTML = `
         <div class="joker-modal-container" style="border-color: rgba(168, 85, 247, 0.4);">
           <div class="modal-header" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.1));">
-            <span class="modal-header-icon">${bonusType.icon}</span>
+            <span class="modal-header-icon">${picto(bonusId, bonusType.icon)}</span>
             <div class="modal-header-text">
               <div class="modal-header-title">${bonusType.name}</div>
               <div class="modal-header-subtitle">Choisissez votre cible</div>
@@ -1003,7 +1005,7 @@ function showBonusTargetModal(bonusId, bonusType) {
           </div>
           <div class="modal-body">
             <div class="modal-section">
-              <div class="modal-section-title" style="color: #a855f7;">🎯 Sélectionnez un joueur</div>
+              <div class="modal-section-title" style="color: #a855f7;">${picto('cible', '🎯')} Sélectionnez un joueur</div>
               <div class="target-selection-grid">
                 ${targets.map(t => `
                   <div class="target-card" data-id="${t.id}" data-name="${t.name}">
@@ -1017,7 +1019,7 @@ function showBonusTargetModal(bonusId, bonusType) {
             </div>
 
             <button class="modal-confirm-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899);" disabled>
-              <span class="btn-icon">${bonusType.icon}</span>
+              <span class="btn-icon">${picto(bonusId, bonusType.icon)}</span>
               Sélectionnez une cible
             </button>
           </div>
@@ -1039,7 +1041,7 @@ function showBonusTargetModal(bonusId, bonusType) {
 
           const btn = modal.querySelector('.modal-confirm-btn');
           btn.disabled = false;
-          btn.innerHTML = `<span class="btn-icon">${bonusType.icon}</span> Cibler ${selectedTarget.name}`;
+          btn.innerHTML = `<span class="btn-icon">${picto(bonusId, bonusType.icon)}</span> Cibler ${selectedTarget.name}`;
         };
       });
 
@@ -1060,7 +1062,7 @@ function showBonusConfirmModal(bonusId, bonusType) {
   modal.innerHTML = `
     <div class="joker-modal-container" style="border-color: rgba(168, 85, 247, 0.4);">
       <div class="modal-header" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.1));">
-        <span class="modal-header-icon">${bonusType.icon}</span>
+        <span class="modal-header-icon">${picto(bonusId, bonusType.icon)}</span>
         <div class="modal-header-text">
           <div class="modal-header-title">${bonusType.name}</div>
           <div class="modal-header-subtitle">Confirmer l'activation</div>
@@ -1078,7 +1080,7 @@ function showBonusConfirmModal(bonusId, bonusType) {
         </div>
 
         <button class="modal-confirm-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899);">
-          <span class="btn-icon">${bonusType.icon}</span>
+          <span class="btn-icon">${picto(bonusId, bonusType.icon)}</span>
           Activer le bonus
         </button>
       </div>
@@ -1189,7 +1191,7 @@ if (canActivateNow) {
   modal.innerHTML = `
     <div class="joker-modal-container">
       <div class="modal-header">
-        <span class="modal-header-icon">${joker.icon}</span>
+        <span class="modal-header-icon">${picto(jokerId, joker.icon)}</span>
         <div class="modal-header-text">
           <div class="modal-header-title">${joker.name}</div>
           <div class="modal-header-subtitle">${targetName ? `Cible: ${targetName}` : 'Confirmer l\'activation'}</div>
@@ -1213,7 +1215,7 @@ if (canActivateNow) {
         </div>
 
         <button class="modal-confirm-btn">
-          <span class="btn-icon">${joker.icon}</span>
+          <span class="btn-icon">${picto(jokerId, joker.icon)}</span>
           Activer le joker
         </button>
       </div>
@@ -1292,7 +1294,7 @@ function showJokerTargetModal(jokerId, joker) {
       modal.innerHTML = `
         <div class="joker-modal-container">
           <div class="modal-header">
-            <span class="modal-header-icon">${joker.icon}</span>
+            <span class="modal-header-icon">${picto(jokerId, joker.icon)}</span>
             <div class="modal-header-text">
               <div class="modal-header-title">${joker.name}</div>
               <div class="modal-header-subtitle">Choisissez votre cible</div>
@@ -1301,7 +1303,7 @@ function showJokerTargetModal(jokerId, joker) {
           </div>
           <div class="modal-body">
             <div class="modal-section">
-              <div class="modal-section-title">🎯 Sélectionnez un adversaire</div>
+              <div class="modal-section-title">${picto('cible', '🎯')} Sélectionnez un adversaire</div>
               <div class="target-selection-grid">
                 ${opponents.map(opp => `
                   <div class="target-card" data-id="${opp.id}" data-name="${opp.name}">
@@ -1315,7 +1317,7 @@ function showJokerTargetModal(jokerId, joker) {
             </div>
 
             <button class="modal-confirm-btn" disabled>
-              <span class="btn-icon">${joker.icon}</span>
+              <span class="btn-icon">${picto(jokerId, joker.icon)}</span>
               Sélectionnez une cible
             </button>
           </div>
@@ -1337,7 +1339,7 @@ function showJokerTargetModal(jokerId, joker) {
 
           const btn = modal.querySelector('.modal-confirm-btn');
           btn.disabled = false;
-          btn.innerHTML = `<span class="btn-icon">${joker.icon}</span> Cibler ${selectedTarget.name}`;
+          btn.innerHTML = `<span class="btn-icon">${picto(jokerId, joker.icon)}</span> Cibler ${selectedTarget.name}`;
         };
       });
 
@@ -1446,7 +1448,7 @@ async function renderLeague() {
     if (!me.league) return;
 
     const today = new Date().toLocaleDateString('sv-SE');
-    let html = `<p style="font-size: 1.1rem; margin-bottom: 8px;"><strong>${escapeHtml(me.league.name)}</strong></p>`;
+    let html = `<p style="font-size: 1.1rem; margin-bottom: 8px;"><strong class="da-mk">${escapeHtml(me.league.name)}</strong></p>`;
     if (me.edition) {
       html += `<p style="color: rgba(255,255,255,0.7);">Édition ${escapeHtml(me.edition.editionId)}`
         + `${me.edition.startDate ? `, du ${formatDay(me.edition.startDate)} au ${formatDay(me.edition.endDate)}` : ''}</p>`;

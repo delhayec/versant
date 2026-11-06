@@ -47,3 +47,19 @@ backend/data/leagues/
 *.bak.*
 *.backup
 *.bak_*
+
+# Atelier : gardé en local et sur le dépôt privé versant-data (branche atelier)
+design/
+docs/
+IDEES-PHASE-2.md
+.mcp.json
+# Données de joueurs servies par le site : à déposer sur le serveur
+public/data/elevation_2025.json
+# Assets non utilisés par le site
+public/assets/manic/fleche-V.svg
+public/assets/manic/fleche-W.svg
+public/assets/manic/fleche-X.svg
+public/assets/manic/fleche-Y.svg
+public/assets/manic/fleche-Z.svg
+public/assets/manic/trait-R.svg
+public/assets/pictos/doodle/trophy.svg

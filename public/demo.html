@@ -1,7 +1,9 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" class="da-atelier">
   <head>
     <meta charset="UTF-8" />
+    <!-- DA Atelier : thème posé avant le premier rendu -->
+    <script src="js/da-atelier.js?v=20261110c"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Versant - Comment ça marche</title>
     <meta
@@ -598,8 +600,27 @@
         }
       }
     </style>
+    <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
+    <link rel="stylesheet" href="css/da/tokens.css?v=20261109a" />
+    <link rel="stylesheet" href="css/da/base.css?v=20261106a" />
+    <link rel="stylesheet" href="css/da/components.css?v=20261111c" />
+    <link rel="stylesheet" href="css/da/home.css?v=20261110b" />
+    <link rel="stylesheet" href="css/da/demo.css?v=20261110b" />
   </head>
   <body>
+    <!-- Navigation -->
+    <nav class="nav-sticky">
+      <div class="nav-container">
+        <a href="demo.html" class="nav-brand">
+          <span class="brand-icon">◭</span>
+          <span class="brand-text">Versant</span>
+        </a>
+        <div class="nav-links">
+          <a href="#rejoindre" class="btn-join">S'inscrire</a>
+        </div>
+      </div>
+    </nav>
+
     <!-- Accroche -->
     <section class="hero">
       <div class="hero-bg"></div>
@@ -607,7 +628,7 @@
         <span class="hero-eyebrow">Challenge Versant • Comment ça marche</span>
         <h1 class="hero-title">
           <span class="title-line">Fais du D+</span>
-          <span class="title-line accent">Le dernier saute.</span>
+          <span class="title-line accent"><span class="da-mk">Le dernier</span> <span class="da-mk">saute.</span></span>
         </h1>
         <p class="hero-description">
           Tes sorties Strava comptent ton dénivelé positif. À la fin de chaque
@@ -616,19 +637,6 @@
         </p>
       </div>
     </section>
-
-    <!-- Navigation -->
-    <nav class="nav-sticky">
-      <div class="nav-container">
-        <a href="demo.html" class="nav-brand">
-          <span class="brand-icon">◭️️</span>
-          <span class="brand-text">Versant</span>
-        </a>
-        <div class="nav-links">
-          <a href="#rejoindre" class="btn-join">S'inscrire</a>
-        </div>
-      </div>
-    </nav>
 
     <!-- 1. Une activité Strava -->
     <section class="tour-step" data-scene="activity">
@@ -700,29 +708,10 @@
       <p class="tour-caption" aria-live="polite"></p>
     </section>
 
-    <!-- 3. Challenge des éliminés -->
-    <section class="tour-step" data-scene="eliminated">
-      <div class="section-header">
-        <span class="section-number">03</span>
-        <h2 class="section-title">Éliminé ? Tu ne t'ennuies pas</h2>
-        <p class="section-desc">
-          Les éliminés jouent leur propre challenge jusqu'à la fin de la saison
-          : leur D+ se cumule et leur place rapporte des points au classement
-          général. À chaque nouvelle saison, tout le monde repart.
-        </p>
-      </div>
-      <div class="tour-elim-head">
-        <span>Challenge des éliminés</span>
-        <span><strong data-tour="count">2</strong>joueurs</span>
-      </div>
-      <div class="ranking-container tour-table with-points"></div>
-      <p class="tour-caption" aria-live="polite"></p>
-    </section>
-
-    <!-- 4. Fin de saison -->
+    <!-- 3. Fin de saison -->
     <section class="tour-step" data-scene="season">
       <div class="section-header">
-        <span class="section-number">04</span>
+        <span class="section-number">03</span>
         <h2 class="section-title">Une finale, puis tout le monde revient</h2>
         <p class="section-desc">
           La saison se termine par une finale à deux : le vainqueur est couronné
@@ -737,6 +726,26 @@
         <span><strong data-tour="active">2</strong>en course</span>
       </div>
       <div class="ranking-container tour-table"></div>
+      <p class="tour-caption" aria-live="polite"></p>
+    </section>
+
+    <!-- 4. Challenge des éliminés (autre classement : fond plus foncé) -->
+    <section class="tour-step tour-step--elim" data-scene="eliminated">
+      <div class="section-header">
+        <span class="section-number">04</span>
+        <h2 class="section-title">Éliminé ? Tu ne t'ennuies pas</h2>
+        <p class="section-desc">
+          Pendant ce temps, les éliminés jouent leur propre challenge jusqu'à
+          la fin de la saison : leur D+ se cumule et leur place rapporte des
+          points au classement général. À chaque nouvelle saison, tout le
+          monde repart.
+        </p>
+      </div>
+      <div class="tour-elim-head">
+        <span>Challenge des éliminés</span>
+        <span><strong data-tour="count">2</strong>joueurs</span>
+      </div>
+      <div class="ranking-container tour-table with-points"></div>
       <p class="tour-caption" aria-live="polite"></p>
     </section>
 
@@ -767,7 +776,7 @@
       <div class="section-header">
         <span class="section-number">06</span>
         <h2 class="section-title">
-          <span class="tour-one-more">One more thing…</span> les jokers 🃏
+          <span class="tour-one-more">One more thing…</span> les jokers <span class="picto picto--jokers"><span class="picto__emoji" aria-hidden="true">🃏</span></span>
         </h2>
         <p class="section-desc">
           Chaque saison, tu as 2 jokers de chaque type pour te sauver la mise
@@ -778,12 +787,12 @@
       <div class="tour-carousel">
         <div class="tour-cards">
           <div class="tour-joker">
-            <div class="tour-joker-icon">✖️</div>
+            <div class="tour-joker-icon"><span class="picto picto--multiplicateur"><span class="picto__emoji" aria-hidden="true">✖️</span></span></div>
             <div class="tour-joker-name">Multiplicateur</div>
             <p class="tour-joker-desc">×1,25 sur tout ton D+ du round.</p>
           </div>
           <div class="tour-joker">
-            <div class="tour-joker-icon">🦹</div>
+            <div class="tour-joker-icon"><span class="picto picto--voleur"><span class="picto__emoji" aria-hidden="true">🦹</span></span></div>
             <div class="tour-joker-name">Voleur</div>
             <p class="tour-joker-desc">
               Choisis un adversaire : tu lui prends sa meilleure activité de
@@ -791,14 +800,14 @@
             </p>
           </div>
           <div class="tour-joker">
-            <div class="tour-joker-icon">🛡️</div>
+            <div class="tour-joker-icon"><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span></div>
             <div class="tour-joker-name">Bouclier</div>
             <p class="tour-joker-desc">
               Même dernier, tu n'es pas éliminé ce round. Pas en finale.
             </p>
           </div>
           <div class="tour-joker">
-            <div class="tour-joker-icon">💣</div>
+            <div class="tour-joker-icon"><span class="picto picto--sabotage"><span class="picto__emoji" aria-hidden="true">💣</span></span></div>
             <div class="tour-joker-name">Sabotage</div>
             <p class="tour-joker-desc">
               Le joueur le plus proche de toi en D+ perd 30 % de son D+ du
@@ -828,13 +837,13 @@
 
     <footer class="footer">
       <div class="footer-content">
-        <div class="footer-brand">◭️️ Versant</div>
+        <div class="footer-brand">◭ Versant</div>
         <p class="footer-text">
           Challenge à élimination basé sur les données Strava
         </p>
       </div>
     </footer>
 
-    <script src="js/demo-tour.js?v=20261029a"></script>
+    <script src="js/demo-tour.js?v=20261110a"></script>
   </body>
 </html>

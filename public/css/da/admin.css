@@ -1,0 +1,171 @@
+/* ============================================
+   DA « ATELIER » : ADMINISTRATION
+   Pour les admins de ligue, qui ne connaissent pas forcément le site :
+   des fiches claires, chaque option expliquée, une confirmation en clair
+   avant toute modification importante (js/admin.js askConfirm).
+   Les styles en ligne d'admin.html (ancienne DA sombre) sont contredits
+   ici, d'où quelques !important.
+   ============================================ */
+
+html.da-atelier .admin-wrap { max-width: 1200px; }
+html.da-atelier #loginSection,
+html.da-atelier #adminDashboard { padding-top: 56px !important; }
+
+/* --- Fiches --- */
+html.da-atelier .admin-box {
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--ink);
+}
+html.da-atelier .admin-box h3,
+html.da-atelier #maintenanceBox > summary {
+  margin: 0 0 12px;
+  color: var(--ink) !important;
+  font: 900 18px/1.2 var(--f-sans) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+html.da-atelier .admin-box h4 { font: 700 14px/1.3 var(--f-sans); color: var(--ink); }
+html.da-atelier .admin-box .desc,
+html.da-atelier .admin-box label.field { color: var(--sub); }
+html.da-atelier :is(.hint, .muted) { color: var(--sub); }
+html.da-atelier .admin-box .desc { font-size: 14px; line-height: 1.5; }
+html.da-atelier .ok { color: var(--up); }
+html.da-atelier .warn { color: var(--accent-text); }
+html.da-atelier .err { color: var(--down); }
+html.da-atelier .info { color: var(--pen); }
+html.da-atelier .tag { border-radius: 0; border: 1px solid var(--ink); background: none; font-family: var(--f-mono); }
+
+/* Chiffres clés : écrits à l'encre, sans couleurs */
+html.da-atelier .stat .value { color: var(--ink) !important; font: 900 36px/1 var(--f-sans); }
+html.da-atelier .stat .label { color: var(--sub); font: var(--lbl); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; }
+
+/* Encadrés internes et zones de texte */
+html.da-atelier :is(.status-box, .sub-box, #logsContainer) {
+  border-radius: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+html.da-atelier .sub-box label { color: var(--ink); font: var(--lbl); letter-spacing: 0.1em; text-transform: uppercase; }
+html.da-atelier .alert { border-radius: 0; background: none; border: 1.5px solid var(--accent); color: var(--ink); }
+html.da-atelier .invite-code { color: var(--ink); font-family: var(--f-mono); }
+html.da-atelier .season-summary strong { color: var(--ink); font-family: var(--f-mono); }
+
+/* --- Champs --- */
+html.da-atelier .admin-box :is(input, select),
+html.da-atelier #loginSection input {
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 0 !important;
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+}
+html.da-atelier .admin-box :is(input, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* --- Boutons : encre pleine, contour, ou danger (orange) --- */
+html.da-atelier .btn,
+html.da-atelier #loginSection button {
+  border-radius: 0 !important;
+  border: 1.5px solid var(--ink) !important;
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+  font: 700 12px/1.2 var(--f-mono) !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  box-shadow: none;
+}
+html.da-atelier :is(.btn-primary, .btn-success, #adminLoginForm button, #resetPasswordBtn) {
+  background: var(--ink) !important;
+  color: var(--panel) !important;
+}
+html.da-atelier :is(.btn-warn, .btn-danger) {
+  border-color: var(--accent) !important;
+  color: var(--accent-text) !important;
+}
+html.da-atelier .btn-warn { background: var(--accent) !important; color: #fff !important; }
+html.da-atelier .btn:not(:disabled):hover { transform: translate(-1px, -1px); box-shadow: 2px 2px 0 var(--ink); }
+html.da-atelier .btn-sm { padding: 6px 10px; font-size: 11px !important; }
+html.da-atelier #logoutBtn { color: var(--accent-text) !important; }
+
+/* --- Tableaux --- */
+html.da-atelier .admin-table th {
+  color: var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+  font: var(--lbl);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+html.da-atelier .admin-table td { border-bottom: 1px solid var(--rule); color: var(--ink); }
+html.da-atelier tr.is-current { background: var(--me, var(--panel-2)); }
+html.da-atelier .admin-table a,
+html.da-atelier .admin-box a[style*="#22d3ee"] { color: var(--ink) !important; text-decoration: underline; text-underline-offset: 3px; }
+html.da-atelier .joker-cell button { border-radius: 0; background: var(--panel) !important; color: var(--ink) !important; border: 1.5px solid var(--ink) !important; }
+html.da-atelier .joker-cell .minus { color: var(--accent-text) !important; border-color: var(--accent) !important; }
+
+/* --- Aide : « par où commencer », explications sous les options --- */
+html.da-atelier .admin-guide { border-width: 1.5px; box-shadow: 4px 4px 0 var(--ink); }
+html.da-atelier .admin-guide ol { margin: 0 0 12px; padding-left: 22px; line-height: 1.6; }
+html.da-atelier .admin-guide li { margin-bottom: 6px; }
+html.da-atelier .admin-guide .hand { font: 600 22px/1.2 var(--f-hand); color: var(--pen); margin: 0 0 10px; }
+html.da-atelier .field-help { display: block; font: 400 12px/1.4 var(--f-sans); color: var(--sub); text-transform: none; letter-spacing: 0; }
+
+/* --- Confirmation : une fiche posée au-dessus de la page --- */
+.da-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 18, 16, 0.45);
+}
+.da-confirm__card {
+  box-sizing: border-box;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 24px 24px 20px;
+  border: 1.5px solid var(--ink, #2A2723);
+  background: var(--panel, #FDFCFA);
+  color: var(--ink, #2A2723);
+  box-shadow: 6px 6px 0 var(--ink, #2A2723);
+  font: 400 15px/1.5 var(--f-sans, system-ui, sans-serif);
+}
+.da-confirm__card.is-danger { box-shadow: 6px 6px 0 var(--accent, #E8590C); }
+.da-confirm__title { margin: 0 0 10px; font: 900 19px/1.25 var(--f-sans, system-ui, sans-serif); text-transform: uppercase; }
+.da-confirm__body p { margin: 0 0 8px; }
+.da-confirm__body ul { margin: 6px 0 10px; padding-left: 20px; }
+.da-confirm__warn { margin: 10px 0 0; padding: 8px 10px; border-left: 3px solid var(--accent, #E8590C); color: var(--ink, #2A2723); }
+.da-confirm__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.da-confirm__actions button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1.5px solid var(--ink, #2A2723);
+  background: var(--panel, #FDFCFA);
+  color: var(--ink, #2A2723);
+  font: 700 12px/1 var(--f-mono, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.da-confirm__actions .is-ok { background: var(--ink, #2A2723); color: var(--panel, #FDFCFA); }
+.da-confirm__card.is-danger .is-ok { background: var(--accent, #E8590C); border-color: var(--accent, #E8590C); color: #fff; }
+
+@media (max-width: 600px) {
+  html.da-atelier .admin-box { padding: 18px 14px; }
+  html.da-atelier .stat .value { font-size: 28px; }
+}
+
+/* Titre de la page et connexion */
+html.da-atelier #adminDashboard .section-title,
+html.da-atelier #loginSection h2 {
+  font: 900 clamp(28px, 4vw, 44px)/1.05 var(--f-sans) !important;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+html.da-atelier #loginSection h2 { font-size: 24px !important; }
+html.da-atelier .admin-guide > summary { list-style-position: inside; }
+html.da-atelier .admin-guide > summary h3 { margin: 0; }

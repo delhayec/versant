@@ -1,0 +1,321 @@
+/* ============================================
+   DA « ATELIER » : JETONS
+   Actif seulement si <html class="da-atelier">. Sans la classe, style.css
+   s'applique seul, à l'identique.
+   Thème : clair par défaut, cyanotype si le système est en sombre,
+   forcé par data-theme="light" | "dark" sur <html> (voir js/da-atelier.js).
+   ============================================ */
+
+@font-face {
+  font-family: "Archivo";
+  src: url("../../fonts/archivo-latin-wght.woff2") format("woff2-variations"),
+       url("../../fonts/archivo-latin-wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../../fonts/jetbrains-mono-latin-wght.woff2") format("woff2-variations"),
+       url("../../fonts/jetbrains-mono-latin-wght.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+/* Télex : police à pixels façon ticket de terminal de paiement (OFL) */
+@font-face {
+  font-family: "VT323";
+  src: url("../../fonts/vt323-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* Manuscrit : MANIC (Typeheist, licence achetée par Clément). Une seule
+   graisse : déclarée sur toute la plage pour éviter le faux gras. Plus large
+   que Caveat à taille égale : ramenée à 90 % pour garder les mises en page. */
+@font-face {
+  font-family: "MANIC";
+  src: url("../../fonts/manic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 90%;
+}
+/* MANIC Alternates 1 à 3 : lettres choisies une à une dans l'éditeur
+   (design/editeur-manic.html), chargées seulement si une note s'en sert */
+@font-face {
+  font-family: "MANIC A1";
+  src: url("../../fonts/manic-a1.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 90%;
+}
+@font-face {
+  font-family: "MANIC A2";
+  src: url("../../fonts/manic-a2.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 90%;
+}
+@font-face {
+  font-family: "MANIC A3";
+  src: url("../../fonts/manic-a3.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 90%;
+}
+/* MANIC Sketches : une touche = un trait (soulignés, ratures, cercles) */
+@font-face {
+  font-family: "MANIC Sketches";
+  src: url("../../fonts/manic-sketches.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Caveat";
+  src: url("../../fonts/caveat-latin-wght.woff2") format("woff2-variations"),
+       url("../../fonts/caveat-latin-wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- Clair : graphite et kraft --- */
+html.da-atelier {
+  color-scheme: light;
+  --bg: #ECE8E0;
+  --grid-major: #DCD6CB;
+  --grid-minor: #E5E1D8;
+  --panel: #FDFCFA;
+  --panel-2: #E9E2D3;       /* kraft : en-têtes, cartouches, repères de lecture */
+  --ink: #2B2A28;
+  --sub: #5E584D;
+  --rule: #D6D0C4;
+  --shadow: #2B2A28;
+  --accent: #FF5A14;        /* marqueur, coupe, jauge : jamais pour du texte courant */
+  --accent-text: #A83300;   /* orange lisible en texte */
+  --accent-soft: rgba(255, 90, 20, 0.08);
+  --note: #815709;          /* « toi » */
+  --me: #F6ECE0;
+  --hatch: rgba(43, 42, 40, 0.10);
+  --up: #257E69;
+  --down: #A83300;
+  --mk-blend: multiply;
+  --mk-opacity: 0.72;
+  /* Écriture à la main : stylo bleu (cartouche, notes), crayon gris */
+  --pen: #1A5A94;
+  --pencil: #6E6A62;
+  /* Palette « terre cuite et lagune » */
+  /* Joueurs : 6 crayons (motifs), dans l'ordre des motifs */
+  --crayon-0: #D36536;
+  --crayon-1: #217E94;
+  --crayon-2: #86B39E;
+  --crayon-3: #DEA067;
+  --crayon-4: #436EA2;
+  --crayon-5: #935528;
+  /* Équipes : la teinte suit le nom de l'équipe */
+  --team-orange: #D36536;
+  --team-cyan: #217E94;
+  --team-violet: #7A6E9E;
+  --team-vert: #388E79;
+  --team-rose: #C27A86;
+  --team-or: #D29F3D;
+  /* Sports */
+  --sport-run: #D36536;
+  --sport-bike: #DEA067;
+  --sport-hike: #86B39E;
+  --sport-ski: #217E94;
+  /* Traces, flux, légendes : une couleur par joueur (13, comme ATHLETE_COLORS) */
+  --ath-0: #D36536;
+  --ath-1: #217E94;
+  --ath-2: #86B39E;
+  --ath-3: #DEA067;
+  --ath-4: #436EA2;
+  --ath-5: #935528;
+  --ath-6: #388E79;
+  --ath-7: #C45400;
+  --ath-8: #5D93C4;
+  --ath-9: #70A38C;
+  --ath-10: #B46337;
+  --ath-11: #1A5A94;
+  --ath-12: #D29F3D;
+  /* Money time : J1 à J5 */
+  --mt-1: #217E94;
+  --mt-2: #86B39E;
+  --mt-3: #DEA067;
+  --mt-4: #D36536;
+  --mt-5: #935528;
+}
+
+/* --- Sombre : cyanotype (système en sombre, sauf choix « clair ») --- */
+@media (prefers-color-scheme: dark) {
+  html.da-atelier:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0F2740;
+    --grid-major: rgba(255, 255, 255, 0.09);
+    --grid-minor: rgba(255, 255, 255, 0.035);
+    --panel: #15324F;
+    --panel-2: #0B1F33;
+    --ink: #E6ECF4;
+    --sub: #A0B2C8;
+    --rule: rgba(230, 236, 244, 0.28);
+    --shadow: #071627;
+    --accent: #FF6B2C;
+    --accent-text: #FF8048;   /* orange de texte, saturé comme le marqueur */
+    --accent-soft: rgba(255, 107, 44, 0.12);
+    --note: #E9C89B;
+    --me: rgba(233, 200, 155, 0.15);
+    --hatch: rgba(255, 255, 255, 0.14);
+    --up: #A2C9B0;
+    --down: #FF8048;
+    --mk-blend: normal;
+    --mk-opacity: 0.7;
+    --pen: #E2E8F0;   /* manuscrit : gris très pâle sur le cyanotype */
+    --pencil: #B8C6D8;
+    /* Palette « rouille et vert-de-gris » (7b) : le cyanotype ; le clair reste en « terre cuite et lagune » */
+    /* Joueurs : 6 crayons (motifs), dans l'ordre des motifs */
+    --crayon-0: #DF8558;
+    --crayon-1: #6493C3;
+    --crayon-2: #90B7A4;
+    --crayon-3: #C47E60;
+    --crayon-4: #71AF9D;
+    --crayon-5: #E59C66;
+    /* Équipes : la teinte suit le nom de l'équipe */
+    --team-orange: #DF8558;
+    --team-cyan: #6493C3;
+    --team-violet: #A79BC6;
+    --team-vert: #71AF9D;
+    --team-rose: #D9A0A8;
+    --team-or: #D6AE69;
+    /* Sports */
+    --sport-run: #DF8558;
+    --sport-bike: #E59C66;
+    --sport-hike: #71AF9D;
+    --sport-ski: #6493C3;
+    /* Traces, flux, légendes : une couleur par joueur (13, comme ATHLETE_COLORS) */
+    --ath-0: #DF8558;
+    --ath-1: #6493C3;
+    --ath-2: #90B7A4;
+    --ath-3: #C47E60;
+    --ath-4: #71AF9D;
+    --ath-5: #E59C66;
+    --ath-6: #6A9789;
+    --ath-7: #E69263;
+    --ath-8: #72A5CF;
+    --ath-9: #D38463;
+    --ath-10: #9BBEAD;
+    --ath-11: #AB8365;
+    --ath-12: #6AA896;
+    /* Money time : J1 à J5, du froid au chaud (le money time lui-même est au marqueur) */
+    --mt-1: #6493C3;
+    --mt-2: #71AF9D;
+    --mt-3: #90B7A4;
+    --mt-4: #E59C66;
+    --mt-5: #C47E60;
+  }
+}
+/* --- Sombre forcé par le bouton (mêmes valeurs) --- */
+html.da-atelier[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0F2740;
+  --grid-major: rgba(255, 255, 255, 0.09);
+  --grid-minor: rgba(255, 255, 255, 0.035);
+  --panel: #15324F;
+  --panel-2: #0B1F33;
+  --ink: #E6ECF4;
+  --sub: #A0B2C8;
+  --rule: rgba(230, 236, 244, 0.28);
+  --shadow: #071627;
+  --accent: #FF6B2C;
+  --accent-text: #FF8048;   /* orange de texte, saturé comme le marqueur */
+  --accent-soft: rgba(255, 107, 44, 0.12);
+  --note: #E9C89B;
+  --me: rgba(233, 200, 155, 0.15);
+  --hatch: rgba(255, 255, 255, 0.14);
+  --up: #A2C9B0;
+  --down: #FF8048;
+  --mk-blend: normal;
+  --mk-opacity: 0.7;
+  --pen: #E2E8F0;   /* manuscrit : gris très pâle sur le cyanotype */
+  --pencil: #B8C6D8;
+  /* Palette « rouille et vert-de-gris » (7b) : le cyanotype ; le clair reste en « terre cuite et lagune » */
+  /* Joueurs : 6 crayons (motifs), dans l'ordre des motifs */
+  --crayon-0: #DF8558;
+  --crayon-1: #6493C3;
+  --crayon-2: #90B7A4;
+  --crayon-3: #C47E60;
+  --crayon-4: #71AF9D;
+  --crayon-5: #E59C66;
+  /* Équipes : la teinte suit le nom de l'équipe */
+  --team-orange: #DF8558;
+  --team-cyan: #6493C3;
+  --team-violet: #A79BC6;
+  --team-vert: #71AF9D;
+  --team-rose: #D9A0A8;
+  --team-or: #D6AE69;
+  /* Sports */
+  --sport-run: #DF8558;
+  --sport-bike: #E59C66;
+  --sport-hike: #71AF9D;
+  --sport-ski: #6493C3;
+  /* Traces, flux, légendes : une couleur par joueur (13, comme ATHLETE_COLORS) */
+  --ath-0: #DF8558;
+  --ath-1: #6493C3;
+  --ath-2: #90B7A4;
+  --ath-3: #C47E60;
+  --ath-4: #71AF9D;
+  --ath-5: #E59C66;
+  --ath-6: #6A9789;
+  --ath-7: #E69263;
+  --ath-8: #72A5CF;
+  --ath-9: #D38463;
+  --ath-10: #9BBEAD;
+  --ath-11: #AB8365;
+  --ath-12: #6AA896;
+  /* Money time : J1 à J5, du froid au chaud (le money time lui-même est au marqueur) */
+  --mt-1: #6493C3;
+  --mt-2: #71AF9D;
+  --mt-3: #90B7A4;
+  --mt-4: #E59C66;
+  --mt-5: #C47E60;
+}
+
+/* --- Typographie et repères communs aux deux thèmes --- */
+html.da-atelier {
+  --f-sans: "Archivo", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, monospace;
+  --f-hand: "MANIC", "Caveat", "Segoe Print", cursive;
+  --f-ticket: "VT323", var(--f-mono);
+  /* Repères communs à toutes les pages */
+  --lbl: 700 11px/1.4 var(--f-mono);
+  --row-rule: 1px solid var(--rule);
+  --frame-gap: 12px;
+
+  /* Anciennes variables de style.css, rebranchées sur les jetons :
+     toutes les pages basculent sans toucher à style.css. */
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--bg);
+  --bg-card: var(--panel);
+  --bg-card-hover: var(--panel);
+  --accent-primary: var(--accent);
+  --accent-secondary: var(--ink);   /* une seule couleur d'accent : l'ancien cyan devient l'encre */
+  --accent-tertiary: var(--up);
+  --accent-warning: var(--note);
+  --accent-danger: var(--down);
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --text-primary: var(--ink);
+  --text-secondary: var(--sub);
+  --text-muted: var(--sub);          /* l'ancien gris à 40 % ne passait pas les contrastes */
+  --border-color: var(--rule);
+  --border-accent: var(--accent);
+  --font-display: var(--f-sans);
+  --font-mono: var(--f-mono);
+  --font-body: var(--f-sans);
+  --status-active: var(--up);
+  --status-eliminated: var(--down);
+  --status-warning: var(--note);
+}

@@ -17,6 +17,8 @@ import {
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
 import { filterByParticipant } from './standings-engine.js';
+import { picto, pictoOf } from './pictos.js';
+import { motifClass } from './motifs.js';
 
 // ============================================
 // UTILITAIRES DE FORMATAGE
@@ -110,6 +112,22 @@ export function renderCombinedBanner(container, data) {
     ? `<span class="banner-rule-badge" title="${specialRuleDetails.fullDescription}">${specialRuleDetails.icon} ${specialRuleDetails.name}</span>`
     : '';
 
+  // DA Atelier : jauge en règle du round (présentation seule, dates déjà calculées)
+  const gaugeStart = new Date(roundDates.start), gaugeEnd = new Date(roundDates.end);
+  const roundSpan = gaugeEnd.getTime() - gaugeStart.getTime();
+  const elapsedPct = roundSpan > 0
+    ? Math.min(100, Math.max(0, (new Date(currentDate).getTime() - gaugeStart.getTime()) / roundSpan * 100))
+    : 0;
+  const gaugeDay = (d) => d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }).replace('.', '').toUpperCase();
+  const roundGauge = isRoundActive ? `
+      <div class="da-round-gauge da-only" role="img" style="--elapsed:${elapsedPct.toFixed(2)}%;--days:${roundDuration}"
+           aria-label="Round du ${gaugeDay(gaugeStart)} au ${gaugeDay(gaugeEnd)} à 23 h 59, ${Math.round(elapsedPct)} % écoulé">
+        <div class="da-round-gauge__track"><div class="da-round-gauge__fill"></div></div>
+        <div class="da-round-gauge__marks" aria-hidden="true">
+          <span>${gaugeDay(gaugeStart)}</span><span class="da-round-gauge__today">AUJ.</span><span>${gaugeDay(gaugeEnd)} 23:59</span>
+        </div>
+      </div>` : '';
+
   container.innerHTML = `
     <div class="banner-unified">
       <div class="banner-block banner-season-block">
@@ -122,7 +140,7 @@ export function renderCombinedBanner(container, data) {
       <div class="banner-block banner-round-block">
         <span class="banner-label">ROUND</span>
         <span class="banner-value">${roundInSeason}</span>
-        ${isRoundActive ? `<span class="banner-day">J${dayInRound}/${roundDuration}</span>` : ''}
+        ${isRoundActive ? `<span class="banner-day"><span class="da-off-only">J${dayInRound}/${roundDuration}</span><span class="da-only">jour <b>${dayInRound}</b> / ${roundDuration}</span></span>` : ''}
         ${ruleBadge}
       </div>
 
@@ -144,21 +162,37 @@ export function renderCombinedBanner(container, data) {
 
         <div class="banner-block banner-countdown-block">
           <span class="banner-label">FIN DU ROUND</span>
+          ${days < 1 ? '<span class="da-note da-note--count da-only" aria-hidden="true"><span class="da-key">dernier jour</span> !</span>' : ''}
           <div class="banner-countdown-timer" id="countdownTimer" data-end="${roundDates.end.getTime()}">
             <span class="countdown-unit"><span class="countdown-num">${pad(days)}</span>j</span>
             <span class="countdown-unit"><span class="countdown-num">${pad(hours)}</span>h</span>
             <span class="countdown-unit"><span class="countdown-num">${pad(minutes)}</span>m</span>
             <span class="countdown-unit"><span class="countdown-num">${pad(seconds)}</span>s</span>
           </div>
+          <div class="da-round-notes da-only" id="daRoundNotes"></div>
         </div>
       ` : ''}
     </div>
+    ${roundGauge}
   `;
 
   // Démarrer le countdown en temps réel si le round est actif
   if (isRoundActive && timeRemaining > 0) {
     startCountdownTimer(roundDates.end.getTime());
   }
+}
+
+/**
+ * DA Atelier : annotations manuscrites du bandeau (ta place dans le round,
+ * un bonus qui te vise). Présentation seule : les notes arrivent déjà
+ * rédigées depuis app.js. { text, circled } : circled = entourée au stylo.
+ */
+export function renderRoundNotes(notes) {
+  const slot = document.getElementById('daRoundNotes');
+  if (!slot) return;
+  slot.innerHTML = notes.map(n =>
+    `<p class="da-round-note${n.circled ? ' da-round-note--circled' : ''}">${n.text}</p>`
+  ).join('');
 }
 
 // Timer pour mise à jour en temps réel du countdown
@@ -247,7 +281,7 @@ export function renderActiveJokersSection(container, data) {
     html += `
       <div class="joker-card ${statusClass}">
         <div class="joker-card-header">
-          <span class="joker-card-icon">${jokerType.icon}</span>
+          <span class="joker-card-icon">${pictoOf(jokerType)}</span>
           <span class="joker-card-name">${jokerType.name}</span>
           <span class="joker-card-user">par ${joker.participantName}</span>
         </div>
@@ -264,7 +298,7 @@ export function renderActiveJokersSection(container, data) {
     pendingJokers.forEach(joker => {
       const jokerType = JOKER_TYPES[joker.jokerId];
       if (!jokerType) return;
-      html += `<span class="pending-item">${jokerType.icon} ${joker.participantName}${joker.targetName ? ' → ' + joker.targetName : ''}</span>`;
+      html += `<span class="pending-item">${pictoOf(jokerType)} ${joker.participantName}${joker.targetName ? ' → ' + joker.targetName : ''}</span>`;
     });
 
     html += '</div></div>';
@@ -326,8 +360,25 @@ export function renderAthleteActivitiesPanel(athleteId, roundActivities, special
   `;
 }
 
+/** DA : places gagnées (▲) ou perdues (▼) depuis un rang de référence, façon F1. */
+export function deltaBadge(dayStartRanks, id, rank, since = 'depuis minuit') {
+  const was = dayStartRanks?.[String(id)];
+  if (!was || was === rank) return '';
+  const up = was > rank;
+  // Beaucoup de variantes (chaque pastille a les siennes). Le « 1 » de MANIC
+  // est un simple bâton : seul, il prend sa variante à drapeau ; dans un
+  // nombre (12, 21…), il se lit très bien. Le « 4 » n'a qu'une variante.
+  let seed = (Number(String(id).replace(/\D/g, '').slice(-6)) || 7) * 31 + rank;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const alt = (c, v) => window.daHandAlt ? window.daHandAlt(c, v) : c;
+  const diff = String(Math.abs(was - rank));
+  const n = diff === '1' ? alt('1', 1) : Array.from(diff, c =>
+    c === '4' ? alt('4', 1) : rnd() < 0.75 ? alt(c, 1 + Math.floor(rnd() * 3)) : c).join('');
+  return `<span class="da-delta da-only da-delta--${up ? 'up' : 'down'}" title="${up ? '+' : '-'}${Math.abs(was - rank)} place(s) ${since}">${picto(up ? 'hausse' : 'baisse', up ? '▲' : '▼')}${n}</span>`;
+}
+
 export function renderRanking(container, data) {
- const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, currentRoundNumber, rescapeId, ephemeralEffects, roundActivities, specialRule, specialRuleDetails, isFinale, isNoBonus } = data;
+ const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, currentRoundNumber, rescapeId, ephemeralEffects, roundActivities, specialRule, specialRuleDetails, isFinale, isNoBonus, dayStartRanks = null } = data;
 
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
@@ -366,21 +417,42 @@ export function renderRanking(container, data) {
   // Bandeau spécial en haut du classement (finale / no_bonus)
   // Affiché quand la config admin (round_configs.json) définit type=finale
   // et/ou specialRule=no_bonus pour le round courant.
+  // Styles dans css/da/components.css (ancienne apparence conservée hors DA)
   let specialBanner = '';
   if (isFinale) {
     specialBanner += `
-      <div style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #1f2937; padding: 16px 20px; border-radius: 10px; margin-bottom: 16px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3); font-size: 16px;">
+      <div class="special-round-banner special-round-banner--finale">
         FINALE — Round ${currentRoundNumber} — Dernière ligne droite !
       </div>
     `;
   }
   if (isNoBonus) {
     specialBanner += `
-      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 14px 20px; border-radius: 10px; margin-bottom: 16px; font-weight: 600; text-align: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
+      <div class="special-round-banner special-round-banner--pur">
         Round au D+ pur — Jokers et bonus désactivés
       </div>
     `;
   }
+
+  // DA Atelier : « ta ligne », ligne de coupe et marge (présentation seule,
+  // à partir du classement déjà calculé ; rien n'est recalculé ici)
+  let meId = null;
+  try { meId = localStorage.getItem('versant_athlete_id'); } catch { /* stockage bloqué */ }
+  const cutIndex = ranking.findIndex((e, i) => e.isInDangerZone && i > 0 && !ranking[i - 1].isInDangerZone);
+  const lastSafeElev = cutIndex > 0 ? ranking[cutIndex - 1].totalElevation : null;
+  const firstDangerElev = cutIndex > 0 ? ranking[cutIndex].totalElevation : null;
+  const marginHtml = (entry) => {
+    if (cutIndex <= 0 || entry.isProtected) return '';
+    const gap = entry.isInDangerZone ? entry.totalElevation - lastSafeElev : entry.totalElevation - firstDangerElev;
+    const label = `${gap > 0 ? '+' : gap < 0 ? '−' : ''}${formatElevation(Math.abs(gap))}`;
+    const title = entry.isInDangerZone ? 'Écart avec le dernier qualifié' : 'Avance sur le premier éliminé';
+    return `<span class="da-margin da-only ${gap < 0 ? 'is-down' : ''}" title="${title}">${label}</span>`;
+  };
+  const cutLineHtml = cutIndex > 0 ? `
+        <div class="da-cut-line da-only" role="separator" aria-label="Ligne de coupe à ${formatElevation(lastSafeElev)}">
+          <span class="da-cut-line__label">Ligne de coupe ${formatElevation(lastSafeElev)}</span>
+          <span class="da-note da-note--cut" aria-hidden="true">${lastSafeElev === firstDangerElev ? 'à égalité !' : `ça se joue à ${formatElevation(lastSafeElev - firstDangerElev)} !`}</span>
+        </div>` : '';
 
   // En-têtes adaptatifs
   let headerHtml;
@@ -411,7 +483,9 @@ let html = specialBanner + specialRuleHtml + headerHtml;
 
   ranking.forEach((entry, i) => {
     const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const rowClass = entry.isInDangerZone ? 'danger-zone' : (entry.isProtected ? 'protected' : '');
+    const rowClass = (entry.isInDangerZone ? 'danger-zone' : (entry.isProtected ? 'protected' : ''))
+      + (meId && String(entry.participant.id) === String(meId) ? ' is-me' : '');
+    if (i === cutIndex) html += cutLineHtml;
     const seasonElev = seasonStats?.[entry.participant.id]?.elevation || 0;
     const effects = entry.jokerEffects || { bonuses: {} };
 
@@ -452,12 +526,12 @@ let html = specialBanner + specialRuleHtml + headerHtml;
       html += `
         <div class="ranking-row ${rowClass} ${i === ranking.length - 1 ? 'last-row' : ''}" data-participant-id="${entry.participant.id}">
           <div class="position ${posClass}">
-            ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
+            ${entry.position}
           </div>
           <div class="athlete-info">
             <div class="athlete-avatar-wrapper">
-              <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
-                ${getAthleteInitials(entry.participant.id)}
+              <div class="athlete-avatar ${motifClass(entry.participant.id)}" style="background: ${getAthleteColor(entry.participant.id)}">
+                <span class="da-initials">${getAthleteInitials(entry.participant.id)}</span>
               </div>
               ${bonusIndicators}
             </div>
@@ -473,6 +547,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
           <div class="elevation-cell elevation-adj hide-mobile-sm">${adjHtml}</div>
           <div class="elevation-cell elevation-final">
             <span class="elevation-primary">${formatElevation(finalElev)}</span>
+            ${marginHtml(entry)}
             ${ephemeralPills}
           </div>
           <div class="elevation-secondary hide-mobile">${formatElevation(seasonElev)}</div>
@@ -484,12 +559,12 @@ let html = specialBanner + specialRuleHtml + headerHtml;
       html += `
         <div class="ranking-row ${rowClass} ${i === ranking.length - 1 ? 'last-row' : ''}" data-participant-id="${entry.participant.id}">
           <div class="position ${posClass}">
-            ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : entry.position}
+            ${entry.position}
           </div>
           <div class="athlete-info">
             <div class="athlete-avatar-wrapper">
-              <div class="athlete-avatar" style="background: ${getAthleteColor(entry.participant.id)}">
-                ${getAthleteInitials(entry.participant.id)}
+              <div class="athlete-avatar ${motifClass(entry.participant.id)}" style="background: ${getAthleteColor(entry.participant.id)}">
+                <span class="da-initials">${getAthleteInitials(entry.participant.id)}</span>
               </div>
               ${bonusIndicators}
             </div>
@@ -498,10 +573,12 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
+              ${deltaBadge(dayStartRanks, entry.participant.id, i + 1)}
             </div>
           </div>
           <div class="elevation-cell">
             ${renderElevationWithBonuses(entry.totalElevation, effects.bonuses)}
+            ${marginHtml(entry)}
             ${ephemeralPills}
           </div>
           <div class="elevation-secondary">${formatElevation(seasonElev)}</div>
@@ -540,72 +617,72 @@ function renderAvatarBonusIndicators(bonuses = {}, ephemeral = null) {
 
   // Multiplicateur (×1.5)
   if (bonuses.multiplier) {
-    indicators.push({ icon: '✨', class: 'multiplier', title: `Multiplicateur ${multiplierLabel()}` });
+    indicators.push({ icon: '✨', picto: 'multiplicateur', class: 'multiplier', title: `Multiplicateur ${multiplierLabel()}` });
   }
 
   // Bouclier
   if (bonuses.shield) {
-    indicators.push({ icon: '🛡️', class: 'shield', title: 'Bouclier actif' });
+    indicators.push({ icon: '🛡️', picto: 'bouclier', class: 'shield', title: 'Bouclier actif' });
   }
 
   // Duel gagné
   if (bonuses.duelWon) {
-    indicators.push({ icon: '⚔️', class: 'duel-won', title: 'Duel gagné' });
+    indicators.push({ icon: '⚔️', picto: 'duel', class: 'duel-won', title: 'Duel gagné' });
   }
 
   // Duel perdu
   if (bonuses.duelLost) {
-    indicators.push({ icon: '⚔️', class: 'duel-lost', title: 'Duel perdu' });
+    indicators.push({ icon: '⚔️', picto: 'duel', class: 'duel-lost', title: 'Duel perdu' });
   }
 
   // Saboté (victime)
   if (bonuses.sabotaged) {
-    indicators.push({ icon: '💣', class: 'sabotaged', title: 'Saboté' });
+    indicators.push({ icon: '💣', picto: 'sabotage', class: 'sabotaged', title: 'Saboté' });
   }
 
   // Sabotage appliqué (celui qui sabote)
   if (bonuses.sabotageApplied) {
-    indicators.push({ icon: '💣', class: 'saboteur', title: 'Sabotage actif' });
+    indicators.push({ icon: '💣', picto: 'sabotage', class: 'saboteur', title: 'Sabotage actif' });
   }
 
   // Voleur actif
   if (bonuses.thief) {
-    indicators.push({ icon: '🦹', class: 'thief', title: 'Vol actif' });
+    indicators.push({ icon: '🦹', picto: 'voleur', class: 'thief', title: 'Vol actif' });
   }
 
   // Victime du vol
   if (bonuses.stolen) {
-    indicators.push({ icon: '🦹', class: 'stolen', title: 'Activité volée' });
+    indicators.push({ icon: '🦹', picto: 'voleur', class: 'stolen', title: 'Activité volée' });
   }
 
   // Kamikaze (celui qui l'active)
   if (bonuses.kamikaze) {
-    indicators.push({ icon: '💣', class: 'kamikaze', title: 'Kamikaze - perd 25% de son D+' });
+    indicators.push({ icon: '💣', picto: 'kamikaze', class: 'kamikaze', title: 'Kamikaze - perd 25% de son D+' });
   }
 
   // Victime de Kamikaze
   if (bonuses.kamikazeTarget) {
-    indicators.push({ icon: '💥', class: 'kamikaze-target', title: `Kamikaze par ${bonuses.kamikazeTarget.by}` });
+    indicators.push({ icon: '💥', picto: 'kamikaze', class: 'kamikaze-target', title: `Kamikaze par ${bonuses.kamikazeTarget.by}` });
   }
 
   // Maudit (victime de malédiction)
   if (bonuses.cursed) {
-    indicators.push({ icon: '🪬', class: 'cursed', title: `Maudit par ${bonuses.cursed.by}` });
+    indicators.push({ icon: '🪬', picto: 'malediction', class: 'cursed', title: `Maudit par ${bonuses.cursed.by}` });
   }
 
   // Bonus éphémères (basés sur les détails)
   if (ephemeral?.details) {
     for (const detail of ephemeral.details) {
       if (detail.type === 'embuscade_victim') {
-        indicators.push({ icon: '🏹', class: 'ephemeral-victim', title: `Embuscade par ${detail.by}` });
+        indicators.push({ icon: '🏹', picto: 'embuscade', class: 'ephemeral-victim', title: `Embuscade par ${detail.by}` });
       } else if (detail.type === 'embuscade_gain') {
-        indicators.push({ icon: '🏹', class: 'ephemeral-gain', title: `A volé ${detail.from}` });
+        indicators.push({ icon: '🏹', picto: 'embuscade', class: 'ephemeral-gain', title: `A volé ${detail.from}` });
       } else if (detail.type === 'ravitaillement') {
-        indicators.push({ icon: '🍖', class: 'ephemeral-gain', title: `Ravitaillement de ${detail.from}` });
+        indicators.push({ icon: '🍖', picto: 'ravitaillement', class: 'ephemeral-gain', title: `Ravitaillement de ${detail.from}` });
       } else if (detail.type === 'marquage') {
-        indicators.push({ icon: '🎯', class: 'ephemeral-victim', title: `Marqué par ${detail.by}` });
+        indicators.push({ icon: '🎯', picto: 'marquage', class: 'ephemeral-victim', title: `Marqué par ${detail.by}` });
       } else if (detail.type === 'malediction_victim') {
-        indicators.push({ icon: '🪬', class: 'ephemeral-victim', title: `Maudit par ${detail.by}` });
+        indicators.push({ icon: '🪬', picto: 'malediction', class: 'ephemeral-victim', title: `Maudit par ${detail.by}` });
       }
     }
   }
@@ -615,7 +692,7 @@ function renderAvatarBonusIndicators(bonuses = {}, ephemeral = null) {
   return `
     <div class="avatar-bonus-indicators">
       ${indicators.map(ind => `
-        <span class="avatar-bonus-icon ${ind.class}" title="${ind.title}">${ind.icon}</span>
+        <span class="avatar-bonus-icon ${ind.class}" title="${ind.title}">${ind.picto ? picto(ind.picto, ind.icon) : ind.icon}</span>
       `).join('')}
     </div>
   `;
@@ -635,26 +712,26 @@ function renderEphemeralBonusPills(ephemeral) {
 
     switch (detail.type) {
       case 'embuscade_victim':
-        pills.push(`<span class="bonus-tag ephemeral-stolen">${detail.icon} -${formatElevation(amount, false)} m volés</span>`);
+        pills.push(`<span class="bonus-tag ephemeral-stolen">${picto(detail.type.replace(/_(victim|gain|self)$/, ''), detail.icon)} -${formatElevation(amount, false)} m volés</span>`);
         break;
       case 'embuscade_gain':
-        pills.push(`<span class="bonus-tag ephemeral-gained">${detail.icon} +${formatElevation(amount, false)} m volés</span>`);
+        pills.push(`<span class="bonus-tag ephemeral-gained">${picto(detail.type.replace(/_(victim|gain|self)$/, ''), detail.icon)} +${formatElevation(amount, false)} m volés</span>`);
         break;
       case 'ravitaillement':
-        pills.push(`<span class="bonus-tag ephemeral-bonus">${detail.icon} +${formatElevation(amount, false)} m</span>`);
+        pills.push(`<span class="bonus-tag ephemeral-bonus">${picto(detail.type.replace(/_(victim|gain|self)$/, ''), detail.icon)} +${formatElevation(amount, false)} m</span>`);
         break;
       case 'marquage':
-        pills.push(`<span class="bonus-tag ephemeral-mark">${detail.icon} -${formatElevation(amount, false)} m</span>`);
+        pills.push(`<span class="bonus-tag ephemeral-mark">${picto(detail.type.replace(/_(victim|gain|self)$/, ''), detail.icon)} -${formatElevation(amount, false)} m</span>`);
         break;
       case 'malediction_victim':
-        pills.push(`<span class="bonus-tag ephemeral-curse">${detail.icon} -${formatElevation(amount, false)} m</span>`);
+        pills.push(`<span class="bonus-tag ephemeral-curse">${picto(detail.type.replace(/_(victim|gain|self)$/, ''), detail.icon)} -${formatElevation(amount, false)} m</span>`);
         break;
       case 'malediction_gain':
-        pills.push(`<span class="bonus-tag ephemeral-gained">${detail.icon} +${formatElevation(amount, false)} m</span>`);
+        pills.push(`<span class="bonus-tag ephemeral-gained">${picto(detail.type.replace(/_(victim|gain|self)$/, ''), detail.icon)} +${formatElevation(amount, false)} m</span>`);
         break;
       case 'kamikaze_victim':
       case 'kamikaze_self':
-        pills.push(`<span class="bonus-tag ephemeral-stolen">${detail.icon} -${formatElevation(amount, false)} m</span>`);
+        pills.push(`<span class="bonus-tag ephemeral-stolen">${picto(detail.type.replace(/_(victim|gain|self)$/, ''), detail.icon)} -${formatElevation(amount, false)} m</span>`);
         break;
     }
   }
@@ -685,7 +762,7 @@ function renderJokerBadges(participantId, currentRoundNumber) {
     if (count > 0 || isActive || isPending) {
       html += `
         <span class="joker-badge ${badgeClass}" title="${jokerType.name}: ${count} restant(s)">
-          ${jokerType.icon}${count > 0 ? `<sub>${count}</sub>` : ''}
+          ${pictoOf(jokerType)}${count > 0 ? `<sub>${count}</sub>` : ''}
         </span>
       `;
     }
@@ -708,10 +785,10 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}, ephemeralBonus
     tags.push(`<span class="bonus-tag multiplier">${multiplierLabel()} +${formatElevation(bonuses.multiplier.amount, false)} m</span>`);
   }
   if (bonuses.duelWon) {
-    tags.push(`<span class="bonus-tag duel-won">⚔️ +${formatElevation(bonuses.duelWon.amount, false)} m</span>`);
+    tags.push(`<span class="bonus-tag duel-won">${picto('duel', '⚔️', 'Duel')} +${formatElevation(bonuses.duelWon.amount, false)} m</span>`);
   }
   if (bonuses.duelLost) {
-    tags.push(`<span class="bonus-tag duel-lost">⚔️ -${formatElevation(bonuses.duelLost.amount, false)} m</span>`);
+    tags.push(`<span class="bonus-tag duel-lost">${picto('duel', '⚔️', 'Duel')} -${formatElevation(bonuses.duelLost.amount, false)} m</span>`);
   }
   if (bonuses.sabotaged) {
     tags.push(`<span class="bonus-tag sabotage">💣 -${formatElevation(bonuses.sabotaged.amount, false)} m</span>`);
@@ -731,7 +808,7 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}, ephemeralBonus
   }
   // Victime de Kamikaze
   if (bonuses.kamikazeTarget) {
-    tags.push(`<span class="bonus-tag kamikaze-victim">💥 -${formatElevation(bonuses.kamikazeTarget.amount, false)} m</span>`);
+    tags.push(`<span class="bonus-tag kamikaze-victim">${picto('kamikaze', '💥')} -${formatElevation(bonuses.kamikazeTarget.amount, false)} m</span>`);
   }
   // Maudit (victime de malédiction)
   if (bonuses.cursed) {
@@ -750,7 +827,7 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}, ephemeralBonus
       tags.push(`<span class="bonus-tag ephemeral-bonus">🍖 +${formatElevation(ephemeralBonus.ravitaillement, false)} m</span>`);
     }
     if (ephemeralBonus.marquage) {
-      tags.push(`<span class="bonus-tag ephemeral-mark">🎯 -${formatElevation(ephemeralBonus.marquage, false)} m (-20%)</span>`);
+      tags.push(`<span class="bonus-tag ephemeral-mark">${picto('marquage', '🎯', 'Marquage')} -${formatElevation(ephemeralBonus.marquage, false)} m (-20%)</span>`);
     }
   }
 
@@ -789,7 +866,7 @@ export function renderParticipants(container, data) {
           <div class="elevation">${formatElevation(pStats.elevation)}</div>
           <div class="jokers-row">
             ${Object.entries(JOKER_TYPES).map(([id, j]) =>
-              `<span class="mini-joker" title="${j.name}">${j.icon}${stock[id] || 0}</span>`
+              `<span class="mini-joker" title="${j.name}">${pictoOf(j)}${stock[id] || 0}</span>`
             ).join('')}
           </div>
         </div>
@@ -834,7 +911,7 @@ export function renderArsenal(container, data) {
       previousRoundEffects.jokers.forEach(joker => {
         const jokerType = JOKER_TYPES[joker.joker_id];
         if (!jokerType) return;
-        html += `<li>${jokerType.icon} <strong>${joker.athlete_name}</strong>`;
+        html += `<li>${pictoOf(jokerType)} <strong>${joker.athlete_name}</strong>`;
         if (joker.target_athlete_name) {
           html += ` → ${joker.target_athlete_name}`;
         }
@@ -862,7 +939,7 @@ export function renderArsenal(container, data) {
   html += `
     <div class="arsenal-card">
       <div class="arsenal-card-title">
-        <span class="icon">⚔️</span>
+        <span class="icon">${picto('jokers', '⚔️')}</span>
         Jokers en jeu ce round
       </div>
       <div class="active-jokers-list">
@@ -895,11 +972,11 @@ export function renderArsenal(container, data) {
           hoverTitle = amount > 0 ? `+${fmtAmt} m D+ bonus grâce au multiplicateur` : 'En attente de calcul...';
           break;
         case 'sabotage':
-          description = `💣 ${joker.athlete_name} a saboté ${joker.target_athlete_name || 'le joueur le plus proche'} (-${fmtAmt} m D+)`;
+          description = `${picto('sabotage', '💣', 'Sabotage')} ${joker.athlete_name} a saboté ${joker.target_athlete_name || 'le joueur le plus proche'} (-${fmtAmt} m D+)`;
           hoverTitle = amount > 0 ? `${fmtAmt} m D+ retirés à ${joker.target_athlete_name} (-30%)` : 'En attente de calcul...';
           break;
         default:
-          description = `${jokerType.icon} ${joker.athlete_name}${joker.target_athlete_name ? ' → ' + joker.target_athlete_name : ''} (${jokerType.name})`;
+          description = `${pictoOf(jokerType)} ${joker.athlete_name}${joker.target_athlete_name ? ' → ' + joker.target_athlete_name : ''} (${jokerType.name})`;
       }
 
       html += `
@@ -930,7 +1007,7 @@ export function renderArsenal(container, data) {
       if (!jokerType) return;
       html += `
         <div class="active-joker-item pending">
-          <span class="joker-description">${jokerType.icon} ${joker.athlete_name}${joker.target_athlete_name ? ' → ' + joker.target_athlete_name : ''} (${jokerType.name})</span>
+          <span class="joker-description">${pictoOf(jokerType)} ${joker.athlete_name}${joker.target_athlete_name ? ' → ' + joker.target_athlete_name : ''} (${jokerType.name})</span>
         </div>
       `;
     });
@@ -945,7 +1022,7 @@ export function renderArsenal(container, data) {
     html += `
       <div class="arsenal-card">
         <div class="arsenal-card-title">
-          <span class="icon">🎁</span>
+          <span class="icon">${picto('cadeau', '🎁')}</span>
           Bonus éphémères (Éliminés)
         </div>
         <div class="bonus-list">
@@ -957,8 +1034,8 @@ export function renderArsenal(container, data) {
                           bonus.status === 'active' ? 'active' : 'available';
 
       const statusLabel = bonus.statusLabel || (bonus.status === 'pending' ? 'Choix en attente' :
-                          bonus.status === 'used' ? '✓ Utilisé ce round' :
-                          bonus.status === 'active' ? '🎯 Activé' : 'Disponible');
+                          bonus.status === 'used' ? `${picto('valide', '✓')} <span class="da-stat-key">Utilisé</span> ce round` :
+                          bonus.status === 'active' ? `${picto('cible', '🎯')} Activé` : 'Disponible');
 
       // Construire les détails du bonus
       let bonusDetails = '';
@@ -967,7 +1044,7 @@ export function renderArsenal(container, data) {
 
         // Afficher la cible si elle existe (sauf pour marquage)
         if (bonus.target_athlete_name && bonus.bonus_id !== 'marquage') {
-          bonusDetails += `<div class="bonus-detail-target">🎯 Cible : <strong>${bonus.target_athlete_name}</strong></div>`;
+          bonusDetails += `<div class="bonus-detail-target">${picto('cible', '🎯')} Cible : <strong>${bonus.target_athlete_name}</strong></div>`;
         }
 
         // Afficher l'effet attendu selon le statut
@@ -982,7 +1059,7 @@ export function renderArsenal(container, data) {
       html += `
         <div class="bonus-item ${statusClass}" ${hoverTitle ? `title="${hoverTitle}"` : ''}>
           <div class="bonus-item-header">
-            <span class="bonus-icon">${bonus.icon || '🎁'}</span>
+            <span class="bonus-icon">${picto(bonus.bonus_id, bonus.icon || '🎁', bonus.bonus_name)}</span>
             <span class="bonus-owner">${bonus.athlete_name || 'Joueur'}</span>
             ${bonus.bonus_name ? `<span class="bonus-name">${bonus.bonus_name}</span>` : ''}
             <span class="bonus-status ${statusClass}">${statusLabel}</span>
@@ -1050,7 +1127,7 @@ export function renderJokersGuide(container) {
   Object.entries(JOKER_TYPES).forEach(([id, joker]) => {
     html += `
       <div class="joker-guide-card ${id}">
-        <div class="joker-guide-icon">${joker.icon}</div>
+        <div class="joker-guide-icon">${pictoOf(joker)}</div>
         <div class="joker-guide-content">
           <h3>${joker.name}</h3>
           <div class="joker-effect-desc">${joker.description}</div>
@@ -1147,7 +1224,7 @@ export function showContextMenu(e, participantId, participantName, options = {})
       const count = stock[jokerId] || 0;
       itemsHtml += `
         <div class="context-menu-item admin-joker" data-joker="${jokerId}" data-participant="${participantId}">
-          <span class="joker-icon">${joker.icon}</span>
+          <span class="joker-icon">${pictoOf(joker)}</span>
           <span class="joker-name">${joker.name}</span>
           <span class="joker-controls">
             <button class="joker-minus" data-action="remove">−</button>
@@ -1169,7 +1246,7 @@ export function showContextMenu(e, participantId, participantName, options = {})
              data-joker="${jokerId}" 
              data-participant="${participantId}" 
              data-name="${participantName}">
-          <span class="joker-icon">${joker.icon}</span>
+          <span class="joker-icon">${pictoOf(joker)}</span>
           <span class="joker-name">${joker.name}</span>
           <span class="joker-count">${count}</span>
           <span class="joker-disabled-reason">
@@ -1220,7 +1297,7 @@ export function showTargetSelectionModal(options = {}) {
   modal.innerHTML = `
     <div class="joker-modal-content">
       <div class="joker-modal-header">
-        <span>${jokerType.icon} ${jokerType.name} - Choisir une cible</span>
+        <span>${pictoOf(jokerType)} ${jokerType.name} - Choisir une cible</span>
         <button class="joker-modal-close">&times;</button>
       </div>
       <div class="joker-modal-body">
@@ -1359,7 +1436,7 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
     return `<span class="gauge-zone tier-${t.id}" style="left:${from}%;width:${to - from}%"></span>`;
   }).join('');
   const ticks = tiers.slice(1).map(t =>
-    `<span class="gauge-tick" style="left:${pct(t.minRatio)}%">${Math.round(t.minRatio * 100)}%</span>`
+    `<span class="gauge-tick${t.minRatio === 1 ? ' gauge-tick--goal' : ''}" style="left:${pct(t.minRatio)}%">${Math.round(t.minRatio * 100)}%</span>`
   ).join('');
 
   // Projection linéaire à la fin du round (indicative, masquée en tout début de round)
@@ -1372,7 +1449,7 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
 
   const tier = gauge.tier;
   const status = isLive
-    ? `Si le round s'arrêtait maintenant : <strong>${tier.label}</strong> · ${describeGaugeEffect(tier)}`
+    ? `Si le round s'arrêtait maintenant : <strong class="gauge-tier-word da-draw da-draw--circle da-draw--circle-05 da-draw--acc" style="--draw:url(/assets/manic/circle-05.svg)">${tier.label}</strong> · ${describeGaugeEffect(tier)}`
     : `Aperçu : la jauge rapporte des points à partir du round ${gaugeStartRound}. Actuellement : ${tier.label}`;
   // Compte à rebours vers le palier suivant (L44)
   const step = nextGaugeStep(gauge);

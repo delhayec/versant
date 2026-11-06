@@ -298,7 +298,7 @@ function getSeasonalBonusEffectsForEliminatedAthlete(athleteId, bonusesCache, se
   for (const bonus of allAthleteBonus) {
     // Filtrage par saison : si seasonContext est fourni, on ne traite que les bonus
     // de cette saison. Sans ce filtre, un bonus saisonnier d'une saison close (ex:
-    // second_souffle de Baptiste saison 2) serait recalculé avec la fenêtre de la
+    // second_souffle d'un joueur en saison 2) serait recalculé avec la fenêtre de la
     // saison en cours et re-crédité à chaque saison suivante.
     // Saison indéterminable (null) = donnée orpheline → on n'applique PAS : un bonus
     // légitime a toujours un elimination_round figé, donc résolvable.

@@ -1,0 +1,188 @@
+/* ============================================
+   DA « ATELIER » : BASE
+   Papier millimétré, typographie, cadre de page, bouton de thème.
+   ============================================ */
+
+/* Éléments ajoutés pour la nouvelle DA dans les gabarits JS : invisibles
+   avec l'ancienne, pour que ?da=off rende la page d'origine. */
+html:not(.da-atelier) .da-only { display: none !important; }
+html.da-atelier .da-off-only { display: none !important; }
+
+/* --- Papier millimétré : quadrillage majeur 40 px, mineur 8 px --- */
+html.da-atelier body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+  color: var(--ink);
+  font-family: var(--f-sans);
+}
+
+/* Chiffres alignés partout où l'on affiche des nombres en chasse fixe */
+html.da-atelier :where(code, kbd, samp, .mono),
+html.da-atelier [class*="elevation"],
+html.da-atelier [class*="points"],
+html.da-atelier [class*="countdown"],
+html.da-atelier [class*="rank"],
+html.da-atelier [class*="position"] {
+  font-variant-numeric: tabular-nums;
+}
+
+html.da-atelier ::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Focus visible, net, sur tout ce qui se manipule au clavier */
+html.da-atelier :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Pas d'ombre portée : cadres et boutons n'ont que leur bord net */
+html.da-atelier *, html.da-atelier *::before, html.da-atelier *::after { box-shadow: none !important; }
+
+/* --- Cadre de page « A3 » : double trait et repères de zones ---
+   Superposé à la fenêtre (position fixe, insensible aux clics) :
+   il ne déplace rien dans la mise en page existante. */
+.da-frame { display: none; }
+
+@media (min-width: 900px) {
+  /* Quadrillage calé sur la fenêtre : celui de la marge du cadre reste raccord pendant le défilement */
+  html.da-atelier body { background-attachment: fixed; }
+
+  /* Le cadre est opaque : marge en papier millimétré jusqu'au filet intérieur,
+     le contenu qui défile passe dessous. Seul l'intérieur est découpé (masque). */
+  html.da-atelier .da-frame {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    pointer-events: none;
+    padding: calc(var(--frame-gap) + 15px);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+      linear-gradient(var(--grid-minor) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
+  /* Trait extérieur */
+  html.da-atelier .da-frame::after {
+    content: "";
+    position: absolute;
+    inset: var(--frame-gap);
+    border: 2px solid var(--ink);
+  }
+  /* Filet intérieur */
+  html.da-atelier .da-frame::before {
+    content: "";
+    position: absolute;
+    inset: calc(var(--frame-gap) + 14px);
+    border: 1px solid var(--ink);
+    opacity: 0.55;
+  }
+  .da-frame__cols,
+  .da-frame__rows {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    justify-content: space-around;
+    font: 500 11px/1 var(--f-mono);
+    color: var(--sub);
+  }
+  .da-frame__cols { left: calc(var(--frame-gap) + 16px); right: calc(var(--frame-gap) + 16px); top: calc(var(--frame-gap) + 3px); height: 12px; align-items: center; }
+  .da-frame__rows { top: calc(var(--frame-gap) + 16px); bottom: calc(var(--frame-gap) + 16px); left: calc(var(--frame-gap) + 3px); width: 12px; flex-direction: column; align-items: center; }
+  .da-frame__cols span,
+  .da-frame__rows span { background: var(--bg); padding: 0 3px; }
+
+  /* Le contenu ne passe pas sous le cadre */
+  html.da-atelier body { padding: 0 calc(var(--frame-gap) + 16px); }
+}
+
+/* --- Changement de thème : une nouvelle feuille se pose sur l'ancienne ---
+   (js/da-atelier.js, View Transitions). L'ancienne reste dessous et
+   s'assombrit sous l'ombre de la feuille qui arrive en glissant de haut. */
+html.da-atelier::view-transition-old(root) {
+  animation: da-sheet-under 0.7s ease-in both;
+}
+html.da-atelier::view-transition-new(root) {
+  animation: da-sheet-in 0.7s cubic-bezier(0.22, 0.8, 0.25, 1) both;
+  transform-origin: 50% 0;
+}
+@keyframes da-sheet-in {
+  0%   { transform: translate(2%, -104%) rotate(-3deg); filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.35)); }
+  70%  { transform: translate(0, 0.8%) rotate(0.4deg); filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.3)); }
+  86%  { transform: translate(0, -0.2%) rotate(-0.1deg); }
+  100% { transform: none; filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0)); }
+}
+@keyframes da-sheet-under {
+  0%   { filter: none; }
+  60%  { filter: brightness(0.82); }
+  100% { filter: brightness(0.82); }
+}
+
+/* --- Bouton de thème : auto, clair, cyanotype --- */
+.da-theme-btn { display: none; }
+
+html.da-atelier .da-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+  color: var(--ink);
+  font: 700 11px/1 var(--f-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+html.da-atelier .da-theme-btn svg { width: 18px; height: 18px; flex: none; }
+html.da-atelier .da-theme-btn__picto { width: 20px; height: 20px; flex: none; background: currentColor; -webkit-mask: var(--pi) center / contain no-repeat; mask: var(--pi) center / contain no-repeat; }
+html.da-atelier .da-theme-btn__picto--light { --pi: url("../../assets/pictos/clair.svg"); }
+html.da-atelier .da-theme-btn__picto--dark { --pi: url("../../assets/pictos/cyanotype.svg"); }
+html.da-atelier .da-theme-btn:hover { background: var(--accent-soft); }
+
+/* Hors de la navigation (pages sans .nav-links) : en bas à droite */
+html.da-atelier .da-theme-btn--floating {
+  position: fixed;
+  right: calc(var(--frame-gap) + 24px);
+  bottom: calc(var(--frame-gap) + 24px);
+  z-index: 9001;
+  box-shadow: none;
+}
+
+@media (max-width: 600px) {
+  html.da-atelier .da-theme-btn__label { display: none; }
+  /* Sur téléphone, la barre n'a pas la place : le bouton flotte en bas à droite */
+  html.da-atelier .nav-links .da-theme-btn {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 9001;
+    box-shadow: none;
+  }
+}
+
+/* Manuscrit erratique (js/da-atelier.js) : l'original, lu par les lecteurs
+   d'écran, est masqué à l'œil ; le dessin, lui, est caché aux lecteurs. */
+html.da-atelier .da-sr {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
