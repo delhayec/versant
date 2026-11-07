@@ -1373,6 +1373,11 @@ html.da-atelier .da-delta {
 html.da-atelier .da-delta .picto { width: 0.8em; height: 0.8em; }
 html.da-atelier .da-delta--up { color: var(--up); }
 html.da-atelier .da-delta--down { color: var(--down); }
+/* Téléphone : la pastille va au bout de la case du nom, un peu plus petite */
+@media (max-width: 600px) {
+  html.da-atelier :is(.ranking-row .athlete-info, .ranking-row .athlete-details, .ranking-row .ranking-athlete) { flex: 1 1 auto; min-width: 0; }
+  html.da-atelier :is(.athlete-details, .ranking-athlete .athlete-info, .standings-athlete) > .da-delta { margin-left: auto; margin-right: 10px; padding-left: 6px; font-size: 17px; }
+}
 
 /* Classement général : une note sans la place de s'écrire n'apparaît pas */
 html.da-atelier .standings-row > .da-standings-note.da-no-room { visibility: hidden; }
