@@ -1486,18 +1486,23 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
   html.da-atelier .ranking-row :is(.athlete-info, .ranking-athlete) { align-self: stretch; align-items: center; }
   html.da-atelier .ranking-row :is(.athlete-avatar-wrapper, .ranking-athlete > .athlete-avatar) {
     align-self: stretch;
-    width: 12px;
-    min-width: 12px;
+    width: 16px;
+    min-width: 16px;
     height: auto;
+    margin-left: -10px;
   }
   html.da-atelier .ranking-row .athlete-avatar-wrapper > .athlete-avatar { width: 100%; min-width: 0; height: 100%; }
-  html.da-atelier .ranking-row .ranking-athlete > .athlete-avatar { min-width: 12px; }
+  html.da-atelier .ranking-row .ranking-athlete > .athlete-avatar { min-width: 16px; }
   /* pas de tache de papier ronde : il n'y a plus d'initiales à poser dessus */
   html.da-atelier :is(.ranking-row .athlete-avatar, .standings-athlete .athlete-avatar-small).da-motif::after { display: none; }
   html.da-atelier .ranking-row .athlete-avatar,
   html.da-atelier .standings-athlete .athlete-avatar-small { border-radius: 0; border: 0; box-shadow: none; }
   html.da-atelier :is(.ranking-row, .standings-row) :is(.da-initials, .athlete-avatar, .athlete-avatar-small) .da-initials,
   html.da-atelier .standings-athlete .athlete-avatar-small { font-size: 0; color: transparent; }
-  html.da-atelier .standings-athlete { position: relative; padding-left: 24px; }
-  html.da-atelier .standings-athlete .athlete-avatar-small { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; min-width: 12px; height: auto; }
+  html.da-atelier .standings-athlete { position: relative; padding-left: 28px; }
+  html.da-atelier .standings-athlete .athlete-avatar-small { position: absolute; left: 0; top: 0; bottom: 0; width: 16px; min-width: 16px; height: auto; }
+  /* D+ calé à droite, plus près du bord (principal et éliminés) */
+  html.da-atelier .ranking-row { padding-right: 2px; }
+  html.da-atelier .ranking-row :is(.elevation-cell, .ranking-elevation) { justify-self: end; text-align: right; }
+  html.da-atelier .ranking-row .elevation-cell.is-open .da-margin { text-align: right; }
 }
