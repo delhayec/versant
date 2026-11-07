@@ -1452,3 +1452,13 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
   html.da-atelier .athlete-activities-panel { --tree: 14px; margin: 0 8px 8px 30px; }
   html.da-atelier .athlete-activity-row { gap: 4px 10px; }
 }
+
+/* Écrans tactiles : le toucher pour faire défiler ne surligne plus la ligne
+   ni le nom (le survol « collant » des téléphones) ; la ligne du joueur
+   connecté garde sa couleur */
+@media (hover: none) {
+  html.da-atelier :is(.ranking-row, .standings-row, .history-ranking-row, .athlete-name-clickable) { -webkit-tap-highlight-color: transparent; }
+  html.da-atelier :is(#ranking, #standings, #history) :is(.ranking-row, .standings-row, .history-ranking-row):hover { background-color: transparent !important; }
+  html.da-atelier :is(#ranking, #standings) :is(.ranking-row, .standings-row).is-me:hover { background-color: var(--me) !important; }
+  html.da-atelier .athlete-name-clickable:hover { color: inherit; }
+}
