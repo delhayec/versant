@@ -455,6 +455,8 @@ html.da-atelier .sim-button {
   background: none;
   color: var(--ink);
   font: 700 12px/1 var(--f-mono);
+  justify-content: center;
+  text-align: center;
 }
 html.da-atelier .arsenal-card {
   border: 1.5px solid var(--ink);
