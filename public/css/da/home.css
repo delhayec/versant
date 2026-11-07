@@ -788,7 +788,10 @@ html.da-atelier .da-note--cut {
   transform: translateY(-55%) rotate(-3deg);
 }
 @media (max-width: 600px) {
-  html.da-atelier .da-cut-line:has(.da-note) { justify-content: flex-start; padding-left: 4px; }
+  /* Téléphone : pas de note sur la ligne de coupe (« ça se joue à 7 m »), libellé centré */
+  html.da-atelier .da-note--cut { display: none; }
+  /* Pas de cadre « Jokers en jeu » quand aucun joker n'est en cours */
+  html.da-atelier .arsenal-card:has(> .active-jokers-list > .arsenal-empty) { display: none; }
   html.da-atelier .da-note--cut { font-size: 19px; right: 4px; }
   html.da-atelier .da-note--count { font-size: 22px; top: 10px; right: 12px; }
 }

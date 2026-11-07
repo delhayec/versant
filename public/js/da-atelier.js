@@ -721,14 +721,13 @@
     window.addEventListener('scroll', () => { if (bubble) close(); }, { passive: true });
   }
 
-  /* Télex des sorties sur ordinateur : il suit le défilement jusqu'au classement du round,
+  /* Télex des sorties : il suit le défilement jusqu'au classement du round,
      puis s'efface (et revient en remontant). Sur ordinateur il est fixé en bas
      d'écran : il disparaît quand le classement occupe l'écran ; sur
      téléphone il est dans la navigation : quand le classement passe dessous. */
   function tickerUntilRanking() {
     const ranking = document.getElementById('ranking');
-    // Sur téléphone, le télex (dans la navigation) reste affiché sur toute la page
-    const tickers = document.querySelectorAll('.activity-ticker-desktop');
+    const tickers = document.querySelectorAll('.activity-ticker');
     if (!ranking || !tickers.length) return;
     let queued = false;
     const update = () => {
