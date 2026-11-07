@@ -737,7 +737,10 @@
         const desktop = t.classList.contains('activity-ticker-desktop');
         const nav = t.closest('nav');
         const limit = desktop ? innerHeight * 0.4 : (nav ? nav.getBoundingClientRect().bottom + 8 : 0);
-        t.classList.toggle('da-ticker-away', top < limit);
+        // Marge de retour plus grande que le télex lui-même : en se repliant,
+        // il fait remonter la limite ; sans elle, il clignote sur quelques pixels
+        const away = t.classList.contains('da-ticker-away');
+        t.classList.toggle('da-ticker-away', away ? top < limit + 90 : top < limit);
       });
     };
     const ask = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };

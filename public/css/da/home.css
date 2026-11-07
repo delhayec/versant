@@ -1340,6 +1340,9 @@ html.da-atelier .gauge-bar .gauge-info-pop {
   color: var(--ink);
   font: 400 13px/1.45 var(--f-sans);
 }
+/* L'ancien style l'ouvrait aussi au focus : un second clic ne pouvait pas la fermer */
+html.da-atelier .gauge-bar:is(:hover, :focus, :focus-within) .gauge-info-pop { display: none; }
+@media (hover: hover) { html.da-atelier .gauge-bar:hover:not(.is-closed) .gauge-info-pop { display: block; } }
 html.da-atelier .gauge-bar.is-open .gauge-info-pop { display: block; }
 html.da-atelier .gauge-info-now strong { font: 700 14px var(--f-mono); }
 html.da-atelier .gauge-info-how { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px dotted var(--sub); }

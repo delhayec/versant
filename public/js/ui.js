@@ -1411,6 +1411,17 @@ function renderGaugeInfoPopover() {
  * @param {number} data.roundNumber - round global en cours
  * @param {number} [data.elapsedFraction] - part du round écoulée (0→1), pour la projection
  */
+// Infobulle de la jauge : un clic l'ouvre, un second la ferme ; au survol
+// (souris), elle s'ouvre seule et un clic la ferme jusqu'à ce qu'on sorte
+if (typeof window !== 'undefined') {
+  window.daGaugeTip = (el) => {
+    const shown = el.classList.contains('is-open') ||
+      (matchMedia('(hover: hover)').matches && el.matches(':hover') && !el.classList.contains('is-closed'));
+    el.classList.toggle('is-open', !shown);
+    el.classList.toggle('is-closed', shown);
+  };
+}
+
 export function renderElevationGauge(container, { gauge, roundNumber, elapsedFraction = null }) {
   if (!container) return;
   if (!gauge || gauge.nbPlayers === 0) {
@@ -1464,7 +1475,7 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
         <span class="gauge-state">${state}</span>
       </div>
       <div class="gauge-bar gauge-info" tabindex="0" role="button" aria-label="Détails de la jauge : ${Math.round(gauge.ratio * 100)} %, ${tier.label}"
-           onclick="this.classList.toggle('is-open')" onblur="this.classList.remove('is-open')">
+           onclick="daGaugeTip(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();daGaugeTip(this)}" onmouseleave="this.classList.remove('is-closed')" onblur="this.classList.remove('is-open','is-closed')">
         <div class="gauge-track" role="progressbar" aria-valuemin="0" aria-valuemax="${Math.round(GAUGE_SCALE_MAX * 100)}" aria-valuenow="${Math.round(gauge.ratio * 100)}">
           ${zones}
           <span class="gauge-fill" style="width:${fillPct}%"></span>
