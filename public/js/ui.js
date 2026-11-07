@@ -576,7 +576,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               ${deltaBadge(dayStartRanks, entry.participant.id, i + 1)}
             </div>
           </div>
-          <div class="elevation-cell">
+          <div class="elevation-cell" onclick="this.classList.toggle('is-open')">
             ${renderElevationWithBonuses(entry.totalElevation, effects.bonuses)}
             ${marginHtml(entry)}
             ${ephemeralPills}

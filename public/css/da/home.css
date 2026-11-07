@@ -1467,3 +1467,37 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
   html.da-atelier :is(#ranking, #standings) :is(.ranking-row, .standings-row).is-me:hover { background-color: var(--me) !important; }
   html.da-atelier .athlete-name-clickable:hover { color: inherit; }
 }
+
+/* ============================================
+   TÉLÉPHONE : classements allégés
+   ============================================ */
+@media (max-width: 600px) {
+  /* Un seul chiffre, le D+ du round ; l'écart avec la coupe au toucher */
+  html.da-atelier .elevation-cell { cursor: pointer; }
+  html.da-atelier .elevation-cell .da-margin { display: none; }
+  html.da-atelier .elevation-cell.is-open .da-margin { display: block; }
+  /* Plus de tampon « Zone danger » : les hachures de la ligne suffisent */
+  html.da-atelier .ranking-row .athlete-status.danger { display: none; }
+
+  /* Joueur : un rectangle à sa couleur et à son motif, sur toute la hauteur
+     de la ligne, à la place du cercle à initiales */
+  html.da-atelier .ranking-row { padding-top: 0; padding-bottom: 0; min-height: 54px; align-items: stretch; }
+  html.da-atelier .ranking-row > :not(.athlete-info, .ranking-athlete) { align-self: center; }
+  html.da-atelier .ranking-row :is(.athlete-info, .ranking-athlete) { align-self: stretch; align-items: center; }
+  html.da-atelier .ranking-row :is(.athlete-avatar-wrapper, .ranking-athlete > .athlete-avatar) {
+    align-self: stretch;
+    width: 12px;
+    min-width: 12px;
+    height: auto;
+  }
+  html.da-atelier .ranking-row .athlete-avatar-wrapper > .athlete-avatar { width: 100%; min-width: 0; height: 100%; }
+  html.da-atelier .ranking-row .ranking-athlete > .athlete-avatar { min-width: 12px; }
+  /* pas de tache de papier ronde : il n'y a plus d'initiales à poser dessus */
+  html.da-atelier :is(.ranking-row .athlete-avatar, .standings-athlete .athlete-avatar-small).da-motif::after { display: none; }
+  html.da-atelier .ranking-row .athlete-avatar,
+  html.da-atelier .standings-athlete .athlete-avatar-small { border-radius: 0; border: 0; box-shadow: none; }
+  html.da-atelier :is(.ranking-row, .standings-row) :is(.da-initials, .athlete-avatar, .athlete-avatar-small) .da-initials,
+  html.da-atelier .standings-athlete .athlete-avatar-small { font-size: 0; color: transparent; }
+  html.da-atelier .standings-athlete { position: relative; padding-left: 24px; }
+  html.da-atelier .standings-athlete .athlete-avatar-small { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; min-width: 12px; height: auto; }
+}
