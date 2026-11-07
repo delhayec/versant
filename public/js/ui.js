@@ -1390,8 +1390,7 @@ function renderGaugeInfoPopover() {
   }).join('');
 
   return `
-    <span class="gauge-info" tabindex="0" role="button" aria-label="Comment marche la jauge ?">ⓘ
-      <span class="gauge-info-pop" role="tooltip">
+      <span class="gauge-info-how">
         <strong>Comment ça marche ?</strong>
         <span class="gauge-info-text">Le D+ réel (avant handicap, jokers et bonus) de tous les joueurs du principal remplit la jauge. Objectif du round = D+ moyen visé (tableau ci-dessous) × nombre de joueurs en lice au début du round.</span>
         <table class="gauge-info-table">
@@ -1403,8 +1402,7 @@ function renderGaugeInfoPopover() {
           <tbody>${tierRows}</tbody>
         </table>
         <span class="gauge-info-text gauge-info-geek">Pour les geeks : le D+ moyen visé vaut 0,75 × l'arrondi de <code>5 700 × n<sup>-0,6</sup></code>, avec n = nombre de joueurs en lice.</span>
-      </span>
-    </span>`;
+      </span>`;
 }
 
 /**
@@ -1448,30 +1446,39 @@ export function renderElevationGauge(container, { gauge, roundNumber, elapsedFra
   }
 
   const tier = gauge.tier;
-  const status = isLive
-    ? `Si le round s'arrêtait maintenant : <strong class="gauge-tier-word da-draw da-draw--circle da-draw--circle-05 da-draw--acc" style="--draw:url(/assets/manic/circle-05.svg)">${tier.label}</strong> · ${describeGaugeEffect(tier)}`
+  // Sous la barre, seulement l'état actuel ; le détail est dans l'infobulle de la barre
+  const state = `<strong class="gauge-tier-word da-draw da-draw--circle da-draw--circle-05 da-draw--acc" style="--draw:url(/assets/manic/circle-05.svg)">${tier.label}</strong>`;
+  const statusText = isLive
+    ? `Si le round s'arrêtait maintenant : <strong>${tier.label}</strong> · ${describeGaugeEffect(tier)}`
     : `Aperçu : la jauge rapporte des points à partir du round ${gaugeStartRound}. Actuellement : ${tier.label}`;
   // Compte à rebours vers le palier suivant (L44)
   const step = nextGaugeStep(gauge);
-  const stepHtml = step
-    ? `<div class="gauge-status">Prochain palier : <strong>${step.tier.label}</strong> (${Math.round(step.tier.minRatio * 100)} %) dans <strong>${formatElevation(step.missing)}</strong> · ${describeGaugeEffect(step.tier)}</div>`
-    : '<div class="gauge-status">Palier le plus haut atteint</div>';
+  const stepText = step
+    ? `Prochain palier : <strong>${step.tier.label}</strong> (${Math.round(step.tier.minRatio * 100)} %) dans <strong>${formatElevation(step.missing)}</strong> · ${describeGaugeEffect(step.tier)}`
+    : 'Palier le plus haut atteint';
 
   container.innerHTML = `
     <div class="elevation-gauge tier-${tier.id}${isLive ? '' : ' is-preview'}">
       <div class="gauge-header">
-        <span class="gauge-title">Jauge collective de D+ ${renderGaugeInfoPopover()}</span>
-        <span class="gauge-values">${formatElevation(gauge.total)} / ${formatElevation(gauge.objective)} · <strong>${Math.round(gauge.ratio * 100)} %</strong></span>
+        <span class="gauge-title">Jauge collective de D+</span>
+        <span class="gauge-state">${state}</span>
       </div>
-      <div class="gauge-track" role="progressbar" aria-valuemin="0" aria-valuemax="${Math.round(GAUGE_SCALE_MAX * 100)}" aria-valuenow="${Math.round(gauge.ratio * 100)}">
-        ${zones}
-        <span class="gauge-fill" style="width:${fillPct}%"></span>
-        <span class="gauge-target" style="left:${pct(1)}%" title="Objectif"></span>
+      <div class="gauge-bar gauge-info" tabindex="0" role="button" aria-label="Détails de la jauge : ${Math.round(gauge.ratio * 100)} %, ${tier.label}"
+           onclick="this.classList.toggle('is-open')" onblur="this.classList.remove('is-open')">
+        <div class="gauge-track" role="progressbar" aria-valuemin="0" aria-valuemax="${Math.round(GAUGE_SCALE_MAX * 100)}" aria-valuenow="${Math.round(gauge.ratio * 100)}">
+          ${zones}
+          <span class="gauge-fill" style="width:${fillPct}%"></span>
+          <span class="gauge-target" style="left:${pct(1)}%"></span>
+        </div>
+        <div class="gauge-ticks">${ticks}</div>
+        <span class="gauge-info-pop" role="tooltip">
+          <span class="gauge-info-now"><strong>${formatElevation(gauge.total)} / ${formatElevation(gauge.objective)} · ${Math.round(gauge.ratio * 100)} %</strong></span>
+          <span class="gauge-info-text">${statusText}</span>
+          <span class="gauge-info-text">${stepText}</span>
+          <span class="gauge-info-text">${gauge.nbPlayers} joueurs en lice · objectif ${formatElevation(gauge.objectivePerPlayer)} de D+ moyen${projectionHtml}</span>
+          ${renderGaugeInfoPopover()}
+        </span>
       </div>
-      <div class="gauge-ticks">${ticks}</div>
-      <div class="gauge-status">${status}</div>
-      ${stepHtml}
-      <div class="gauge-sub">${gauge.nbPlayers} joueurs en lice · objectif ${formatElevation(gauge.objectivePerPlayer)} de D+ moyen${projectionHtml}</div>
     </div>`;
 }
 

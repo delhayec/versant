@@ -161,7 +161,7 @@ html.da-atelier section:has(> .section-header > .section-number) {
   box-sizing: border-box;
   width: calc(100% - 2 * var(--container-padding));
   max-width: 1400px;
-  margin: 108px auto 0;   /* espace entre les sections */
+  margin: 128px auto 0;   /* espace entre les sections */
   padding: var(--f2-pad-top) var(--f2-pad-x) 24px;
   border: 1.5px solid var(--ink);
   background: var(--panel);
@@ -223,7 +223,7 @@ html.da-atelier .tour-step .section-header > .section-desc {
     --f2-pad-x: 12px;
     --f2-pad-top: 14px;
     width: calc(100% - 16px);
-    margin-top: 116px;   /* onglet de 44 px compris : ~70 px de vide visible */
+    margin-top: 140px;   /* onglet de 44 px compris : ~95 px de vide visible */
   }
   html.da-atelier .section-header > .section-number { width: 40px; font-size: 14px; }
   html.da-atelier .section-header > .section-number + .section-title { padding: 0 12px; font-size: 13px; }

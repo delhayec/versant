@@ -1304,6 +1304,38 @@ html.da-atelier .gauge-tick--goal { font: 600 20px/1 var(--f-hand); color: var(-
 html.da-atelier .gauge-tick--goal::before { display: none; }
 html.da-atelier :is(.gauge-status, .gauge-sub) { font: 500 13px/1.5 var(--f-sans); color: var(--sub); }
 html.da-atelier .gauge-status strong { color: var(--ink); }
+/* Jauge allégée : titre, palier actuel, barre ; le détail dans une infobulle
+   au survol de la barre, ou au toucher sur téléphone */
+html.da-atelier .gauge-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html.da-atelier .gauge-state { margin-right: 0.5em; font-size: 15px; }
+html.da-atelier .gauge-state .gauge-tier-word { font: 600 1.55em/1 var(--f-hand); color: var(--pen); }
+html.da-atelier .gauge-state .gauge-tier-word::after { inset: -0.3em -0.4em -0.24em; }
+html.da-atelier .gauge-bar { position: relative; display: block; margin: 0; cursor: help; outline: none; }
+html.da-atelier .gauge-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+html.da-atelier .gauge-bar .gauge-info-pop {
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  width: min(440px, 100%);
+  max-height: 70vh;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 4px 4px 0 var(--ink);
+  color: var(--ink);
+  font: 400 13px/1.45 var(--f-sans);
+}
+html.da-atelier .gauge-bar.is-open .gauge-info-pop { display: block; }
+html.da-atelier .gauge-info-now strong { font: 700 14px var(--f-mono); }
+html.da-atelier .gauge-info-how { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px dotted var(--sub); }
+html.da-atelier .gauge-bar .gauge-info-pop :is(strong, th) { color: var(--ink); }
+html.da-atelier .gauge-bar .gauge-info-pop :is(.gauge-info-geek, td) { color: var(--sub); }
+html.da-atelier .gauge-bar .gauge-info-table { width: 100%; }
+html.da-atelier .gauge-bar .gauge-info-pop .gauge-info-text strong { display: inline; margin: 0; }
+
 /* Palier de la jauge : écrit à la main, plus grand, entouré d'orange */
 html.da-atelier .gauge-status .gauge-tier-word {
   margin: 0 0.55em 0 0.45em;
