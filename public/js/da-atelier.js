@@ -721,8 +721,34 @@
     window.addEventListener('scroll', () => { if (bubble) close(); }, { passive: true });
   }
 
+  /* Télex des sorties : il suit le défilement jusqu'au classement du round,
+     puis s'efface (et revient en remontant). Sur ordinateur il est fixé en bas
+     d'écran : il disparaît quand le classement occupe l'écran ; sur
+     téléphone il est dans la navigation : quand le classement passe dessous. */
+  function tickerUntilRanking() {
+    const ranking = document.getElementById('ranking');
+    const tickers = document.querySelectorAll('.activity-ticker');
+    if (!ranking || !tickers.length) return;
+    let queued = false;
+    const update = () => {
+      queued = false;
+      const top = ranking.getBoundingClientRect().top;
+      tickers.forEach(t => {
+        const desktop = t.classList.contains('activity-ticker-desktop');
+        const nav = t.closest('nav');
+        const limit = desktop ? innerHeight * 0.4 : (nav ? nav.getBoundingClientRect().bottom + 8 : 0);
+        t.classList.toggle('da-ticker-away', top < limit);
+      });
+    };
+    const ask = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
+    window.addEventListener('scroll', ask, { passive: true });
+    window.addEventListener('resize', ask);
+    update();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     touchInfo();
+    tickerUntilRanking();
     document.body.appendChild(buildFrame());
     paintMarkers();
     watchRenders();

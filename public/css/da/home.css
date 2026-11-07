@@ -204,6 +204,11 @@ html.da-atelier .activity-ticker {
 }
 html.da-atelier .activity-ticker-desktop { border-top: 1.5px solid var(--ink); }
 html.da-atelier .activity-ticker-mobile { position: relative; margin-top: 14px; border-bottom: 1.5px solid var(--ink); }
+/* Le télex s'efface une fois le classement du round atteint (js/da-atelier.js) */
+html.da-atelier .activity-ticker { transition: opacity 0.25s ease, transform 0.25s ease, height 0.25s ease, margin 0.25s ease; }
+html.da-atelier .activity-ticker-desktop.da-ticker-away { opacity: 0; transform: translateY(100%); pointer-events: none; }
+html.da-atelier .activity-ticker-mobile.da-ticker-away { opacity: 0; height: 0; margin-top: 0; border-width: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { html.da-atelier .activity-ticker { transition: none; } }
 html.da-atelier .activity-ticker::before {
   content: "Sorties";
   position: relative;
@@ -1234,7 +1239,7 @@ html.da-atelier .recap-top1-value { font-size: 14px; }
 /* Jauge collective de D+ : même dessin que la règle du temps écoulé (cadre,
    graduations, partie remplie au marqueur), sur toute la largeur du bloc 01 */
 html.da-atelier .elevation-gauge {
-  margin: 0 0 28px;
+  margin: 0 0 48px;
   padding: 4px 0 14px;
   background: none;
   border: 0;
@@ -1304,6 +1309,13 @@ html.da-atelier .gauge-tick--goal { font: 600 20px/1 var(--f-hand); color: var(-
 html.da-atelier .gauge-tick--goal::before { display: none; }
 html.da-atelier :is(.gauge-status, .gauge-sub) { font: 500 13px/1.5 var(--f-sans); color: var(--sub); }
 html.da-atelier .gauge-status strong { color: var(--ink); }
+/* Téléphone : pas de sous-titre sous les onglets de l'accueil (« Faites du D+… »,
+   « Points totaux = … ») ; l'espace reste, pour laisser respirer */
+@media (max-width: 600px) {
+  html.da-atelier :is(#ranking, #standings, #history) > .section-header > .section-desc { display: none; }
+  html.da-atelier :is(#ranking, #standings, #history) > .section-header { margin-bottom: 26px; }
+}
+
 /* Jauge allégée : titre, palier actuel, barre ; le détail dans une infobulle
    au survol de la barre, ou au toucher sur téléphone */
 html.da-atelier .gauge-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
