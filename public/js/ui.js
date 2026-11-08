@@ -134,7 +134,7 @@ export function renderCombinedBanner(container, data) {
            aria-label="Round du ${gaugeDay(gaugeStart)} au ${gaugeDay(gaugeEnd)} à 23 h 59, ${Math.round(elapsedPct)} % écoulé">
         <div class="da-round-gauge__track"><div class="da-round-gauge__fill"></div></div>
         <div class="da-round-gauge__marks" aria-hidden="true">
-          <span>${gaugeDay(gaugeStart)}</span><span class="da-round-gauge__today">AUJ.</span><span>${gaugeDay(gaugeEnd)} 23:59</span>
+          <span class="da-round-gauge__start">${gaugeDay(gaugeStart)}</span><span class="da-round-gauge__today">AUJ.</span><span>${gaugeDay(gaugeEnd)}<span class="da-round-gauge__hour"> 23:59</span></span>
         </div>
       </div>` : '';
 
@@ -183,6 +183,7 @@ export function renderCombinedBanner(container, data) {
       ` : ''}
     </div>
     ${roundGauge}
+    ${isRoundActive && timeRemaining > 0 ? '<div class="da-round-notes da-round-notes--end da-only"></div>' : ''}
   `;
 
   // Démarrer le countdown en temps réel si le round est actif
@@ -197,11 +198,11 @@ export function renderCombinedBanner(container, data) {
  * rédigées depuis app.js. { text, circled } : circled = entourée au stylo.
  */
 export function renderRoundNotes(notes) {
-  const slot = document.getElementById('daRoundNotes');
-  if (!slot) return;
-  slot.innerHTML = notes.map(n =>
+  // deux places : dans le compte à rebours (PC), en bas du cartouche (téléphone)
+  const html = notes.map(n =>
     `<p class="da-round-note${n.circled ? ' da-round-note--circled' : ''}">${n.text}</p>`
   ).join('');
+  document.querySelectorAll('#daRoundNotes, .da-round-notes--end').forEach(slot => { slot.innerHTML = html; });
 }
 
 // Timer pour mise à jour en temps réel du countdown

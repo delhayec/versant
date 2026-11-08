@@ -677,7 +677,7 @@
       today.style.visibility = '';
       const t = today.getBoundingClientRect();
       const clash = [...marks.children].some(o => {
-        if (o === today) return false;
+        if (o === today || getComputedStyle(o).visibility === 'hidden') return false;
         const r = o.getBoundingClientRect();
         return t.left < r.right + 6 && t.right > r.left - 6;
       });

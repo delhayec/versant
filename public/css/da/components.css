@@ -161,7 +161,7 @@ html.da-atelier section:has(> .section-header > .section-number) {
   box-sizing: border-box;
   width: calc(100% - 2 * var(--container-padding));
   max-width: 1400px;
-  margin: 128px auto 0;   /* espace entre les sections */
+  margin: 108px auto 0;   /* espace entre les sections */
   padding: var(--f2-pad-top) var(--f2-pad-x) 24px;
   border: 1.5px solid var(--ink);
   background: var(--panel);
@@ -223,7 +223,7 @@ html.da-atelier .tour-step .section-header > .section-desc {
     --f2-pad-x: 12px;
     --f2-pad-top: 14px;
     width: calc(100% - 16px);
-    margin-top: 140px;   /* onglet de 44 px compris : ~95 px de vide visible */
+    margin-top: 116px;   /* onglet de 44 px compris : ~70 px de vide visible */
   }
   html.da-atelier .section-header > .section-number { width: 40px; font-size: 14px; }
   html.da-atelier .section-header > .section-number + .section-title { padding: 0 12px; font-size: 13px; }
@@ -421,10 +421,10 @@ html.da-atelier .nav-links { margin-left: auto; justify-content: flex-end; }
 @media (min-width: 900px) {
   html.da-atelier .nav-sticky { padding-top: calc(var(--frame-gap) + 18px); }
 }
-/* Collée : sur téléphone, le logo s'efface pour laisser la place aux liens
+/* Téléphone : pas de logo dans la barre, collée ou non, la place va aux liens
    (sur grand écran, il reste en entier : la barre a la place) */
 @media (max-width: 600px) {
-  html.da-atelier.da-nav-stuck .nav-brand { display: none; }
+  html.da-atelier .nav-brand { display: none; }
 }
 
 /* Rature au stylo rouge (js/da-atelier.js) : éliminés de l'historique,

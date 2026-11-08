@@ -38,7 +38,7 @@ import {
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
   renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge
-} from './ui.js?v=20261118b';
+} from './ui.js?v=20261118c';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 

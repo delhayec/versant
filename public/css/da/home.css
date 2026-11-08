@@ -1258,15 +1258,13 @@ html.da-atelier .recap-top1-value { font-size: 14px; }
 /* Jauge collective de D+ : même dessin que la règle du temps écoulé (cadre,
    graduations, partie remplie au marqueur), sur toute la largeur du bloc 01 */
 html.da-atelier .elevation-gauge {
-  margin: 0 0 48px;
-  padding: 4px 0 14px;
+  margin: 0 0 36px;
+  padding: 4px 0 8px;
   background: none;
   border: 0;
-  border-bottom: 1.5px solid var(--ink);
   border-radius: 0;
   color: var(--ink);
 }
-html.da-atelier .elevation-gauge.is-preview { border-bottom-style: dashed; }
 html.da-atelier .gauge-title { font: var(--lbl); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
 html.da-atelier .gauge-values { font: 500 13px var(--f-mono); color: var(--sub); }
 html.da-atelier .gauge-values strong { font: 600 30px/1 var(--f-hand); color: var(--pen); margin-left: 6px; }
@@ -1560,4 +1558,27 @@ html.da-atelier .athlete-activity-sport .picto { display: block; width: 46px; he
 /* Téléphone : pas de télex, les sorties se lisent dans le classement (tap sur un joueur) */
 @media (max-width: 768px) {
   html.da-atelier .activity-ticker-mobile { display: none !important; }
+}
+
+/* ============================================
+   TÉLÉPHONE : cartouche du round, version G (planche du 8 nov. 2026)
+   Compte à rebours sans étiquette ni secondes, une ligne saison · round · jour,
+   frise avec « auj. » et le jour de fin, la note manuscrite en bas.
+   ============================================ */
+html.da-atelier .da-round-notes--end { display: none; }
+@media (max-width: 600px) {
+  html.da-atelier .banner-countdown-block > .banner-label { display: none; }
+  html.da-atelier .banner-countdown-block > .banner-countdown-timer { justify-content: flex-start; }
+  html.da-atelier .countdown-unit:last-child { display: none; }
+  html.da-atelier .banner-countdown-block > .da-round-notes { display: none; }
+  html.da-atelier .da-round-notes--end:not(:empty) { display: block; margin: 0; padding: 2px 14px 12px; }
+  html.da-atelier .banner-season-block,
+  html.da-atelier .banner-round-block { padding-top: 4px; padding-bottom: 4px; }
+  html.da-atelier .banner-season-block { padding-right: 0; }
+  html.da-atelier .banner-round-block { border-left: 0; justify-content: flex-start; padding-left: 10px; }
+  html.da-atelier .banner-value,
+  html.da-atelier .banner-day b { font-size: 20px; }
+  html.da-atelier .banner-season-block .banner-value::after { content: " ·"; margin-left: 6px; }
+  html.da-atelier .da-round-gauge__start { visibility: hidden; }
+  html.da-atelier .da-round-gauge__hour { display: none; }
 }
