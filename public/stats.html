@@ -30,11 +30,11 @@
 
   <link rel="icon" type="image/svg+xml" href="/assets/pictos/favicon.svg?v=20261117a">
   <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
-  <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
+  <link rel="stylesheet" href="css/da/tokens.css?v=20261119f">
   <link rel="stylesheet" href="css/da/base.css?v=20261106a">
   <link rel="stylesheet" href="css/da/components.css?v=20261119d">
   <link rel="stylesheet" href="css/da/pages.css?v=20261119e">
-  <link rel="stylesheet" href="css/da/stats.css?v=20261119c">
+  <link rel="stylesheet" href="css/da/stats.css?v=20261119f">
 </head>
 <body>
   <!-- Loading Screen -->
@@ -196,40 +196,10 @@
   </section>
 
 
-  <!-- 02. Explorations (carte) -->
-
-  <section class="map-section" id="mapSection">
-    <div class="section-header">
-      <span class="section-number">03</span>
-      <h2 class="section-title">Explorations (WIP) </h2>
-      <p class="section-desc">Traces GPS de toutes les activités</p>
-    </div>
-
-    <div class="map-layout">
-      <aside id="countryStatsContainer" class="country-panel"></aside>
-      <div id="map" class="map-container"></div>
-      <aside id="legendContainer" class="legend-panel"></aside>
-    </div>
-  </section>
-
-
-  <!-- 03. Flux d'activités (Sankey) -->
-  <section class="sankey-section">
-    <div class="section-header">
-      <span class="section-number">04</span>
-      <h2 class="section-title">Flux d'activités</h2>
-      <p class="section-desc">Qui fait quoi — athlètes ↔ sports</p>
-    </div>
-
-    <div class="sankey-container">
-      <div id="sankeyChart"></div>
-    </div>
-  </section>
-
-  <!-- 04. Calendrier (heatmap) -->
+  <!-- 03. Calendrier (heatmap) -->
   <section class="heatmap-section">
     <div class="section-header">
-      <span class="section-number">05</span>
+      <span class="section-number">03</span>
       <h2 class="section-title">Calendrier</h2>
       <p class="section-desc">Dénivelé quotidien, meilleur round et meilleure saison</p>
     </div>
@@ -255,10 +225,10 @@
     </div>
   </section>
 
-  <!-- 05. Rythmes (ridgeline par sport) -->
+  <!-- 04. Rythmes (ridgeline par sport) -->
   <section class="ridgeline-section">
     <div class="section-header">
-      <span class="section-number">06</span>
+      <span class="section-number">04</span>
       <h2 class="section-title">Rythmes</h2>
       <p class="section-desc">Répartition horaire des activités par sport</p>
     </div>
@@ -268,10 +238,10 @@
     </div>
   </section>
 
-  <!-- 06. Rythmes par jour de round -->
+  <!-- 05. Rythmes par jour de round -->
   <section class="round-ridgeline-section">
     <div class="section-header">
-      <span class="section-number">07</span>
+      <span class="section-number">05</span>
       <h2 class="section-title">Rythmes par jour de round</h2>
       <p class="section-desc">À quel moment du round les gens bougent-ils ? Jour 1 → Jour 5</p>
     </div>
@@ -281,7 +251,37 @@
     </div>
   </section>
 
-  <!-- 07. Sorties en groupe -->
+  <!-- 06. Explorations (carte) -->
+
+  <section class="map-section" id="mapSection">
+    <div class="section-header">
+      <span class="section-number">06</span>
+      <h2 class="section-title">Explorations (WIP) </h2>
+      <p class="section-desc">Traces GPS de toutes les activités</p>
+    </div>
+
+    <div class="map-layout">
+      <aside id="countryStatsContainer" class="country-panel"></aside>
+      <div id="map" class="map-container"></div>
+      <aside id="legendContainer" class="legend-panel"></aside>
+    </div>
+  </section>
+
+
+  <!-- 07. Flux d'activités (Sankey) -->
+  <section class="sankey-section">
+    <div class="section-header">
+      <span class="section-number">07</span>
+      <h2 class="section-title">Flux d'activités</h2>
+      <p class="section-desc">Qui fait quoi — athlètes ↔ sports</p>
+    </div>
+
+    <div class="sankey-container">
+      <div id="sankeyChart"></div>
+    </div>
+  </section>
+
+  <!-- 08. Sorties en groupe -->
   <section class="social-section">
     <div class="section-header">
       <span class="section-number">08</span>
@@ -413,6 +413,6 @@
   <!-- Module principal -->
   <script src="shared/team-formation.js?v=20260417"></script>
   <script src="shared/edition-rules.js?v=20261028d"></script>
-  <script type="module" src="js/stats.js?v=20261119c"></script>
+  <script type="module" src="js/stats.js?v=20261119g"></script>
 </body>
 </html>

@@ -44,7 +44,7 @@ import { picto, medal as medalPicto } from './pictos.js?v=20261119a';
 import {
   SPORT_STYLE, styleSocialDA, drawSportBand, drawRankingBars, drawCalendarDots,
   drawCompare, drawPoints, drawMoneyTime, drawRidgeline
-} from './stats-da.js?v=20261119c';
+} from './stats-da.js?v=20261119g';
 
 // ============================================
 // CONSTANTES & HELPERS

@@ -149,6 +149,7 @@ html.da-atelier {
   --mt-3: #DEA067;
   --mt-4: #D36536;
   --mt-5: #935528;
+  --mt-6: #4E2C14;   /* money time : brun foncé, au bout de la gradation des jours */
 }
 
 /* --- Sombre : cyanotype (système en sombre, sauf choix « clair ») --- */
@@ -216,6 +217,7 @@ html.da-atelier {
     --mt-3: #90B7A4;
     --mt-4: #E59C66;
     --mt-5: #C47E60;
+    --mt-6: #A0583A;
   }
 }
 /* --- Sombre forcé par le bouton (mêmes valeurs) --- */
@@ -282,6 +284,7 @@ html.da-atelier[data-theme="dark"] {
   --mt-3: #90B7A4;
   --mt-4: #E59C66;
   --mt-5: #C47E60;
+  --mt-6: #A0583A;
 }
 
 /* --- Typographie et repères communs aux deux thèmes --- */

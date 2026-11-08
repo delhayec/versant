@@ -111,11 +111,17 @@ export function drawRankingBars(dom, stats, nameOf) {
    CALENDRIER : un point d'encre par jour, plus gros quand on a grimpé
    ============================================================ */
 export function drawCalendarDots(dom, dailyEl, startStr, endStr, marks = null) {
-  if ((dom.clientWidth || 1000) < 560) return drawCalendarMonths(dom, dailyEl, startStr, endStr, marks);
+  // Grille façon GitHub partout : une colonne par semaine, un jour par ligne
+  // (tous les samedis sur la même ligne). Sur écran étroit, la grille défile
+  // et s'ouvre sur les semaines les plus récentes.
+  requestAnimationFrame(() => { dom.scrollLeft = dom.scrollWidth; });
   const day = 86400000, start = new Date(startStr + 'T00:00:00Z'), end = new Date(endStr + 'T00:00:00Z');
   const lun = new Date(start); lun.setUTCDate(lun.getUTCDate() - ((lun.getUTCDay() + 6) % 7));
   const cols = Math.ceil(((end - lun) / day + 1) / 7);
-  const s = 17, x0 = 34, y0 = 34, W = x0 + cols * s + 12, H = y0 + 7 * s + 58 + (marks?.round || marks?.season ? 28 : 0);
+  const s = 17, x0 = 34, y0 = 34, W = x0 + cols * s + 12;
+  // Grille plus large que l'écran : elle défile, la légende se cale à droite (côté visible)
+  const narrow = (dom.clientWidth || 1000) < W - 4, hasMarks = !!(marks?.round || marks?.season);
+  const H = y0 + 7 * s + 58 + (hasMarks ? (narrow ? 52 : 28) : 0);
   const { g } = sheet(dom, W, H, 'sk-cal sk-wide');
   const tip = tooltip(dom);
   const vals = Object.values(dailyEl), max = Math.max(...vals, 1);
@@ -151,7 +157,8 @@ export function drawCalendarDots(dom, dailyEl, startStr, endStr, marks = null) {
     line(g, lx, y0 + 7 * s + 14, cx, cy + 12, { cls: 'sk-pen', w: 1.2, over: 0 });
   }
   drawRangeMarks(g, cells, marks, c => ({ M: x0 + c.c * s + s / 2, m: y0 + c.r * s + s / 2 }), s / 2, s / 2, true);
-  rangeLegend(g, x0, y0 + 7 * s + 66, marks, 300);
+  if (narrow) rangeLegend(g, W - 12, y0 + 7 * s + 66, marks, 0, true);
+  else rangeLegend(g, x0, y0 + 7 * s + 66, marks, 300);
   // Légende : trois tailles de point et leur valeur
   const lx = W - 12 - 3 * 86, ly = y0 + 7 * s + 34;
   [0.15, 0.45, 1].forEach((k, i) => {
@@ -249,18 +256,30 @@ function drawRangeMarks(g, cells, marks, pos, hM, hm, majorIsX) {
     }
   }
   if (marks?.round) {
+    // Sous les points : le point du record (orange) reste lisible
+    const under = el('g', { class: 'sk-under' }, g);
+    g.insertBefore(under, g.firstChild);
     rangeLines(cells, marks.round.a, marks.round.b, pos).forEach(l => {
       const [x1, y1] = xy(l.M, l.lo - hm * .45), [x2, y2] = xy(l.M, l.hi + hm * .45);
-      path(g, lineD(x1, y1, x2, y2, .4, 0), 'sk-mk sk-mk--pen', hM * 1.6);
+      path(under, lineD(x1, y1, x2, y2, .4, 0), 'sk-mk sk-mk--pen', hM * 1.6);
     });
   }
 }
-function rangeLegend(g, x, y, marks, gapX) {
+function rangeLegend(g, x, y, marks, gapX, alignEnd = false) {
   const items = [];
   if (marks?.round) items.push(['round', `meilleur ${marks.round.label} : ${nf(marks.round.v)} m`]);
   if (marks?.season) items.push(['season', `meilleure ${marks.season.label} : ${nf(marks.season.v)} m`]);
   items.forEach(([k, lbl], i) => {
-    const ix = x + (gapX ? i * gapX : 0), iy = y + (gapX ? 0 : i * 24);
+    let ix = x + (gapX ? i * gapX : 0);
+    const iy = y + (gapX ? 0 : i * 24);
+    if (alignEnd) {
+      // Texte calé sur x par la fin, la marque posée juste devant
+      const t = text(g, x, iy, lbl, 'sk-hand-s', 'end');
+      ix = x - (t.getComputedTextLength?.() || lbl.length * 7) - 30;
+      if (k === 'round') path(g, lineD(ix, iy - 5, ix + 22, iy - 5, .4, 0), 'sk-mk sk-mk--pen', 9);
+      else path(g, rectD(ix + 1, iy - 11, 20, 12, .3, 1), 'sk-season', 1, false);
+      return;
+    }
     if (k === 'round') path(g, lineD(ix, iy - 5, ix + 22, iy - 5, .4, 0), 'sk-mk sk-mk--pen', 9);
     else path(g, rectD(ix + 1, iy - 11, 20, 12, .3, 1), 'sk-season', 1, false);
     text(g, ix + 30, iy, lbl, 'sk-hand-s');
@@ -431,7 +450,7 @@ export function drawPoints(dom, seasons, byAthlete, mode, selectedId, tipFor) {
    ============================================================ */
 export const MONEY_STYLE = [
   { color: 'var(--mt-1)' }, { color: 'var(--mt-2)' }, { color: 'var(--mt-3)' },
-  { color: 'var(--mt-4)' }, { color: 'var(--mt-5)' }, { mk: true },
+  { color: 'var(--mt-4)' }, { color: 'var(--mt-5)' }, { color: 'var(--mt-6)' },
 ];
 export function drawMoneyTime(dom, entries, labels, tipFor) {
   // Écran étroit : à la largeur de l'écran, prénoms seuls, légende sur plusieurs lignes

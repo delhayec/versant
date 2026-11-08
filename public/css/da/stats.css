@@ -283,3 +283,11 @@ html.da-atelier .sk-season { stroke: var(--ink); fill: none; stroke-linecap: rou
   html.da-atelier body:has(.stats-filters) .nav-sticky { display: none !important; }
   html.da-atelier .stats-filters { top: 0 !important; }
 }
+
+/* Téléphone en paysage : les deux graphiques de la vue d'ensemble côte à côte, comme sur PC */
+@media (orientation: landscape) and (max-height: 500px) {
+  html.da-atelier .stat-duo { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+  html.da-atelier .stat-duo > .stat-ranking-mini { border-top: 0 !important; border-left: 1px dashed var(--grid-major) !important; }
+  html.da-atelier .stats-grid > .stat-card.stat-primary { grid-column: span 2; }
+  html.da-atelier .stats-grid > .stat-card.stat-highlight { grid-column: span 2; }
+}
