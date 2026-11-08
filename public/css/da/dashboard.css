@@ -113,7 +113,6 @@ html.da-atelier #challengeStatus span[style*="#10b981"] { color: var(--up) !impo
 html.da-atelier #challengeStatus .da-struck::after { color: var(--accent-text); }
 html.da-atelier #challengeStatus .da-elim-word { display: inline-block; margin-right: 12px; font: 600 26px/1 var(--f-hand); color: var(--accent-text); transform: translateY(-6px) rotate(-4deg); }
 /* Round actuel : numéro, jour et fin du round notés à la main */
-html.da-atelier .dashboard-card :is(#currentRoundNumber, #dayInRound, #roundEndDate) { font: 600 26px/1 var(--f-hand); color: var(--pen); }
 /* D+ du round : vert dans le top 3, orange dans la zone de danger */
 html.da-atelier #roundElevation[style*="rgb(16, 185, 129)"] { color: var(--up) !important; }
 html.da-atelier #roundElevation[style*="rgb(239, 68, 68)"] { color: var(--down) !important; }
@@ -300,7 +299,6 @@ html.da-atelier .dashboard-notification.error { background: var(--down) !importa
   html.da-atelier .dashboard-card > .card-title { font-size: 13px; padding-right: 12px; }
   html.da-atelier .dashboard-card > .card-title::before { width: 40px; font-size: 14px; }
   html.da-atelier .dashboard-card .stat-value { font-size: 16px; }
-  html.da-atelier .dashboard-card :is(#currentRoundNumber, #dayInRound, #roundEndDate) { font-size: 24px; }
 }
 /* Pas de halo derrière les pictos (ombres de l'ancienne DA) */
 html.da-atelier :is(.joker-icon, .bonus-icon, .modal-header-icon, .bonus-choice-icon) { filter: none !important; text-shadow: none !important; background: none !important; }

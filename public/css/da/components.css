@@ -698,3 +698,4 @@ html.da-atelier .picto--sport-escalade { --pi: url("../../assets/pictos/sports/e
 html.da-atelier:not(.pictos-v1) .picto--succes-runner { --pi: url("../../assets/pictos/sports/trail.svg?v=20261116a"); }
 html.da-atelier:not(.pictos-v1) .picto--succes-cyclist { --pi: url("../../assets/pictos/sports/velo.svg?v=20261116a"); }
 html.da-atelier:not(.pictos-v1) .picto--succes-hiker { --pi: url("../../assets/pictos/sports/rando.svg?v=20261116a"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-skier { --pi: url("../../assets/pictos/sports/ski-rando.svg?v=20261116a"); }
