@@ -42,9 +42,9 @@ import {
 import { isDA, cssVar } from './da-sketch.js?v=20261116a';
 import { picto, medal as medalPicto } from './pictos.js?v=20261119a';
 import {
-  SPORT_STYLE, styleSocialDA, drawSportBand, drawRankingBars, drawCalendarDots, drawHatchBars,
+  SPORT_STYLE, styleSocialDA, drawSportBand, drawRankingBars, drawCalendarDots,
   drawCompare, drawPoints, drawMoneyTime, drawRidgeline
-} from './stats-da.js?v=20261116a';
+} from './stats-da.js?v=20261119c';
 
 // ============================================
 // CONSTANTES & HELPERS
@@ -1127,6 +1127,29 @@ function renderSankey(data) {
 // CALENDAR HEATMAP + BARRES PERF
 // ============================================
 
+/**
+ * Calendrier : le round et la saison où l'on a le plus grimpé (jours locaux,
+ * comme les rounds). Rounds et saisons terminés ou en cours, jamais à venir.
+ */
+function calendarHighlights(dailyEl) {
+  const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const today = key(new Date());
+  const sum = (a, b) => { let t = 0; for (const [k, v] of Object.entries(dailyEl)) if (k >= a && k <= b) t += v; return t; };
+  const nowRound = getGlobalRoundNumber(new Date());
+  let round = null, season = null;
+  for (let sn = 1; sn <= getSeasonNumber(new Date()); sn++) {
+    const first = getSeasonStartRound(sn), n = getRoundsForSeason(sn);
+    if (first > nowRound) break;
+    for (let r = first; r < first + n && r <= nowRound; r++) {
+      const { start, end } = getRoundDates(r), a = key(start), b = key(end) > today ? today : key(end), v = sum(a, b);
+      if (v > 0 && (!round || v > round.v)) round = { a, b, v, label: `round ${r - first + 1} de la saison ${sn}` };
+    }
+    const a = key(getRoundDates(first).start), last = key(getRoundDates(first + n - 1).end), b = last > today ? today : last, v = sum(a, b);
+    if (v > 0 && (!season || v > season.v)) season = { a, b, v, label: `saison ${sn}` };
+  }
+  return { round, season };
+}
+
 let calendarChart = null;
 function renderCalendar(data) {
   const dom = document.getElementById('calendarHeatmap');
@@ -1148,9 +1171,7 @@ function renderCalendar(data) {
   const endStr = `${year}-12-31`;
 
   if (isDA()) {
-    drawCalendarDots(dom, dailyEl, startStr, endStr);
-    renderWeeklyBars(data, year);
-    renderMonthlyBars(data, year);
+    drawCalendarDots(dom, dailyEl, startStr, endStr, calendarHighlights(dailyEl));
     return;
   }
   calendarChart = echarts.init(dom);
@@ -1197,95 +1218,8 @@ function renderCalendar(data) {
     series: [{ type: 'heatmap', coordinateSystem: 'calendar', data: calendarData }]
   });
 
-  // Barres hebdo/mensuelles
-  renderWeeklyBars(data, year);
-  renderMonthlyBars(data, year);
 }
 
-function renderWeeklyBars(data, year) {
-  const container = document.getElementById('weeklyBars');
-  if (!container) return;
-
-  const weeklyData = new Map();
-  for (const a of data) {
-    const d = new Date(a.start_date);
-    if (d.getFullYear() !== year) continue;
-    const w = getISOWeek(d);
-    weeklyData.set(w, (weeklyData.get(w) || 0) + (a.total_elevation_gain || 0));
-  }
-
-  const allWeeks = [];
-  for (let i = 1; i <= 52; i++) {
-    allWeeks.push({ week: `S${i}`, value: weeklyData.get(i) || 0 });
-  }
-
-  if (isDA()) {
-    drawHatchBars(container, allWeeks.map((w, i) => ({
-      value: w.value,
-      tick: (i + 1) % 4 === 1 ? `S${i + 1}` : '',
-      tip: `<b>S${i + 1}</b><br>${formatElevationCompact(w.value)} m`,
-      best: `${formatElevationCompact(w.value)} m`
-    })));
-    return;
-  }
-
-  const maxValue = Math.max(...allWeeks.map(w => w.value), 1);
-
-  const barsHTML = allWeeks.map((w, i) => {
-    const height = (w.value / maxValue) * 100;
-    const weekNum = i + 1;
-    const showLabel = weekNum % 4 === 1;
-    return `
-      <div class="perf-bar" style="height:${Math.max(height, 2)}%;transition:height .5s ease-out ${i * 15}ms">
-        <div class="perf-bar-tooltip">
-          <strong>S${weekNum}</strong><br>
-          ↑ ${formatElevationCompact(w.value)} m
-        </div>
-        ${showLabel ? `<span class="perf-bar-label">${weekNum}</span>` : ''}
-      </div>`;
-  }).join('');
-
-  container.innerHTML = barsHTML;
-}
-
-function renderMonthlyBars(data, year) {
-  const container = document.getElementById('monthlyBars');
-  if (!container) return;
-
-  const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-  const monthlyData = new Array(12).fill(0);
-  for (const a of data) {
-    const d = new Date(a.start_date);
-    if (d.getFullYear() !== year) continue;
-    monthlyData[d.getMonth()] += a.total_elevation_gain || 0;
-  }
-
-  if (isDA()) {
-    drawHatchBars(container, monthlyData.map((v, i) => ({
-      value: v,
-      tick: monthNames[i],
-      tip: `<b>${monthNames[i]}</b><br>${formatElevationCompact(v)} m`,
-      best: `${formatElevationCompact(v)} m`
-    })));
-    return;
-  }
-
-  const maxValue = Math.max(...monthlyData, 1);
-
-  const barsHTML = monthlyData.map((v, i) => {
-    const height = (v / maxValue) * 100;
-    return `
-      <div class="perf-bar" style="height:${Math.max(height, 2)}%;transition:height .6s ease-out ${i * 50}ms">
-        <div class="perf-bar-tooltip">
-          <strong>${monthNames[i]}</strong><br>
-          ↑ ${formatElevationCompact(v)} m
-        </div>
-        <span class="perf-bar-label">${monthNames[i]}</span>
-      </div>`;
-  }).join('');
-
-  container.innerHTML = barsHTML;
-}
 
 // ============================================
 // RIDGELINE : par sport

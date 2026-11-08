@@ -110,12 +110,12 @@ export function drawRankingBars(dom, stats, nameOf) {
 /* ============================================================
    CALENDRIER : un point d'encre par jour, plus gros quand on a grimpé
    ============================================================ */
-export function drawCalendarDots(dom, dailyEl, startStr, endStr) {
-  if ((dom.clientWidth || 1000) < 560) return drawCalendarMonths(dom, dailyEl, startStr, endStr);
+export function drawCalendarDots(dom, dailyEl, startStr, endStr, marks = null) {
+  if ((dom.clientWidth || 1000) < 560) return drawCalendarMonths(dom, dailyEl, startStr, endStr, marks);
   const day = 86400000, start = new Date(startStr + 'T00:00:00Z'), end = new Date(endStr + 'T00:00:00Z');
   const lun = new Date(start); lun.setUTCDate(lun.getUTCDate() - ((lun.getUTCDay() + 6) % 7));
   const cols = Math.ceil(((end - lun) / day + 1) / 7);
-  const s = 17, x0 = 34, y0 = 34, W = x0 + cols * s + 12, H = y0 + 7 * s + 58;
+  const s = 17, x0 = 34, y0 = 34, W = x0 + cols * s + 12, H = y0 + 7 * s + 58 + (marks?.round || marks?.season ? 28 : 0);
   const { g } = sheet(dom, W, H, 'sk-cal sk-wide');
   const tip = tooltip(dom);
   const vals = Object.values(dailyEl), max = Math.max(...vals, 1);
@@ -150,6 +150,8 @@ export function drawCalendarDots(dom, dailyEl, startStr, endStr) {
     text(g, lx, y0 + 7 * s + 30, lbl, 'sk-hand', 'middle');
     line(g, lx, y0 + 7 * s + 14, cx, cy + 12, { cls: 'sk-pen', w: 1.2, over: 0 });
   }
+  drawRangeMarks(g, cells, marks, c => ({ M: x0 + c.c * s + s / 2, m: y0 + c.r * s + s / 2 }), s / 2, s / 2, true);
+  rangeLegend(g, x0, y0 + 7 * s + 66, marks, 300);
   // Légende : trois tailles de point et leur valeur
   const lx = W - 12 - 3 * 86, ly = y0 + 7 * s + 34;
   [0.15, 0.45, 1].forEach((k, i) => {
@@ -168,12 +170,12 @@ export function drawCalendarDots(dom, dailyEl, startStr, endStr) {
   hit.addEventListener('pointerleave', () => tip.hide());
 }
 /** Calendrier sur écran étroit : une ligne par mois, une colonne par jour du mois */
-function drawCalendarMonths(dom, dailyEl, startStr, endStr) {
+function drawCalendarMonths(dom, dailyEl, startStr, endStr, marks = null) {
   const day = 86400000, start = new Date(startStr + 'T00:00:00Z'), end = new Date(endStr + 'T00:00:00Z');
   const months = [];
   for (let m = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1)); m <= end; m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1))) months.push(m);
   const W = widthOf(dom, 280, 560), x0 = 42, s = (W - x0 - 6) / 31, rh = Math.max(15, s + 4), y0 = 24;
-  const H = y0 + months.length * rh + 52;
+  const extra = marks?.round || marks?.season ? 52 : 0, H = y0 + months.length * rh + 52 + extra;
   const { g } = sheet(dom, W, H, 'sk-cal-m');
   const tip = tooltip(dom);
   const vals = Object.values(dailyEl), max = Math.max(...vals, 1);
@@ -204,9 +206,11 @@ function drawCalendarMonths(dom, dailyEl, startStr, endStr) {
       const cx = x0 + (b.d - 1) * s + s / 2, cy = y0 + b.r * rh + rh / 2;
       path(g, loopD(cx, cy, 8, 8), 'sk-pen', 1.4);
       const lbl = `record : ${nf(best[1])} m, le ${new Date(best[0] + 'T00:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`;
-      text(g, W / 2, H - 16, lbl, 'sk-hand', 'middle');
+      text(g, W / 2, H - 16 - extra, lbl, 'sk-hand', 'middle');
     }
   }
+  drawRangeMarks(g, cells, marks, c => ({ M: y0 + c.r * rh + rh / 2, m: x0 + (c.d - 1) * s + s / 2 }), rh / 2, s / 2, false);
+  rangeLegend(g, x0 - 34, H - 36, marks, 0);
   const hit = el('rect', { x: x0, y: y0, width: 31 * s, height: months.length * rh, fill: 'transparent' }, g);
   hit.addEventListener('pointermove', ev => {
     const p = svgPoint(hit, ev), d = Math.floor((p.x - x0) / s) + 1, r = Math.floor((p.y - y0) / rh);
@@ -216,6 +220,51 @@ function drawCalendarMonths(dom, dailyEl, startStr, endStr) {
     tip.show(`<b>${lbl}</b><br>${cell.v ? nf(cell.v) + ' m de D+' : 'aucune sortie'}`, ev);
   });
   hit.addEventListener('pointerleave', () => tip.hide());
+}
+/**
+ * Calendrier : le meilleur round en trait de marqueur bleu sur ses points, la
+ * meilleure saison dans un cadre au crayon fin. Chaque ligne du calendrier
+ * (semaine ou mois) donne un segment ; le cadre suit l'escalier des lignes.
+ */
+function rangeLines(cells, a, b, pos) {
+  const by = new Map();
+  for (const c of cells) {
+    if (c.key < a || c.key > b) continue;
+    const p = pos(c), l = by.get(p.M) || { M: p.M, lo: Infinity, hi: -Infinity };
+    l.lo = Math.min(l.lo, p.m); l.hi = Math.max(l.hi, p.m);
+    by.set(p.M, l);
+  }
+  return [...by.values()].sort((x, y) => x.M - y.M);
+}
+function drawRangeMarks(g, cells, marks, pos, hM, hm, majorIsX) {
+  const xy = (M, m) => majorIsX ? [M, m] : [m, M];
+  if (marks?.season) {
+    const ls = rangeLines(cells, marks.season.a, marks.season.b, pos), pad = hm * .95;
+    if (ls.length) {
+      const pts = [];
+      ls.forEach(l => pts.push(xy(l.M - hM, l.hi + pad), xy(l.M + hM, l.hi + pad)));
+      ls.slice().reverse().forEach(l => pts.push(xy(l.M + hM, l.lo - pad), xy(l.M - hM, l.lo - pad)));
+      const d = pts.map((p, i) => { const q = pts[(i + 1) % pts.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) < .5 ? '' : lineD(p[0], p[1], q[0], q[1], .3, 1); }).join(' ');
+      path(g, d, 'sk-season', 1, false);
+    }
+  }
+  if (marks?.round) {
+    rangeLines(cells, marks.round.a, marks.round.b, pos).forEach(l => {
+      const [x1, y1] = xy(l.M, l.lo - hm * .45), [x2, y2] = xy(l.M, l.hi + hm * .45);
+      path(g, lineD(x1, y1, x2, y2, .4, 0), 'sk-mk sk-mk--pen', hM * 1.6);
+    });
+  }
+}
+function rangeLegend(g, x, y, marks, gapX) {
+  const items = [];
+  if (marks?.round) items.push(['round', `meilleur ${marks.round.label} : ${nf(marks.round.v)} m`]);
+  if (marks?.season) items.push(['season', `meilleure ${marks.season.label} : ${nf(marks.season.v)} m`]);
+  items.forEach(([k, lbl], i) => {
+    const ix = x + (gapX ? i * gapX : 0), iy = y + (gapX ? 0 : i * 24);
+    if (k === 'round') path(g, lineD(ix, iy - 5, ix + 22, iy - 5, .4, 0), 'sk-mk sk-mk--pen', 9);
+    else path(g, rectD(ix + 1, iy - 11, 20, 12, .3, 1), 'sk-season', 1, false);
+    text(g, ix + 30, iy, lbl, 'sk-hand-s');
+  });
 }
 function svgPoint(node, ev) {
   const svg = node.ownerSVGElement, p = svg.createSVGPoint();
@@ -358,7 +407,7 @@ export function drawPoints(dom, seasons, byAthlete, mode, selectedId, tipFor) {
     if (!pts.length) return;
     const grp = el('g', { class: 'sk-line' + (hot ? ' is-focus' : '') + (faded ? ' is-faded' : '') }, g);
     grp.style.setProperty('--line', crayonOf(id));
-    if (hot) path(grp, smooth(pts), 'sk-mk', 12);
+    if (hot) path(grp, smooth(pts), 'sk-mk', compact ? 10 : 12);
     if (pts.length > 1) curve(grp, pts, { cls: hot ? 'sk-ink' : 'sk-line__stroke', w: hot ? 2.4 : 1.3, amp: .5, passes: hot ? 2 : 1 });
     pts.forEach((p, i) => {
       const dot = el('path', { d: hot ? blotD(p[0], p[1], 3.4) : loopD(p[0], p[1], 3, 3), class: hot ? 'sk-dot' : 'sk-line__dot' }, grp);

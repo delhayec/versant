@@ -255,3 +255,31 @@ html.da-atelier .da-social :is(.soc-arc, .soc-ribbon, .soc-label) { transition: 
 /* Curseur des graphiques (répartition sur la journée) : un trait de marqueur orange */
 html.da-atelier .sk-cursor { stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; opacity: 0.9; pointer-events: none; }
 html.da-atelier .da-tip { z-index: 20; }
+
+/* Calendrier : meilleur round au marqueur bleu, meilleure saison au crayon fin */
+html.da-atelier .sk-mk--pen { stroke: var(--pen); }
+html.da-atelier .sk-season { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+
+/* Téléphone : marges des graphiques divisées par deux, les dessins prennent la place */
+@media (max-width: 600px) {
+  html.da-atelier :is(.sankey-section, .heatmap-section, .ridgeline-section, .round-ridgeline-section, .social-section,
+                      .points-section, .moneytime-section, .compare-section, .ranking-stats-section) { padding-left: 6px !important; padding-right: 6px !important; margin-left: 4px !important; margin-right: 4px !important; }
+  html.da-atelier :is(.sankey-container, .heatmap-container, .ridgeline-container, .social-container, .points-chart-wrapper) { padding: 16px !important; }
+  html.da-atelier .moneytime-chart-wrapper { padding: 10px 8px !important; }
+  html.da-atelier .compare-chart-wrapper { padding: 12px !important; }
+}
+
+/* Barre des filtres sur téléphone : une seule ligne, la plus fine possible */
+@media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
+  html.da-atelier .stats-filters { padding: 4px 8px !important; }
+  html.da-atelier .stats-filters-inner { flex-wrap: nowrap; gap: 6px; }
+  html.da-atelier .stats-filters .filter-group { flex: 1 1 0; min-width: 0; gap: 0; }
+  html.da-atelier .stats-filters .filter-group label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  html.da-atelier .stats-filters .filter-group select { min-width: 0; width: 100%; padding: 3px 6px; font-size: 13px; line-height: 1.2; height: 28px; }
+  html.da-atelier .stats-filters .btn-toggle-ranking { flex: none; width: auto; padding: 0 8px; height: 28px; font-size: 10px; letter-spacing: .06em; white-space: nowrap; margin: 0; }
+}
+/* Téléphone en paysage : la navigation disparaît, les filtres montent tout en haut */
+@media (orientation: landscape) and (max-height: 500px) {
+  html.da-atelier body:has(.stats-filters) .nav-sticky { display: none !important; }
+  html.da-atelier .stats-filters { top: 0 !important; }
+}
