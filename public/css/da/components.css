@@ -95,8 +95,8 @@ html.da-atelier .brand-icon {
   color: transparent;
   overflow: hidden;
   background: var(--ink);
-  -webkit-mask: url("../../assets/pictos/logo.svg") no-repeat center / contain;
-  mask: url("../../assets/pictos/logo.svg") no-repeat center / contain;
+  -webkit-mask: url("../../assets/pictos/logo.svg?v=20261117a") no-repeat center / contain;
+  mask: url("../../assets/pictos/logo.svg?v=20261117a") no-repeat center / contain;
 }
 html.da-atelier .brand-text {
   font-family: var(--f-sans);
