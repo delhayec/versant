@@ -16,9 +16,12 @@ import {
   fetchWithTimeout, loadSeasonPlanning,
   getDayInRound as getDayInRoundAt, getRoundDuration, mechanicActive, mechanicStartSeason, rulesActive,
   setFrozenCache,
-  onDomReady
+  onDomReady,
+  loadParticipants
 } from './config.js';
 import { picto } from './pictos.js';
+import { calculateYearlyStandings } from './standings-engine.js';
+import { motifClass } from './motifs.js';
 import { formatDate, formatElevation } from './ui.js?v=20261110b';
 
 const API_BASE = '/api';
@@ -302,6 +305,16 @@ function renderHeader() {
   const nameEl = document.getElementById('athleteName');
   if (nameEl && currentUser) {
     nameEl.textContent = `${currentUser.name}`;
+    // Le carré du joueur (couleur et motif de l'accueil) : les motifs suivent
+    // l'ordre de la liste des participants, chargée ici à part
+    loadParticipants().then(() => {
+      const cls = motifClass(currentUser.id);
+      if (!cls || nameEl.querySelector('.da-player-mark')) return;
+      const mark = document.createElement('span');
+      mark.className = `da-player-mark ${cls}`;
+      mark.setAttribute('aria-hidden', 'true');
+      nameEl.prepend(mark);
+    }).catch(() => {});
   }
 }
 
@@ -377,11 +390,27 @@ async function renderStats() {
     }
   }
 
-  // Calculer le classement général (points cumulés des rounds figés)
-  const generalRanking = calculateGeneralRanking(frozenResults, athletesList);
-  const myGeneralEntry = generalRanking.find(e => String(e.id) === userId);
-  const overallRank = myGeneralEntry ? generalRanking.indexOf(myGeneralEntry) + 1 : '-';
-  const totalPoints = myGeneralEntry?.points || 0;
+  // Classement général : le même calcul que l'accueil (challenge principal,
+  // challenge des éliminés, bonus). L'ancien calcul ne comptait que les points
+  // du principal : rang et points ne correspondaient pas à l'accueil.
+  let overallRank = '-';
+  let totalPoints = 0;
+  try {
+    const bonusRes = await fetch('/api/bonuses/all');
+    const allBonuses = bonusRes.ok ? await bonusRes.json() : [];
+    const yearly = calculateYearlyStandings(allActivities, new Date(), frozenResults, allBonuses, frozenResults?.seasonBonuses || {}) || [];
+    const mine = yearly.find(e => String(e.participant?.id) === userId);
+    if (mine) {
+      overallRank = mine.rank || yearly.indexOf(mine) + 1;
+      totalPoints = mine.totalPoints || 0;
+    }
+  } catch (error) {
+    console.warn('Classement général indisponible, calcul simplifié :', error);
+    const generalRanking = calculateGeneralRanking(frozenResults, athletesList);
+    const myGeneralEntry = generalRanking.find(e => String(e.id) === userId);
+    overallRank = myGeneralEntry ? generalRanking.indexOf(myGeneralEntry) + 1 : '-';
+    totalPoints = myGeneralEntry?.points || 0;
+  }
 
   // ============================================
   // AFFICHAGE

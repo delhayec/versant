@@ -648,3 +648,14 @@ html.da-atelier .da-touch-tip {
   font: 500 13px/1.4 var(--f-sans);
   pointer-events: none;
 }
+
+/* Dashboard : le carré du joueur, à sa couleur et à son motif, devant son nom */
+html.da-atelier .da-player-mark {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.35em;
+  vertical-align: -0.02em;
+  border: 1.5px solid currentColor;
+}
+html.da-atelier .da-player-mark.da-motif::after { display: none; }

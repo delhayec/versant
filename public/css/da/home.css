@@ -463,6 +463,11 @@ html.da-atelier .sim-button {
   appearance: none;
   padding: 11px 18px;
   margin-block: 16px;
+  /* un vrai cadre plein largeur : Safari ne gardait que les bords haut et bas */
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 0;
 }
 html.da-atelier .arsenal-card {
   border: 1.5px solid var(--ink);
@@ -1316,7 +1321,7 @@ html.da-atelier .gauge-tick::before {
   border-left: 1px solid var(--ink);
 }
 /* « 100 % » écrit à la main sous l'objectif, à l'encre (sa graduation : le trait de l'objectif) */
-html.da-atelier .gauge-tick--goal { font: 600 20px/1 var(--f-hand); color: var(--ink); margin-top: 2px; }
+html.da-atelier .gauge-tick--goal { font: 600 20px/1 var(--f-hand); color: var(--ink); margin-top: 12px; }   /* de l'air sous le trait de l'objectif */
 html.da-atelier .gauge-tick--goal::before { display: none; }
 html.da-atelier :is(.gauge-status, .gauge-sub) { font: 500 13px/1.5 var(--f-sans); color: var(--sub); }
 html.da-atelier .gauge-status strong { color: var(--ink); }
@@ -1511,4 +1516,29 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
   html.da-atelier .ranking-row { padding-right: 2px; }
   html.da-atelier .ranking-row :is(.elevation-cell, .ranking-elevation) { justify-self: end; text-align: right; }
   html.da-atelier .ranking-row .elevation-cell.is-open .da-margin { text-align: right; }
+}
+
+/* ============================================
+   TÉLÉPHONE : bandeau du round compact
+   Compte à rebours, puis une seule ligne saison · round · jour, la frise du
+   round ; « Dernier JOUR ! » au-dessus du compte à rebours, dans le cadre ;
+   la première note manuscrite sous le compte à rebours.
+   ============================================ */
+@media (max-width: 600px) {
+  html.da-atelier .banner-countdown-block { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; padding: 12px 14px 8px; }
+  html.da-atelier .banner-countdown-block > .banner-label { flex: 0 0 auto; max-width: 64px; }
+  html.da-atelier .banner-countdown-block > .banner-countdown-timer { flex: 1 1 auto; justify-content: flex-end; margin-top: 0; }
+  html.da-atelier .banner-countdown-block > .da-note--count { position: static; order: -1; flex: 0 0 100%; margin: 0 0 8px; font-size: 22px; transform: rotate(-2deg); }
+  html.da-atelier .countdown-num { font-size: 36px; }
+  html.da-atelier .da-round-notes { display: block; flex: 0 0 100%; margin-top: 8px; }
+  html.da-atelier .da-round-note { font-size: 20px; line-height: 1.25; margin: 0; transform: none !important; }
+  html.da-atelier .da-round-note ~ .da-round-note { display: none; }
+  html.da-atelier .banner-season-block,
+  html.da-atelier .banner-round-block { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 6px 14px; }
+  html.da-atelier .banner-round-block .banner-day { margin-left: 6px; white-space: nowrap; display: inline-flex; align-items: baseline; }
+  html.da-atelier .banner-value { font-size: 28px; }
+  html.da-atelier .banner-day b { font-size: 26px; }
+  html.da-atelier .da-round-gauge { padding: 10px 14px 8px; }
+  html.da-atelier .banner-unified { grid-template-columns: auto minmax(0, 1fr); }
+  html.da-atelier .banner-season-block { padding-right: 16px; }
 }

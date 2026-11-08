@@ -510,7 +510,7 @@
   <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
   <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
   <link rel="stylesheet" href="css/da/base.css?v=20261106a">
-  <link rel="stylesheet" href="css/da/components.css?v=20261113a">
+  <link rel="stylesheet" href="css/da/components.css?v=20261115a">
   <link rel="stylesheet" href="css/da/pages.css?v=20261105a">
 </head>
 <body>
@@ -524,6 +524,7 @@
       <div class="nav-links">
         <a href="index.html" class="nav-link">Classement</a>
         <a href="rules.html" class="nav-link active">Règles</a>
+        <a href="stats.html" class="nav-link" id="statsLink" style="display:none;">Stats</a>
         <a href="dashboard.html" class="nav-link nav-link-with-badge" id="dashboardLink" style="display:none;">
           Dashboard
           <span class="nav-badge" id="dashboardBadge" style="display:none;">!</span>
@@ -784,9 +785,10 @@
       <div class="rules-card">
         <p>
           Chaque joueur dispose de <strong class="da-mk" style="color: #f97316;">8 jokers</strong> au total (2 de chaque type)
-          à utiliser stratégiquement durant la saison. Les jokers s'activent généralement au round suivant.
-
-          Les jokers peuvent etre jouer lors des <span class="da-mk">3 premiers jours</span> d'un round, une petite icone apparait sur le classement général pour prevenir tes adversaires
+          à utiliser stratégiquement durant la saison.
+          Pendant les <span class="da-mk">3 premiers jours</span> d'un round, tu choisis : jouer ton joker sur ce round,
+          ou le programmer pour le round suivant. Après le 3<sup>e</sup> jour, il ne peut plus viser que le round suivant.
+          Une petite icône apparaît alors dans le classement pour prévenir tes adversaires.
         </p>
       </div>
 
@@ -1138,8 +1140,10 @@
     const token = localStorage.getItem('versant_token');
     const dashboardLink = document.getElementById('dashboardLink');
     const loginLink = document.getElementById('loginLink');
+    const statsLink = document.getElementById('statsLink');
 
     if (athleteId || token) {
+      if (statsLink) statsLink.style.display = 'inline-flex';
       if (dashboardLink) dashboardLink.style.display = 'inline-flex';
       if (loginLink) loginLink.style.display = 'none';
     } else {

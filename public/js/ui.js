@@ -1144,7 +1144,7 @@ export function renderJokersGuide(container) {
       <div class="joker-tips">
         <h4>Conseils stratégiques</h4>
         <ul>
-          <li>Les jokers s'activent au round suivant leur utilisation</li>
+          <li>Un joker se joue sur le round en cours pendant ses 3 premiers jours ; ensuite, il est programmé pour le round suivant</li>
           <li>Le Duel peut retourner une situation défavorable</li>
           <li>Le Bouclier est précieux - gardez-le pour les moments critiques</li>
           <li>Combinez Multiplicateur et effort intense pour maximiser l'impact</li>
