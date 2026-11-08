@@ -1524,7 +1524,7 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
 /* ============================================
    TÉLÉPHONE : bandeau du round compact
    Compte à rebours, puis une seule ligne saison · round · jour, la frise du
-   round ; « Dernier JOUR ! » au-dessus du compte à rebours, dans le cadre ;
+   round ;
    la première note manuscrite sous le compte à rebours.
    ============================================ */
 @media (max-width: 600px) {
@@ -1557,34 +1557,7 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
 html.da-atelier .athlete-activity-sport { display: flex; align-items: center; align-self: stretch; }
 html.da-atelier .athlete-activity-sport .picto { display: block; width: 46px; height: 46px; margin: -7px 0; }
 
-/* ============================================
-   TÉLÉPHONE : cartouche du round allégé
-   Une ligne saison · round · jour, le compte à rebours, la note ; la frise
-   du round devient un simple trait d'encre, sans marqueur.
-   ============================================ */
-html.da-atelier .banner-meta { display: none; }
-@media (max-width: 600px) {
-  html.da-atelier .banner-meta {
-    display: block;
-    flex: 0 0 100%;
-    order: -1;
-    margin-bottom: 6px;
-    font: 700 10px/1.3 var(--f-mono);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--sub);
-  }
-  html.da-atelier .banner-season-block,
-  html.da-atelier .banner-round-block,
-  html.da-atelier .banner-stats-block { display: none; }
-  html.da-atelier .banner-countdown-block > .banner-label { display: none; }
-  html.da-atelier .banner-countdown-block > .banner-countdown-timer { justify-content: flex-start; }
-  html.da-atelier .countdown-num { font-size: 34px; }
-  html.da-atelier .da-round-gauge { padding: 4px 14px 10px; }
-  html.da-atelier .da-round-gauge__track { height: 6px; }
-  html.da-atelier .da-round-gauge__track::before { border-width: 1px; background: none; }
-  html.da-atelier .da-round-gauge__fill { top: 0; bottom: 0; left: 0; width: var(--elapsed); }
-  html.da-atelier .da-round-gauge__fill::after { background: var(--ink); opacity: 1; mix-blend-mode: normal; -webkit-mask: none; mask: none; }
-  html.da-atelier .da-round-gauge__track::after { top: -4px; bottom: -4px; }
-  html.da-atelier .da-round-gauge__marks { font-size: 14px; margin-top: 6px; }
+/* Téléphone : pas de télex, les sorties se lisent dans le classement (tap sur un joueur) */
+@media (max-width: 768px) {
+  html.da-atelier .activity-ticker-mobile { display: none !important; }
 }

@@ -172,7 +172,6 @@ export function renderCombinedBanner(container, data) {
 
         <div class="banner-block banner-countdown-block">
           <span class="banner-label">FIN DU ROUND</span>
-          <span class="banner-meta" aria-hidden="true">Saison ${currentSeasonNumber} · round ${roundInSeason} · jour ${dayInRound}/${roundDuration}</span>
           <div class="banner-countdown-timer" id="countdownTimer" data-end="${roundDates.end.getTime()}">
             <span class="countdown-unit"><span class="countdown-num">${pad(days)}</span>j</span>
             <span class="countdown-unit"><span class="countdown-num">${pad(hours)}</span>h</span>

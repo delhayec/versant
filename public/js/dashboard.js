@@ -22,7 +22,7 @@ import {
 import { picto } from './pictos.js?v=20261117b';
 import { calculateYearlyStandings } from './standings-engine.js';
 import { motifClass } from './motifs.js';
-import { formatDate, formatElevation } from './ui.js?v=20261118a';
+import { formatDate, formatElevation } from './ui.js?v=20261118b';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
