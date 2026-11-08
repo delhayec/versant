@@ -38,7 +38,7 @@ import {
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
   renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge
-} from './ui.js?v=20261110b';
+} from './ui.js?v=20261117b';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 
@@ -86,10 +86,10 @@ import {
 } from './standings-engine.js';
 
 import { toggleSimulator } from './simulator.js';
-import { picto, medal as medalPicto, animalIcon } from './pictos.js';
+import { picto, medal as medalPicto, animalIcon } from './pictos.js?v=20261117b';
 import { motifClass } from './motifs.js';
-import * as H from './da-hand.js';
-import { roundSituationNote } from './da-notes.js';
+import * as H from './da-hand.js?v=20261117b';
+import { roundSituationNote } from './da-notes.js?v=20261117b';
 
 
 // ============================================

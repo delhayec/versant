@@ -40,7 +40,7 @@ import {
 
 // DA « Atelier » : graphiques dessinés à la main (présentation seule)
 import { isDA, cssVar } from './da-sketch.js?v=20261116a';
-import { picto, medal as medalPicto } from './pictos.js';
+import { picto, medal as medalPicto } from './pictos.js?v=20261117b';
 import {
   SPORT_STYLE, styleSocialDA, drawSportBand, drawRankingBars, drawCalendarDots, drawHatchBars,
   drawCompare, drawPoints, drawMoneyTime, drawRidgeline

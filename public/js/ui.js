@@ -17,7 +17,7 @@ import {
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
 import { filterByParticipant } from './standings-engine.js';
-import { picto, pictoOf } from './pictos.js';
+import { picto, pictoOf } from './pictos.js?v=20261117b';
 import { motifClass } from './motifs.js';
 
 // ============================================

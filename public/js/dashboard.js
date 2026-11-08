@@ -19,10 +19,10 @@ import {
   onDomReady,
   loadParticipants
 } from './config.js';
-import { picto } from './pictos.js';
+import { picto } from './pictos.js?v=20261117b';
 import { calculateYearlyStandings } from './standings-engine.js';
 import { motifClass } from './motifs.js';
-import { formatDate, formatElevation } from './ui.js?v=20261110b';
+import { formatDate, formatElevation } from './ui.js?v=20261117b';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;

@@ -757,7 +757,7 @@ html.da-atelier .da-draw--circle-06 { margin: 0 0.5em 0 0.7em; }
 html.da-atelier .da-draw--circle-06::after { inset: -0.42em -0.5em -0.36em -0.7em; transform: rotate(5deg); }
 html.da-atelier .da-draw--thick::after { left: -6%; right: -3%; bottom: -0.34em; height: 0.5em; }
 /* « Dernier JOUR ! » (éditeur, nov. 2026) : trait S de 4,7 em, posé sous les lettres à partir du « e » */
-html.da-atelier .da-draw--jour::after { left: 0.25em; right: auto; width: 4.7em; bottom: -0.42em; height: 0.66em; }
+html.da-atelier .da-draw--jour::after { left: 0.25em; right: auto; width: 4.7em; bottom: -0.72em; height: 0.6em; }
 html.da-atelier .da-doodle { display: inline-block; width: 1.45em; height: 1.1em; margin-left: 0.15em; vertical-align: -0.28em; background: currentColor; -webkit-mask: var(--draw) center / contain no-repeat; mask: var(--draw) center / contain no-repeat; }
 html.da-atelier .da-draw--strike::after { inset: 0.05em -0.12em; }
 /* racine et somme dessinées (absentes de la police) */
