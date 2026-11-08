@@ -1552,4 +1552,6 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
 }
 
 /* Liste des sorties : le dessin du sport à la place du mot */
-html.da-atelier .athlete-activity-sport .picto { width: 30px; height: 30px; vertical-align: middle; }
+/* l'icône prend toute la hauteur de la ligne (marges négatives = le padding de la ligne) */
+html.da-atelier .athlete-activity-sport { display: flex; align-items: center; align-self: stretch; }
+html.da-atelier .athlete-activity-sport .picto { display: block; width: 46px; height: 46px; margin: -7px 0; }
