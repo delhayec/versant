@@ -302,3 +302,25 @@ html.da-atelier .dashboard-notification.error { background: var(--down) !importa
 }
 /* Pas de halo derrière les pictos (ombres de l'ancienne DA) */
 html.da-atelier :is(.joker-icon, .bonus-icon, .modal-header-icon, .bonus-choice-icon) { filter: none !important; text-shadow: none !important; background: none !important; }
+
+/* Cartouche du joueur sous le titre : joueur, motif, rang du round */
+html.da-atelier #athleteName:has(.da-cartouche) { font: inherit; }
+html.da-atelier .da-cartouche { display: inline-grid; grid-auto-flow: column; margin-top: 10px; border: 1.5px solid var(--ink); background: var(--panel); text-align: left; }
+html.da-atelier .da-cartouche__cell { display: grid; gap: 5px; align-content: start; padding: 6px 10px 7px; border-right: 1px solid var(--ink); }
+html.da-atelier .da-cartouche__cell:last-child { border-right: 0; }
+html.da-atelier .da-cartouche__lbl { font: 700 9px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--sub); }
+html.da-atelier .da-cartouche b { font: 600 24px/1 var(--f-hand); color: var(--pen); white-space: nowrap; }
+html.da-atelier .da-cartouche__motif { display: block; width: 52px; height: 24px; border: 1px solid var(--ink); }
+html.da-atelier .da-cartouche__motif.da-motif::after { display: none; }
+
+/* Fiches de cible : carré du joueur, nom, rang et D+ du round ; la cible entourée au marqueur */
+html.da-atelier .target-selection-grid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+html.da-atelier .target-card { position: relative; display: flex !important; flex-direction: row !important; align-items: center; gap: 8px; padding: 8px !important; text-align: left; min-width: 0; border-width: 1px !important; border-color: var(--rule) !important; }
+html.da-atelier .target-card .target-card-avatar { width: 34px !important; height: 34px !important; min-width: 34px; border-radius: 0 !important; margin: 0 !important; display: grid; place-items: center; background: var(--panel) !important; border: 1.5px solid var(--ink); font-size: 11px !important; }
+html.da-atelier .target-card .target-card-avatar .da-initials { font: 700 11px/1 var(--f-mono); color: var(--ink); }
+html.da-atelier .target-card-name { display: grid; gap: 3px; min-width: 0; text-align: left; justify-items: start; font: 700 14px/1.15 var(--f-sans) !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.da-atelier .target-card-meta { font: 500 11px/1.2 var(--f-mono); color: var(--sub); }
+html.da-atelier .target-card.selected { background: var(--panel) !important; outline: 0 !important; border-color: transparent !important; }
+html.da-atelier .target-card.selected::after { content: ""; position: absolute; inset: -7px -6px; background: var(--accent-text); pointer-events: none;
+  -webkit-mask: url("../../assets/manic/circle-05.svg") center / 100% 100% no-repeat; mask: url("../../assets/manic/circle-05.svg") center / 100% 100% no-repeat; }
+html.da-atelier .target-card.selected .target-card-name { color: var(--accent-text); }

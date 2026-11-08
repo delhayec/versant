@@ -40,6 +40,8 @@ let isPlayerEliminated = false; // Statut éliminé du joueur courant
 // ROUND CONFIGS (config admin — round_configs.json)
 // ============================================
 let roundConfigsCache = {};
+// Rang et D+ du round de chaque joueur, pour les fiches de cible
+let roundStanding = new Map();
 
 async function loadRoundConfigs() {
   try {
@@ -317,16 +319,18 @@ function getDayInRound() {
 function renderHeader() {
   const nameEl = document.getElementById('athleteName');
   if (nameEl && currentUser) {
-    nameEl.textContent = `${currentUser.name}`;
-    // Le carré du joueur (couleur et motif de l'accueil) : les motifs suivent
-    // l'ordre de la liste des participants, chargée ici à part
+    const name = String(currentUser.name).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    // DA : le cartouche d'une planche technique (joueur, motif, rang du round).
+    // Le motif suit l'ordre de la liste des participants, chargée ici à part.
+    nameEl.innerHTML = `<span class="da-off-only">${name}</span>
+      <span class="da-only da-cartouche">
+        <span class="da-cartouche__cell"><span class="da-cartouche__lbl">Joueur</span><b>${name}</b></span>
+        <span class="da-cartouche__cell"><span class="da-cartouche__lbl">Motif</span><span class="da-cartouche__motif"></span></span>
+        <span class="da-cartouche__cell"><span class="da-cartouche__lbl">Rang</span><b id="cartoucheRank">–</b></span>
+      </span>`;
     loadParticipants().then(() => {
       const cls = motifClass(currentUser.id);
-      if (!cls || nameEl.querySelector('.da-player-mark')) return;
-      const mark = document.createElement('span');
-      mark.className = `da-player-mark ${cls}`;
-      mark.setAttribute('aria-hidden', 'true');
-      nameEl.prepend(mark);
+      if (cls) nameEl.querySelector('.da-cartouche__motif').className = `da-cartouche__motif ${cls}`;
     }).catch(() => {});
   }
 }
@@ -362,6 +366,8 @@ async function renderStats() {
   });
 
   // D+ du round pour cet utilisateur
+  roundStanding = new Map(calculateRankingFromActivities(roundActivities, athletesList)
+    .map(e => [String(e.id), { rank: null, elevation: e.elevation }]));
   const userRoundActivities = roundActivities.filter(a => String(a.athlete_id) === userId);
   const roundElevation = userRoundActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
 
@@ -391,6 +397,7 @@ async function renderStats() {
 
     // Calculer le classement D+ du round actuel
     const ranking = calculateRankingFromActivities(roundActivities, activeAthletes);
+    ranking.forEach((e, i) => roundStanding.set(String(e.id), { rank: i + 1, elevation: e.elevation }));
     const myRank = ranking.findIndex(e => String(e.id) === userId) + 1;
 
     if (myRank > 0) {
@@ -428,6 +435,9 @@ async function renderStats() {
   // ============================================
   // AFFICHAGE
   // ============================================
+
+  const cartoucheRank = document.getElementById('cartoucheRank');
+  if (cartoucheRank) cartoucheRank.textContent = challengeRank === '-' ? '–' : `${challengeRank} / ${challengeTotal}`;
 
   // Statut du challenge
   const challengeStatusEl = document.getElementById('challengeStatus');
@@ -1062,14 +1072,7 @@ function showBonusTargetModal(bonusId, bonusType) {
             <div class="modal-section">
               <div class="modal-section-title" style="color: #a855f7;">${picto('cible', '🎯')} Sélectionnez un joueur</div>
               <div class="target-selection-grid">
-                ${targets.map(t => `
-                  <div class="target-card" data-id="${t.id}" data-name="${t.name}">
-                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColor(t.id)}, ${getAthleteColor(t.id)}88)">
-                      ${getAthleteInitials(t.id)}
-                    </div>
-                    <div class="target-card-name">${t.name}</div>
-                  </div>
-                `).join('')}
+                ${sortTargets(targets).map(targetCard).join('')}
               </div>
             </div>
 
@@ -1331,6 +1334,26 @@ if (canActivateNow) {
   };
 }
 
+/**
+ * Fiche de cible : le carré du joueur (couleur et motif de l'accueil), son
+ * nom, son rang et son D+ du round. Les cibles suivent l'ordre du round.
+ */
+function sortTargets(list) {
+  const key = t => roundStanding.get(String(t.id));
+  return [...list].sort((a, b) => (key(a)?.rank ?? 999) - (key(b)?.rank ?? 999) || (key(b)?.elevation ?? 0) - (key(a)?.elevation ?? 0));
+}
+function targetCard(t) {
+  const st = roundStanding.get(String(t.id));
+  const meta = st ? `${st.rank ? `${st.rank}e · ` : ''}${formatElevation(st.elevation)}` : '';
+  return `
+    <div class="target-card" data-id="${t.id}" data-name="${t.name}">
+      <div class="target-card-avatar ${motifClass(t.id)}" style="background: linear-gradient(135deg, ${getAthleteColor(t.id)}, ${getAthleteColor(t.id)}88)">
+        <span class="da-initials">${getAthleteInitials(t.id)}</span>
+      </div>
+      <div class="target-card-name">${t.name}${meta ? `<small class="target-card-meta">${meta}</small>` : ''}</div>
+    </div>`;
+}
+
 function showJokerTargetModal(jokerId, joker) {
   fetch(`${API_BASE}/athletes/${LEAGUE_ID}`)
     .then(res => res.json())
@@ -1360,14 +1383,7 @@ function showJokerTargetModal(jokerId, joker) {
             <div class="modal-section">
               <div class="modal-section-title">${picto('cible', '🎯')} Sélectionnez un adversaire</div>
               <div class="target-selection-grid">
-                ${opponents.map(opp => `
-                  <div class="target-card" data-id="${opp.id}" data-name="${opp.name}">
-                    <div class="target-card-avatar" style="background: linear-gradient(135deg, ${getAthleteColor(opp.id)}, ${getAthleteColor(opp.id)}88)">
-                      ${getAthleteInitials(opp.id)}
-                    </div>
-                    <div class="target-card-name">${opp.name}</div>
-                  </div>
-                `).join('')}
+                ${sortTargets(opponents).map(targetCard).join('')}
               </div>
             </div>
 
