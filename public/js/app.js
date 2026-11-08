@@ -400,6 +400,20 @@ async function loadActivities() {
 // RÉSUMÉ DE SAISON (pour l'historique)
 // ============================================
 
+/**
+ * Saison en équipes : l'équipe qui gagne la finale principale (round figé où
+ * il ne reste que 2 équipes ; la plus forte en D+). Présentation seule, pour
+ * l'historique : le serveur ne désigne pas de vainqueur individuel. null sinon.
+ */
+function teamSeasonWinnerLabel(seasonNumber) {
+  const rounds = Object.values(frozenResultsCache?.rounds || {})
+    .filter(r => r?.frozen && Number(r.seasonNumber) === Number(seasonNumber) && r.isFinalePrincipale === true && Array.isArray(r.teams) && r.teams.length);
+  if (!rounds.length) return null;
+  const finale = rounds.sort((a, b) => (b.roundInSeason || 0) - (a.roundInSeason || 0))[0];
+  const best = [...finale.teams].sort((a, b) => (b.totalElevation || 0) - (a.totalElevation || 0))[0];
+  return best?.animal?.name || best?.color?.name || null;
+}
+
 function getSeasonSummary(activities, seasonNumber, currentDate) {
   const seasonDates = getSeasonDates(seasonNumber);
   const sData = simulateSeasonEliminations(activities, seasonNumber, currentDate, frozenResultsCache, yearlyStandingsCache);
@@ -649,8 +663,14 @@ async function renderAll() {
         // (ex: R31 finale avec nbEliminations: 0 → aucune zone de danger)
         const configElimCount = getEffectiveNbEliminations(currentRoundNumber);
         const elimCount = configElimCount ?? (currentRuleDetails?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound);
+      // Même règle que le moteur (standings-engine.js, frozen-results.js) : à
+      // partir du R7, s'il y a au moins 2 joueurs à 0 D+ (hors bouclier), ils
+      // sont TOUS éliminés, pas seulement les 2 derniers. Hors finale.
+      const zeroPlayers = ranking.filter(e => !e.jokerEffects?.hasShield && (e.totalElevation || 0) === 0);
+      const zeroRule = currentRoundNumber >= CHALLENGE_CONFIG.zeroElevationRuleFromRound
+        && zeroPlayers.length >= 2 && !isFinaleRoundEffective(currentRoundNumber);
       ranking.forEach((e, i) => {
-        e.isInDangerZone = i >= ranking.length - elimCount;
+        e.isInDangerZone = zeroRule ? (e.totalElevation || 0) === 0 : i >= ranking.length - elimCount;
         if (e.jokerEffects?.hasShield && e.isInDangerZone) {
           e.isProtected = true;
           e.isInDangerZone = false;
@@ -1910,7 +1930,7 @@ function renderHistorySection(container) {
     <label>Saison : </label>
     <select id="seasonSelect" class="season-select">
       <option value="current">Saison ${currentSeasonNumber} (en cours)</option>
-      ${completedSeasons.map(s => `<option value="${s.seasonNumber}">Saison ${s.seasonNumber} - ${s.winner?.name || 'N/A'}</option>`).join('')}
+      ${completedSeasons.map(s => `<option value="${s.seasonNumber}">Saison ${s.seasonNumber} - ${s.winner?.name || teamSeasonWinnerLabel(s.seasonNumber) || 'N/A'}</option>`).join('')}
     </select>
   </div>
   <div id="historyContent"></div>`;
@@ -2261,7 +2281,7 @@ function renderCompletedSeasonHistory(container, summary) {
   const roundsPerSeason = getRoundsPerSeason();
 
 
-  let html = `<div class="history-season-summary"><h3>Champion : <span class="history-champion-name">${summary.winner?.name || 'N/A'}</span></h3></div>`;
+  let html = `<div class="history-season-summary"><h3>${summary.winner?.name || !teamSeasonWinnerLabel(summary.seasonNumber) ? 'Champion' : 'Équipe championne'} : <span class="history-champion-name">${summary.winner?.name || teamSeasonWinnerLabel(summary.seasonNumber) || 'N/A'}</span></h3></div>`;
 
   summary.rounds.forEach(r => {
     const globalRound = r.globalRound;

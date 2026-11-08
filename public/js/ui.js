@@ -450,7 +450,7 @@ export function renderRanking(container, data) {
   };
   const cutLineHtml = cutIndex > 0 ? `
         <div class="da-cut-line da-only" role="separator" aria-label="Ligne de coupe à ${formatElevation(lastSafeElev)}">
-          <span class="da-cut-line__label">Ligne de coupe ${formatElevation(lastSafeElev)}</span>
+          <span class="da-cut-line__label">Ligne de coupe <span class="da-draw da-draw--under da-draw--thin" style="--draw:url(/assets/manic/line-02.svg)">${formatElevation(lastSafeElev)}</span></span>
           <span class="da-note da-note--cut" aria-hidden="true">${lastSafeElev === firstDangerElev ? 'à égalité !' : `ça se joue à ${formatElevation(lastSafeElev - firstDangerElev)} !`}</span>
         </div>` : '';
 

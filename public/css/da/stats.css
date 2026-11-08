@@ -251,3 +251,7 @@ html.da-atelier .leaflet-tile-container img.leaflet-tile { width: 256.5px !impor
 /* (couleurs --mt-1 à --mt-5 : dans tokens.css) */
 /* Sorties en groupe : le grisé suit le clic */
 html.da-atelier .da-social :is(.soc-arc, .soc-ribbon, .soc-label) { transition: opacity .2s; }
+
+/* Curseur des graphiques (répartition sur la journée) : un trait de marqueur orange */
+html.da-atelier .sk-cursor { stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; opacity: 0.9; pointer-events: none; }
+html.da-atelier .da-tip { z-index: 20; }

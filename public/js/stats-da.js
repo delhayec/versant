@@ -8,7 +8,7 @@
 import {
   sheet, el, text, path, line, curve, rectD, lineD, loopD, blotD, polyD, smooth,
   motifFill, boil, tooltip, j,
-} from './da-sketch.js?v=20261109a';
+} from './da-sketch.js?v=20261115c';
 import { motifOf, CRAYONS, MOTIF_SHAPES } from './motifs.js';
 
 /** Largeur de dessin : celle du conteneur, bornée (le texte garde sa taille) */
@@ -71,9 +71,8 @@ export function drawSportBand(dom, entries) {
       line(g, x + w - 2, cy - 5, x + w - 2, cy + 5, { cls, w: 1, over: 0 });
       line(g, x + 4, cy, x + w - 4, cy, { cls, w: 1, over: 0 });
     }
-    const wide = w > 86;
-    text(g, x + w / 2, up ? cy - 8 : cy + 20, wide ? `${st.label} ${pct} %` : `${pct} %`, 'sk-hand', 'middle');
-    if (!wide) text(g, x + w / 2, up ? cy - 26 : cy + 38, st.label, 'sk-hand', 'middle');
+    text(g, x + w / 2, up ? cy - 8 : cy + 20, `${pct} %`, 'sk-hand', 'middle');
+    text(g, x + w / 2, up ? cy - 30 : cy + 40, st.label.toUpperCase(), 'sk-lbl sk-lbl--ink', 'middle');
     x += w;
   });
   // Relevé : le D+ de chaque sport, comme une liste en marge
@@ -237,12 +236,13 @@ export function drawHatchBars(dom, items) {
   items.forEach((it, i) => {
     const x = x0 + i * slot + (slot - bw) / 2, h = (yb - yt) * it.value / max;
     if (h >= 1) {
-      const fill = motifFill(svg, i === bestI ? 1 : 0, '--ink', true);
+      const fill = i === bestI ? motifFill(svg, 1, '--ink', true) : { color: 'transparent' };
       const grp = filledBox(svg, g, x, yb - h, bw, h, fill, { base: false, w: 1.1 });
       grp.addEventListener('pointermove', ev => tip.show(it.tip, ev));
       grp.addEventListener('pointerleave', () => tip.hide());
     }
-    if (it.tick) text(g, x + bw / 2, yb + 16, it.tick.toUpperCase(), 'sk-lbl', 'middle');
+    // Mois : trois lettres si elles tiennent dans la colonne, sinon l'initiale
+    if (it.tick) text(g, x + bw / 2, yb + 16, (slot < it.tick.length * 9 + 4 && /^\D/.test(it.tick) ? it.tick[0] : it.tick).toUpperCase(), 'sk-lbl', 'middle');
     if (i === bestI && it.value) {
       const cx = Math.max(x0 + 34, Math.min(x1 - 34, x + bw / 2));
       markUnder(g, cx, yb - h - 12, it.best.length * 8.2 + 10, 16);
@@ -454,6 +454,8 @@ export function drawRidgeline(dom, keys, valsByKey, styleOf, labelOf, unitTip) {
   const tip = tooltip(dom);
   const n = valsByKey[keys[0]].length, max = Math.max(1e-9, ...keys.flatMap(k => valsByKey[k]));
   const sx = i => X0 + (X1 - X0) * i / (n - 1);
+  // Curseur : un trait orange vertical au moment pointé (ou touché)
+  const cursor = el('line', { x1: X0, x2: X0, y1: 22, y2: H - 30, class: 'sk-cursor', visibility: 'hidden' }, svg);
   for (let h = 0; h <= 24; h += compact ? 6 : 2) {
     const x = X0 + (X1 - X0) * h / 24;
     line(g, x, 24, x, H - 34, { cls: 'sk-faint', w: 1, amp: .4, over: 0, draw: false });
@@ -475,9 +477,10 @@ export function drawRidgeline(dom, keys, valsByKey, styleOf, labelOf, unitTip) {
     boil(grp, { patterns: fill ? [fill.el] : [], outlines: [{ el: o, make }] });
     grp.addEventListener('pointermove', ev => {
       const p = svgPoint(grp, ev), x = Math.max(0, Math.min(n - 1, Math.round((p.x - X0) / (X1 - X0) * (n - 1))));
+      cursor.setAttribute('x1', sx(x)); cursor.setAttribute('x2', sx(x)); cursor.setAttribute('visibility', 'visible');
       tip.show(unitTip(k, x), ev);
     });
-    grp.addEventListener('pointerleave', () => tip.hide());
+    grp.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') cursor.setAttribute('visibility', 'hidden'); tip.hide(); });
   });
 }
 function wob2(pts) { return pts.map(([x, y]) => [x, y + j(.35)]); }

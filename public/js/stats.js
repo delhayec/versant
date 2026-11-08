@@ -39,12 +39,12 @@ import {
 } from './standings-engine.js';
 
 // DA « Atelier » : graphiques dessinés à la main (présentation seule)
-import { isDA, cssVar } from './da-sketch.js?v=20261109a';
+import { isDA, cssVar } from './da-sketch.js?v=20261115c';
 import { picto, medal as medalPicto } from './pictos.js';
 import {
   SPORT_STYLE, styleSocialDA, drawSportBand, drawRankingBars, drawCalendarDots, drawHatchBars,
   drawCompare, drawPoints, drawMoneyTime, drawRidgeline
-} from './stats-da.js?v=20261109c';
+} from './stats-da.js?v=20261115b';
 
 // ============================================
 // CONSTANTES & HELPERS

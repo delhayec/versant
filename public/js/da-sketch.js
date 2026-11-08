@@ -196,11 +196,11 @@ export function tooltip(container) {
   return {
     show(html, evt) {
       t.innerHTML = html; t.hidden = false;
-      const r = container.getBoundingClientRect();
-      const x = evt.clientX - r.left, y = evt.clientY - r.top;
-      const w = t.offsetWidth, h = t.offsetHeight;
-      t.style.left = Math.max(4, Math.min(r.width - w - 4, x + 14)) + 'px';
-      t.style.top = Math.max(4, y - h - 12) + 'px';
+      // Toujours au même endroit, au-dessus du graphique : la bulle ne
+      // saute plus d'un coin à l'autre et ne cache pas ce qu'on pointe
+      // calée à droite : le titre du graphique, à gauche, reste lisible
+      t.style.left = Math.max(0, container.clientWidth - t.offsetWidth) + 'px';
+      t.style.top = -(t.offsetHeight + 8) + 'px';
     },
     hide() { if (!t._sticky) t.hidden = true; },
   };

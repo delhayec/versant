@@ -1542,3 +1542,9 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
   html.da-atelier .banner-unified { grid-template-columns: auto minmax(0, 1fr); }
   html.da-atelier .banner-season-block { padding-right: 16px; }
 }
+
+@media (max-width: 600px) {
+  /* Classement général : les couronnes, en petit ; plus de (1)(2)(3) dans l'en-tête */
+  html.da-atelier .standings-athlete .wins-badge { display: inline-flex; align-items: center; font-size: 11px; gap: 1px; }
+  html.da-atelier .standings-header > *::before { display: none; }
+}
