@@ -98,6 +98,18 @@ html.da-atelier .brand-icon {
   -webkit-mask: url("../../assets/pictos/logo.svg?v=20261117a") no-repeat center / contain;
   mask: url("../../assets/pictos/logo.svg?v=20261117a") no-repeat center / contain;
 }
+/* le même dessin à la place du glyphe : pied de page, chargement, attente, Règles */
+html.da-atelier .footer-brand { display: inline-flex; align-items: center; gap: 8px; }
+html.da-atelier .footer-brand .brand-icon { width: 28px; height: 24px; }
+html.da-atelier :is(.loading-icon, .waiting-icon, .section-title-icon) {
+  display: inline-block;
+  width: 1.15em;
+  height: 1em;
+  color: transparent !important;
+  background: var(--ink);
+  -webkit-mask: url("../../assets/pictos/logo.svg?v=20261117a") no-repeat center / contain;
+  mask: url("../../assets/pictos/logo.svg?v=20261117a") no-repeat center / contain;
+}
 html.da-atelier .brand-text {
   font-family: var(--f-sans);
   font-weight: 900;
