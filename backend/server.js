@@ -1034,6 +1034,48 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
+// Route admin pour changer le nom affiché d'un joueur (compte, toutes ligues).
+// Les archives figées (rounds passés, bonus) gardent le nom de l'époque :
+// les pages affichent d'abord le nom du compte quand elles le connaissent.
+app.post('/api/admin/rename-athlete', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  try {
+    const athleteId = req.body?.athleteId;
+    const newName = String(req.body?.newName ?? '').replace(/\s+/g, ' ').trim();
+
+    if (!athleteId || !newName) {
+      return res.status(400).json({ error: 'Données manquantes' });
+    }
+    if (newName.length < 2 || newName.length > 30) {
+      return res.status(400).json({ error: 'Le nom doit faire entre 2 et 30 caractères' });
+    }
+    if (/[<>]/.test(newName)) {
+      return res.status(400).json({ error: 'Caractères < et > interdits' });
+    }
+
+    const athletes = await safeReadJSON(ATHLETES_FILE, []);
+    const idx = athletes.findIndex(a => normalizeId(a.id) === normalizeId(athleteId));
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Athlète non trouvé' });
+    }
+    const taken = athletes.some((a, i) => i !== idx && String(a.name || '').trim().toLowerCase() === newName.toLowerCase());
+    if (taken) {
+      return res.status(409).json({ error: 'Ce nom est déjà pris par un autre joueur' });
+    }
+
+    const oldName = athletes[idx].name;
+    athletes[idx].name = newName;
+    await safeWriteJSON(ATHLETES_FILE, athletes);
+
+    console.log(`Nom changé : ${oldName} → ${newName} (ID: ${athleteId})`);
+    res.json({ success: true, oldName, name: newName });
+  } catch (error) {
+    console.error('Erreur rename-athlete:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 
 // ============================================
 // ATHLETES ROUTES

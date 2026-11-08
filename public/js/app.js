@@ -89,7 +89,7 @@ import { toggleSimulator } from './simulator.js';
 import { picto, medal as medalPicto, animalIcon } from './pictos.js?v=20261117b';
 import { motifClass } from './motifs.js';
 import * as H from './da-hand.js?v=20261118a';
-import { roundSituationNote } from './da-notes.js?v=20261117b';
+import { roundSituationNote } from './da-notes.js?v=20261118e';
 
 
 // ============================================
@@ -867,7 +867,7 @@ function buildRoundNotes() {
       notes.push({ text: H.dailyPick([
         () => `Ton équipe est ${pos} : ${H.under(H.meters(gap, ['1']), 'trait-M', '', true)} ${H.under(tail, 'emphasis-03')}`,
         () => `Ton équipe est ${pos} : ${H.meters(gap, ['1'])} ${tail}`,
-      ], 'equipe')() });
+      ], 'equipe')().replace(/^/, '<span class="da-nl">') + `</span><span class="da-ns">Équipe ${pos} : ${H.meters(gap, ['1'])} d'avance</span>` });
     }
   } else if (daNotes.elim) {
     const el = daNotes.elim;

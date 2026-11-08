@@ -940,6 +940,10 @@ async function calculateTeamRoundResults(roundNumber, seasonNumber, roundInSeaso
     for (const entry of ranking) {
       entry.mainPoints = teamMainPoints(entry.position);
     }
+    // Couronne de la saison : le meilleur D+ de l'équipe gagnante sur la finale
+    // (règle actée en nov. 2026, S4 : Baptiste I, 1er de Marmotte). Le ranking
+    // est trié équipe gagnante d'abord, puis D+ individuel : c'est la position 1.
+    if (ranking[0]) ranking[0].isWinner = true;
     // Tous les joueurs sont éliminés
     for (const team of teamsWithElevation) {
       for (const m of team.members) {

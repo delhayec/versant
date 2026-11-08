@@ -886,7 +886,7 @@ function renderAthletesList(athletes) {
   const sorted = [...athletes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   container.innerHTML = `
     <table class="admin-table">
-      <thead><tr><th>Nom</th><th>Email</th><th>ID Strava</th><th>Inscrit le</th><th>Entrée en jeu</th></tr></thead>
+      <thead><tr><th>Nom</th><th>Email</th><th>ID Strava</th><th>Inscrit le</th><th>Entrée en jeu</th><th></th></tr></thead>
       <tbody>
         ${sorted.map(a => `
           <tr>
@@ -895,10 +895,48 @@ function renderAthletesList(athletes) {
             <td style="font-family: 'Space Mono', monospace;">${escapeHtml(a.id)}</td>
             <td class="muted">${formatDate(a.registered_at)}</td>
             <td>${a.active_from_round ? `R${a.active_from_round}` : '<span class="muted">saison suivant l\'inscription</span>'}</td>
+            <td><button type="button" class="btn-secondary btn-small" data-rename="${escapeHtml(a.id)}">Renommer</button></td>
           </tr>`).join('')}
       </tbody>
     </table>`;
 }
+
+// Renommer un joueur : le nom passe en champ éditable dans sa ligne
+document.addEventListener('click', (event) => {
+  const start = event.target.closest('[data-rename]');
+  if (start) {
+    const id = start.dataset.rename;
+    const cell = start.closest('tr').querySelector('td');
+    const current = athletesCache[id]?.name || '';
+    cell.innerHTML = `
+      <form data-rename-form="${escapeHtml(id)}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="rename-${escapeHtml(id)}" value="${escapeHtml(current)}" maxlength="30" minlength="2" required aria-label="Nouveau nom" style="min-width:140px">
+        <button type="submit" class="btn-primary btn-small">Enregistrer</button>
+        <button type="button" class="btn-secondary btn-small" data-rename-cancel>Annuler</button>
+      </form>`;
+    cell.querySelector('input').select();
+    return;
+  }
+  if (event.target.closest('[data-rename-cancel]')) {
+    renderAthletesList(Object.values(athletesCache));
+  }
+});
+document.addEventListener('submit', async (event) => {
+  const form = event.target.closest('[data-rename-form]');
+  if (!form) return;
+  event.preventDefault();
+  const id = form.dataset.renameForm;
+  const newName = form.querySelector('input').value.trim();
+  try {
+    const data = await adminJson('/admin/rename-athlete', { method: 'POST', body: { athleteId: id, newName } });
+    athletesCache[id] = { ...athletesCache[id], name: data.name };
+    addLog(`Nom changé : ${data.oldName} → ${data.name}`);
+    renderAthletesList(Object.values(athletesCache));
+  } catch (error) {
+    addLog(`Renommage impossible : ${error.message}`);
+    alert(error.message);
+  }
+});
 
 // ============================================
 // ACTIVITÉS

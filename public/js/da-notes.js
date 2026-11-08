@@ -5,6 +5,9 @@ import * as H from './da-hand.js?v=20261118a';
  * dessinées dans design/editeur-manic.html. Une version par jour quand
  * plusieurs conviennent. wasRank : ta place à minuit (null le 1er jour).
  */
+// Version longue (PC) et courte (téléphone) d'une même note ; le CSS montre l'une ou l'autre
+const both = (long, short) => `<span class="da-nl">${long}</span><span class="da-ns">${short}</span>`;
+
 export function roundSituationNote(round, myIdx, cut, wasRank, date = new Date()) {
   const e = round[myIdx];
   const rankNow = myIdx + 1;
@@ -40,15 +43,15 @@ export function roundSituationNote(round, myIdx, cut, wasRank, date = new Date()
 
   if (e.isInDangerZone) {
     const gap = round[cut - 1].totalElevation - e.totalElevation;
-    return H.dailyPick([
+    return both(H.dailyPick([
       () => `${rk()} : il te manque ${H.circle(H.meters(gap))} pour passer le round`,
       () => `${rk(['2'])} : il te manque ${H.under(H.meters(gap, ['1'], 'A3', 1.3), 'emphasis-02')} pour passer le round`,
       () => `${rk(['2'])} : il te manque ${H.under(H.meters(gap, ['1'], 'A3', 1.3), 'emphasis-02')} pour passer la coupe`,
-    ], 'sous-coupe', date)();
+    ], 'sous-coupe', date)(), `${rk()} : il manque ${H.circle(H.meters(gap))}`);
   }
   const ahead = e.totalElevation - round[cut].totalElevation;
-  return H.dailyPick([
+  return both(H.dailyPick([
     () => `${rk()} : ${H.meters(ahead, ['A1', '3', 'A3'])} d'avance sur la coupe`,
     () => `${rk()} : ${H.meters(ahead, ['A1', 'A1', ''])} d'av${H.hv('a', { 0: '1' })}nce sur la ${H.under(H.hv('coupe', { 1: '3', 3: '1', 4: '1' }), 'line-01', '', true)}`,
-  ], 'sur-coupe', date)();
+  ], 'sur-coupe', date)(), `${rk()} : ${H.meters(ahead, ['A1', '3', 'A3'])} d'avance`);
 }

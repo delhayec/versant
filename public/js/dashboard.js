@@ -11,7 +11,8 @@ import {
   getRoundDates,
   getGlobalRoundNumber,
   getSeasonNumber, isTeamSeason,
-  getRoundInSeason, getRoundsPerSeason,
+  getRoundInSeason, getRoundsPerSeason, getRoundsForSeason,
+  getSpecialRuleForRound, getEffectiveNbEliminations, ROUND_RULES,
   getAthleteColor, getAthleteInitials,
   fetchWithTimeout, loadSeasonPlanning,
   getDayInRound as getDayInRoundAt, getRoundDuration, mechanicActive, mechanicStartSeason, rulesActive,
@@ -75,6 +76,18 @@ function getRoundTypeLabel(roundNumber) {
     no_eliminations: 'Sans élimination'
   };
   return labels[config.type] || null;
+}
+
+// Rang d'un round (numéro global) dans sa saison : « Round 2 » plutôt que « Round 57 »
+function seasonRoundOf(globalRound) {
+  const start = getRoundDates(globalRound).start;
+  const at = new Date(start.getTime() + 60 * 1000);
+  return { round: getRoundInSeason(at), season: getSeasonNumber(at) };
+}
+function roundLabel(globalRound) {
+  const { round, season } = seasonRoundOf(globalRound);
+  const current = getSeasonNumber(new Date());
+  return season !== current ? `Round ${round} (saison ${season})` : `Round ${round}`;
 }
 
 function getRoundSpecialRuleLabel(roundNumber) {
@@ -422,8 +435,8 @@ async function renderStats() {
     if (isEliminated) {
       challengeStatusEl.innerHTML = `
         <span class="da-off-only"><span style="color: #a855f7;">Éliminés</span>
-        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">(R${eliminationInfo.round})</span></span>
-        <span class="da-only"><span class="da-elim-word">ÉLIMINÉ R${eliminationInfo.round}</span> <span class="da-struck">Actif</span></span>
+        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">(R${eliminationInfo.roundInSeason ?? eliminationInfo.round})</span></span>
+        <span class="da-only"><span class="da-elim-word">ÉLIMINÉ R${eliminationInfo.roundInSeason ?? eliminationInfo.round}</span> <span class="da-struck">Actif</span></span>
       `;
     } else {
       challengeStatusEl.innerHTML = `<span class="da-off-only" style="color: #10b981;">Principal</span><span class="da-only">Actif</span>`;
@@ -498,7 +511,8 @@ function renderCurrentRound() {
 
   const currentRoundEl = document.getElementById('currentRoundNumber');
   if (currentRoundEl) {
-    currentRoundEl.textContent = `Round ${currentRound}`;
+    const { round, season } = seasonRoundOf(currentRound);
+    currentRoundEl.textContent = `${round} / ${getRoundsForSeason(season)} · saison ${season}`;
   }
 
   const dayInRoundEl = document.getElementById('dayInRound');
@@ -513,7 +527,19 @@ function renderCurrentRound() {
 
   const ruleEl = document.getElementById('nextRoundRule');
   if (ruleEl) {
-    ruleEl.textContent = 'Standard';
+    // règle et type du round (comme l'accueil), « Standard » sinon
+    const rule = getSpecialRuleForRound(currentRound);
+    const ruleName = rule && rule !== 'standard' ? (ROUND_RULES[rule]?.name || getRoundSpecialRuleLabel(currentRound)) : null;
+    ruleEl.textContent = [getRoundTypeLabel(currentRound), ruleName].filter(Boolean).join(' · ') || 'Standard';
+  }
+
+  const elimEl = document.getElementById('nextRoundElim');
+  if (elimEl) {
+    // même priorité que l'accueil : config admin > règle spéciale > règle de base
+    const rule = getSpecialRuleForRound(currentRound);
+    const n = getEffectiveNbEliminations(currentRound)
+      ?? (ROUND_RULES[rule]?.parameters?.eliminationsOverride || CHALLENGE_CONFIG.eliminationsPerRound);
+    elimEl.textContent = n === 0 ? 'Aucune' : n === 1 ? 'Le dernier' : `${n} derniers`;
   }
 }
 
@@ -1174,7 +1200,7 @@ function showJokerConfirmModal(jokerId, joker, targetId = null, targetName = nul
   const dayInRound = getDayInRound();
   const canActivateNow = joker.canActivateNow && dayInRound <= (joker.maxDayForImmediateUse || 3);
   const roundInSeason = getRoundInSeason(new Date());
-  const roundsPerSeason = getRoundsPerSeason();
+  const roundsPerSeason = getRoundsForSeason(getSeasonNumber(new Date()));
 
   const modal = document.createElement('div');
   modal.className = 'joker-selection-modal';
@@ -1198,7 +1224,7 @@ if (canActivateNow) {
       </div>
       <div class="timing-card" data-timing="next" data-round="${currentRound + 1}">
         <div class="timing-card-label">Prochain round</div>
-        <div class="timing-card-value">Round ${currentRound + 1}</div>
+        <div class="timing-card-value">${roundLabel(currentRound + 1)}</div>
         <div class="timing-card-hint">Programmé</div>
       </div>
     `;
@@ -1207,7 +1233,7 @@ if (canActivateNow) {
     timingOptionsHtml = `
       <div class="timing-card selected" data-timing="next" data-round="${currentRound + 1}">
         <div class="timing-card-label">Prochain round</div>
-        <div class="timing-card-value">Round ${currentRound + 1}</div>
+        <div class="timing-card-value">${roundLabel(currentRound + 1)}</div>
       </div>
       <div class="timing-card disabled" title="Activation immédiate possible uniquement les 3 premiers jours">
         <div class="timing-card-label">Round actuel</div>
@@ -1293,7 +1319,7 @@ if (canActivateNow) {
 
       const message = activateNow
         ? `${joker.icon} ${joker.name} activé pour ce round !`
-        : `${joker.icon} ${joker.name} programmé pour le round ${selectedRound} !`;
+        : `${joker.icon} ${joker.name} programmé pour le ${roundLabel(selectedRound).replace('Round', 'round')} !`;
       showNotification(message, 'success');
       modal.remove();
     } catch (error) {

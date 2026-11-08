@@ -1582,3 +1582,23 @@ html.da-atelier .da-round-notes--end { display: none; }
   html.da-atelier .da-round-gauge__start { visibility: hidden; }
   html.da-atelier .da-round-gauge__hour { display: none; }
 }
+
+/* Notes du cartouche : version longue partout, courte sur téléphone (js/da-notes.js) */
+html.da-atelier .da-ns { display: none; }
+@media (max-width: 600px) {
+  html.da-atelier .da-round-notes--end .da-nl { display: none; }
+  html.da-atelier .da-round-notes--end .da-ns { display: inline; }
+  /* cadre resserré : moins de marge, chiffres un peu plus petits */
+  html.da-atelier .season-banner-wrapper { margin-top: 12px; }
+  html.da-atelier .banner-countdown-block { padding: 8px 12px 4px; }
+  html.da-atelier .countdown-num { font-size: 28px; }
+  html.da-atelier .banner-season-block,
+  html.da-atelier .banner-round-block { padding-top: 3px; padding-bottom: 3px; }
+  html.da-atelier .banner-season-block { padding-left: 12px; }
+  html.da-atelier .banner-value,
+  html.da-atelier .banner-day b { font-size: 18px; }
+  html.da-atelier .da-round-gauge { padding: 8px 12px 4px; }
+  html.da-atelier .da-round-gauge__marks { margin-top: 2px; }
+  html.da-atelier .da-round-notes--end:not(:empty) { padding: 0 12px 8px; }
+  html.da-atelier .da-round-notes--end .da-round-note { font-size: 18px; }
+}
