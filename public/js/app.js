@@ -37,8 +37,8 @@ import {
   renderJokersGuide, renderArsenal, showNotification,
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
-  renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge
-} from './ui.js?v=20261118c';
+  renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge, newShine
+} from './ui.js?v=20261119a';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 
@@ -86,7 +86,7 @@ import {
 } from './standings-engine.js';
 
 import { toggleSimulator } from './simulator.js';
-import { picto, medal as medalPicto, animalIcon } from './pictos.js?v=20261117b';
+import { picto, medal as medalPicto, animalIcon } from './pictos.js?v=20261119a';
 import { motifClass } from './motifs.js';
 import * as H from './da-hand.js?v=20261118a';
 import { roundSituationNote } from './da-notes.js?v=20261118e';
@@ -973,7 +973,7 @@ function renderTeamRanking(container, data) {
           <div class="team-member-row ${isLastTeam ? 'in-danger' : ''}">
             <div class="team-member-info">
               <div class="athlete-avatar-small ${motifClass(member.id)}" style="background:linear-gradient(135deg,${color},${color}88)"><span class="da-initials">${initials}</span></div>
-              <span class="team-member-name athlete-name-clickable" onclick="toggleAthleteActivities('${member.id}')">${name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${member.id}">▾</span></span>
+              <span class="team-member-name athlete-name-clickable" onclick="toggleAthleteActivities('${member.id}')">${name}${newShine(member.id, roundActivities)} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${member.id}">▾</span></span>
             </div>
             <span class="team-member-elevation">${formatElevation(member.elevation || 0)}</span>
           </div>

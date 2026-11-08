@@ -20,7 +20,7 @@ const DRAWN = new Set([
   // sports (dessins de la graphiste), et Roi de la Pédale
   ...['course', 'trail', 'rando', 'vtt', 'velo', 'marche', 'gravel', 'ski-rando', 'ski-fond', 'raquettes', 'escalade'].map(id => 'sport-' + id), 'succes-cyclist',
   // animaux des équipes, panda et chenille pour les anciennes saisons
-  ...['loup', 'renard', 'lynx', 'ours', 'sanglier', 'mammouth', 'marmotte', 'loutre', 'raton', 'ecureuil', 'lapin', 'chouette', 'bouquetin', 'chamois', 'aigle', 'mouflon', 'cerf', 'corbeau', 'panda', 'chenille'].map(id => 'animal-' + id),
+  ...['loup', 'renard', 'lynx', 'ours', 'sanglier', 'mammouth', 'marmotte', 'loutre', 'raton', 'ecureuil', 'lapin', 'chouette', 'bouquetin', 'chamois', 'aigle', 'mouflon', 'cerf', 'corbeau', 'panda', 'canard', 'chenille'].map(id => 'animal-' + id),
 ]);
 
 /** Picto d'un joker ou bonus par son identifiant (ex. 'bouclier'), avec son émoji de repli. */
@@ -30,7 +30,7 @@ export function picto(id, emoji = '', label = '') {
   return `<span class="picto picto--${id}"${a11y}><span class="picto__emoji" aria-hidden="true">${emoji}</span></span>`;
 }
 
-/** Dessin de l'animal d'une équipe, ou son émoji si l'animal n'a pas de dessin (canard des anciennes saisons). */
+/** Dessin de l'animal d'une équipe, ou son émoji si l'animal n'a pas de dessin. */
 export function animalIcon(animal) {
   if (!animal) return '';
   return DRAWN.has('animal-' + animal.id) ? picto('animal-' + animal.id, animal.emoji || '') : (animal.emoji || '');

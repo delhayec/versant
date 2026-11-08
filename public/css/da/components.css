@@ -582,7 +582,7 @@ html.da-atelier.pictos-v1 :is(.picto--trap, .picto--medaille, .picto--hausse, .p
    autres pictos, leurs détails doivent rester lisibles à côté du nom */
 html.da-atelier .picto--animal-loup { --pi: url("../../assets/pictos/animaux/loup.png?v=20261112a"); }
 html.da-atelier .picto--animal-renard { --pi: url("../../assets/pictos/animaux/renard.png?v=20261112a"); }
-html.da-atelier .picto--animal-lynx { --pi: url("../../assets/pictos/animaux/lynx.png?v=20261112a"); }
+html.da-atelier .picto--animal-lynx { --pi: url("../../assets/pictos/animaux/lynx.png?v=20261119a"); }
 html.da-atelier .picto--animal-ours { --pi: url("../../assets/pictos/animaux/ours.png?v=20261112a"); }
 html.da-atelier .picto--animal-sanglier { --pi: url("../../assets/pictos/animaux/sanglier.png?v=20261112a"); }
 html.da-atelier .picto--animal-mammouth { --pi: url("../../assets/pictos/animaux/mammouth.png?v=20261112a"); }
@@ -591,7 +591,7 @@ html.da-atelier .picto--animal-loutre { --pi: url("../../assets/pictos/animaux/l
 html.da-atelier .picto--animal-raton { --pi: url("../../assets/pictos/animaux/raton.png?v=20261112a"); }
 html.da-atelier .picto--animal-ecureuil { --pi: url("../../assets/pictos/animaux/ecureuil.png?v=20261112a"); }
 html.da-atelier .picto--animal-lapin { --pi: url("../../assets/pictos/animaux/lapin.png?v=20261112a"); }
-html.da-atelier .picto--animal-chouette { --pi: url("../../assets/pictos/animaux/chouette.png?v=20261112a"); }
+html.da-atelier .picto--animal-chouette { --pi: url("../../assets/pictos/animaux/chouette.png?v=20261119a"); }
 html.da-atelier .picto--animal-bouquetin { --pi: url("../../assets/pictos/animaux/bouquetin.png?v=20261112a"); }
 html.da-atelier .picto--animal-chamois { --pi: url("../../assets/pictos/animaux/chamois.png?v=20261112a"); }
 html.da-atelier .picto--animal-aigle { --pi: url("../../assets/pictos/animaux/aigle.png?v=20261112a"); }
@@ -599,8 +599,18 @@ html.da-atelier .picto--animal-mouflon { --pi: url("../../assets/pictos/animaux/
 html.da-atelier .picto--animal-cerf { --pi: url("../../assets/pictos/animaux/cerf.png?v=20261112a"); }
 html.da-atelier .picto--animal-corbeau { --pi: url("../../assets/pictos/animaux/corbeau.png?v=20261112a"); }
 html.da-atelier .picto--animal-panda { --pi: url("../../assets/pictos/animaux/panda.png?v=20261112a"); }
+html.da-atelier .picto--animal-canard { --pi: url("../../assets/pictos/animaux/canard.png?v=20261119a"); }
 html.da-atelier .picto--animal-chenille { --pi: url("../../assets/pictos/animaux/chenille.png?v=20261112a"); }
 html.da-atelier [class*="picto--animal-"] { width: 1.75em; height: 1.75em; vertical-align: -0.5em; }
+
+/* Nouveautés depuis la dernière visite : le Shine-01 de MANIC, tourné de 90°
+   après le nom, en éventail au-dessus de l'icône de la sortie */
+.da-shine { display: none; }
+html.da-atelier .da-shine { display: inline-block; width: 0.6em; height: 1.25em; margin-left: 4px; margin-right: 2px; vertical-align: -0.2em; background: var(--accent-text);
+  -webkit-mask: url("../../assets/manic/shine-01-v.svg") center / 100% 100% no-repeat; mask: url("../../assets/manic/shine-01-v.svg") center / 100% 100% no-repeat; }
+html.da-atelier .da-new-ico { position: relative; overflow: visible; }
+html.da-atelier .da-new-ico::after { content: ""; position: absolute; left: -2px; right: -2px; top: -16px; height: 24px; background: var(--accent-text); pointer-events: none;
+  -webkit-mask: url("../../assets/manic/shine-01.svg") center / 100% 100% no-repeat; mask: url("../../assets/manic/shine-01.svg") center / 100% 100% no-repeat; }
 
 /* Médailles 1, 2, 3 : la rosette, un coup de marqueur or, gris ou brun dessus */
 html.da-atelier .da-medal { position: relative; display: inline-block; line-height: 1; vertical-align: middle; isolation: isolate; margin-right: 0.3em; --medal: var(--team-or); }

@@ -17,7 +17,7 @@ import {
 
 import { getJokerStock, getJokerStatusForRound, getActiveJokersForRound, getPendingJokersForNextRound } from './jokers.js';
 import { filterByParticipant } from './standings-engine.js';
-import { picto, pictoOf } from './pictos.js?v=20261117b';
+import { picto, pictoOf } from './pictos.js?v=20261119a';
 import { motifClass } from './motifs.js';
 
 // ============================================
@@ -322,6 +322,44 @@ export function renderActiveJokersSection(container, data) {
 // RENDU DU CLASSEMENT
 // ============================================
 
+// ============================================
+// NOUVEAUTÉS DEPUIS LA DERNIÈRE VISITE (Shine)
+// ============================================
+// On retient le moment où le joueur a quitté le site sur cet appareil. Toute
+// sortie arrivée depuis (synced_at) reçoit le Shine, son auteur aussi. La date
+// de référence est figée pour l'onglet : recharger la page ne fait pas
+// disparaître les marques, la visite suivante si. Première visite : aucune marque.
+const NEW_SINCE = (() => {
+  try {
+    let since = sessionStorage.getItem('versant_new_since');
+    if (since === null) {
+      since = localStorage.getItem('versant_last_seen') || '';
+      sessionStorage.setItem('versant_new_since', since);
+    }
+    const mark = () => { try { localStorage.setItem('versant_last_seen', String(Date.now())); } catch {} };
+    mark();
+    addEventListener('pagehide', mark);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') mark(); });
+    return since ? Number(since) : null;
+  } catch { return null; }
+})();
+
+function activityArrival(a) {
+  return Date.parse(a.synced_at) || (Date.parse(a.start_date) + (a.elapsed_time || 0) * 1000) || 0;
+}
+
+/** Vrai si la sortie est arrivée depuis la dernière visite. */
+export function isNewActivity(a) {
+  return NEW_SINCE !== null && activityArrival(a) > NEW_SINCE;
+}
+
+/** Shine après le nom d'un joueur qui a une sortie nouvelle sur le round ('' sinon). */
+export function newShine(athleteId, roundActivities) {
+  if (NEW_SINCE === null) return '';
+  const fresh = filterByParticipant(roundActivities || [], athleteId).some(isNewActivity);
+  return fresh ? '<span class="da-shine" role="img" aria-label="Nouvelle sortie" title="Nouvelle sortie depuis ta dernière visite"></span>' : '';
+}
+
 export function renderAthleteActivitiesPanel(athleteId, roundActivities, specialRule = null) {
   const isRainRule = specialRule === 'pluie_qui_mouille';
   const activities = filterByParticipant(roundActivities || [], athleteId)
@@ -353,7 +391,7 @@ export function renderAthleteActivitiesPanel(athleteId, roundActivities, special
 
     return `
     <div class="athlete-activity-row">
-      <span class="athlete-activity-sport" title="${a.sport_type || a.type || ''}">${getActivitySportIcon(a.sport_type || a.type)}</span>
+      <span class="athlete-activity-sport${isNewActivity(a) ? ' da-new-ico' : ''}" title="${a.sport_type || a.type || ''}${isNewActivity(a) ? ' · nouvelle' : ''}">${getActivitySportIcon(a.sport_type || a.type)}</span>
       <a class="athlete-activity-name" href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener noreferrer">
         ${a.name || 'Sans nom'}${rainBadge}
       </a>
@@ -546,7 +584,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               ${bonusIndicators}
             </div>
             <div class="athlete-details">
-              <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
+              <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name}${newShine(entry.participant.id, roundActivities)} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent">Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
@@ -579,7 +617,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               ${bonusIndicators}
             </div>
             <div class="athlete-details">
-              <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
+              <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name}${newShine(entry.participant.id, roundActivities)} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">Zone danger</span>' : ''}
               ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
