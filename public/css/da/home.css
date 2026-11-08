@@ -747,7 +747,8 @@ html.da-atelier .da-draw::after {
   mask: var(--draw) center / 100% 100% no-repeat;
 }
 /* Feutre orange : la même encre que le marqueur, dans les deux thèmes */
-html.da-atelier .da-draw--acc::after { background: var(--accent); opacity: var(--mk-opacity); mix-blend-mode: var(--mk-blend); }
+/* Annotations orange : l'orange foncé de la ligne de coupe, plein (le marqueur garde son orange vif) */
+html.da-atelier .da-draw--acc::after { background: var(--accent-text); }
 html.da-atelier .da-draw--sub::after { background: var(--sub); }
 html.da-atelier .da-draw--under::after { left: -4%; right: -4%; bottom: -0.3em; height: 0.36em; }
 html.da-atelier .da-draw--thin::after { bottom: -0.2em; height: 0.24em; }
@@ -759,7 +760,7 @@ html.da-atelier .da-draw--thick::after { left: -6%; right: -3%; bottom: -0.34em;
 /* « Dernier JOUR ! » (éditeur, nov. 2026) : trait S de 4,7 em, posé sous les lettres à partir du « e » */
 html.da-atelier .da-draw--jour::after { left: 0.25em; right: auto; width: 4.7em; bottom: -0.72em; height: 0.6em; }
 html.da-atelier .da-doodle { display: inline-block; width: 1.45em; height: 1.1em; margin-left: 0.15em; vertical-align: -0.28em; background: currentColor; -webkit-mask: var(--draw) center / contain no-repeat; mask: var(--draw) center / contain no-repeat; }
-html.da-atelier .da-draw--strike::after { inset: 0.05em -0.12em; }
+html.da-atelier .da-draw--strike::after { inset: 0.42em -0.14em 0.36em; transform: rotate(-8deg); }
 /* racine et somme dessinées (absentes de la police) */
 html.da-atelier .da-math { width: 0.62em; height: 0.78em; vertical-align: -0.08em; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 html.da-atelier .da-sqrt { white-space: nowrap; }
@@ -1555,3 +1556,35 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
 /* l'icône prend toute la hauteur de la ligne (marges négatives = le padding de la ligne) */
 html.da-atelier .athlete-activity-sport { display: flex; align-items: center; align-self: stretch; }
 html.da-atelier .athlete-activity-sport .picto { display: block; width: 46px; height: 46px; margin: -7px 0; }
+
+/* ============================================
+   TÉLÉPHONE : cartouche du round allégé
+   Une ligne saison · round · jour, le compte à rebours, la note ; la frise
+   du round devient un simple trait d'encre, sans marqueur.
+   ============================================ */
+html.da-atelier .banner-meta { display: none; }
+@media (max-width: 600px) {
+  html.da-atelier .banner-meta {
+    display: block;
+    flex: 0 0 100%;
+    order: -1;
+    margin-bottom: 6px;
+    font: 700 10px/1.3 var(--f-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sub);
+  }
+  html.da-atelier .banner-season-block,
+  html.da-atelier .banner-round-block,
+  html.da-atelier .banner-stats-block { display: none; }
+  html.da-atelier .banner-countdown-block > .banner-label { display: none; }
+  html.da-atelier .banner-countdown-block > .banner-countdown-timer { justify-content: flex-start; }
+  html.da-atelier .countdown-num { font-size: 34px; }
+  html.da-atelier .da-round-gauge { padding: 4px 14px 10px; }
+  html.da-atelier .da-round-gauge__track { height: 6px; }
+  html.da-atelier .da-round-gauge__track::before { border-width: 1px; background: none; }
+  html.da-atelier .da-round-gauge__fill { top: 0; bottom: 0; left: 0; width: var(--elapsed); }
+  html.da-atelier .da-round-gauge__fill::after { background: var(--ink); opacity: 1; mix-blend-mode: normal; -webkit-mask: none; mask: none; }
+  html.da-atelier .da-round-gauge__track::after { top: -4px; bottom: -4px; }
+  html.da-atelier .da-round-gauge__marks { font-size: 14px; margin-top: 6px; }
+}

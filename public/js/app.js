@@ -38,7 +38,7 @@ import {
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
   renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge
-} from './ui.js?v=20261117b';
+} from './ui.js?v=20261118a';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 
@@ -88,7 +88,7 @@ import {
 import { toggleSimulator } from './simulator.js';
 import { picto, medal as medalPicto, animalIcon } from './pictos.js?v=20261117b';
 import { motifClass } from './motifs.js';
-import * as H from './da-hand.js?v=20261117b';
+import * as H from './da-hand.js?v=20261118a';
 import { roundSituationNote } from './da-notes.js?v=20261117b';
 
 

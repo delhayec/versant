@@ -17,9 +17,9 @@
 import { getRoundDates, getParticipantById, getSeasonType, getSeasonNumber } from './config.js';
 import { filterByPeriod, calculateRanking } from './standings-engine.js';
 import { applyJokerEffects, getActiveJokersForRound, getBonusesUsedInRound } from './jokers.js';
-import { formatElevation } from './ui.js?v=20261117b';
+import { formatElevation } from './ui.js?v=20261118a';
 import { picto, animalIcon } from './pictos.js?v=20261117b';
-import * as H from './da-hand.js?v=20261117b';
+import * as H from './da-hand.js?v=20261118a';
 
 // ============================================
 // EXTRACTION DES EFFETS LISIBLES (commun aux 2 modes)

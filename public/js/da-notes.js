@@ -1,4 +1,4 @@
-import * as H from './da-hand.js?v=20261117b';
+import * as H from './da-hand.js?v=20261118a';
 
 /**
  * DA : note manuscrite sur ta place dans le round, d'après les versions
