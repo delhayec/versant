@@ -8,7 +8,7 @@
 import {
   sheet, el, text, path, line, curve, rectD, lineD, loopD, blotD, polyD, smooth,
   motifFill, boil, tooltip, j,
-} from './da-sketch.js?v=20261115c';
+} from './da-sketch.js?v=20261116a';
 import { motifOf, CRAYONS, MOTIF_SHAPES } from './motifs.js';
 
 /** Largeur de dessin : celle du conteneur, bornée (le texte garde sa taille) */
@@ -242,7 +242,7 @@ export function drawHatchBars(dom, items) {
       grp.addEventListener('pointerleave', () => tip.hide());
     }
     // Mois : trois lettres si elles tiennent dans la colonne, sinon l'initiale
-    if (it.tick) text(g, x + bw / 2, yb + 16, (slot < it.tick.length * 9 + 4 && /^\D/.test(it.tick) ? it.tick[0] : it.tick).toUpperCase(), 'sk-lbl', 'middle');
+    if (it.tick) text(g, x + bw / 2, yb + 16, (slot < it.tick.length * 9 + 4 && !/\d/.test(it.tick) ? it.tick[0] : it.tick).toUpperCase(), 'sk-lbl', 'middle');
     if (i === bestI && it.value) {
       const cx = Math.max(x0 + 34, Math.min(x1 - 34, x + bw / 2));
       markUnder(g, cx, yb - h - 12, it.best.length * 8.2 + 10, 16);
@@ -478,7 +478,9 @@ export function drawRidgeline(dom, keys, valsByKey, styleOf, labelOf, unitTip) {
     grp.addEventListener('pointermove', ev => {
       const p = svgPoint(grp, ev), x = Math.max(0, Math.min(n - 1, Math.round((p.x - X0) / (X1 - X0) * (n - 1))));
       cursor.setAttribute('x1', sx(x)); cursor.setAttribute('x2', sx(x)); cursor.setAttribute('visibility', 'visible');
-      tip.show(unitTip(k, x), ev);
+      // Toutes les valeurs au moment pointé, pas seulement la crête touchée
+      const lines = keys.map(kk => String(unitTip(kk, x)).split('<br>'));
+      tip.show(lines[0][0] + '<br>' + lines.map(l => l.slice(1).join('<br>')).join('<br>'), ev);
     });
     grp.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') cursor.setAttribute('visibility', 'hidden'); tip.hide(); });
   });

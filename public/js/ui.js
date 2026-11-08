@@ -76,8 +76,18 @@ const ACTIVITY_SPORT_ICONS = {
   'Snowshoe': 'Raquettes'
 };
 
+// Type Strava -> dessin du sport (assets/pictos/sports/)
+const ACTIVITY_SPORT_PICTOS = {
+  Run: 'course', TrailRun: 'trail', Hike: 'rando', Walk: 'marche', Ride: 'velo',
+  MountainBikeRide: 'vtt', GravelRide: 'gravel', BackcountrySki: 'ski-rando',
+  NordicSki: 'ski-fond', Snowshoe: 'raquettes', RockClimbing: 'escalade'
+};
+
 function getActivitySportIcon(sportType) {
-  return ACTIVITY_SPORT_ICONS[sportType] || 'Activité';
+  const label = ACTIVITY_SPORT_ICONS[sportType] || 'Activité';
+  const id = ACTIVITY_SPORT_PICTOS[sportType];
+  // sans la DA (ou sans dessin) : le mot, comme avant
+  return id ? picto('sport-' + id, label, label) : label;
 }
 
 // ============================================

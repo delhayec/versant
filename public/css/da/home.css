@@ -1548,3 +1548,6 @@ html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; f
   html.da-atelier .standings-athlete .wins-badge { display: inline-flex; align-items: center; font-size: 11px; gap: 1px; }
   html.da-atelier .standings-header > *::before { display: none; }
 }
+
+/* Liste des sorties : le dessin du sport à la place du mot */
+html.da-atelier .athlete-activity-sport .picto { width: 30px; height: 30px; vertical-align: middle; }

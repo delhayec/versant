@@ -17,6 +17,8 @@ const DRAWN = new Set([
   ...['king', 'points_king', 'elim_prince', 'champion', 'ricrac', 'untouchable', 'finalist',
     'jokers', 'target', 'best24h', 'bestRound', 'biggestAct', 'efficient', 'lost', 'steep', 'worker',
     'nightowl', 'earlybird', 'weekend', 'distance', 'marathoner', 'flat', 'runner', 'skier', 'hiker'].map(id => 'succes-' + id),
+  // sports (dessins de la graphiste), et Roi de la Pédale
+  ...['course', 'trail', 'rando', 'vtt', 'velo', 'marche', 'gravel', 'ski-rando', 'ski-fond', 'raquettes', 'escalade'].map(id => 'sport-' + id), 'succes-cyclist',
   // animaux des équipes, panda et chenille pour les anciennes saisons
   ...['loup', 'renard', 'lynx', 'ours', 'sanglier', 'mammouth', 'marmotte', 'loutre', 'raton', 'ecureuil', 'lapin', 'chouette', 'bouquetin', 'chamois', 'aigle', 'mouflon', 'cerf', 'corbeau', 'panda', 'chenille'].map(id => 'animal-' + id),
 ]);

@@ -178,8 +178,15 @@ export function boil(hit, { patterns = [], outlines = [] } = {}) {
 /* --- Infobulle : une étiquette de papier, posée près du pointeur --- */
 export function tooltip(container) {
   if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
-  let t = container.querySelector(':scope > .da-tip');
-  if (!t) { t = document.createElement('div'); t.className = 'da-tip'; t.hidden = true; container.appendChild(t); }
+  // La bulle est posée sur la page, pas dans le graphique : un cadre au
+  // débordement caché ne peut plus la couper (elle n'apparaissait pas au téléphone)
+  let t = container._daTip;
+  if (!t) {
+    t = document.createElement('div'); t.className = 'da-tip'; t.hidden = true;
+    t.style.position = 'fixed'; t.style.zIndex = '1000';
+    document.body.appendChild(t); container._daTip = t;
+    window.addEventListener('scroll', () => { t._sticky = false; t.hidden = true; }, { passive: true });
+  }
   // Au toucher (pas de survol) : un appui affiche la bulle de l'endroit
   // touché, elle reste jusqu'à un appui ailleurs.
   if (!container._daTouch) {
@@ -198,9 +205,12 @@ export function tooltip(container) {
       t.innerHTML = html; t.hidden = false;
       // Toujours au même endroit, au-dessus du graphique : la bulle ne
       // saute plus d'un coin à l'autre et ne cache pas ce qu'on pointe
-      // calée à droite : le titre du graphique, à gauche, reste lisible
-      t.style.left = Math.max(0, container.clientWidth - t.offsetWidth) + 'px';
-      t.style.top = -(t.offsetHeight + 8) + 'px';
+      // Toujours au même endroit : juste au-dessus du graphique, calée à droite
+      // (le titre, à gauche, reste lisible) ; dans le graphique s'il touche le haut
+      const r = container.getBoundingClientRect();
+      t.style.left = Math.max(8, Math.min(innerWidth - t.offsetWidth - 8, r.right - t.offsetWidth)) + 'px';
+      const above = r.top - t.offsetHeight - 8;
+      t.style.top = (above >= 8 ? above : r.top + 8) + 'px';
     },
     hide() { if (!t._sticky) t.hidden = true; },
   };

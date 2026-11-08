@@ -659,3 +659,20 @@ html.da-atelier .da-player-mark {
   border: 1.5px solid currentColor;
 }
 html.da-atelier .da-player-mark.da-motif::after { display: none; }
+
+/* Sports (dessins de la graphiste, assets/pictos/sports/) */
+html.da-atelier .picto--sport-course { --pi: url("../../assets/pictos/sports/course.svg?v=20261116a"); }
+html.da-atelier .picto--sport-trail { --pi: url("../../assets/pictos/sports/trail.svg?v=20261116a"); }
+html.da-atelier .picto--sport-rando { --pi: url("../../assets/pictos/sports/rando.svg?v=20261116a"); }
+html.da-atelier .picto--sport-vtt { --pi: url("../../assets/pictos/sports/vtt.svg?v=20261116a"); }
+html.da-atelier .picto--sport-velo { --pi: url("../../assets/pictos/sports/velo.svg?v=20261116a"); }
+html.da-atelier .picto--sport-marche { --pi: url("../../assets/pictos/sports/marche.svg?v=20261116a"); }
+html.da-atelier .picto--sport-gravel { --pi: url("../../assets/pictos/sports/gravel.svg?v=20261116a"); }
+html.da-atelier .picto--sport-ski-rando { --pi: url("../../assets/pictos/sports/ski-rando.svg?v=20261116a"); }
+html.da-atelier .picto--sport-ski-fond { --pi: url("../../assets/pictos/sports/ski-fond.svg?v=20261116a"); }
+html.da-atelier .picto--sport-raquettes { --pi: url("../../assets/pictos/sports/raquettes.svg?v=20261116a"); }
+html.da-atelier .picto--sport-escalade { --pi: url("../../assets/pictos/sports/escalade.svg?v=20261116a"); }
+/* Succès d'activité : les mêmes dessins */
+html.da-atelier:not(.pictos-v1) .picto--succes-runner { --pi: url("../../assets/pictos/sports/trail.svg?v=20261116a"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-cyclist { --pi: url("../../assets/pictos/sports/velo.svg?v=20261116a"); }
+html.da-atelier:not(.pictos-v1) .picto--succes-hiker { --pi: url("../../assets/pictos/sports/rando.svg?v=20261116a"); }
