@@ -511,7 +511,7 @@
   <link rel="stylesheet" href="css/da/tokens.css?v=20261109a">
   <link rel="stylesheet" href="css/da/base.css?v=20261106a">
   <link rel="stylesheet" href="css/da/components.css?v=20261119d">
-  <link rel="stylesheet" href="css/da/pages.css?v=20261105a">
+  <link rel="stylesheet" href="css/da/pages.css?v=20261119e">
 </head>
 <body>
   <!-- Navigation -->
@@ -641,154 +641,281 @@
       <div class="rules-card" id="mechanicsCalendarBody"></div>
     </section>
 
-    <!-- Principe du Challenge -->
+    <!-- Règles : un encadré simple par thème, puis tous les détails dans un menu
+         déroulant. Chaque détail suit le calcul réel du serveur (frozen-results.js). -->
+
+    <!-- 1. Le jeu -->
     <section class="rules-section">
-      <h2 class="section-title">
-        <span class="section-title-icon">◭️</span>
-        Principe du Challenge
-      </h2>
-
+      <h2 class="section-title">Le jeu en bref</h2>
       <div class="rules-card">
-        <h4>Le concept</h4>
         <p>
-          Le Challenge Versant est une compétition de dénivelé positif (D+) basée sur tes activités Strava.
-          Chaque semaine, les joueurs s'affrontent et les derniers sont éliminés. Le but : <span class="da-mk">survivre le plus longtemps</span> possible
-          et accumuler un maximum de points.
+          Versant est un jeu d'élimination au <strong>dénivelé positif (D+)</strong>, à partir de tes activités Strava.
+          L'année est découpée en saisons, chaque saison en rounds de <span data-rules-value="roundDurationDays">5</span> jours.
+        </p>
+        <p>
+          À la fin de chaque round, les <strong class="da-mk"><span data-rules-value="eliminationsPerRound">2</span> joueurs qui ont fait le moins de D+</strong> sont éliminés.
+          Les derniers en lice jouent une finale : le premier est <strong>champion de la saison</strong>.
+          Les éliminés continuent dans le <strong>challenge des éliminés</strong> jusqu'à la fin de la saison.
+        </p>
+        <p>
+          Chaque saison rapporte des points. Le <strong>classement général</strong> les additionne sur toute l'année.
         </p>
       </div>
+      <details class="rules-more">
+        <summary>Tous les détails : rounds et calendrier</summary>
+        <div class="rules-more__body">
+          <ul>
+            <li>Un round commence le jour 1 à 0 h et finit le dernier jour à 23 h 59, heure française.</li>
+            <li>Il dure <span data-rules-value="roundDurationDays">5</span> jours par défaut. L'organisateur peut fixer une autre durée pour un round, notamment dans les saisons Deadline.</li>
+            <li>Une activité compte dans le round où elle <strong>se termine</strong> (heure de départ + durée totale). Une sortie partie le dernier soir et finie après minuit compte pour le round suivant.</li>
+            <li>Une saison commence avec tous les inscrits. Un joueur inscrit en cours de saison attend la saison suivante.</li>
+            <li>Le type de chaque saison est fixé par l'organisateur :
+              <ul>
+                <li><strong>Standard</strong> : la règle de base.</li>
+                <li><strong>Points doublés</strong> : les points du challenge principal comptent double.</li>
+                <li><strong>Deadline</strong> : la saison finit à une date fixée. La durée des rounds et le nombre d'éliminations sont calculés pour tomber juste.</li>
+                <li><strong>Équipes</strong> : un encadré dédié s'affiche en haut de cette page pendant ces saisons.</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </details>
+    </section>
 
+    <!-- 2. Éliminations -->
+    <section class="rules-section">
+      <h2 class="section-title">Rounds et éliminations</h2>
       <div class="rules-card">
-        <h4>Déroulement d'une saison</h4>
         <p>
-          Une saison dure environ 1 mois et se compose de plusieurs rounds de <span data-rules-value="roundDurationDays">5</span> jours chacun.
-          À chaque round, les <span data-rules-value="eliminationsPerRound">2</span> derniers joueurs du classement D+ sont éliminés et rejoignent le Challenge des Éliminés.
-          La saison se termine quand il ne reste qu'un seul joueur actif : <span class="da-mk">le champion</span> !
+          Le classement d'un round se fait sur ton D+ du round, après les jokers, les bonus et la règle spéciale éventuelle.
+          Les <span data-rules-value="eliminationsPerRound">2</span> derniers sont éliminés, sauf s'ils ont joué un bouclier.
+        </p>
+        <p>
+          Quand il ne reste que <span data-rules-value="finalistsCount">4</span> joueurs, le round suivant est la <strong>finale</strong> : seul le premier reste.
+          Si un round laisse un seul joueur en lice, il est champion sans finale.
         </p>
       </div>
+      <details class="rules-more">
+        <summary>Tous les détails : calcul d'un round, 0 m, finale</summary>
+        <div class="rules-more__body">
+          <h5>Comment un round est calculé, dans l'ordre</h5>
+          <ol>
+            <li>D+ Strava de chaque activité valide du round, pondéré par « La pluie qui mouille » si c'est la règle du round.</li>
+            <li>Sabotages, puis vols, puis multiplicateurs.</li>
+            <li>Bonus des éliminés qui touchent les joueurs en lice (Embuscade, Ravitaillement).</li>
+            <li>Handicap, si c'est la règle du round.</li>
+            <li>Classement par D+ décroissant, puis éliminations.</li>
+          </ol>
+          <h5>Combien d'éliminés</h5>
+          <ul>
+            <li><span data-rules-value="eliminationsPerRound">2</span> par défaut, 4 sur un round Handicap. L'organisateur peut fixer un autre nombre pour un round, ou un round sans élimination. Son choix passe avant la règle spéciale.</li>
+            <li><strong>Règle des 0 m</strong> : si au moins 2 joueurs finissent le round à 0 m et qu'ils sont au moins aussi nombreux que les éliminations prévues, <strong>tous les joueurs à 0 m sont éliminés</strong>. Les 0 m se comptent après jokers et bonus.</li>
+            <li>Un joueur sous bouclier ne peut pas être éliminé, ni par le classement ni par la règle des 0 m. Ce sont les derniers sans bouclier qui partent.</li>
+          </ul>
+          <h5>Longueur de la saison et finale</h5>
+          <ul>
+            <li>Nombre de rounds = (joueurs au départ − <span data-rules-value="finalistsCount">4</span>) ÷ <span data-rules-value="eliminationsPerRound">2</span>, arrondi au-dessus, + 1 round de finale. Exemple : 16 joueurs, 7 rounds.</li>
+            <li>La finale élimine tout le monde sauf le premier. L'organisateur peut aussi décider d'une finale sans élimination : chaque finaliste prend alors les points de sa place.</li>
+            <li>Quand des éliminations en plus (Handicap, règle des 0 m) vident la saison plus tôt, l'organisateur peut avancer la finale.</li>
+          </ul>
+          <h5>Égalité</h5>
+          <ul>
+            <li>Deux joueurs à égalité parfaite de D+ sur un round : aucune règle de départage, l'organisateur tranche.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
 
-
-
-    <!-- Système de Points -->
+    <!-- 3. Points -->
     <section class="rules-section" id="pointsSection">
-      <h2 class="section-title">
-        Système de Points
-      </h2>
-
+      <h2 class="section-title">Système de points</h2>
       <div class="rules-card">
         <p>
-          Les points sont attribués à chaque round selon ton classement D+. Plus tu finis haut, plus tu gagnes de points.
-          Le classement général cumule les points du Challenge Principal et du Challenge des Éliminés.
+          Tes points de la saison dépendent de <strong>ta place finale</strong> : plus tu tiens longtemps, plus tu marques.
+          Le champion prend 24 points.
+        </p>
+        <p>
+          Une fois éliminé, tu marques encore au <strong>challenge des éliminés</strong>, selon le D+ fait après ton élimination.
+          Le classement général additionne les deux, plus les points bonus.
         </p>
       </div>
 
       <div class="points-grid">
-        <!-- Challenge Principal -->
+        <!-- Challenge principal -->
         <div class="points-table-container principal">
-          <h4 class="points-table-title"> Challenge Principal</h4>
+          <h4 class="points-table-title">Challenge principal</h4>
           <p style="font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px;">
-            Points par round selon le classement
+            Points selon ta place finale dans la saison
           </p>
           <table class="points-table" id="pointsMainTable">
-            <tr><td><span class="da-medal" data-n="1"><span class="picto picto--medaille" role="img" aria-label="1er"><span class="picto__emoji" aria-hidden="true">🥇</span></span></span> 1ère place</td><td style="color: #fbbf24;">24 pts</td></tr>
-            <tr><td><span class="da-medal" data-n="2"><span class="picto picto--medaille" role="img" aria-label="2e"><span class="picto__emoji" aria-hidden="true">🥈</span></span></span> 2ème place</td><td style="color: #d1d5db;">21 pts</td></tr>
-            <tr><td><span class="da-medal" data-n="3"><span class="picto picto--medaille" role="img" aria-label="3e"><span class="picto__emoji" aria-hidden="true">🥉</span></span></span> 3ème place</td><td style="color: #cd7f32;">18 pts</td></tr>
-            <tr><td>4ème place</td><td>15 pts</td></tr>
-            <tr><td>5ème place</td><td>12 pts</td></tr>
-            <tr><td>6ème place</td><td>10 pts</td></tr>
-            <tr><td>7ème place</td><td>8 pts</td></tr>
-            <tr><td>8ème place</td><td>6 pts</td></tr>
-            <tr><td>9ème place</td><td>5 pts</td></tr>
-            <tr><td>10ème place</td><td>4 pts</td></tr>
-            <tr><td>11ème place</td><td>3 pts</td></tr>
-            <tr><td>12ème place</td><td>2 pts</td></tr>
-            <tr><td>13ème place</td><td>1 pt</td></tr>
-            <tr><td>14ème et +</td><td style="color: rgba(255,255,255,0.5);">0 pt</td></tr>
+            <tr><td><span class="da-medal" data-n="1"><span class="picto picto--medaille" role="img" aria-label="1er"><span class="picto__emoji" aria-hidden="true">🥇</span></span></span> 1re place</td><td style="color: #fbbf24;">24 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="2"><span class="picto picto--medaille" role="img" aria-label="2e"><span class="picto__emoji" aria-hidden="true">🥈</span></span></span> 2e place</td><td style="color: #d1d5db;">21 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="3"><span class="picto picto--medaille" role="img" aria-label="3e"><span class="picto__emoji" aria-hidden="true">🥉</span></span></span> 3e place</td><td style="color: #cd7f32;">18 pts</td></tr>
+            <tr><td>4e place</td><td>15 pts</td></tr>
+            <tr><td>5e place</td><td>12 pts</td></tr>
+            <tr><td>6e place</td><td>10 pts</td></tr>
+            <tr><td>7e place</td><td>8 pts</td></tr>
+            <tr><td>8e place</td><td>6 pts</td></tr>
+            <tr><td>9e place</td><td>5 pts</td></tr>
+            <tr><td>10e place</td><td>4 pts</td></tr>
+            <tr><td>11e place</td><td>3 pts</td></tr>
+            <tr><td>12e place</td><td>2 pts</td></tr>
+            <tr><td>13e place</td><td>1 pt</td></tr>
+            <tr><td>14e et au-delà</td><td style="color: rgba(255,255,255,0.5);">0 pt</td></tr>
           </table>
         </div>
 
-        <!-- Challenge des Éliminés -->
+        <!-- Challenge des éliminés -->
         <div class="points-table-container elimines">
-          <h4 class="points-table-title"> Challenge des Éliminés</h4>
+          <h4 class="points-table-title">Challenge des éliminés</h4>
           <p style="font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px;">
-            Points selon le D+ cumulé depuis l'élimination
+            Points selon le D+ fait après ton élimination
           </p>
           <table class="points-table" id="pointsElimTable">
-            <tr><td><span class="da-medal" data-n="1"><span class="picto picto--medaille" role="img" aria-label="1er"><span class="picto__emoji" aria-hidden="true">🥇</span></span></span> 1ère place</td><td style="color: #fbbf24;">10 pts</td></tr>
-            <tr><td><span class="da-medal" data-n="2"><span class="picto picto--medaille" role="img" aria-label="2e"><span class="picto__emoji" aria-hidden="true">🥈</span></span></span> 2ème place</td><td style="color: #d1d5db;">8 pts</td></tr>
-            <tr><td><span class="da-medal" data-n="3"><span class="picto picto--medaille" role="img" aria-label="3e"><span class="picto__emoji" aria-hidden="true">🥉</span></span></span> 3ème place</td><td style="color: #cd7f32;">6 pts</td></tr>
-            <tr><td>4ème place</td><td>5 pts</td></tr>
-            <tr><td>5ème place</td><td>4 pts</td></tr>
-            <tr><td>6ème place</td><td>3 pts</td></tr>
-            <tr><td>7ème place</td><td>2 pts</td></tr>
-            <tr><td>8ème place</td><td>1 pt</td></tr>
-            <tr><td>9ème et +</td><td style="color: rgba(255,255,255,0.5);">0 pt</td></tr>
+            <tr><td><span class="da-medal" data-n="1"><span class="picto picto--medaille" role="img" aria-label="1er"><span class="picto__emoji" aria-hidden="true">🥇</span></span></span> 1re place</td><td style="color: #fbbf24;">10 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="2"><span class="picto picto--medaille" role="img" aria-label="2e"><span class="picto__emoji" aria-hidden="true">🥈</span></span></span> 2e place</td><td style="color: #d1d5db;">8 pts</td></tr>
+            <tr><td><span class="da-medal" data-n="3"><span class="picto picto--medaille" role="img" aria-label="3e"><span class="picto__emoji" aria-hidden="true">🥉</span></span></span> 3e place</td><td style="color: #cd7f32;">6 pts</td></tr>
+            <tr><td>4e place</td><td>5 pts</td></tr>
+            <tr><td>5e place</td><td>4 pts</td></tr>
+            <tr><td>6e place</td><td>3 pts</td></tr>
+            <tr><td>7e place</td><td>2 pts</td></tr>
+            <tr><td>8e place</td><td>1 pt</td></tr>
+            <tr><td>9e et au-delà</td><td style="color: rgba(255,255,255,0.5);">0 pt</td></tr>
           </table>
         </div>
       </div>
 
       <div class="info-box">
         <p id="pointsTip">
-          <strong> Astuce :</strong> Être éliminé tôt donne plus de temps pour accumuler du D+ dans le challenge des éliminés.
-          Un bon score peut compenser une élimination précoce !
+          <strong>Bon à savoir :</strong> être éliminé tôt laisse plus de jours pour le challenge des éliminés.
         </p>
       </div>
+
+      <details class="rules-more">
+        <summary>Tous les détails : places, éliminés, général</summary>
+        <div class="rules-more__body">
+          <h5>Ta place finale</h5>
+          <ul>
+            <li>Tu prends ta place au round de ton élimination. Si K joueurs étaient en lice à ce round, le dernier prend la place K, l'avant-dernier la place K − 1. Exemple à 16 joueurs : les éliminés du round 1 finissent 16e et 15e (0 point).</li>
+            <li>Les joueurs éliminés ensemble par la règle des 0 m prennent tous la place la plus basse du round.</li>
+            <li>Les joueurs encore en lice ne marquent rien pendant la saison : les points tombent à l'élimination ou en finale.</li>
+            <li>En finale : 1er 24 points, 2e 21, 3e 18, 4e 15, selon le classement du round de finale.</li>
+            <li>Saison Points doublés : tout ce barème ×2.</li>
+          </ul>
+          <h5>Challenge des éliminés</h5>
+          <ul>
+            <li>Ton D+ compte du lendemain de la fin de ton round d'élimination (0 h) jusqu'à la fin du dernier round de la saison.</li>
+            <li>Les gains et pertes des bonus des éliminés s'ajoutent à ce total.</li>
+            <li>Les battus de la finale n'ont plus de jour à jouer : 0 m au challenge des éliminés.</li>
+          </ul>
+          <h5>Classement général</h5>
+          <ul>
+            <li>Total = points du challenge principal + points du challenge des éliminés + points bonus (jauge collective, Marquage, Duel, et rescapé pour les saisons 1 à 8).</li>
+            <li>Égalité de points : celui qui a gagné le plus de saisons passe devant, puis celui qui a le plus de points au challenge principal.</li>
+          </ul>
+        </div>
+      </details>
     </section>
 
-    <!-- Jauge collective de D+ -->
+    <!-- 4. Règles spéciales de round -->
+    <section class="rules-section" data-mechanic="specialRules">
+      <h2 class="section-title">Règles spéciales de round</h2>
+      <div class="rules-card">
+        <p>Certains rounds ont une règle spéciale, affichée dans le cartouche du round. Il en existe trois.</p>
+        <ul>
+          <li><strong>Handicap</strong> : les 10 premiers du général perdent une part de leur D+, les 5 derniers en gagnent. 4 éliminés au lieu de 2.</li>
+          <li><strong>La pluie qui mouille</strong> : le D+ d'une sortie sous la pluie compte ×1,5.</li>
+          <li><strong>D+ pur</strong> : ni joker ni bonus sur ce round.</li>
+        </ul>
+      </div>
+      <details class="rules-more">
+        <summary>Tous les détails : valeurs exactes</summary>
+        <div class="rules-more__body">
+          <h5>Handicap</h5>
+          <ul>
+            <li>Ton D+ du round est ajusté selon ton rang au classement général : 1er −50 %, 2e −40 %, 3e −35 %, 4e −30 %, 5e −25 %, 6e −20 %, 7e −15 %, 8e −10 %, 9e −7 %, 10e −5 %.</li>
+            <li>Les 5 derniers du général gagnent +10 %.</li>
+            <li>Le rang est calculé sur les seuls points du challenge principal des rounds déjà terminés de l'année.</li>
+            <li>L'ajustement se fait en dernier, sur le D+ après jokers et bonus.</li>
+            <li>4 éliminés au lieu de 2, sauf si l'organisateur a fixé un autre nombre.</li>
+          </ul>
+          <h5>La pluie qui mouille</h5>
+          <ul>
+            <li>×1,5 sur le D+ de chaque activité pendant laquelle il a plu au moins 15 minutes.</li>
+            <li>Il faut plus de pluie que de neige (en équivalent eau : 1 cm de neige vaut 1 mm de pluie). La neige seule ne compte pas.</li>
+            <li>La météo est mesurée sur le tracé GPS de l'activité. Une activité sans GPS ne peut pas être créditée.</li>
+            <li>La pondération se fait activité par activité, avant les jokers.</li>
+          </ul>
+          <h5>D+ pur</h5>
+          <ul>
+            <li>Aucun joker ni bonus des éliminés ne s'applique sur ce round.</li>
+            <li>Le meilleur éliminé de ce round ne reçoit pas de bonus.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- 5. Jauge collective -->
     <section class="rules-section" data-mechanic="gauge">
-      <h2 class="section-title">
-        La jauge collective de D+
-      </h2>
-
+      <h2 class="section-title">La jauge collective de D+</h2>
       <div class="special-rule-card">
-        <h4>Tous ensemble… ou pas</h4>
-        <p style="color: rgba(255,255,255,0.7); line-height: 1.7;">
-          À chaque round <span id="gaugeStart">(à partir du round 50)</span>, le D+ réel cumulé de tous les joueurs du challenge principal
-          remplit une jauge commune, avant handicap, jokers et bonus. L'objectif (100 %) dépend du nombre de joueurs en lice :
-          825 m de D+ moyen à 14 joueurs ou plus, 975 m de 11 à 13, 1 125 m à 9-10, 1 313 m à 7-8,
-          1 575 m à 5-6, 2 025 m à 3-4 et 2 250 m à 2. Atteindre l'objectif suffit à éviter l'échec ;
-          la jauge indique combien de D+ il manque pour le palier suivant.
+        <p>
+          <span id="gaugeStart">Depuis la saison 9</span>, le D+ de tous les joueurs en lice remplit une jauge commune à chaque round.
+          Bien remplie, elle donne des points à tous les joueurs en lice. Ratée, elle en donne aux éliminés.
         </p>
-
         <div class="special-rule-steps">
-          <div class="special-rule-step">
-            <span class="step-text"><strong>Réussite critique (≥ 200 %)</strong> → <strong>+2 points</strong> à tous les joueurs du principal</span>
-          </div>
-          <div class="special-rule-step">
-            <span class="step-text"><strong>Réussite (175–200 %)</strong> → <strong>+1 point</strong> à tous les joueurs du principal</span>
-          </div>
-          <div class="special-rule-step">
-            <span class="step-text"><strong>Objectif atteint (100–175 %)</strong> → rien ne se passe</span>
-          </div>
-          <div class="special-rule-step">
-            <span class="step-text"><strong>Échec (75–100 %)</strong> → <strong>+1 point</strong> aux éliminés de la saison actifs pendant le round</span>
-          </div>
-          <div class="special-rule-step">
-            <span class="step-text"><strong>Échec critique (&lt; 75 %)</strong> → <strong>+2 points</strong> aux éliminés de la saison actifs pendant le round</span>
-          </div>
-        </div>
-
-        <div class="special-rule-warning">
-          <strong>Bon à savoir :</strong> un éliminé est « actif » s'il a enregistré au moins une activité valide
-          pendant le round. Les points de la jauge comptent au classement général dès la fin du round.
+          <div class="special-rule-step"><span class="step-text"><strong>Réussite critique (200 % et plus)</strong> : +2 points à chaque joueur en lice</span></div>
+          <div class="special-rule-step"><span class="step-text"><strong>Réussite (175 à 200 %)</strong> : +1 point à chaque joueur en lice</span></div>
+          <div class="special-rule-step"><span class="step-text"><strong>Objectif atteint (100 à 175 %)</strong> : rien</span></div>
+          <div class="special-rule-step"><span class="step-text"><strong>Échec (75 à 100 %)</strong> : +1 point aux éliminés actifs</span></div>
+          <div class="special-rule-step"><span class="step-text"><strong>Échec critique (moins de 75 %)</strong> : +2 points aux éliminés actifs</span></div>
         </div>
       </div>
+      <details class="rules-more">
+        <summary>Tous les détails : calcul et objectifs</summary>
+        <div class="rules-more__body">
+          <h5>Le calcul</h5>
+          <ul>
+            <li>Jauge = somme du D+ Strava des activités valides de tous les joueurs en lice au début du round, y compris ceux éliminés à la fin de ce round.</li>
+            <li>Ni règle spéciale, ni joker, ni bonus : c'est le D+ brut.</li>
+            <li>Objectif (100 %) = nombre de joueurs en lice × objectif par joueur :</li>
+          </ul>
+          <table class="points-table rules-more__table">
+            <tr><td>14 joueurs et plus</td><td>825 m</td></tr>
+            <tr><td>11 à 13 joueurs</td><td>975 m</td></tr>
+            <tr><td>9 ou 10 joueurs</td><td>1 125 m</td></tr>
+            <tr><td>7 ou 8 joueurs</td><td>1 312,5 m</td></tr>
+            <tr><td>5 ou 6 joueurs</td><td>1 575 m</td></tr>
+            <tr><td>3 ou 4 joueurs</td><td>2 025 m</td></tr>
+            <tr><td>2 joueurs</td><td>2 250 m</td></tr>
+          </table>
+          <ul>
+            <li>Exemple à 14 joueurs : objectif 11 550 m. Réussite dès 20 213 m, réussite critique dès 23 100 m, échec critique à 8 662 m ou moins.</li>
+          </ul>
+          <h5>Qui reçoit les points</h5>
+          <ul>
+            <li>Réussite : chaque joueur en lice au début du round.</li>
+            <li>Échec : chaque joueur éliminé plus tôt dans la saison qui a enregistré au moins une activité valide pendant le round.</li>
+            <li>Les points comptent au classement général dès la fin du round.</li>
+          </ul>
+        </div>
+      </details>
     </section>
 
-    <!-- Les Jokers -->
+    <!-- 6. Jokers -->
     <section class="rules-section" data-mechanic="jokers">
       <h2 class="section-title">
         <span class="section-title-icon"><span class="picto picto--jokers"><span class="picto__emoji" aria-hidden="true">🃏</span></span></span>
-        Les Jokers
+        Les jokers
       </h2>
-
       <div class="rules-card">
         <p>
-          Chaque joueur dispose de <strong class="da-mk" style="color: #f97316;">8 jokers</strong> au total (2 de chaque type)
-          à utiliser stratégiquement durant la saison.
-          Pendant les <span class="da-mk">3 premiers jours</span> d'un round, tu choisis : jouer ton joker sur ce round,
-          ou le programmer pour le round suivant. Après le 3<sup>e</sup> jour, il ne peut plus viser que le round suivant.
-          Une petite icône apparaît alors dans le classement pour prévenir tes adversaires.
+          Tu as <strong class="da-mk">8 jokers pour toute l'année</strong> : 2 Voleur, 2 Multiplicateur, 2 Bouclier, 2 Sabotage.
+        </p>
+        <p>
+          <strong>Jours 1 à 3 du round</strong> : joue-le tout de suite ou programme-le pour le round suivant.
+          <strong>Jours 4 et 5</strong> : seulement pour le round suivant.
+          Un joker joué se voit dans le classement.
         </p>
       </div>
 
@@ -796,48 +923,63 @@
         <div class="joker-card" data-joker="voleur">
           <div class="icon"><span class="picto picto--voleur"><span class="picto__emoji" aria-hidden="true">🦹</span></span></div>
           <div class="name">Voleur</div>
-          <div class="desc">Vole la meilleure activité (plus gros D+) d'un adversaire de ton choix.</div>
-          <div class="stock">×2 par saison</div>
+          <div class="desc">Prends l'activité du round qui a le plus de D+ chez ta cible : elle la perd, tu la gagnes.</div>
+          <div class="stock">×2 par an</div>
         </div>
-
         <div class="joker-card" data-joker="multiplicateur">
           <div class="icon"><span class="picto picto--multiplicateur"><span class="picto__emoji" aria-hidden="true">✖️</span></span></div>
           <div class="name">Multiplicateur</div>
-          <div class="desc">Multiplie ton D+ du round par ×1.5. Un boost considérable !</div>
-          <div class="stock">×2 par saison</div>
+          <div class="desc">Ton D+ du round ×1,5.</div>
+          <div class="stock">×2 par an</div>
         </div>
-
-        <div class="joker-card">
+        <div class="joker-card" data-joker="bouclier">
           <div class="icon"><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span></div>
           <div class="name">Bouclier</div>
-          <div class="desc">Évite l'élimination même si tu es dernier. NON utilisable en finale.</div>
-          <div class="stock">×2 par saison</div>
+          <div class="desc">Tu ne peux pas être éliminé ce round. Interdit en finale et en saison Équipes.</div>
+          <div class="stock">×2 par an</div>
         </div>
-
         <div class="joker-card" data-joker="sabotage">
           <div class="icon"><span class="picto picto--sabotage"><span class="picto__emoji" aria-hidden="true">💣</span></span></div>
           <div class="name">Sabotage</div>
-          <div class="desc">Retire 30% du D+ d'un adversaire ciblé. Idéal pour déstabiliser un concurrent.</div>
-          <div class="stock">×2 par saison</div>
+          <div class="desc">Ta cible perd 30 % de son D+ du round.</div>
+          <div class="stock">×2 par an</div>
         </div>
       </div>
+
+      <details class="rules-more">
+        <summary>Tous les détails : calcul exact des jokers</summary>
+        <div class="rules-more__body">
+          <h5>Stock et usage</h5>
+          <ul>
+            <li>Le stock vaut pour l'année entière, pas pour une saison. Un joker joué est consommé.</li>
+            <li>Plusieurs jokers peuvent être joués sur le même round.</li>
+            <li>La cible doit être un joueur en lice : viser un éliminé n'a aucun effet.</li>
+            <li>Un joueur éliminé ne peut plus jouer de joker jusqu'à la fin de la saison.</li>
+            <li>Round D+ pur : un joker ne peut pas y être joué tout de suite, et un joker programmé sur ce round n'a aucun effet.</li>
+          </ul>
+          <h5>Ordre et calcul</h5>
+          <ol>
+            <li><strong>Sabotage</strong> : 30 % du D+ de la cible avant tout joker (après « La pluie qui mouille » si c'est la règle du round). Deux sabotages sur la même cible : −60 %. Le D+ ne descend jamais sous 0.</li>
+            <li><strong>Voleur</strong> : l'activité du round qui a le plus de D+ Strava chez la cible. Elle lui est retirée et t'est ajoutée. Si la cible n'a aucune activité, rien ne se passe. Une cible qui n'avait qu'une activité tombe à 0 m.</li>
+            <li><strong>Multiplicateur</strong> : +50 % de ton D+ après sabotages et vols. Un vol réussi est donc multiplié, un sabotage subi aussi. Un Ravitaillement reçu ensuite ne l'est pas.</li>
+            <li><strong>Bouclier</strong> : tu ne peux pas être éliminé, ni par le classement ni par la règle des 0 m. Les éliminés sont les derniers sans bouclier.</li>
+          </ol>
+        </div>
+      </details>
     </section>
 
-    <!-- Bonus Éphémères -->
+    <!-- 7. Bonus des éliminés -->
     <section class="rules-section" data-mechanic="eliminatedBonuses">
       <h2 class="section-title">
         <span class="section-title-icon"><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span></span>
-        Bonus Éphémères (Challenge des Éliminés)
+        Bonus des éliminés
       </h2>
-
       <div class="rules-card">
-        <h4>Comment ça marche ?</h4>
         <p>
-          Quand tu es éliminé, si tu es le <strong class="da-mk" style="color: #a855f7;">meilleur des 2 éliminés</strong> du round,
-          tu reçois un bonus spécial ! Tu choisis 1 bonus parmi 2 tirés au sort.
+          À chaque round, le <strong class="da-mk">meilleur des éliminés</strong> (celui qui a fait le plus de D+) reçoit 2 bonus tirés au sort et en garde 1.
         </p>
         <p>
-          Ce bonus est utilisable une seule fois avant la fin de la saison. Si tu ne l'utilises pas, il disparaît !
+          Il s'utilise une fois. S'il n'est pas utilisé avant la fin de la saison, il disparaît.
         </p>
       </div>
 
@@ -845,149 +987,108 @@
         <div class="joker-card bonus-ephemere-card" data-bonus="embuscade">
           <div class="icon"><span class="picto picto--embuscade"><span class="picto__emoji" aria-hidden="true">🏹</span></span></div>
           <div class="name">Embuscade</div>
-          <div class="desc">
-            Tu tends une embuscade à un joueur actif et lui voles une activité aléatoire (+20min).
-            <br><br>
-            <strong>Effet :</strong> Le D+ de cette activité est <span style="color:#ef4444">retiré</span> du total du joueur actif
-            et <span style="color:#10b981">ajouté</span> à ton total dans le challenge des éliminés.
-          </div>
-          <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
-          <div class="category"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span> Offensif</div>
+          <div class="desc">Une activité du round de ta cible est tirée au sort : elle perd ce D+, tu le gagnes au challenge des éliminés.</div>
+          <div class="timing">Jours 1 à 3 du round</div>
         </div>
-
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="ravitaillement">
           <div class="icon"><span class="picto picto--ravitaillement"><span class="picto__emoji" aria-hidden="true">🎒</span></span></div>
           <div class="name">Ravitaillement</div>
-          <div class="desc">
-            Tu ravitailles un joueur actif en lui offrant une de tes activités aléatoire (+20min).
-            <br><br>
-            <strong>Effet :</strong> Le D+ de cette activité est <span style="color:#10b981">ajouté en bonus</span> au joueur actif.
-            Tu <span style="color:#10b981">conserves aussi</span> ce D+ dans ton total (pas de perte pour toi).
-          </div>
-          <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
-          <div class="category">Soutien</div>
+          <div class="desc">Ta meilleure activité du round est offerte à un joueur en lice : il gagne ce D+, tu le gardes aussi.</div>
+          <div class="timing">Jours 1 à 3 du round</div>
         </div>
-
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="duel">
           <div class="icon"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span></div>
           <div class="name">Duel</div>
-          <div class="desc">
-            Tu défies automatiquement ton co-éliminé (l'autre joueur éliminé en même temps que toi).
-            <br><br>
-            <strong>Effet :</strong> À la fin de la saison, on compare le D+ total des deux duellistes (depuis leur élimination).
-            Le gagnant remporte <span style="color:#10b981">+1 point</span> au classement général. Égalité = aucun point.
-          </div>
-          <div class="timing">Activation : automatique dès le choix<br>Effet : fin de saison</div>
-          <div class="category">Compétitif</div>
+          <div class="desc">Contre l'autre éliminé de ton round : à la fin de la saison, celui qui a fait le plus de D+ depuis l'élimination gagne 1 point. Égalité : rien.</div>
+          <div class="timing">Actif dès le choix</div>
         </div>
-
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="brouillard">
           <div class="icon"><span class="picto picto--brouillard"><span class="picto__emoji" aria-hidden="true">🌫️</span></span></div>
           <div class="name">Brouillard</div>
-          <div class="desc">
-            Tu te caches dans le brouillard jusqu'à la fin de la saison. Tapi dans l'ombre !
-            <br><br>
-            <strong>Effet :</strong> Ton D+ est <span style="color:#a855f7">masqué</span> pour tous les autres joueurs.
-            Tu apparais comme dernier du classement des éliminés (même si ce n'est pas le cas).
-            Révélation à la fin de la saison.
-          </div>
-          <div class="timing">Activation : dans les 48h après élimination<br>Effet : fin de saison</div>
-          <div class="category"><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span> Défensif</div>
+          <div class="desc">Ton D+ est caché aux autres jusqu'à la fin de la saison : tu apparais dernier des éliminés.</div>
+          <div class="timing">Actif dès le choix</div>
         </div>
-
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="marquage">
           <div class="icon"><span class="picto picto--marquage"><span class="picto__emoji" aria-hidden="true">🎯</span></span></div>
           <div class="name">Marquage</div>
-          <div class="desc">
-            En début de round, tu marques un joueur actif. C'est un pari sur son élimination !
-            <br><br>
-            <strong>Effet :</strong> Si le joueur marqué termine dans les 2 dernières places (éliminé) à la fin du round,
-            tu gagnes <span style="color:#10b981">+1 point</span> au classement général. Sinon, le bonus est perdu.
-          </div>
-          <div class="timing">Activation : jour 1 du round uniquement<br>Effet : fin du round</div>
-          <div class="category">Pari</div>
+          <div class="desc">Désigne un joueur en lice : s'il est éliminé à la fin du round, tu gagnes 1 point.</div>
+          <div class="timing">Jour 1 du round seulement</div>
         </div>
-
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="trap">
           <div class="icon"><span class="picto picto--trap"><span class="picto__emoji" aria-hidden="true">🪤</span></span></div>
           <div class="name">It's a TRAP !</div>
-          <div class="desc">
-            Tu poses un piège passif qui reste actif jusqu'à ce qu'il se déclenche.
-            <br><br>
-            <strong>Effet :</strong> Quand un joueur est éliminé en dernière position, tu récupères
-            <span style="color:#10b981">le D+ de sa dernière activité</span> du round (c'est une copie, pas un vol - il garde son D+).
-          </div>
-          <div class="timing">Activation : automatique dès réception<br>Effet : au prochain éliminé dernier</div>
-          <div class="category"><span class="picto picto--trap"><span class="picto__emoji" aria-hidden="true">🪤</span></span> Piège</div>
+          <div class="desc">Au prochain joueur éliminé à la dernière place, tu copies le D+ de sa dernière activité du round. Il le garde.</div>
+          <div class="timing">Actif dès le choix</div>
         </div>
-
-        <div class="joker-card bonus-ephemere-card">
+        <div class="joker-card bonus-ephemere-card" data-bonus="second_souffle">
           <div class="icon"><span class="picto picto--second_souffle"><span class="picto__emoji" aria-hidden="true">🔥</span></span></div>
-          <div class="name">Second Souffle</div>
-          <div class="desc">
-            Récompense la régularité ! Sois constant dans tes efforts.
-            <br><br>
-            <strong>Effet :</strong> À la fin de la saison, ton activité avec le D+ le plus faible (depuis ton élimination)
-            <span style="color:#10b981">compte double</span> dans ton total du challenge des éliminés.
-          </div>
-          <div class="timing">Activation : automatique dès réception<br>Effet : fin de saison</div>
-          <div class="category">Boost</div>
+          <div class="name">Second souffle</div>
+          <div class="desc">À la fin de la saison, ta plus petite activité depuis ton élimination compte double.</div>
+          <div class="timing">Actif dès le choix</div>
         </div>
-
         <div class="joker-card bonus-ephemere-card" data-bonus="kamikaze">
           <div class="icon"><span class="picto picto--kamikaze"><span class="picto__emoji" aria-hidden="true">💣</span></span></div>
           <div class="name">Kamikaze</div>
-          <div class="desc">
-            Tu te sacrifies pour entraîner un adversaire dans ta chute.
-            <br><br>
-            <strong>Effet :</strong> Tu <span style="color:#ef4444">perds 25%</span> de ton D+ du round,
-            mais ta cible (joueur actif de ton choix) <span style="color:#ef4444">perd aussi 25%</span> de son D+ du round.
-          </div>
-          <div class="timing">Activation : 3 premiers jours du round<br>Effet : fin du round</div>
-          <div class="category"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span> Offensif</div>
+          <div class="desc">Tu perds 25 % de ton D+ du round, ta cible aussi.</div>
+          <div class="timing">Jours 1 à 3 du round</div>
         </div>
-
         <div class="joker-card bonus-ephemere-card" data-bonus="malediction">
           <div class="icon"><span class="picto picto--malediction"><span class="picto__emoji" aria-hidden="true">🪬</span></span></div>
           <div class="name">Malédiction</div>
-          <div class="desc">
-            Tu maudis l'un des responsables de ton élimination. Son succès devient ta vengeance.
-            <br><br>
-            <strong>Cible :</strong> 1 joueur parmi les 3 juste au-dessus de toi lors de ton élimination.<br>
-            <strong>Effet :</strong> À chaque fin de round, <span style="color:#ef4444">10% de son D+ lui est volé</span>
-            et <span style="color:#10b981">ajouté à ton total</span>. L'effet cesse quand il est éliminé.
-          </div>
-          <div class="timing">Activation : automatique dès le choix<br>Effet : chaque fin de round</div>
-          <div class="category"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span> Offensif</div>
+          <div class="desc">Tu maudis un des 3 joueurs juste au-dessus de toi à ton élimination : à chaque fin de round, une part de son D+ passe dans ton total, jusqu'à son élimination.</div>
+          <div class="timing">Actif dès le choix</div>
         </div>
       </div>
 
-
+      <details class="rules-more">
+        <summary>Tous les détails : attribution et calcul</summary>
+        <div class="rules-more__body">
+          <h5>Qui reçoit un bonus</h5>
+          <ul>
+            <li>Il faut au moins 2 éliminés sur le round. Le meilleur est celui qui a le plus de D+ du round, après jokers et bonus.</li>
+            <li>S'il a fait 0 m, personne ne reçoit de bonus.</li>
+            <li>Pas de bonus après la finale ni sur un round D+ pur.</li>
+            <li>Les 2 bonus proposés sont tirés parmi ceux que tu n'as pas encore choisis cette année.</li>
+          </ul>
+          <h5>Quand les jouer</h5>
+          <ul>
+            <li>Embuscade et Ravitaillement : jours 1 à 3 du round, effet sur ce round.</li>
+            <li>Marquage : jour 1 du round seulement, effet sur ce round.</li>
+            <li>Duel, Brouillard, It's a TRAP ! et Second souffle : actifs dès que tu les choisis.</li>
+          </ul>
+          <h5>Calcul</h5>
+          <ul>
+            <li><strong>Embuscade</strong> : tirage parmi toutes les activités du round de la cible, sans durée minimum. Appliqué après les jokers.</li>
+            <li><strong>Ravitaillement</strong> : ta plus grosse activité du round. Si tu n'as rien fait sur ce round, rien n'est donné. Appliqué après les jokers : le Multiplicateur de la cible ne s'y applique pas.</li>
+            <li><strong>Duel</strong> : comparaison des totaux du challenge des éliminés à la clôture de la saison.</li>
+            <li><strong>Brouillard</strong> : affichage seulement. Ton vrai total compte pour le classement et les points.</li>
+            <li><strong>Second souffle</strong> : ta plus petite activité depuis ton élimination est comptée une deuxième fois.</li>
+          </ul>
+        </div>
+      </details>
     </section>
 
-    <!-- Activités comptabilisées -->
+    <!-- 8. Activités -->
     <section class="rules-section">
-      <h2 class="section-title">
-        Activités Comptabilisées
-      </h2>
-
+      <h2 class="section-title">Activités comptabilisées</h2>
       <div class="rules-card">
-        <h4>Sports acceptés</h4>
         <p>
-          Toutes les activités outdoor non motorisé avec dénivelé sont comptabilisées : course à pied, trail, randonnée, vélo, VTT,
-          ski de randonnée, raquettes, etc. Les activités doivent être enregistrées sur Strava.
+          Course, trail, vélo de route, VTT, gravel, randonnée, marche, raquettes, ski de randonnée et ski de fond, enregistrés sur Strava.
+          Le D+ est celui calculé par Strava.
         </p>
       </div>
-
-      <div class="rules-card">
-        <h4>Critères de validité</h4>
-        <p>
-          • L'activité doit être enregistrée pendant la période du round en cours<br>
-          • Le D+ est celui calculé par Strava<br>
-          • Les activités manuelles sont acceptées mais peuvent être vérifiées<br>
-          • Les activités sur home trainer (sans D+ réel) <span class="da-mk">ne comptent pas</span>
-        </p>
-      </div>
+      <details class="rules-more">
+        <summary>Tous les détails : types Strava</summary>
+        <div class="rules-more__body">
+          <ul>
+            <li>Types Strava acceptés : Run, TrailRun, Ride, MountainBikeRide, GravelRide, Hike, Walk, Snowshoe, BackcountrySki, NordicSki.</li>
+            <li>Tout autre type ne compte pas, notamment : ski alpin (AlpineSki), snowboard, vélo et VTT électriques (EBikeRide, EMountainBikeRide), activités virtuelles (VirtualRide, VirtualRun), natation, yoga, musculation.</li>
+            <li>Les activités saisies à la main comptent comme les autres.</li>
+            <li>L'organisateur peut exclure une activité (erreur de GPS, D+ aberrant, triche). Elle ne compte alors nulle part.</li>
+            <li>Une activité compte dans le round où elle se termine.</li>
+          </ul>
+        </div>
+      </details>
     </section>
 
     <!-- CTA -->
@@ -1110,7 +1211,7 @@
         }
         const gaugeFrom = mechanicStartSeason('gauge');
         const gaugeStart = document.getElementById('gaugeStart');
-        if (gaugeStart) gaugeStart.textContent = gaugeFrom ? `(à partir de la saison ${gaugeFrom})` : '';
+        if (gaugeStart) gaugeStart.textContent = gaugeFrom ? `À partir de la saison ${gaugeFrom}` : 'À chaque saison';
 
         // Barème selon le nombre de joueurs de la ligue
         await loadParticipants();
