@@ -666,17 +666,8 @@
         <div class="rules-more__body">
           <ul>
             <li>Un round commence le jour 1 à 0 h et finit le dernier jour à 23 h 59, heure française.</li>
-            <li>Il dure <span data-rules-value="roundDurationDays">5</span> jours par défaut. L'organisateur peut fixer une autre durée pour un round, notamment dans les saisons Deadline.</li>
             <li>Une activité compte dans le round où elle <strong>se termine</strong> (heure de départ + durée totale). Une sortie partie le dernier soir et finie après minuit compte pour le round suivant.</li>
             <li>Une saison commence avec tous les inscrits. Un joueur inscrit en cours de saison attend la saison suivante.</li>
-            <li>Le type de chaque saison est fixé par l'organisateur :
-              <ul>
-                <li><strong>Standard</strong> : la règle de base.</li>
-                <li><strong>Points doublés</strong> : les points du challenge principal comptent double.</li>
-                <li><strong>Deadline</strong> : la saison finit à une date fixée. La durée des rounds et le nombre d'éliminations sont calculés pour tomber juste.</li>
-                <li><strong>Équipes</strong> : un encadré dédié s'affiche en haut de cette page pendant ces saisons.</li>
-              </ul>
-            </li>
           </ul>
         </div>
       </details>
@@ -687,7 +678,7 @@
       <h2 class="section-title">Rounds et éliminations</h2>
       <div class="rules-card">
         <p>
-          Le classement d'un round se fait sur ton D+ du round, après les jokers, les bonus et la règle spéciale éventuelle.
+          Le classement d'un round se fait sur ton D+ du round, après les jokers et les bonus.
           Les <span data-rules-value="eliminationsPerRound">2</span> derniers sont éliminés, sauf s'ils ont joué un bouclier.
         </p>
         <p>
@@ -700,27 +691,26 @@
         <div class="rules-more__body">
           <h5>Comment un round est calculé, dans l'ordre</h5>
           <ol>
-            <li>D+ Strava de chaque activité valide du round, pondéré par « La pluie qui mouille » si c'est la règle du round.</li>
-            <li>Sabotages, puis vols, puis multiplicateurs.</li>
+            <li>D+ Strava de chaque activité du round.</li>
+            <li>Jokers : sabotages, puis vols, puis multiplicateurs.</li>
             <li>Bonus des éliminés qui touchent les joueurs en lice (Embuscade, Ravitaillement).</li>
-            <li>Handicap, si c'est la règle du round.</li>
-            <li>Classement par D+ décroissant, puis éliminations.</li>
+            <li>Classement par D+, puis éliminations.</li>
           </ol>
-          <h5>Combien d'éliminés</h5>
+          <h5>Les éliminations</h5>
           <ul>
-            <li><span data-rules-value="eliminationsPerRound">2</span> par défaut, 4 sur un round Handicap. L'organisateur peut fixer un autre nombre pour un round, ou un round sans élimination. Son choix passe avant la règle spéciale.</li>
+            <li><span data-rules-value="eliminationsPerRound">2</span> éliminés par round.</li>
             <li><strong>Règle des 0 m</strong> : si au moins 2 joueurs finissent le round à 0 m et qu'ils sont au moins aussi nombreux que les éliminations prévues, <strong>tous les joueurs à 0 m sont éliminés</strong>. Les 0 m se comptent après jokers et bonus.</li>
             <li>Un joueur sous bouclier ne peut pas être éliminé, ni par le classement ni par la règle des 0 m. Ce sont les derniers sans bouclier qui partent.</li>
           </ul>
-          <h5>Longueur de la saison et finale</h5>
+          <h5>Longueur de la saison</h5>
           <ul>
-            <li>Nombre de rounds = (joueurs au départ − <span data-rules-value="finalistsCount">4</span>) ÷ <span data-rules-value="eliminationsPerRound">2</span>, arrondi au-dessus, + 1 round de finale. Exemple : 16 joueurs, 7 rounds.</li>
-            <li>La finale élimine tout le monde sauf le premier. L'organisateur peut aussi décider d'une finale sans élimination : chaque finaliste prend alors les points de sa place.</li>
-            <li>Quand des éliminations en plus (Handicap, règle des 0 m) vident la saison plus tôt, l'organisateur peut avancer la finale.</li>
+            <li>Chaque round élimine <span data-rules-value="eliminationsPerRound">2</span> joueurs jusqu'à ce qu'il en reste <span data-rules-value="finalistsCount">4</span>. Ces <span data-rules-value="finalistsCount">4</span> joueurs jouent la finale.</li>
+            <li>Exemple à 16 joueurs : 6 rounds pour passer de 16 à 4 joueurs, puis la finale, soit 7 rounds.</li>
+            <li>Si des éliminations en plus (règle des 0 m) réduisent le nombre de joueurs plus vite, la finale arrive plus tôt.</li>
           </ul>
           <h5>Égalité</h5>
           <ul>
-            <li>Deux joueurs à égalité parfaite de D+ sur un round : aucune règle de départage, l'organisateur tranche.</li>
+            <li>Deux joueurs à égalité parfaite de D+ sur un round : le premier inscrit passe devant.</li>
           </ul>
         </div>
       </details>
@@ -731,7 +721,7 @@
       <h2 class="section-title">Système de points</h2>
       <div class="rules-card">
         <p>
-          Tes points de la saison dépendent de <strong>ta place finale</strong> : plus tu tiens longtemps, plus tu marques.
+          Tes points de la saison dépendent de <strong>ta place dans le round où tu es éliminé</strong> : plus tu tiens longtemps, plus tu marques.
           Le champion prend 24 points.
         </p>
         <p>
@@ -745,7 +735,7 @@
         <div class="points-table-container principal">
           <h4 class="points-table-title">Challenge principal</h4>
           <p style="font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px;">
-            Points selon ta place finale dans la saison
+            Points selon ta place dans la saison
           </p>
           <table class="points-table" id="pointsMainTable">
             <tr><td><span class="da-medal" data-n="1"><span class="picto picto--medaille" role="img" aria-label="1er"><span class="picto__emoji" aria-hidden="true">🥇</span></span></span> 1re place</td><td style="color: #fbbf24;">24 pts</td></tr>
@@ -794,19 +784,18 @@
       <details class="rules-more">
         <summary>Tous les détails : places, éliminés, général</summary>
         <div class="rules-more__body">
-          <h5>Ta place finale</h5>
+          <h5>Ta place dans la saison</h5>
           <ul>
-            <li>Tu prends ta place au round de ton élimination. Si K joueurs étaient en lice à ce round, le dernier prend la place K, l'avant-dernier la place K − 1. Exemple à 16 joueurs : les éliminés du round 1 finissent 16e et 15e (0 point).</li>
+            <li>Ta place, c'est le nombre de joueurs encore en lice quand tu es éliminé. Le dernier du round prend cette place, l'avant-dernier la place juste au-dessus.</li>
+            <li>Exemple à 16 joueurs : les deux éliminés du round 1 finissent 16e et 15e, ceux du round 2 finissent 14e et 13e, et ainsi de suite jusqu'à la finale à 4 (1er, 2e, 3e, 4e).</li>
             <li>Les joueurs éliminés ensemble par la règle des 0 m prennent tous la place la plus basse du round.</li>
             <li>Les joueurs encore en lice ne marquent rien pendant la saison : les points tombent à l'élimination ou en finale.</li>
-            <li>En finale : 1er 24 points, 2e 21, 3e 18, 4e 15, selon le classement du round de finale.</li>
-            <li>Saison Points doublés : tout ce barème ×2.</li>
           </ul>
           <h5>Challenge des éliminés</h5>
           <ul>
             <li>Ton D+ compte du lendemain de la fin de ton round d'élimination (0 h) jusqu'à la fin du dernier round de la saison.</li>
             <li>Les gains et pertes des bonus des éliminés s'ajoutent à ce total.</li>
-            <li>Les battus de la finale n'ont plus de jour à jouer : 0 m au challenge des éliminés.</li>
+            <li>Les joueurs battus en finale ne participent pas au challenge des éliminés.</li>
           </ul>
           <h5>Classement général</h5>
           <ul>
@@ -817,43 +806,6 @@
       </details>
     </section>
 
-    <!-- 4. Règles spéciales de round -->
-    <section class="rules-section" data-mechanic="specialRules">
-      <h2 class="section-title">Règles spéciales de round</h2>
-      <div class="rules-card">
-        <p>Certains rounds ont une règle spéciale, affichée dans le cartouche du round. Il en existe trois.</p>
-        <ul>
-          <li><strong>Handicap</strong> : les 10 premiers du général perdent une part de leur D+, les 5 derniers en gagnent. 4 éliminés au lieu de 2.</li>
-          <li><strong>La pluie qui mouille</strong> : le D+ d'une sortie sous la pluie compte ×1,5.</li>
-          <li><strong>D+ pur</strong> : ni joker ni bonus sur ce round.</li>
-        </ul>
-      </div>
-      <details class="rules-more">
-        <summary>Tous les détails : valeurs exactes</summary>
-        <div class="rules-more__body">
-          <h5>Handicap</h5>
-          <ul>
-            <li>Ton D+ du round est ajusté selon ton rang au classement général : 1er −50 %, 2e −40 %, 3e −35 %, 4e −30 %, 5e −25 %, 6e −20 %, 7e −15 %, 8e −10 %, 9e −7 %, 10e −5 %.</li>
-            <li>Les 5 derniers du général gagnent +10 %.</li>
-            <li>Le rang est calculé sur les seuls points du challenge principal des rounds déjà terminés de l'année.</li>
-            <li>L'ajustement se fait en dernier, sur le D+ après jokers et bonus.</li>
-            <li>4 éliminés au lieu de 2, sauf si l'organisateur a fixé un autre nombre.</li>
-          </ul>
-          <h5>La pluie qui mouille</h5>
-          <ul>
-            <li>×1,5 sur le D+ de chaque activité pendant laquelle il a plu au moins 15 minutes.</li>
-            <li>Il faut plus de pluie que de neige (en équivalent eau : 1 cm de neige vaut 1 mm de pluie). La neige seule ne compte pas.</li>
-            <li>La météo est mesurée sur le tracé GPS de l'activité. Une activité sans GPS ne peut pas être créditée.</li>
-            <li>La pondération se fait activité par activité, avant les jokers.</li>
-          </ul>
-          <h5>D+ pur</h5>
-          <ul>
-            <li>Aucun joker ni bonus des éliminés ne s'applique sur ce round.</li>
-            <li>Le meilleur éliminé de ce round ne reçoit pas de bonus.</li>
-          </ul>
-        </div>
-      </details>
-    </section>
 
     <!-- 5. Jauge collective -->
     <section class="rules-section" data-mechanic="gauge">
@@ -877,7 +829,7 @@
           <h5>Le calcul</h5>
           <ul>
             <li>Jauge = somme du D+ Strava des activités valides de tous les joueurs en lice au début du round, y compris ceux éliminés à la fin de ce round.</li>
-            <li>Ni règle spéciale, ni joker, ni bonus : c'est le D+ brut.</li>
+            <li>Sans joker ni bonus : c'est le D+ brut.</li>
             <li>Objectif (100 %) = nombre de joueurs en lice × objectif par joueur :</li>
           </ul>
           <table class="points-table rules-more__table">
@@ -959,7 +911,7 @@
           </ul>
           <h5>Ordre et calcul</h5>
           <ol>
-            <li><strong>Sabotage</strong> : 30 % du D+ de la cible avant tout joker (après « La pluie qui mouille » si c'est la règle du round). Deux sabotages sur la même cible : −60 %. Le D+ ne descend jamais sous 0.</li>
+            <li><strong>Sabotage</strong> : 30 % du D+ de la cible avant tout joker. Deux sabotages sur la même cible : −60 %. Le D+ ne descend jamais sous 0.</li>
             <li><strong>Voleur</strong> : l'activité du round qui a le plus de D+ Strava chez la cible. Elle lui est retirée et t'est ajoutée. Si la cible n'a aucune activité, rien ne se passe. Une cible qui n'avait qu'une activité tombe à 0 m.</li>
             <li><strong>Multiplicateur</strong> : +50 % de ton D+ après sabotages et vols. Un vol réussi est donc multiplié, un sabotage subi aussi. Un Ravitaillement reçu ensuite ne l'est pas.</li>
             <li><strong>Bouclier</strong> : tu ne peux pas être éliminé, ni par le classement ni par la règle des 0 m. Les éliminés sont les derniers sans bouclier.</li>
