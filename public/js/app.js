@@ -134,11 +134,11 @@ function getEffectiveNbEliminations(roundNumber) {
   return config?.nbEliminations !== undefined ? config.nbEliminations : null;
 }
 
-function isFinaleRoundEffective(roundNumber) {
+function isFinaleRoundEffective(roundNumber, activeCount = null) {
   const config = getRoundConfig(roundNumber);
   if (config?.type === 'finale') return true;
-  // Fallback : logique existante basée sur roundInSeason
-  return isFinaleRound?.(roundNumber) === true;
+  // Sinon : dernier round prévu, ou plus tôt s'il ne reste que les finalistes
+  return isFinaleRound(getRoundInSeason(getRoundDates(roundNumber).start), null, null, activeCount) === true;
 }
 
 function isNoBonusRound(roundNumber) {
@@ -714,7 +714,7 @@ renderRanking(rankingContainer, {
         specialRule: currentRule,
         specialRuleDetails: currentRuleDetails,
         // Nouveaux champs pour l'affichage du bandeau finale / no_bonus
-        isFinale: isFinaleRoundEffective(currentRoundNumber),
+        isFinale: isFinaleRoundEffective(currentRoundNumber, seasonData?.active?.length ?? null),
         isNoBonus: isNoBonusRound(currentRoundNumber)
       });
       } // fin else mode standard
@@ -2045,7 +2045,7 @@ function renderCalculatedRoundHistory(roundInSeason, globalRound, roundDates, ro
 
   // Identifier le rescapé
   const rescapeIdx = rankingWithEffects.length - roundEliminated.length - 1;
-  const isFinale = roundInSeason === getRoundsPerSeason();
+  const isFinale = isFinaleRoundEffective(globalRound, rankingWithEffects.length);
 
   // Calculer les mainPoints pour les éliminés de ce round.
   // Dimensionner sur le roster de début de saison, pas sur PARTICIPANTS.length :
