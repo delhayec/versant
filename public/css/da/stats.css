@@ -291,3 +291,13 @@ html.da-atelier .sk-season { stroke: var(--ink); fill: none; stroke-linecap: rou
   html.da-atelier .stats-grid > .stat-card.stat-primary { grid-column: span 2; }
   html.da-atelier .stats-grid > .stat-card.stat-highlight { grid-column: span 2; }
 }
+
+/* Page Stats : pas de sélection de texte ni de loupe iOS quand on glisse le
+   doigt sur un graphique (les infobulles suivent le doigt) */
+html.da-atelier body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html.da-atelier :is(input, select, textarea) { -webkit-user-select: auto; user-select: auto; }
