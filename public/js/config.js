@@ -1333,9 +1333,18 @@ export function getDayInRound(date = new Date(), globalRoundNumber = getGlobalRo
   return Math.round((day(d) - day(start)) / (1000 * 60 * 60 * 24)) + 1;
 }
 
-export function isFinaleRound(roundInSeason, seasonNumber, frozen = null) {
+/**
+ * Le round est-il la finale ? Le dernier round prévu de la saison, ou plus tôt
+ * dès qu'il ne reste que finalistsCount joueurs en lice (miroir de
+ * calculateRoundResults du serveur). Saisons Deadline : finale planifiée
+ * (round_configs), pas ces critères.
+ * @param {number|null} [activeCount] - joueurs en lice au début du round
+ */
+export function isFinaleRound(roundInSeason, seasonNumber, frozen = null, activeCount = null) {
   const sn = seasonNumber || getSeasonNumber(new Date(), frozen);
-  return roundInSeason === getRoundsForSeason(sn, frozen);
+  if (getSeasonType(sn)?.hasDeadline) return false;
+  if (roundInSeason === getRoundsForSeason(sn, frozen)) return true;
+  return activeCount != null && activeCount > 0 && activeCount <= (Number(CHALLENGE_CONFIG.finalistsCount) || 1);
 }
 
 export function isLastDayOfRound(date, globalRoundNumber) {

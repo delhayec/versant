@@ -1066,9 +1066,6 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   const seasonStartRound = getSeasonStartRoundFromFrozen(seasonNumber, roundNumber, previousRounds);
   const totalParticipants = getSeasonSizingRoster(athletes, seasonStartRound, config).length;
   const roundsPerSeason = getSeasonRoundCount(totalParticipants, config.eliminationsPerRound, config.finalistsCount);
-  // Saison Deadline : la finale est posée par le planificateur (type 'finale'
-  // dans round_configs), pas par la formule à 2 éliminations par round.
-  const isFinale = !isDeadlineSeason(seasonNumber) && roundInSeason === roundsPerSeason;
   // Saison « points doublés » : multiplie les points du challenge principal
   const pointsMultiplier = getMainPointsMultiplier(seasonNumber);
   // Barème L54 si l'édition le porte (taille de la saison), sinon barème d'origine
@@ -1093,6 +1090,16 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
       activeParticipants = activeParticipants.filter(id => !eliminatedIds.includes(id));
     }
   }
+
+  // Finale : le dernier round prévu de la saison, ou plus tôt dès qu'il ne
+  // reste que finalistsCount joueurs en lice (éliminations en plus : règle des
+  // 0 m, handicap…). Sans ce second critère, un round ordinaire à 2 joueurs
+  // pouvait les éliminer tous les deux.
+  // Saison Deadline : la finale est posée par le planificateur (type 'finale'
+  // dans round_configs), pas par ces critères.
+  const finalistsCount = Number(config.finalistsCount) || 1;
+  const isFinale = !isDeadlineSeason(seasonNumber)
+    && (roundInSeason === roundsPerSeason || activeParticipants.length <= finalistsCount);
 
   // Filtrer les activités du round (date ET type de sport valide)
   const roundStart = roundDates.start.getTime();

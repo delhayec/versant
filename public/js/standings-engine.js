@@ -1257,8 +1257,12 @@ if (frozenRound && frozenRound.frozen) {
       // Filet de sécurité : si des éliminations multiples (handicap, nbEliminations
       // forcé) ont vidé la saison plus vite que prévu. Volontairement laissé à son
       // seuil d'origine pour ne pas élargir la fenêtre de divergence avec le backend.
+      // Règle : dès qu'il ne reste que finalistsCount joueurs, c'est la finale
+      // (même critère que le serveur, cf. isFinaleRound). Le second test reste
+      // un filet si plus d'éliminations sont prévues que de joueurs restants.
       const isCurrentRoundFinale =
         roundInSeason === maxRoundsPerSeason ||
+        isFinaleRound(roundInSeason, seasonNumber, null, active.length) ||
         active.length <= roundElimCount + 1;
 
       // Joueurs éligibles (sans bouclier)
