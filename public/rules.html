@@ -649,25 +649,25 @@
       <h2 class="section-title">Le jeu en bref</h2>
       <div class="rules-card">
         <p>
-          Versant est un jeu d'élimination au <strong>dénivelé positif (D+)</strong>, à partir de tes activités Strava.
-          L'année est découpée en saisons, chaque saison en rounds de <span data-rules-value="roundDurationDays">5</span> jours.
+          Versant est un jeu d'élimination au <strong>dénivelé positif (D+)</strong>. Tes activités Strava comptent.
+          L'année se joue en saisons. Une saison se joue en rounds de <span data-rules-value="roundDurationDays">5</span> jours.
         </p>
         <p>
-          À la fin de chaque round, les <strong class="da-mk"><span data-rules-value="eliminationsPerRound">2</span> joueurs qui ont fait le moins de D+</strong> sont éliminés.
-          Les derniers en lice jouent une finale : le premier est <strong>champion de la saison</strong>.
-          Les éliminés continuent dans le <strong>challenge des éliminés</strong> jusqu'à la fin de la saison.
+          À chaque fin de round, les <strong class="da-mk"><span data-rules-value="eliminationsPerRound">2</span> joueurs avec le moins de D+</strong> sont éliminés.
+          Les derniers en lice jouent la finale. Le premier est <strong>champion de la saison</strong>.
+          Les éliminés jouent le <strong>challenge des éliminés</strong> jusqu'à la fin de la saison.
         </p>
         <p>
-          Chaque saison rapporte des points. Le <strong>classement général</strong> les additionne sur toute l'année.
+          Chaque saison rapporte des points. Le <strong>classement général</strong> les additionne sur l'année.
         </p>
       </div>
       <details class="rules-more">
         <summary>Tous les détails : rounds et calendrier</summary>
         <div class="rules-more__body">
           <ul>
-            <li>Un round commence le jour 1 à 0 h et finit le dernier jour à 23 h 59, heure française.</li>
-            <li>Une activité compte dans le round où elle <strong>se termine</strong> (heure de départ + durée totale). Une sortie partie le dernier soir et finie après minuit compte pour le round suivant.</li>
-            <li>Une saison commence avec tous les inscrits. Un joueur inscrit en cours de saison attend la saison suivante.</li>
+            <li>Un round commence le jour 1 à 0 h. Il finit le dernier jour à 23 h 59, heure française.</li>
+            <li>Une activité compte dans le round où elle <strong>se termine</strong>. Partie le dernier soir et finie après minuit, elle compte pour le round suivant.</li>
+            <li>Inscrit en cours de saison, tu commences à la saison suivante.</li>
           </ul>
         </div>
       </details>
@@ -678,12 +678,12 @@
       <h2 class="section-title">Rounds et éliminations</h2>
       <div class="rules-card">
         <p>
-          Le classement d'un round se fait sur ton D+ du round, après les jokers et les bonus.
-          Les <span data-rules-value="eliminationsPerRound">2</span> derniers sont éliminés, sauf s'ils ont joué un bouclier.
+          Le round se classe au D+, jokers et bonus compris.
+          Les <span data-rules-value="eliminationsPerRound">2</span> derniers sont éliminés. Un bouclier protège.
         </p>
         <p>
-          Quand il ne reste que <span data-rules-value="finalistsCount">4</span> joueurs, le round suivant est la <strong>finale</strong> : seul le premier reste.
-          Si un round laisse un seul joueur en lice, il est champion sans finale.
+          À <span data-rules-value="finalistsCount">4</span> joueurs, c'est la <strong>finale</strong> : seul le premier reste.
+          S'il ne reste qu'un joueur, il est champion sans finale.
         </p>
       </div>
       <details class="rules-more">
@@ -693,24 +693,24 @@
           <ol>
             <li>D+ Strava de chaque activité du round.</li>
             <li>Jokers : sabotages, puis vols, puis multiplicateurs.</li>
-            <li>Bonus des éliminés qui touchent les joueurs en lice (Embuscade, Ravitaillement).</li>
+            <li>Bonus des éliminés : Embuscade, Ravitaillement.</li>
             <li>Classement par D+, puis éliminations.</li>
           </ol>
           <h5>Les éliminations</h5>
           <ul>
             <li><span data-rules-value="eliminationsPerRound">2</span> éliminés par round.</li>
-            <li><strong>Règle des 0 m</strong> : si au moins 2 joueurs finissent le round à 0 m et qu'ils sont au moins aussi nombreux que les éliminations prévues, <strong>tous les joueurs à 0 m sont éliminés</strong>. Les 0 m se comptent après jokers et bonus.</li>
-            <li>Un joueur sous bouclier ne peut pas être éliminé, ni par le classement ni par la règle des 0 m. Ce sont les derniers sans bouclier qui partent.</li>
+            <li><strong>Règle des 0 m</strong> : si au moins 2 joueurs finissent à 0 m, <strong>ils sont tous éliminés</strong>, même s'ils sont plus de 2. Les 0 m se comptent après jokers et bonus.</li>
+            <li>Sous bouclier, tu ne peux pas être éliminé, même à 0 m. Les derniers sans bouclier partent à ta place.</li>
           </ul>
           <h5>Longueur de la saison</h5>
           <ul>
-            <li>Chaque round élimine <span data-rules-value="eliminationsPerRound">2</span> joueurs jusqu'à ce qu'il en reste <span data-rules-value="finalistsCount">4</span>. Ces <span data-rules-value="finalistsCount">4</span> joueurs jouent la finale.</li>
-            <li>Exemple à 16 joueurs : 6 rounds pour passer de 16 à 4 joueurs, puis la finale, soit 7 rounds.</li>
-            <li>Si des éliminations en plus (règle des 0 m) réduisent le nombre de joueurs plus vite, la finale arrive plus tôt.</li>
+            <li>Chaque round élimine <span data-rules-value="eliminationsPerRound">2</span> joueurs. À <span data-rules-value="finalistsCount">4</span> joueurs, c'est la finale.</li>
+            <li>Exemple à 16 joueurs : 6 rounds, puis la finale. 7 rounds en tout.</li>
+            <li>Si plus de joueurs que prévu ont été éliminés, la finale arrive plus tôt.</li>
           </ul>
           <h5>Égalité</h5>
           <ul>
-            <li>Deux joueurs à égalité parfaite de D+ sur un round : le premier inscrit passe devant.</li>
+            <li>Égalité parfaite de D+ : le premier inscrit passe devant.</li>
           </ul>
         </div>
       </details>
@@ -721,11 +721,11 @@
       <h2 class="section-title">Système de points</h2>
       <div class="rules-card">
         <p>
-          Tes points de la saison dépendent de <strong>ta place dans le round où tu es éliminé</strong> : plus tu tiens longtemps, plus tu marques.
+          Tes points dépendent de <strong>ta place quand tu es éliminé</strong>. Plus tu tiens, plus tu marques.
           Le champion prend 24 points.
         </p>
         <p>
-          Une fois éliminé, tu marques encore au <strong>challenge des éliminés</strong>, selon le D+ fait après ton élimination.
+          Éliminé, tu marques encore au <strong>challenge des éliminés</strong>, avec ton D+ fait après l'élimination.
           Le classement général additionne les deux, plus les points bonus.
         </p>
       </div>
@@ -786,21 +786,21 @@
         <div class="rules-more__body">
           <h5>Ta place dans la saison</h5>
           <ul>
-            <li>Ta place, c'est le nombre de joueurs encore en lice quand tu es éliminé. Le dernier du round prend cette place, l'avant-dernier la place juste au-dessus.</li>
-            <li>Exemple à 16 joueurs : les deux éliminés du round 1 finissent 16e et 15e, ceux du round 2 finissent 14e et 13e, et ainsi de suite jusqu'à la finale à 4 (1er, 2e, 3e, 4e).</li>
-            <li>Les joueurs éliminés ensemble par la règle des 0 m prennent tous la place la plus basse du round.</li>
-            <li>Les joueurs encore en lice ne marquent rien pendant la saison : les points tombent à l'élimination ou en finale.</li>
+            <li>Éliminé dernier d'un round à 16 joueurs, tu finis 16e. Avant-dernier, 15e.</li>
+            <li>Au round suivant, 14 joueurs : les éliminés finissent 14e et 13e. Et ainsi de suite jusqu'à la finale : 4e, 3e, 2e, 1er.</li>
+            <li>Éliminés à 0 m : vous prenez tous la dernière place du round.</li>
+            <li>Encore en lice, tu ne marques rien. Les points tombent à l'élimination ou en finale.</li>
           </ul>
           <h5>Challenge des éliminés</h5>
           <ul>
-            <li>Ton D+ compte du lendemain de la fin de ton round d'élimination (0 h) jusqu'à la fin du dernier round de la saison.</li>
-            <li>Les gains et pertes des bonus des éliminés s'ajoutent à ce total.</li>
+            <li>Ton D+ compte dès le lendemain de ton élimination, jusqu'à la fin de la saison.</li>
+            <li>Les bonus des éliminés s'ajoutent ou se retirent de ce total.</li>
             <li>Les joueurs battus en finale ne participent pas au challenge des éliminés.</li>
           </ul>
           <h5>Classement général</h5>
           <ul>
-            <li>Total = points du challenge principal + points du challenge des éliminés + points bonus (jauge collective, Marquage, Duel, et rescapé pour les saisons 1 à 8).</li>
-            <li>Égalité de points : celui qui a gagné le plus de saisons passe devant, puis celui qui a le plus de points au challenge principal.</li>
+            <li>Total = challenge principal + challenge des éliminés + points bonus (jauge, Marquage, Duel, rescapé des saisons 1 à 8).</li>
+            <li>Égalité de points : le plus de saisons gagnées passe devant. Puis le plus de points au challenge principal.</li>
           </ul>
         </div>
       </details>
