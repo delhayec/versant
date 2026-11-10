@@ -812,8 +812,8 @@
       <h2 class="section-title">La jauge collective de D+</h2>
       <div class="special-rule-card">
         <p>
-          <span id="gaugeStart">Depuis la saison 9</span>, le D+ de tous les joueurs en lice remplit une jauge commune à chaque round.
-          Bien remplie, elle donne des points à tous les joueurs en lice. Ratée, elle en donne aux éliminés.
+          <span id="gaugeStart">Depuis la saison 9</span>, le D+ des joueurs en lice remplit une jauge commune à chaque round.
+          Pleine, elle donne des points aux joueurs en lice. Ratée, elle en donne aux éliminés.
         </p>
         <div class="special-rule-steps">
           <div class="special-rule-step"><span class="step-text"><strong>Réussite critique (200 % et plus)</strong> : +2 points à chaque joueur en lice</span></div>
@@ -828,9 +828,9 @@
         <div class="rules-more__body">
           <h5>Le calcul</h5>
           <ul>
-            <li>Jauge = somme du D+ Strava des activités valides de tous les joueurs en lice au début du round, y compris ceux éliminés à la fin de ce round.</li>
-            <li>Sans joker ni bonus : c'est le D+ brut.</li>
-            <li>Objectif (100 %) = nombre de joueurs en lice × objectif par joueur :</li>
+            <li>La jauge additionne le D+ de tous les joueurs en lice au début du round, éliminés du round compris.</li>
+            <li>Les jokers et les bonus ne comptent pas.</li>
+            <li>L'objectif (100 %) dépend du nombre de joueurs en lice. Par joueur :</li>
           </ul>
           <table class="points-table rules-more__table">
             <tr><td>14 joueurs et plus</td><td>825 m</td></tr>
@@ -842,13 +842,13 @@
             <tr><td>2 joueurs</td><td>2 250 m</td></tr>
           </table>
           <ul>
-            <li>Exemple à 14 joueurs : objectif 11 550 m. Réussite dès 20 213 m, réussite critique dès 23 100 m, échec critique à 8 662 m ou moins.</li>
+            <li>Exemple à 14 joueurs : l'objectif est de 11 550 m (14 × 825 m).</li>
           </ul>
           <h5>Qui reçoit les points</h5>
           <ul>
-            <li>Réussite : chaque joueur en lice au début du round.</li>
-            <li>Échec : chaque joueur éliminé plus tôt dans la saison qui a enregistré au moins une activité valide pendant le round.</li>
-            <li>Les points comptent au classement général dès la fin du round.</li>
+            <li>Réussite : tous les joueurs en lice au début du round.</li>
+            <li>Échec : les éliminés de la saison qui ont fait au moins une activité pendant le round.</li>
+            <li>Les points comptent au général dès la fin du round.</li>
           </ul>
         </div>
       </details>
@@ -865,9 +865,9 @@
           Tu as <strong class="da-mk">8 jokers pour toute l'année</strong> : 2 Voleur, 2 Multiplicateur, 2 Bouclier, 2 Sabotage.
         </p>
         <p>
-          <strong>Jours 1 à 3 du round</strong> : joue-le tout de suite ou programme-le pour le round suivant.
+          <strong>Jours 1 à 3</strong> : joue-le tout de suite ou pour le round suivant.
           <strong>Jours 4 et 5</strong> : seulement pour le round suivant.
-          Un joker joué se voit dans le classement.
+          Tout le monde voit les jokers joués.
         </p>
       </div>
 
@@ -875,7 +875,7 @@
         <div class="joker-card" data-joker="voleur">
           <div class="icon"><span class="picto picto--voleur"><span class="picto__emoji" aria-hidden="true">🦹</span></span></div>
           <div class="name">Voleur</div>
-          <div class="desc">Prends l'activité du round qui a le plus de D+ chez ta cible : elle la perd, tu la gagnes.</div>
+          <div class="desc">Tu voles la plus grosse activité du round de ta cible.</div>
           <div class="stock">×2 par an</div>
         </div>
         <div class="joker-card" data-joker="multiplicateur">
@@ -887,7 +887,7 @@
         <div class="joker-card" data-joker="bouclier">
           <div class="icon"><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span></div>
           <div class="name">Bouclier</div>
-          <div class="desc">Tu ne peux pas être éliminé ce round. Interdit en finale et en saison Équipes.</div>
+          <div class="desc">Tu ne peux pas être éliminé ce round. Pas en finale.</div>
           <div class="stock">×2 par an</div>
         </div>
         <div class="joker-card" data-joker="sabotage">
@@ -903,18 +903,18 @@
         <div class="rules-more__body">
           <h5>Stock et usage</h5>
           <ul>
-            <li>Le stock vaut pour l'année entière, pas pour une saison. Un joker joué est consommé.</li>
-            <li>Plusieurs jokers peuvent être joués sur le même round.</li>
-            <li>La cible doit être un joueur en lice : viser un éliminé n'a aucun effet.</li>
-            <li>Un joueur éliminé ne peut plus jouer de joker jusqu'à la fin de la saison.</li>
-            <li>Round D+ pur : un joker ne peut pas y être joué tout de suite, et un joker programmé sur ce round n'a aucun effet.</li>
+            <li>Le stock vaut pour l'année, pas pour une saison.</li>
+            <li>Tu peux jouer plusieurs jokers sur le même round.</li>
+            <li>Vise un joueur en lice : sur un éliminé, le joker ne fait rien.</li>
+            <li>Éliminé, tu ne joues plus de joker jusqu'à la fin de la saison.</li>
+            <li>Pas de joker sur un round D+ pur.</li>
           </ul>
-          <h5>Ordre et calcul</h5>
+          <h5>Dans l'ordre</h5>
           <ol>
-            <li><strong>Sabotage</strong> : 30 % du D+ de la cible avant tout joker. Deux sabotages sur la même cible : −60 %. Le D+ ne descend jamais sous 0.</li>
-            <li><strong>Voleur</strong> : l'activité du round qui a le plus de D+ Strava chez la cible. Elle lui est retirée et t'est ajoutée. Si la cible n'a aucune activité, rien ne se passe. Une cible qui n'avait qu'une activité tombe à 0 m.</li>
-            <li><strong>Multiplicateur</strong> : +50 % de ton D+ après sabotages et vols. Un vol réussi est donc multiplié, un sabotage subi aussi. Un Ravitaillement reçu ensuite ne l'est pas.</li>
-            <li><strong>Bouclier</strong> : tu ne peux pas être éliminé, ni par le classement ni par la règle des 0 m. Les éliminés sont les derniers sans bouclier.</li>
+            <li><strong>Sabotage</strong> : 30 % du D+ de la cible, avant les autres jokers. Deux sabotages : −60 %.</li>
+            <li><strong>Voleur</strong> : la plus grosse activité du round de la cible passe chez toi. Si elle n'en avait qu'une, elle tombe à 0 m.</li>
+            <li><strong>Multiplicateur</strong> : ton D+ ×1,5, après sabotages et vols. Un vol est donc multiplié, un Ravitaillement non.</li>
+            <li><strong>Bouclier</strong> : tu ne peux pas être éliminé, même à 0 m.</li>
           </ol>
         </div>
       </details>
@@ -928,10 +928,10 @@
       </h2>
       <div class="rules-card">
         <p>
-          À chaque round, le <strong class="da-mk">meilleur des éliminés</strong> (celui qui a fait le plus de D+) reçoit 2 bonus tirés au sort et en garde 1.
+          À chaque round, le <strong class="da-mk">meilleur des éliminés</strong> tire 2 bonus au sort et en garde 1.
         </p>
         <p>
-          Il s'utilise une fois. S'il n'est pas utilisé avant la fin de la saison, il disparaît.
+          Il sert une fois. Pas utilisé à la fin de la saison, il disparaît.
         </p>
       </div>
 
@@ -939,43 +939,43 @@
         <div class="joker-card bonus-ephemere-card" data-bonus="embuscade">
           <div class="icon"><span class="picto picto--embuscade"><span class="picto__emoji" aria-hidden="true">🏹</span></span></div>
           <div class="name">Embuscade</div>
-          <div class="desc">Une activité du round de ta cible est tirée au sort : elle perd ce D+, tu le gagnes au challenge des éliminés.</div>
+          <div class="desc">Tu voles une activité du round de ta cible, tirée au sort.</div>
           <div class="timing">Jours 1 à 3 du round</div>
         </div>
         <div class="joker-card bonus-ephemere-card" data-bonus="ravitaillement">
           <div class="icon"><span class="picto picto--ravitaillement"><span class="picto__emoji" aria-hidden="true">🎒</span></span></div>
           <div class="name">Ravitaillement</div>
-          <div class="desc">Ta meilleure activité du round est offerte à un joueur en lice : il gagne ce D+, tu le gardes aussi.</div>
+          <div class="desc">Tu offres ta plus grosse activité du round à un joueur en lice. Tu la gardes aussi.</div>
           <div class="timing">Jours 1 à 3 du round</div>
         </div>
         <div class="joker-card bonus-ephemere-card" data-bonus="duel">
           <div class="icon"><span class="picto picto--duel"><span class="picto__emoji" aria-hidden="true">⚔️</span></span></div>
           <div class="name">Duel</div>
-          <div class="desc">Contre l'autre éliminé de ton round : à la fin de la saison, celui qui a fait le plus de D+ depuis l'élimination gagne 1 point. Égalité : rien.</div>
+          <div class="desc">Contre l'autre éliminé de ton round : le plus de D+ à la fin de la saison gagne 1 point.</div>
           <div class="timing">Actif dès le choix</div>
         </div>
         <div class="joker-card bonus-ephemere-card" data-bonus="brouillard">
           <div class="icon"><span class="picto picto--brouillard"><span class="picto__emoji" aria-hidden="true">🌫️</span></span></div>
           <div class="name">Brouillard</div>
-          <div class="desc">Ton D+ est caché aux autres jusqu'à la fin de la saison : tu apparais dernier des éliminés.</div>
+          <div class="desc">Ton D+ est caché jusqu'à la fin de la saison. Tu apparais dernier.</div>
           <div class="timing">Actif dès le choix</div>
         </div>
         <div class="joker-card bonus-ephemere-card" data-bonus="marquage">
           <div class="icon"><span class="picto picto--marquage"><span class="picto__emoji" aria-hidden="true">🎯</span></span></div>
           <div class="name">Marquage</div>
-          <div class="desc">Désigne un joueur en lice : s'il est éliminé à la fin du round, tu gagnes 1 point.</div>
+          <div class="desc">Tu paries sur un joueur en lice : s'il est éliminé, tu gagnes 1 point.</div>
           <div class="timing">Jour 1 du round seulement</div>
         </div>
         <div class="joker-card bonus-ephemere-card" data-bonus="trap">
           <div class="icon"><span class="picto picto--trap"><span class="picto__emoji" aria-hidden="true">🪤</span></span></div>
           <div class="name">It's a TRAP !</div>
-          <div class="desc">Au prochain joueur éliminé à la dernière place, tu copies le D+ de sa dernière activité du round. Il le garde.</div>
+          <div class="desc">Le prochain éliminé à la dernière place te donne le D+ de sa dernière activité. Il le garde.</div>
           <div class="timing">Actif dès le choix</div>
         </div>
         <div class="joker-card bonus-ephemere-card" data-bonus="second_souffle">
           <div class="icon"><span class="picto picto--second_souffle"><span class="picto__emoji" aria-hidden="true">🔥</span></span></div>
           <div class="name">Second souffle</div>
-          <div class="desc">À la fin de la saison, ta plus petite activité depuis ton élimination compte double.</div>
+          <div class="desc">Ta plus petite activité depuis l'élimination compte double.</div>
           <div class="timing">Actif dès le choix</div>
         </div>
         <div class="joker-card bonus-ephemere-card" data-bonus="kamikaze">
@@ -997,25 +997,24 @@
         <div class="rules-more__body">
           <h5>Qui reçoit un bonus</h5>
           <ul>
-            <li>Il faut au moins 2 éliminés sur le round. Le meilleur est celui qui a le plus de D+ du round, après jokers et bonus.</li>
-            <li>S'il a fait 0 m, personne ne reçoit de bonus.</li>
-            <li>Pas de bonus après la finale ni sur un round D+ pur.</li>
-            <li>Les 2 bonus proposés sont tirés parmi ceux que tu n'as pas encore choisis cette année.</li>
+            <li>Le meilleur éliminé est celui qui a le plus de D+ sur le round.</li>
+            <li>À 0 m, pas de bonus.</li>
+            <li>Pas de bonus après la finale ni après un round D+ pur.</li>
+            <li>Tu ne tires jamais un bonus déjà choisi dans l'année.</li>
           </ul>
           <h5>Quand les jouer</h5>
           <ul>
-            <li>Embuscade et Ravitaillement : jours 1 à 3 du round, effet sur ce round.</li>
-            <li>Marquage : jour 1 du round seulement, effet sur ce round.</li>
-            <li>Duel, Brouillard, It's a TRAP ! et Second souffle : actifs dès que tu les choisis.</li>
+            <li>Embuscade et Ravitaillement : jours 1 à 3.</li>
+            <li>Marquage : jour 1 seulement.</li>
+            <li>Les autres : actifs dès que tu les choisis.</li>
           </ul>
-          <h5>Calcul</h5>
+          <h5>Précisions</h5>
           <ul>
-            <li><strong>Embuscade</strong> : tirage parmi toutes les activités du round de la cible, sans durée minimum. Appliqué après les jokers.</li>
-            <li><strong>Ravitaillement</strong> : ta plus grosse activité du round. Si tu n'as rien fait sur ce round, rien n'est donné. Appliqué après les jokers : le Multiplicateur de la cible ne s'y applique pas.</li>
-            <li><strong>Duel</strong> : comparaison des totaux du challenge des éliminés à la clôture de la saison.</li>
-            <li><strong>Brouillard</strong> : affichage seulement. Ton vrai total compte pour le classement et les points.</li>
-            <li><strong>Second souffle</strong> : ta plus petite activité depuis ton élimination est comptée une deuxième fois.</li>
-          </ul>
+            <li><strong>Embuscade</strong> : le D+ volé va dans ton total du challenge des éliminés.</li>
+            <li><strong>Ravitaillement</strong> : sans activité sur le round, tu ne donnes rien.</li>
+            <li><strong>Duel</strong> : égalité, personne ne gagne.</li>
+            <li><strong>Brouillard</strong> : ton vrai D+ compte quand même pour les points.</li>
+                      </ul>
         </div>
       </details>
     </section>
@@ -1025,20 +1024,18 @@
       <h2 class="section-title">Activités comptabilisées</h2>
       <div class="rules-card">
         <p>
-          Course, trail, vélo de route, VTT, gravel, randonnée, marche, raquettes, ski de randonnée et ski de fond, enregistrés sur Strava.
-          Le D+ est celui calculé par Strava.
+          Course, trail, vélo, VTT, gravel, rando, marche, raquettes, ski de rando et ski de fond.
+          Le D+ est celui de Strava.
         </p>
       </div>
       <details class="rules-more">
-        <summary>Tous les détails : types Strava</summary>
+        <summary>Tous les détails : ce qui ne compte pas</summary>
         <div class="rules-more__body">
           <ul>
-            <li>Types Strava acceptés : Run, TrailRun, Ride, MountainBikeRide, GravelRide, Hike, Walk, Snowshoe, BackcountrySki, NordicSki.</li>
-            <li>Tout autre type ne compte pas, notamment : ski alpin (AlpineSki), snowboard, vélo et VTT électriques (EBikeRide, EMountainBikeRide), activités virtuelles (VirtualRide, VirtualRun), natation, yoga, musculation.</li>
-            <li>Les activités saisies à la main comptent comme les autres.</li>
-            <li>L'organisateur peut exclure une activité (erreur de GPS, D+ aberrant, triche). Elle ne compte alors nulle part.</li>
-            <li>Une activité compte dans le round où elle se termine.</li>
-          </ul>
+                        <li>Ne comptent pas : ski alpin, snowboard, vélo électrique, activités virtuelles (Zwift et autres), natation, yoga, musculation.</li>
+            <li>Les activités saisies à la main comptent.</li>
+            <li>L'organisateur peut retirer une activité (bug GPS, D+ aberrant, triche).</li>
+                      </ul>
         </div>
       </details>
     </section>
