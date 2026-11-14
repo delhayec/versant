@@ -1065,16 +1065,24 @@ html.da-atelier .team-block-header > :is(.team-elim-round-badge, .team-danger-ba
 /* « Éliminée R2 » garde sa casse (le reste des notes passe en minuscules) */
 html.da-atelier :is(.team-elim-round-badge, .history-elim-round) { text-transform: none !important; }
 
-/* Joueurs : en-tête et lignes réordonnés de la même façon */
+/* Joueurs. PC : rang, joueur (avec « Xj depuis élim. »), points, D+ cumulé au
+   bord droit ; la colonne du round d'élimination est retirée (doublon du cadre).
+   Téléphone : rang, joueur, round d'élimination (R1, R2…), D+ cumulé au bord
+   droit ; ni cadre « depuis élim. » ni points. */
 html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) {
-  grid-template-columns: 60px minmax(0, 1fr) 90px 110px 140px;
+  grid-template-columns: 60px minmax(0, 1fr) 110px 140px;
 }
-html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(5), .ranking-row > .ranking-points) { order: 3; }
-html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(4), .ranking-row > .ranking-round) { order: 4; }
+html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(4), .ranking-row > .ranking-round) { display: none; }
+html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(5), .ranking-row > .ranking-points) { order: 3; justify-self: end; text-align: right; }
 html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(3), .ranking-row > .ranking-elevation) {
   order: 5;
   justify-self: end;
   text-align: right;
+}
+/* Points : à l'encre, sans l'ancienne pastille dégradée */
+html.da-atelier #eliminatedChallengeContainer .points-badge {
+  display: inline; padding: 0; border-radius: 0; background: none; color: var(--ink);
+  font: 700 16px/1 var(--f-mono) !important; font-variant-numeric: tabular-nums;
 }
 html.da-atelier #eliminatedChallengeContainer .ranking-row > .ranking-round {
   font: 600 20px/1 var(--f-hand);
@@ -1082,8 +1090,11 @@ html.da-atelier #eliminatedChallengeContainer .ranking-row > .ranking-round {
 }
 @media (max-width: 768px) {
   html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) {
-    grid-template-columns: 28px minmax(0, 1fr) 44px 36px 68px;
+    grid-template-columns: 28px minmax(0, 1fr) 40px 72px;
   }
+  html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(5), .ranking-row > .ranking-points),
+  html.da-atelier #eliminatedChallengeContainer .athlete-status.eliminated { display: none; }
+  html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(4), .ranking-row > .ranking-round) { display: block; order: 4; justify-self: center; text-align: center; }
 }
 
 /* ============================================
