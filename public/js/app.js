@@ -1505,6 +1505,7 @@ function renderFinalStandings(container) {
   });
 
   container.innerHTML = html;
+  placeStandingsTags(container, standingsNotes.spans);
 }
 
 /**
@@ -1519,8 +1520,85 @@ function renderFinalStandings(container) {
  *  - remontée : places gagnées en deux saisons, par rapport au rang qu'aurait
  *    le joueur sans elles (4 places au moins ; la plus forte).
  */
+/**
+ * DA Atelier, téléphone : les notes de marge du classement général deviennent
+ * des étiquettes griffonnées, repliées au bord droit du tableau (une languette
+ * posée sur le trait du cadre). Un toucher la tire par-dessus les totaux, un
+ * autre la range. Un trait MANIC vertical montre les lignes concernées.
+ * Présentation seule : relit les notes déjà construites (buildStandingsNotes).
+ */
+function placeStandingsTags(container, spans) {
+  container.querySelectorAll('.da-tag, .da-tag-line').forEach(n => n.remove());
+  if (!document.documentElement.classList.contains('da-atelier') || !spans?.length) return;
+  const section = container.closest('section');
+  const draw = () => {
+    container.querySelectorAll('.da-tag, .da-tag-line').forEach(n => n.remove());
+    if (window.innerWidth >= 740) return;   // au-delà, la note va sur la ligne ou dans la marge
+    const rows = container.querySelectorAll('.standings-row');
+    const cb = container.getBoundingClientRect();
+    const sb = section ? section.getBoundingClientRect() : cb;
+    const rel = el => { const r = el.getBoundingClientRect(); return { top: r.top - cb.top, bottom: r.bottom - cb.top, left: r.left - cb.left }; };
+    spans.slice(0, 2).forEach((sp, k) => {
+      const first = rows[sp.from - 1], last = rows[sp.to - 1];
+      if (!first || !last) return;
+      const a = rel(first), z = rel(last), single = sp.from === sp.to;
+      // une seule ligne : l'étiquette déborde un peu dessus et dessous pour tenir deux lignes de texte
+      const top = single ? a.top - 9 : a.top + 4, h = single ? z.bottom - a.top + 18 : z.bottom - a.top - 8;
+      const tag = document.createElement('div');
+      tag.className = 'da-tag' + (single ? ' da-tag--single' : '');
+      tag.style.cssText = `top:${top}px;height:${h}px;right:${-(sb.right - cb.right + 5)}px`;
+      tag.innerHTML = `<div class="da-tag__sheet" role="button" tabindex="0" aria-expanded="false" aria-label="Note du classement">
+          <span class="da-tag__paper"></span><svg class="da-tag__frame" viewBox="0 0 240 ${Math.round(h)}" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <span class="da-tag__grip" aria-hidden="true"></span><span class="da-tag__text"><span>${sp.html}</span></span></div>`;
+      // Cadre au trait : quatre traits qui débordent, jamais tout à fait droits
+      let seed = 97 + sp.from * 31 + k;
+      const rnd = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296 - 0.5);
+      const W = 240, H = Math.round(h);
+      const C = [[2 + rnd() * 3, 2 + rnd() * 3], [W - 2 + rnd() * 3, 2 + rnd() * 3], [W - 2 + rnd() * 3, H - 2 + rnd() * 3], [2 + rnd() * 3, H - 2 + rnd() * 3]];
+      let d = '';
+      for (let i = 0; i < 4; i++) {
+        const [x1, y1] = C[i], [x2, y2] = C[(i + 1) % 4], L = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / L, uy = (y2 - y1) / L;
+        const p = 2 + Math.abs(rnd()) * 6, q = 2 + Math.abs(rnd()) * 6, sx = x1 - ux * p, sy = y1 - uy * p, ex = x2 + ux * q, ey = y2 + uy * q, bow = rnd() * 3;
+        d += `M${sx.toFixed(1)} ${sy.toFixed(1)} Q${((sx + ex) / 2 - uy * bow).toFixed(1)} ${((sy + ey) / 2 + ux * bow).toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)} `;
+      }
+      tag.querySelector('.da-tag__frame').innerHTML = `<path d="${d}"/>`;
+      const sheet = tag.querySelector('.da-tag__sheet');
+      const toggle = () => { tag.classList.toggle('is-open'); sheet.setAttribute('aria-expanded', tag.classList.contains('is-open')); };
+      sheet.addEventListener('click', toggle);
+      sheet.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      container.appendChild(tag);
+      // Trait MANIC vertical devant les totaux des lignes concernées
+      if (!single) {
+        const total = first.querySelector('.standings-total');
+        if (total) {
+          const line = document.createElement('span');
+          line.className = 'da-tag-line';
+          line.setAttribute('aria-hidden', 'true');
+          line.style.cssText = `top:${a.top + 6}px;left:${rel(total).left - 12}px;width:${z.bottom - a.top - 12}px`;
+          container.appendChild(line);
+        }
+      }
+      // La première étiquette sort un peu puis rentre, une fois, à sa première apparition
+      if (k === 0 && !placeStandingsTags.peeked && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const io = new IntersectionObserver(es => {
+          if (!es.some(e => e.isIntersecting)) return;
+          io.disconnect(); placeStandingsTags.peeked = true; tag.classList.add('is-peek');
+        }, { threshold: 0.8 });
+        io.observe(tag);
+      }
+    });
+  };
+  requestAnimationFrame(draw);
+  if (!container.dataset.tagsResize) {
+    container.dataset.tagsResize = '1';
+    let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => draw(), 200); });
+  }
+}
+
 function buildStandingsNotes(standings) {
   const notes = {};
+  // Lignes concernées par chaque note (étiquettes sur téléphone)
+  Object.defineProperty(notes, 'spans', { value: [], enumerable: false });
   if (currentSeasonNumber < 3 || standings.length < 4) return notes;
   const first = (e) => e.participant.name.split(' ')[0];
   const pts = (n) => `${n} pt${n > 1 ? 's' : ''}`;
@@ -1544,6 +1622,11 @@ function buildStandingsNotes(standings) {
     notes[best[best.length - 1].rank] = gap === 0
       ? `${who} : <span class="da-key">à égalité</span>`
       : `${who} se tiennent en ${pts(gap)}`;
+    notes.spans.push({
+      from: best[0].rank, to: best[best.length - 1].rank,
+      html: gap === 0 ? `${names.join(', ').replace(/, ([^,]*)$/, ' et $1')} : <span class="da-key">à égalité</span>`
+        : `${names.join(', ').replace(/, ([^,]*)$/, ' et $1')} se tiennent en <span class="da-key">${pts(gap)}</span>`
+    });
   }
 
   const before = standings
@@ -1556,6 +1639,7 @@ function buildStandingsNotes(standings) {
   });
   if (climb && !notes[climb.e.rank]) {
     notes[climb.e.rank] = `${first(climb.e)} : +${climb.gained} places en ${H.circle('deux saisons', 'circle-06')}`;
+    notes.spans.push({ from: climb.e.rank, to: climb.e.rank, html: `${first(climb.e)} : <span class="da-key">+${climb.gained} places</span> en deux saisons` });
   }
   return notes;
 }
