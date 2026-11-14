@@ -511,7 +511,7 @@
   <link rel="stylesheet" href="css/da/tokens.css?v=20261114b">
   <link rel="stylesheet" href="css/da/base.css?v=20261114b">
   <link rel="stylesheet" href="css/da/components.css?v=20261114b">
-  <link rel="stylesheet" href="css/da/pages.css?v=20261119e">
+  <link rel="stylesheet" href="css/da/pages.css?v=20261114c">
 </head>
 <body>
   <!-- Navigation -->
@@ -661,6 +661,24 @@
           Chaque saison rapporte des points. Le <strong>classement général</strong> les additionne sur l'année.
         </p>
       </div>
+      <figure class="da-cal" aria-label="Le calendrier du jeu : 5 jours font un round, les rounds font une saison, les saisons font l'année">
+        <div class="da-cal__level da-cal__level--round">
+          <p class="da-cal__lbl">Un round</p>
+          <div class="da-cal__round da-cal__round--big" style="--r:0"><span class="da-cal__day" style="--i:0"></span><span class="da-cal__day" style="--i:1"></span><span class="da-cal__day" style="--i:2"></span><span class="da-cal__day" style="--i:3"></span><span class="da-cal__day" style="--i:4"></span></div>
+          <p class="da-cal__note">5 jours. Le dernier soir à 23 h 59, les 2 derniers sautent.</p>
+        </div>
+        <div class="da-cal__level da-cal__level--season">
+          <p class="da-cal__lbl">Une saison</p>
+          <div class="da-cal__season"><div class="da-cal__round" style="--r:0"><span class="da-cal__day" style="--i:0"></span><span class="da-cal__day" style="--i:1"></span><span class="da-cal__day" style="--i:2"></span><span class="da-cal__day" style="--i:3"></span><span class="da-cal__day" style="--i:4"></span></div><div class="da-cal__round" style="--r:1"><span class="da-cal__day" style="--i:5"></span><span class="da-cal__day" style="--i:6"></span><span class="da-cal__day" style="--i:7"></span><span class="da-cal__day" style="--i:8"></span><span class="da-cal__day" style="--i:9"></span></div><div class="da-cal__round" style="--r:2"><span class="da-cal__day" style="--i:10"></span><span class="da-cal__day" style="--i:11"></span><span class="da-cal__day" style="--i:12"></span><span class="da-cal__day" style="--i:13"></span><span class="da-cal__day" style="--i:14"></span></div><div class="da-cal__round" style="--r:3"><span class="da-cal__day" style="--i:15"></span><span class="da-cal__day" style="--i:16"></span><span class="da-cal__day" style="--i:17"></span><span class="da-cal__day" style="--i:18"></span><span class="da-cal__day" style="--i:19"></span></div><div class="da-cal__round" style="--r:4"><span class="da-cal__day" style="--i:20"></span><span class="da-cal__day" style="--i:21"></span><span class="da-cal__day" style="--i:22"></span><span class="da-cal__day" style="--i:23"></span><span class="da-cal__day" style="--i:24"></span></div><div class="da-cal__round" style="--r:5"><span class="da-cal__day" style="--i:25"></span><span class="da-cal__day" style="--i:26"></span><span class="da-cal__day" style="--i:27"></span><span class="da-cal__day" style="--i:28"></span><span class="da-cal__day" style="--i:29"></span></div><div class="da-cal__round da-cal__round--finale" style="--r:6"><span class="da-cal__day" style="--i:30"></span><span class="da-cal__day" style="--i:31"></span><span class="da-cal__day" style="--i:32"></span><span class="da-cal__day" style="--i:33"></span><span class="da-cal__day" style="--i:34"></span></div></div>
+          <p class="da-cal__note">Un round après l'autre, jusqu'à la finale.</p>
+        </div>
+        <div class="da-cal__level da-cal__level--year">
+          <p class="da-cal__lbl">L'année</p>
+          <div class="da-cal__year"><div class="da-cal__srow" style="--s:0"><span class="da-cal__slbl">saison 1</span><div class="da-cal__sbar"><span style="--r:0"></span><span style="--r:1"></span><span style="--r:2"></span><span style="--r:3"></span><span style="--r:4"></span><span style="--r:5"></span><span style="--r:6"></span></div></div><div class="da-cal__srow" style="--s:1"><span class="da-cal__slbl">saison 2</span><div class="da-cal__sbar"><span style="--r:0"></span><span style="--r:1"></span><span style="--r:2"></span><span style="--r:3"></span><span style="--r:4"></span><span style="--r:5"></span><span style="--r:6"></span></div></div><div class="da-cal__srow" style="--s:2"><span class="da-cal__slbl">saison 3</span><div class="da-cal__sbar"><span style="--r:0"></span><span style="--r:1"></span><span style="--r:2"></span><span style="--r:3"></span><span style="--r:4"></span><span style="--r:5"></span><span style="--r:6"></span></div></div><span class="da-cal__more">…</span></div>
+          <p class="da-cal__note">Les saisons s'enchaînent jusqu'en décembre.</p>
+        </div>
+        <button type="button" class="da-cal__replay" aria-label="Rejouer l'animation">Rejouer</button>
+      </figure>
       <details class="rules-more">
         <summary>Tous les détails : rounds et calendrier</summary>
         <div class="rules-more__body">
@@ -1200,6 +1218,20 @@
       if (dashboardLink) dashboardLink.style.display = 'none';
       if (loginLink) loginLink.style.display = 'inline-block';
     }
+  </script>
+  <script>
+    // Règles : le calendrier du jeu s'anime quand il entre à l'écran ; « Rejouer » le relance
+    (() => {
+      const fig = document.querySelector('.da-cal');
+      if (!fig || !('IntersectionObserver' in window)) return;
+      document.documentElement.classList.add('da-cal-anim');
+      const play = () => { fig.classList.remove('is-playing'); void fig.offsetWidth; fig.classList.add('is-playing'); };
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) { play(); io.disconnect(); }
+      }, { threshold: 0.4 });
+      io.observe(fig);
+      fig.querySelector('.da-cal__replay')?.addEventListener('click', play);
+    })();
   </script>
 </body>
 </html>

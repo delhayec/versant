@@ -299,3 +299,60 @@ html.da-atelier .rules-card ul { margin: 8px 0 0; padding-left: 20px; display: g
   html.da-atelier .rules-more__body { padding: 4px 12px 14px; }
   html.da-atelier .rules-more__table { margin-left: 0; }
 }
+
+/* Règles : le calendrier du jeu. Des cases de jours cochées, le round surligné
+   au marqueur, une ligne de rounds pour la saison, des lignes de saisons pour
+   l'année. Au repos (sans script ou animations réduites) : tout est coché. */
+.da-cal { display: none; }
+html.da-atelier .da-cal { display: grid; gap: 22px; margin: 16px 0 0; padding: 18px 18px 14px; position: relative;
+  background: var(--panel); border: 1.5px solid var(--ink); }
+html.da-atelier .da-cal__level { display: grid; gap: 8px; min-width: 0; }
+html.da-atelier .da-cal__lbl { margin: 0; font: 700 11px/1.2 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+html.da-atelier .da-cal__note { margin: 0; font: 600 19px/1.15 var(--f-hand); color: var(--pen) !important; }
+/* Un round : 5 cases, surlignées au marqueur une fois cochées */
+html.da-atelier .da-cal__round { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 4px; }
+html.da-atelier .da-cal__round::before { content: ""; position: absolute; inset: 0 -3px; z-index: -1; background: var(--accent);
+  opacity: var(--mk-opacity); mix-blend-mode: var(--mk-blend); border-radius: 3px 8px 4px 9px / 7px 4px 8px 3px;
+  transform: rotate(-.6deg); transform-origin: left center; }
+html.da-atelier .da-cal__round--big { max-width: 260px; gap: 8px; padding: 7px; }
+html.da-atelier .da-cal__day { position: relative; aspect-ratio: 1; border: 1.5px solid var(--ink); background: var(--panel); }
+html.da-atelier .da-cal__round:not(.da-cal__round--big) .da-cal__day { border-width: 1px; }
+html.da-atelier .da-cal__day::after { content: ""; position: absolute; inset: 8% 4% 14% 10%; background: var(--pen);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 13.5c2.2 1.4 4 3.3 5.6 5.6C11.4 13 15.3 8 21 3.5' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 13.5c2.2 1.4 4 3.3 5.6 5.6C11.4 13 15.3 8 21 3.5' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* Une saison : les rounds côte à côte, la finale marquée d'un trait plus foncé */
+html.da-atelier .da-cal__season { display: flex; gap: 6px; }
+html.da-atelier .da-cal__season .da-cal__round { flex: 1 1 0; min-width: 0; gap: 2px; padding: 3px 2px; }
+html.da-atelier .da-cal__round--finale::after { content: "finale"; position: absolute; right: 0; top: calc(100% + 2px); font: 600 15px/1 var(--f-hand); color: var(--accent-text); }
+html.da-atelier .da-cal__level--season { padding-bottom: 10px; }
+/* L'année : une barre de rounds par saison */
+html.da-atelier .da-cal__year { display: grid; gap: 7px; }
+html.da-atelier .da-cal__srow { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: center; }
+html.da-atelier .da-cal__slbl { font: 600 16px/1 var(--f-hand); color: var(--pen); }
+html.da-atelier .da-cal__sbar { display: flex; gap: 4px; height: 12px; }
+html.da-atelier .da-cal__sbar span { flex: 1 1 0; background: var(--accent); opacity: var(--mk-opacity); mix-blend-mode: var(--mk-blend); border-radius: 2px 5px 3px 6px; }
+html.da-atelier .da-cal__more { font: 700 18px/1 var(--f-mono); color: var(--sub); padding-left: 84px; }
+html.da-atelier .da-cal__replay { justify-self: end; margin-top: -6px; padding: 4px 10px; border: 1px solid var(--ink); background: transparent; color: var(--ink);
+  font: 700 10px/1.2 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+html.da-atelier .da-cal__replay:hover { background: var(--accent-soft); }
+html:not(.da-cal-anim) .da-cal__replay { display: none; }
+
+/* Animation (posée par le script quand le dessin entre à l'écran) */
+@media (prefers-reduced-motion: no-preference) {
+  html.da-atelier .da-cal.is-playing .da-cal__day::after { animation: da-cal-tick .18s ease-out both; animation-delay: calc(var(--i) * 90ms); }
+  html.da-atelier .da-cal.is-playing .da-cal__level--round .da-cal__round::before { animation: da-cal-mark .45s ease-out both; animation-delay: .5s; }
+  html.da-atelier .da-cal.is-playing .da-cal__level--season .da-cal__day::after { animation-delay: calc(1s + var(--i) * 28ms); }
+  html.da-atelier .da-cal.is-playing .da-cal__level--season .da-cal__round::before { animation: da-cal-mark .3s ease-out both; animation-delay: calc(1.1s + var(--r) * 140ms + 110ms); }
+  html.da-atelier .da-cal.is-playing .da-cal__round--finale::after { animation: da-cal-fade .3s ease-out both; animation-delay: 2.2s; }
+  html.da-atelier .da-cal.is-playing .da-cal__sbar span { animation: da-cal-mark .25s ease-out both; animation-delay: calc(2.4s + var(--s, 0) * 450ms + var(--r) * 55ms); }
+  html.da-atelier .da-cal.is-playing .da-cal__more { animation: da-cal-fade .3s ease-out both; animation-delay: 3.9s; }
+}
+@keyframes da-cal-tick { from { opacity: 0; transform: scale(.4) rotate(-12deg); } to { opacity: 1; transform: none; } }
+@keyframes da-cal-mark { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes da-cal-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 520px) {
+  html.da-atelier .da-cal { padding: 14px 12px 12px; }
+  html.da-atelier .da-cal__season { gap: 4px; }
+  html.da-atelier .da-cal__srow { grid-template-columns: 62px 1fr; }
+  html.da-atelier .da-cal__more { padding-left: 72px; }
+}
