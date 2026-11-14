@@ -1328,6 +1328,18 @@ app.post('/api/jokers/use', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Données manquantes' });
     }
 
+    // Pas de bouclier en finale (joué tout de suite ou programmé). Un bouclier
+    // qui tombe malgré tout sur une finale est rendu au gel du round.
+    if (joker_id === 'bouclier') {
+      try {
+        if (await frozenResults.isFinaleRoundPredicted(Number(round_number), currentEdition().config)) {
+          return res.status(403).json({ error: 'Le bouclier ne peut pas être joué en finale', reason: 'finale' });
+        }
+      } catch (e) {
+        console.warn('Impossible de vérifier la finale pour le bouclier:', e.message);
+      }
+    }
+
     const athletes = await safeReadJSON(ATHLETES_FILE, []);
     const athlete = athletes.find(a => normalizeId(a.id) === normalizeId(req.athleteId));
 
