@@ -16,6 +16,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const roundConfigs = require('./round-configs');
+const { safeModifyJSON } = require('./json-io');
 
 // Import configuration partagée (source unique de vérité)
 const {
@@ -1268,6 +1269,10 @@ async function calculateRoundResults(roundNumber, activities, athletes, jokerUsa
   const effectiveIsFinale = isFinale || isCustomFinale;
 
   // Joueurs éligibles (sans bouclier)
+  // Pas de bouclier en finale : il est ignoré ici et rendu au joueur au gel du round
+  if (effectiveIsFinale) {
+    ranking.forEach(e => { if (e.hasShield) { delete e.hasShield; e.shieldIgnoredInFinale = true; } });
+  }
   const eligibleForElimination = ranking.filter(e => !e.hasShield);
 
   // Joueurs à 0 D+ (éligibles uniquement)
@@ -1770,6 +1775,8 @@ async function freezeRoundResults(roundNumber, activities, athletes, jokerUsage,
     data.rounds
   );
 
+  await settleRoundJokersAndBonuses(roundNumber, results, activities, config, data.rounds);
+
   data.rounds[String(roundNumber)] = results;
   await saveFrozenResults(data);
 
@@ -1853,6 +1860,157 @@ if (isTeamRound) {
   }
 
   return results;
+}
+
+// ============================================
+// JOKERS RENDUS, MARQUAGE, PIÈGE (au gel d'un round)
+// ============================================
+
+/**
+ * Rend des jokers à leurs joueurs : l'utilisation est retirée de
+ * jokers_usage.json, le stock se recalcule tout seul (serveur et pages).
+ */
+async function refundJokers(predicate, reason) {
+  const removed = [];
+  await safeModifyJSON(currentEdition().paths.jokers, raw => {
+    const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.usage) ? raw.usage : []);
+    const kept = list.filter(j => {
+      if (j.status === 'active' && predicate(j)) { removed.push(j); return false; }
+      return true;
+    });
+    return Array.isArray(raw) || !raw ? kept : { ...raw, usage: kept };
+  });
+  removed.forEach(j => console.log(`Joker rendu (${reason}) : ${j.joker_id} de ${j.athlete_name}, round ${j.round_number}`));
+  return removed;
+}
+
+/**
+ * La finale est-elle prévisible pour ce round ? Config admin 'finale', ou au
+ * plus finalistsCount joueurs encore en lice (même règle que le calcul).
+ * Sert à refuser un bouclier joué ou programmé sur une finale.
+ */
+async function isFinaleRoundPredicted(roundNumber, config) {
+  const cfg = await roundConfigs.getRoundConfig(roundNumber);
+  if (cfg?.type === 'finale') return true;
+  const data = await loadFrozenResults();
+  const prevKey = Object.keys(data.rounds || {}).map(Number)
+    .filter(n => n < roundNumber && data.rounds[String(n)]?.frozen)
+    .sort((a, b) => b - a)[0];
+  if (prevKey == null) return false;
+  const prev = data.rounds[String(prevKey)];
+  if (seasonEndedAfter(prev)) return false;
+  if (isTeamSeason(prev.seasonNumber) || isDeadlineSeason(prev.seasonNumber)) return false;
+  const perRound = Number(config?.eliminationsPerRound) || 2;
+  const remaining = (prev.activeParticipants?.length || 0) - (prev.eliminations?.length || 0)
+    - perRound * (roundNumber - prevKey - 1);
+  return remaining > 0 && remaining <= (Number(config?.finalistsCount) || 1);
+}
+
+/**
+ * Après le calcul d'un round, avant son enregistrement :
+ *  - jokers sans effet rendus : tous sur un round D+ pur, le bouclier en finale ;
+ *  - Marquage : réussi si la cible est réellement éliminée à ce round ;
+ *  - It's a TRAP ! : le prochain éliminé à la dernière place donne le D+ de sa
+ *    dernière activité du round (copie). Sans activité, le piège reste posé.
+ */
+async function settleRoundJokersAndBonuses(roundNumber, results, activities, config, previousRounds) {
+  const key = j => `${j.athleteId ?? j.athlete_id}|${j.jokerId ?? j.joker_id}`;
+
+  // 1. Jokers rendus
+  try {
+    const noBonus = results.specialRule === 'no_bonus';
+    const finale = results.isFinalePrincipale === true;
+    if (noBonus || finale) {
+      const reason = noBonus ? 'round D+ pur' : 'bouclier en finale';
+      const refunded = await refundJokers(
+        j => Number(j.round_number) === Number(roundNumber) && (noBonus || j.joker_id === 'bouclier'), reason);
+      if (refunded.length) {
+        const keys = new Set(refunded.map(key));
+        results.jokersUsed = (results.jokersUsed || []).filter(j => !keys.has(key(j)));
+        results.jokersRefunded = refunded.map(j => ({
+          athleteId: String(j.athlete_id), athleteName: j.athlete_name, jokerId: j.joker_id, reason: noBonus ? 'no_bonus' : 'finale'
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn(`Round ${roundNumber} : jokers à rendre non traités :`, e.message);
+  }
+
+  // 2 et 3. Marquage et piège, dans bonuses.json
+  try {
+    const eliminated = results.isFinalePrincipale && results.eliminatedTeam?.members
+      ? results.eliminatedTeam.members : (results.eliminations || []);
+    const elimIds = new Set(eliminated.map(e => String(e.id)));
+    (results.ranking || []).forEach(e => { if (e.isWinner) elimIds.delete(String(e.id)); });
+
+    // Victime du piège : l'éliminé à la dernière place (pas en finale Équipes)
+    let victim = null;
+    if (!results.teamFinalRound && (results.eliminations || []).length) {
+      victim = [...results.eliminations].sort((a, b) => (b.position || 0) - (a.position || 0))[0];
+    }
+    let victimActivity = null;
+    if (victim) {
+      const { start, end } = getRoundDates(roundNumber, config);
+      const endOf = a => new Date(a.start_date).getTime() + (a.elapsed_time || 0) * 1000;
+      const acts = (activities || []).filter(a =>
+        String(a.athlete?.id || a.athlete_id) === String(victim.id) && !a.excluded
+        && isValidSport(a.sport_type || a.type)
+        && endOf(a) >= start.getTime() && endOf(a) <= end.getTime());
+      victimActivity = acts.sort((a, b) => endOf(b) - endOf(a))[0] || null;
+    }
+    const seasonOf = b => b.season_number != null ? Number(b.season_number)
+      : Number(previousRounds?.[String(b.elimination_round)]?.seasonNumber);
+
+    const touched = [];
+    await safeModifyJSON(currentEdition().paths.bonuses, list => {
+      if (!Array.isArray(list)) return list;
+      for (const b of list) {
+        if (b.bonus_id === 'marquage' && Number(b.used_in_round) === Number(roundNumber)) {
+          const hit = elimIds.has(String(b.target_athlete_id));
+          b.effect_applied = true;
+          b.effect_result = {
+            targetId: String(b.target_athlete_id), targetName: b.target_athlete_name,
+            targetEliminated: hit, pointsAwarded: hit ? 1 : 0, calculatedInRound: roundNumber
+          };
+          b.effect_applied_at = new Date().toISOString();
+          touched.push(b);
+        }
+        if (b.bonus_id === 'trap' && victim && victimActivity
+            && ['active', 'used'].includes(b.status)
+            && !b.effect_result?.elevation_gained && !b.effect_result?.triggeredBy
+            && Number(b.elimination_round) < Number(roundNumber)
+            && seasonOf(b) === Number(results.seasonNumber)
+            && String(b.athlete_id) !== String(victim.id)) {
+          const amount = Math.round(victimActivity.total_elevation_gain || 0);
+          if (amount <= 0) continue;
+          b.status = 'used';
+          b.used_in_round = roundNumber;
+          b.target_athlete_id = String(victim.id);
+          b.target_athlete_name = victim.name;
+          b.effect_applied = true;
+          b.effect_result = {
+            trapSet: true, triggeredBy: victim.name, victim_name: victim.name,
+            triggeredByActivity: victimActivity.name, stolenElevation: amount,
+            elevation_gained: amount, triggeredInRound: roundNumber
+          };
+          b.effect_applied_at = new Date().toISOString();
+          touched.push(b);
+          console.log(`Piège de ${b.athlete_name} déclenché par ${victim.name} : +${amount} m`);
+        }
+      }
+      return list;
+    });
+
+    // Le round enregistre la version à jour de ces bonus
+    if (touched.length) {
+      const same = (a, b) => (a.id && a.id === b.id)
+        || (a.bonus_id === b.bonus_id && String(a.athlete_id) === String(b.athlete_id) && Number(a.elimination_round) === Number(b.elimination_round));
+      const used = (results.bonusesUsed || []).filter(u => !touched.some(t => same(u, t)));
+      results.bonusesUsed = [...used, ...touched.map(t => ({ ...t }))];
+    }
+  } catch (e) {
+    console.warn(`Round ${roundNumber} : Marquage et piège non traités :`, e.message);
+  }
 }
 
 /**
@@ -2843,6 +3001,8 @@ async function getSeasonPlan(athletes, config, now = new Date()) {
 
 module.exports = {
   seasonEndedAfter,
+  isFinaleRoundPredicted,
+  settleRoundJokersAndBonuses,
   detectSeasonContext,
   computeElevationGauge,
   computeRescapeInfo,
