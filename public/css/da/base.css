@@ -186,3 +186,13 @@ html.da-atelier .da-sr {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* --- Fond pointillé de carnet (nov. 2026, à la place du millimétré) ---
+   Un point tous les 20 px : le carnet de manip plutôt que le plan d'architecte.
+   Même fond pour la page, la marge du cadre et la barre de navigation. */
+html.da-atelier body,
+html.da-atelier .da-frame,
+html.da-atelier .nav-sticky {
+  background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.4px) !important;
+  background-size: 20px 20px !important;
+}

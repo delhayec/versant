@@ -609,7 +609,7 @@ html.da-atelier [class*="picto--animal-"] { width: 1.75em; height: 1.75em; verti
 html.da-atelier .da-shine { display: inline-block; width: 0.6em; height: 1.25em; margin-left: 4px; margin-right: 2px; vertical-align: -0.2em; background: var(--accent-text);
   -webkit-mask: url("../../assets/manic/shine-01-v.svg") center / 100% 100% no-repeat; mask: url("../../assets/manic/shine-01-v.svg") center / 100% 100% no-repeat; }
 html.da-atelier .da-new-ico { position: relative; overflow: visible; }
-html.da-atelier .da-new-ico::after { content: ""; position: absolute; left: -2px; right: -2px; top: -16px; height: 24px; background: var(--accent-text); pointer-events: none;
+html.da-atelier .da-new-ico::after { content: ""; position: absolute; left: -7px; right: -7px; top: -21px; height: 27px; background: var(--accent-text); pointer-events: none;
   -webkit-mask: url("../../assets/manic/shine-01.svg") center / 100% 100% no-repeat; mask: url("../../assets/manic/shine-01.svg") center / 100% 100% no-repeat; }
 
 /* Médailles 1, 2, 3 : la rosette, un coup de marqueur or, gris ou brun dessus */

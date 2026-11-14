@@ -90,6 +90,7 @@ html.da-atelier {
   --bg: #ECE8E0;
   --grid-major: #DCD6CB;
   --grid-minor: #E5E1D8;
+  --dot: rgba(43, 42, 40, 0.20);         /* fond pointillé de carnet */
   --panel: #FDFCFA;
   --panel-2: #E9E2D3;       /* kraft : en-têtes, cartouches, repères de lecture */
   --ink: #2B2A28;
@@ -159,6 +160,8 @@ html.da-atelier {
     --bg: #0F2740;
     --grid-major: rgba(255, 255, 255, 0.09);
     --grid-minor: rgba(255, 255, 255, 0.035);
+  --dot: rgba(230, 236, 244, 0.18);
+    --dot: rgba(230, 236, 244, 0.18);
     --panel: #15324F;
     --panel-2: #0B1F33;
     --ink: #E6ECF4;
@@ -226,6 +229,7 @@ html.da-atelier[data-theme="dark"] {
   --bg: #0F2740;
   --grid-major: rgba(255, 255, 255, 0.09);
   --grid-minor: rgba(255, 255, 255, 0.035);
+  --dot: rgba(230, 236, 244, 0.18);
   --panel: #15324F;
   --panel-2: #0B1F33;
   --ink: #E6ECF4;
