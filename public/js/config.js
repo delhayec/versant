@@ -306,13 +306,13 @@ export function eliminatedChallengeRosterSize(eliminatedList) {
 // L44 : objectif (100 %) = seuil du neutre, paliers ronds (cf. shared-config).
 export const ELEVATION_GAUGE = {
   objectivePerPlayer: [
-    { minPlayers: 14, objective: 400 },
-    { minPlayers: 11, objective: 500 },
-    { minPlayers: 9, objective: 600 },
-    { minPlayers: 7, objective: 750 },
-    { minPlayers: 5, objective: 900 },
-    { minPlayers: 3, objective: 1150 },
-    { minPlayers: 0, objective: 1400 },
+    { minPlayers: 14, objective: 550 },
+    { minPlayers: 11, objective: 700 },
+    { minPlayers: 9, objective: 900 },
+    { minPlayers: 7, objective: 1100 },
+    { minPlayers: 5, objective: 1400 },
+    { minPlayers: 3, objective: 1800 },
+    { minPlayers: 0, objective: 2100 },
   ],
   tiers: [
     {
