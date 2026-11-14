@@ -127,6 +127,9 @@
     return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
   }
 
+  // Le même feutre pour les dessins des pages (calendrier des Règles)
+  window.daMarkerSVG = markerSVG;
+
   // Taille du marqueur selon l'élément qui le porte (doit suivre components.css).
   // fit : le trait se cale sur le texte (cellule plus large que son contenu).
   // reveal : le trait se dessine de droite à gauche quand il entre à l'écran.
