@@ -556,80 +556,69 @@
 
         <div class="team-rules-grid">
           <div class="team-rule-card">
-            <h4>Composition des équipes</h4>
+            <h4>Les équipes</h4>
             <p>
-              4 équipes de 4 joueurs sont tirées au sort
-              <strong class="da-mk">à chaque round</strong>. L'algorithme d'équilibrage minimise
-              l'écart de D+ entre les équipes, en utilisant le D+ cumulé de chaque
-              joueur depuis le 1er janvier (arrêté au début du round).
+              Des équipes de <strong data-team="size">3</strong> joueurs sont tirées
+              <strong class="da-mk">à chaque round</strong>, équilibrées sur
+              <span data-team="balance">les points du classement général</span>.
+              Si le compte ne tombe pas juste, les joueurs en trop complètent des équipes.
             </p>
           </div>
-
-
 
           <div class="team-rule-card">
             <h4>Élimination</h4>
             <p>
-              On somme le D+ de tous les membres pour chaque équipe. À la fin
-              du round, <strong>l'équipe avec le moins de D+ cumulé est éliminée
-              en bloc</strong> (les 4 joueurs basculent dans le challenge des
-              éliminés). Les points sont attribués selon la contribution individuelle
-              au sein de l'équipe.
+              On additionne le D+ des membres de chaque équipe.
+              <strong>L'équipe qui a le moins de D+ est éliminée en entier.</strong>
+              Dans cette équipe, celui qui a fait le moins de D+ prend la dernière place.
             </p>
           </div>
 
           <div class="team-rule-card">
-            <h4><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span> Jokers autorisés</h4>
+            <h4><span class="picto picto--bouclier"><span class="picto__emoji" aria-hidden="true">🛡️</span></span> Jokers</h4>
             <p>
-              Le <strong>bouclier est désactivé</strong> en saison Équipes
-              (toute l'équipe est éliminée ou survit ensemble). Voleur,
-              sabotage et multiplicateur restent autorisés : ils ciblent un
-              joueur spécifique et impactent l'équipe via la somme des D+.
+              <strong>Pas de bouclier</strong> : l'équipe tombe ou survit ensemble.
+              Voleur, Sabotage et Multiplicateur visent un joueur et changent le total de son équipe.
             </p>
           </div>
 
           <div class="team-rule-card">
-            <h4>Round R3 — Finale principale</h4>
+            <h4>La finale</h4>
             <p>
-              La finale du challenge principal se déroule à 2 équipes (8 joueurs).
-              <strong>Équipe gagnante : positions 1 à 4 (24/21/18/15 pts).
-              Équipe vaincue : positions 5 à 8 (12/10/8/6 pts)</strong>, selon
-              la contribution individuelle au sein de l'équipe.
+              Quand il reste 2 équipes. <strong>L'équipe gagnante prend les premières places</strong>,
+              dans l'ordre du D+ de chacun : son meilleur D+ est champion.
+              L'équipe battue prend les places suivantes. Points du barème habituel.
             </p>
           </div>
 
           <div class="team-rule-card">
-            <h4>Round R4 — Finale challenge éliminés</h4>
+            <h4>La finale des éliminés</h4>
             <p>
-              Les deux équipes finaliste intègre le challenge des éliminés pour un Super-Round bonus de durée standard.
-              Toutes les équipes éliminées au
-              cours de la saison participent <strong>dans leur composition
-              d'origine</strong>. Les 8 finalistes du R3
-              entrent au R4 sans avoir reçu de bonus éphémère.
+              Un round de plus après la finale. Les équipes éliminées, dans leur
+              composition d'origine, et l'équipe battue en finale le jouent.
+              L'équipe battue en finale n'a pas de bonus.
             </p>
           </div>
 
           <div class="team-rule-card">
             <h4>Points du challenge des éliminés</h4>
             <p>
-              À la fin de la saison, on classe les équipes éliminées par D+
-              cumulé depuis leur élimination jusqu'à la fin du R4 :
+              Les équipes éliminées sont classées au D+ fait depuis leur élimination,
+              jusqu'à la fin de ce dernier round. Dans chaque équipe, le meilleur D+ prend les points du haut :
             </p>
             <ul class="team-points-list">
-              <li><strong>1ère équipe</strong> : 12 / 11 / 10 / 9 pts (selon contribution individuelle)</li>
-              <li><strong>2ème équipe</strong> : 8 / 7 / 6 / 5 pts</li>
-              <li><strong>3ème équipe</strong> : 4 / 3 / 2 / 1 pts</li>
-              <li><strong>4ème équipe</strong> : 0 pt</li>
+              <li><strong>1re équipe</strong> : 12 / 11 / 10 / 9 pts</li>
+              <li><strong>2e équipe</strong> : 8 / 7 / 6 / 5 pts</li>
+              <li><strong>3e équipe</strong> : 4 / 3 / 2 / 1 pts</li>
+              <li><strong>Les suivantes</strong> : 0 pt</li>
             </ul>
           </div>
 
           <div class="team-rule-card">
-            <h4><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span> Bonus éphémères</h4>
+            <h4><span class="picto picto--cadeau"><span class="picto__emoji" aria-hidden="true">🎁</span></span> Bonus des éliminés</h4>
             <p>
-              Comme dans les saisons standard, à chaque round (R1 et R2), le
-              meilleur des éliminés (= meilleur D+ individuel dans l'équipe
-              éliminée) reçoit un choix entre 2 bonus éphémères. Ces bonus
-              restent valides jusqu'à la fin de la saison, R4 inclus.
+              Comme d'habitude : à chaque round, le meilleur D+ de l'équipe éliminée
+              choisit un bonus. Il vaut jusqu'à la fin de la saison, dernier round compris.
             </p>
           </div>
         </div>
@@ -850,12 +839,12 @@
           </ul>
           <table class="points-table rules-more__table">
             <tr><td>14 joueurs et plus</td><td>550 m</td></tr>
-            <tr><td>11 à 13 joueurs</td><td>700 m</td></tr>
-            <tr><td>9 ou 10 joueurs</td><td>900 m</td></tr>
-            <tr><td>7 ou 8 joueurs</td><td>1 100 m</td></tr>
-            <tr><td>5 ou 6 joueurs</td><td>1 400 m</td></tr>
-            <tr><td>3 ou 4 joueurs</td><td>1 800 m</td></tr>
-            <tr><td>2 joueurs</td><td>2 100 m</td></tr>
+            <tr><td>11 à 13 joueurs</td><td>800 m</td></tr>
+            <tr><td>9 ou 10 joueurs</td><td>1 000 m</td></tr>
+            <tr><td>7 ou 8 joueurs</td><td>1 250 m</td></tr>
+            <tr><td>5 ou 6 joueurs</td><td>1 550 m</td></tr>
+            <tr><td>3 ou 4 joueurs</td><td>1 900 m</td></tr>
+            <tr><td>2 joueurs</td><td>2 200 m</td></tr>
           </table>
           <ul>
             <li>Exemple à 14 joueurs : l'objectif est de 7 700 m (14 × 550 m).</li>
@@ -1082,7 +1071,7 @@
     // Pour annoncer la saison team un round à l'avance, on lit un drapeau
     // optionnel localStorage 'versant_team_announce' (mis à 'true' par
     // l'admin quand bon lui semble).
-    import { getSeasonNumber, isTeamSeason, loadSeasonPlanning } from './js/config.js';
+    import { getSeasonNumber, isTeamSeason, loadSeasonPlanning, getTeamSettings } from './js/config.js';
     import { getCurrentDate } from './js/demo.js';
 
     try {
@@ -1108,6 +1097,13 @@
       }
 
       if (showBanner) {
+        // Taille des équipes et équilibrage réglés pour la saison concernée
+        const teamSeason = isTeamSeason(currentSeason) ? currentSeason : currentSeason + 1;
+        const settings = getTeamSettings(teamSeason);
+        document.querySelectorAll('[data-team="size"]').forEach(el => { el.textContent = settings.teamSize; });
+        document.querySelectorAll('[data-team="balance"]').forEach(el => {
+          el.textContent = settings.balanceBy === 'elevation' ? 'le D+ fait depuis le début de l\'année' : 'les points du classement général';
+        });
         const banner = document.getElementById('teamSeasonRulesBanner');
         const ctx = document.getElementById('teamSeasonContext');
         if (banner) banner.style.display = '';
