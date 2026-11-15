@@ -150,16 +150,16 @@ function eliminatedPointsForEdition(position, rosterSize, config = editionConfig
 // Le round de départ est un paramètre d'édition : CHALLENGE_CONFIG.elevationGaugeStartRound.
 const ELEVATION_GAUGE = {
   // Objectif de D+ MOYEN par joueur, selon le nombre de joueurs en lice.
-  // Nov. 2026 : 550 m à 14 joueurs et plus (l'automne tient au neutre), jusqu'à
-  // 1 800 m pour une finale à 4.
+  // Nov. 2026 : 550 m à 14 joueurs et plus (l'automne tient au neutre), puis
+  // une pente plus raide (15/11 : 800 m à 11 joueurs, 1 900 m pour une finale à 4).
   objectivePerPlayer: [
     { minPlayers: 14, objective: 550 },
-    { minPlayers: 11, objective: 700 },
-    { minPlayers: 9, objective: 900 },
-    { minPlayers: 7, objective: 1100 },
-    { minPlayers: 5, objective: 1400 },
-    { minPlayers: 3, objective: 1800 },
-    { minPlayers: 0, objective: 2100 }
+    { minPlayers: 11, objective: 800 },
+    { minPlayers: 9, objective: 1000 },
+    { minPlayers: 7, objective: 1250 },
+    { minPlayers: 5, objective: 1550 },
+    { minPlayers: 3, objective: 1900 },
+    { minPlayers: 0, objective: 2200 }
   ],
   // Paliers en % de l'objectif (minRatio inclus), du plus haut au plus bas
   tiers: [
