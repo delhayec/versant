@@ -32,7 +32,7 @@
   <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
   <link rel="stylesheet" href="css/da/tokens.css?v=20261114h">
   <link rel="stylesheet" href="css/da/base.css?v=20261114b">
-  <link rel="stylesheet" href="css/da/components.css?v=20261114b">
+  <link rel="stylesheet" href="css/da/components.css?v=20261115a">
   <link rel="stylesheet" href="css/da/pages.css?v=20261114d">
   <link rel="stylesheet" href="css/da/stats.css?v=20261110a">
 </head>
@@ -72,7 +72,7 @@
         <a href="index.html" class="nav-link">Classement</a>
         <a href="rules.html" class="nav-link">Règles</a>
         <a href="stats.html" class="nav-link active">Stats</a>
-        <a href="dashboard.html" class="nav-link" id="dashboardLink" style="display:none;">Dashboard</a>
+        <a href="dashboard.html" class="nav-link nav-link-with-badge" id="dashboardLink" style="display:none;">Dashboard <span class="nav-badge" id="dashboardBadge" style="display:none;">!</span></a>
         <a href="login.html" class="nav-link" id="loginLink">Connexion</a>
       </div>
     </div>
@@ -421,6 +421,7 @@
   <!-- Module principal -->
   <script src="shared/team-formation.js?v=20260417"></script>
   <script src="shared/edition-rules.js?v=20261028d"></script>
+  <script src="shared/nav-notif.js?v=20261115a"></script>
   <script type="module" src="js/stats.js?v=20261115a"></script>
 </body>
 </html>

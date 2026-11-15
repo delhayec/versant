@@ -1661,3 +1661,11 @@ html.da-atelier .da-tag__text > span { display: block; }
     -webkit-mask: url(/assets/manic/line-01.svg) center / 100% 100% no-repeat; mask: url(/assets/manic/line-01.svg) center / 100% 100% no-repeat; }
   /* sur téléphone la note sur la ligne reste cachée : l'étiquette la remplace */
 }
+
+/* Challenge des éliminés : bonus encore à jouer (visible de tous), cadeau
+   orange avec un point ; bonus déjà joué : cadeau au crayon */
+html.da-atelier .bonus-badge { display: inline-flex; vertical-align: -3px; margin-left: 4px; color: var(--sub); }
+html.da-atelier .bonus-badge .picto { width: 18px; height: 18px; }
+html.da-atelier .bonus-badge--ready { position: relative; color: var(--accent-text); }
+html.da-atelier .bonus-badge--ready .picto { width: 22px; height: 22px; }
+html.da-atelier .bonus-badge--ready::after { content: ""; position: absolute; top: -2px; right: -5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1.5px var(--panel); }

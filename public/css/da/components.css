@@ -390,23 +390,26 @@ html.da-atelier .nav-link::before {
   html.da-atelier .nav-link::before { display: none; }
 }
 
-/* Notification du Dashboard : une cloche au lieu du « ! » */
+/* Notification du Dashboard (bonus à choisir ou à jouer, édition à
+   confirmer) : un point orange, pour le joueur concerné seulement */
+html.da-atelier .nav-link-with-badge { position: relative; }
 html.da-atelier .nav-badge {
-  width: 20px;
-  min-width: 20px;
-  height: 20px;
+  position: absolute;
+  top: 4px;
+  right: -9px;
+  width: 9px;
+  min-width: 9px;
+  height: 9px;
   padding: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--panel);
   font-size: 0;
+  color: transparent;
   animation: none;
 }
-html.da-atelier .nav-badge::before {
-  content: "";
-  width: 14px;
-  height: 14px;
-  background: var(--panel);
-  -webkit-mask: url("../../assets/pictos/notif.svg") center / contain no-repeat;
-  mask: url("../../assets/pictos/notif.svg") center / contain no-repeat;
-}
+html.da-atelier .nav-badge::before { content: none; }
+@media (max-width: 768px) { html.da-atelier .nav-badge { top: -3px; right: -6px; width: 8px; min-width: 8px; height: 8px; } }
 
 /* Saisons gagnées et vainqueur : la couronne */
 html.da-atelier .picto--couronne { --pi: url("../../assets/pictos/couronne.svg"); }

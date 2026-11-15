@@ -1225,6 +1225,15 @@ function renderEliminatedChallenge(container) {
 
   // Déterminer qui a reçu un bonus éphémère (meilleur des 2 éliminés de chaque round)
   const bonusRecipients = getBonusRecipientsForSeason(currentSeasonNumber);
+  // Bonus encore à jouer (visible de tous) : bonus de la saison ni lancé ni
+  // activé, ou bonus gagné dont le choix n'est pas encore fait
+  const seasonStartRound = getSeasonStartRound(currentSeasonNumber, frozenResultsCache);
+  const seasonBonuses = (bonusesCache || []).filter(b => !b.elimination_round || b.elimination_round >= seasonStartRound);
+  const bonusToPlay = id => {
+    const mine = seasonBonuses.filter(b => String(b.athlete_id) === String(id));
+    if (mine.some(b => b.status === 'available' || (!b.used_at && !b.activated_at && !b.used_in_round))) return true;
+    return bonusRecipients.has(String(id)) && mine.length === 0;
+  };
 
   // Calculer les effets de bonus pour chaque éliminé (cumulés sur toute la saison)
   const bonusEffectsByAthlete = {};
@@ -1283,7 +1292,9 @@ function renderEliminatedChallenge(container) {
   let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
   ranking.forEach(e => {
     const hasBonus = bonusRecipients.has(String(e.participant.id));
-    const bonusBadge = hasBonus ? `<span class="bonus-badge" title="Meilleur des 2 éliminés - A reçu un bonus éphémère">${picto('cadeau', '🎁')}</span>` : '';
+    const bonusBadge = bonusToPlay(e.participant.id)
+      ? `<span class="bonus-badge bonus-badge--ready" title="Bonus des éliminés à jouer">${picto('cadeau', '🎁', 'Bonus à jouer')}</span>`
+      : hasBonus ? `<span class="bonus-badge" title="Meilleur des 2 éliminés - A reçu un bonus éphémère">${picto('cadeau', '🎁')}</span>` : '';
 
     // Calculer les pilules de bonus éphémères
     const bonusEffects = bonusEffectsByAthlete[e.participant.id] || { gained: 0, lost: 0, details: [] };

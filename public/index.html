@@ -31,8 +31,8 @@
     <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
     <link rel="stylesheet" href="css/da/tokens.css?v=20261114h" />
     <link rel="stylesheet" href="css/da/base.css?v=20261114b" />
-    <link rel="stylesheet" href="css/da/components.css?v=20261114b" />
-    <link rel="stylesheet" href="css/da/home.css?v=20261115a" />
+    <link rel="stylesheet" href="css/da/components.css?v=20261115a" />
+    <link rel="stylesheet" href="css/da/home.css?v=20261115b" />
   </head>
   <body>
     <!-- Loading Screen -->
@@ -242,72 +242,12 @@
         if (statsLink) statsLink.style.display = "inline-flex";
         if (loginLink) loginLink.style.display = "none";
 
-        // Vérifier s'il y a des notifications (bonus à choisir)
-        if (token && dashboardBadge) {
-          checkDashboardNotifications(token, dashboardBadge);
-        }
       } else {
         // Non connecté
         if (dashboardLink) dashboardLink.style.display = "none";
         if (loginLink) loginLink.style.display = "inline-block";
       }
 
-      // Fonction pour vérifier les notifications dashboard
-      async function checkDashboardNotifications(authToken, badgeEl) {
-        try {
-          // Nouvelle édition de la ligue à confirmer (L51)
-          const meRes = await fetch("/api/me", {
-            headers: { Authorization: "Bearer " + authToken },
-          });
-          const me = meRes.ok ? await meRes.json() : null;
-          const editionToConfirm = (me?.editionsToConfirm?.length || 0) > 0;
-
-          // Vérifier s'il y a des choix de bonus en attente
-          const choicesRes = await fetch("/api/bonuses/choices", {
-            headers: { Authorization: "Bearer " + authToken },
-          });
-
-          if (choicesRes.ok) {
-            const choicesData = await choicesRes.json();
-            if (choicesData.hasChoice) {
-              // Il y a un bonus à choisir !
-              badgeEl.textContent = "🎁";
-              badgeEl.style.display = "inline-flex";
-              badgeEl.title = "Tu as un bonus à choisir !";
-              return;
-            }
-          }
-
-          // Vérifier s'il y a un bonus disponible non utilisé
-          const bonusRes = await fetch("/api/bonuses/my", {
-            headers: { Authorization: "Bearer " + authToken },
-          });
-
-          if (bonusRes.ok) {
-            const bonusData = await bonusRes.json();
-            if (bonusData.bonus && bonusData.bonus.status === "available") {
-              // Il y a un bonus disponible
-              badgeEl.textContent = "!";
-              badgeEl.style.display = "inline-flex";
-              badgeEl.title = "Tu as un bonus à utiliser !";
-              return;
-            }
-          }
-
-          if (editionToConfirm) {
-            badgeEl.textContent = "!";
-            badgeEl.style.display = "inline-flex";
-            badgeEl.title = "Nouvelle édition : confirme ta participation !";
-            return;
-          }
-
-          // Pas de notification
-          badgeEl.style.display = "none";
-        } catch (err) {
-          console.warn("Erreur vérification notifications:", err);
-          badgeEl.style.display = "none";
-        }
-      }
     </script>
     <!-- Safety timeout: masquer le loader après 12 secondes max -->
     <script>
@@ -323,8 +263,9 @@
     </script>
 
     <!-- App JS - Version simple avec query string -->
+    <script src="shared/nav-notif.js?v=20261115a"></script>
     <script src="shared/team-formation.js?v=20260505c"></script>
     <script src="shared/edition-rules.js?v=20261028d"></script>
-    <script type="module" src="js/app.js?v=20261115a"></script>
+    <script type="module" src="js/app.js?v=20261115b"></script>
   </body>
 </html>
