@@ -615,6 +615,28 @@
       if (nb.left >= note.parentElement.getBoundingClientRect().right) return;
       if (nb.left < right + 12 || nb.right > cb.right + 2) note.classList.add('da-no-room');
     });
+    /* Classement du round : la note suit le nom et ses étiquettes, dans la
+       case de l'athlète ; sinon, en petit sous le nom ; sinon, rien. */
+    document.querySelectorAll('.ranking-row > .da-row-note').forEach(note => {
+      note.classList.remove('da-no-room', 'da-row-note--under');
+      note.style.left = '';
+      if (!note.getBoundingClientRect().width) return;
+      const row = note.parentElement;
+      const rb = row.getBoundingClientRect();
+      const cell = row.querySelector('.athlete-info');
+      const details = row.querySelector('.athlete-details');
+      if (!cell || !details) return;
+      const cellRight = cell.getBoundingClientRect().right + 2;
+      let right = -Infinity;
+      details.querySelectorAll(':scope > *').forEach(c => {
+        const r = c.getBoundingClientRect(); if (r.width) right = Math.max(right, r.right);
+      });
+      note.style.left = Math.round(right - rb.left + 18) + 'px';
+      if (note.getBoundingClientRect().right <= cellRight) return;
+      note.classList.add('da-row-note--under');
+      note.style.left = Math.round(details.getBoundingClientRect().left - rb.left) + 'px';
+      if (note.getBoundingClientRect().right > cellRight) note.classList.add('da-no-room');
+    });
   }
   function paintMarkers() {
     fitStandingsNotes();

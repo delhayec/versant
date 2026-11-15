@@ -497,11 +497,35 @@ export function renderRanking(container, data) {
     const title = entry.isInDangerZone ? 'Écart avec le dernier qualifié' : 'Avance sur le premier éliminé';
     return `<span class="da-margin da-only ${gap < 0 ? 'is-down' : ''}" title="${title}">${label}</span>`;
   };
+  // R4 règle des 0 m : à partir du jour 3, au moins 2 joueurs sans bouclier
+  // encore à 0 m (ils seraient tous éliminés). Sur la ligne de coupe.
+  const zeros = ranking.filter(e => e.totalElevation === 0 && !e.isProtected);
+  const zeroAlert = zeros.length >= 2 && currentRoundNumber >= CHALLENGE_CONFIG.zeroElevationRuleFromRound
+    && getDayInRound(new Date(), currentRoundNumber) >= 3
+    ? `${zeros.length} à 0 m : ils sautent tous !` : '';
+  const cutNote = zeroAlert || (lastSafeElev === firstDangerElev ? 'à égalité !' : `ça se joue à ${formatElevation(lastSafeElev - firstDangerElev)} !`);
   const cutLineHtml = cutIndex > 0 ? `
         <div class="da-cut-line da-only" role="separator" aria-label="Ligne de coupe à ${formatElevation(lastSafeElev)}">
           <span class="da-cut-line__label">Ligne de coupe <span class="da-draw da-draw--under da-draw--thin" style="--draw:url(/assets/manic/line-02.svg)">${formatElevation(lastSafeElev)}</span></span>
-          <span class="da-note da-note--cut" aria-hidden="true">${lastSafeElev === firstDangerElev ? 'à égalité !' : `ça se joue à ${formatElevation(lastSafeElev - firstDangerElev)} !`}</span>
+          <span class="da-note da-note--cut" aria-hidden="true">${cutNote}</span>
         </div>` : '';
+
+  // DA Atelier, R3 : le leader s'envole (500 m d'avance au moins, et 30 %
+  // de son D+). Note à la main sur la ligne, grand écran seulement.
+  // R4 sans ligne de coupe (cas rare) : sur la ligne du premier joueur à 0 m.
+  const rowNotes = {};
+  const [lead, second] = ranking;
+  if (lead && second && lead.totalElevation > 0) {
+    const gap = lead.totalElevation - second.totalElevation;
+    if (gap >= 500 && gap >= 0.3 * lead.totalElevation) {
+      rowNotes[lead.participant.id] = `s'envole : <span class="da-key">+${formatElevation(gap)}</span>`;
+    }
+  }
+  if (zeroAlert && cutIndex <= 0 && !rowNotes[zeros[0].participant.id]) {
+    rowNotes[zeros[0].participant.id] = zeroAlert;
+  }
+  const rowNoteHtml = (entry) => rowNotes[entry.participant.id]
+    ? `<span class="da-row-note da-only" aria-hidden="true">${rowNotes[entry.participant.id]}</span>` : '';
 
   // En-têtes adaptatifs
   let headerHtml;
@@ -600,6 +624,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
             ${ephemeralPills}
           </div>
           <div class="elevation-secondary hide-mobile">${formatElevation(seasonElev)}</div>
+          ${rowNoteHtml(entry)}
         </div>
         ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule, activityNotes)}
       `;
@@ -634,6 +659,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
           <div class="jokers-cell">
             ${renderJokerBadges(entry.participant.id, data.currentRoundNumber)}
           </div>
+          ${rowNoteHtml(entry)}
         </div>
         ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule, activityNotes)}
       `;

@@ -24,7 +24,7 @@ import { picto, medal } from './pictos.js?v=20261119a';
 import { cleanActivities, computeAthleteStats, athletePodiums } from './achievements.js?v=20261115a';
 import { calculateYearlyStandings } from './standings-engine.js';
 import { motifClass } from './motifs.js';
-import { formatDate, formatElevation } from './ui.js?v=20261115a';
+import { formatDate, formatElevation } from './ui.js?v=20261115b';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;

@@ -38,7 +38,7 @@ import {
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
   renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge, newShine
-} from './ui.js?v=20261115a';
+} from './ui.js?v=20261115b';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 
@@ -1289,7 +1289,7 @@ function renderEliminatedChallenge(container) {
     elimStartRanks = Object.fromEntries(r0.map((e, i) => [String(e.participant.id), i + 1]));
   }
 
-  let html = '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
+  let html = elimGaugeNote() + '<div class="ranking-header"><div>Pos.</div><div>Athlète</div><div>D+ cumulé</div><div>Éliminé</div><div>Points</div></div>';
   ranking.forEach(e => {
     const hasBonus = bonusRecipients.has(String(e.participant.id));
     const bonusBadge = bonusToPlay(e.participant.id)
@@ -1684,6 +1684,28 @@ function placeAchievementTags() {
     const here = spans.filter(sp => c.querySelector(`.ranking-row[data-participant-id="${sp.id}"]`));
     placeStandingsTags(c, here, { rowSelector: '.ranking-row', anyWidth: true, max: 3, label: "Nouveau leader d'un achievement" });
   }
+}
+
+/**
+ * DA Atelier, grand écran : le dernier jour du round, une note à la main
+ * au-dessus du classement des éliminés dit ce que la jauge collective leur
+ * promet ce soir. Relit la jauge en direct (même calcul que la jauge
+ * affichée), ne calcule aucun score.
+ */
+function elimGaugeNote() {
+  if (getSeasonType(currentSeasonNumber)?.isTeamBased || !mechanicActive('gauge', currentSeasonNumber)) return '';
+  const today = getCurrentDate();
+  const { start, end } = getRoundDates(currentRoundNumber);
+  if (today.toDateString() !== new Date(end).toDateString()) return '';
+  const gauge = computeLiveElevationGauge(filterByPeriod(allActivities, start, today), seasonData?.active || []);
+  if (!gauge?.objective) return '';
+  const pct = Math.floor(gauge.ratio * 100);
+  const text = gauge.ratio < 0.75
+    ? `Jauge à ${pct} % : <span class="da-key">+2 pts</span> aux éliminés actifs si ça tient ce soir`
+    : gauge.ratio < 1
+      ? `Jauge à ${pct} % : <span class="da-key">+1 pt</span> aux éliminés actifs si elle reste sous 100 %`
+      : `Jauge à ${pct} % : pas de points pour les éliminés ce round`;
+  return `<span class="da-note da-note--elim-gauge da-only" aria-hidden="true">${text}</span>`;
 }
 
 function buildStandingsNotes(standings) {
