@@ -307,12 +307,12 @@ export function eliminatedChallengeRosterSize(eliminatedList) {
 export const ELEVATION_GAUGE = {
   objectivePerPlayer: [
     { minPlayers: 14, objective: 550 },
-    { minPlayers: 11, objective: 700 },
-    { minPlayers: 9, objective: 900 },
-    { minPlayers: 7, objective: 1100 },
-    { minPlayers: 5, objective: 1400 },
-    { minPlayers: 3, objective: 1800 },
-    { minPlayers: 0, objective: 2100 },
+    { minPlayers: 11, objective: 800 },
+    { minPlayers: 9, objective: 1000 },
+    { minPlayers: 7, objective: 1250 },
+    { minPlayers: 5, objective: 1550 },
+    { minPlayers: 3, objective: 1900 },
+    { minPlayers: 0, objective: 2200 },
   ],
   tiers: [
     {
