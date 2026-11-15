@@ -615,27 +615,46 @@
       if (nb.left >= note.parentElement.getBoundingClientRect().right) return;
       if (nb.left < right + 12 || nb.right > cb.right + 2) note.classList.add('da-no-room');
     });
-    /* Classement du round : la note suit le nom et ses étiquettes, dans la
-       case de l'athlète ; sinon, en petit sous le nom ; sinon, rien. */
+    /* Classement du round : la note s'écrit entre le nom (et ses étiquettes)
+       et le D+, sans les toucher. Essais : 22 px sur une ligne, 20 px sur
+       une ligne, 20 px sur deux lignes ; sinon, rien. */
     document.querySelectorAll('.ranking-row > .da-row-note').forEach(note => {
-      note.classList.remove('da-no-room', 'da-row-note--under');
-      note.style.left = '';
-      if (!note.getBoundingClientRect().width) return;
+      note.classList.remove('da-no-room', 'da-row-note--small', 'da-row-note--wrap');
+      note.style.left = ''; note.style.width = '';
+      if (getComputedStyle(note).display === 'none') return;
       const row = note.parentElement;
       const rb = row.getBoundingClientRect();
-      const cell = row.querySelector('.athlete-info');
       const details = row.querySelector('.athlete-details');
-      if (!cell || !details) return;
-      const cellRight = cell.getBoundingClientRect().right + 2;
-      let right = -Infinity;
+      const cell = row.querySelector('.athlete-info');
+      const next = cell && cell.nextElementSibling;
+      if (!details || !next || !rb.width) return;
+      let from = -Infinity, to = Infinity;
       details.querySelectorAll(':scope > *').forEach(c => {
-        const r = c.getBoundingClientRect(); if (r.width) right = Math.max(right, r.right);
+        const r = c.getBoundingClientRect(); if (r.width) from = Math.max(from, r.right);
       });
-      note.style.left = Math.round(right - rb.left + 18) + 'px';
-      if (note.getBoundingClientRect().right <= cellRight) return;
-      note.classList.add('da-row-note--under');
-      note.style.left = Math.round(details.getBoundingClientRect().left - rb.left) + 'px';
-      if (note.getBoundingClientRect().right > cellRight) note.classList.add('da-no-room');
+      [...next.children].forEach(c => {
+        const r = c.getBoundingClientRect(); if (r.width) to = Math.min(to, r.left);
+      });
+      if (!isFinite(to)) to = next.getBoundingClientRect().left;
+      const gap = 14;
+      const room = to - from - 2 * gap;
+      const left = Math.round(from - rb.left + gap) + 'px';
+      note.style.left = left;
+      const fits = () => {
+        const r = note.getBoundingClientRect();
+        return r.width <= room + 1 && r.height <= rb.height - 6;
+      };
+      if (fits()) return;
+      note.classList.add('da-row-note--small');
+      if (fits()) return;
+      note.classList.add('da-row-note--wrap');
+      note.style.width = Math.max(0, Math.floor(room)) + 'px';
+      const lh = parseFloat(getComputedStyle(note).lineHeight) || 20;
+      const r = note.getBoundingClientRect();
+      // deux lignes au plus, et aucun mot plus large que la place
+      if (room <= 0 || r.height > 2 * lh + 4 || note.scrollWidth > room + 1 || r.height > rb.height - 6) {
+        note.classList.add('da-no-room');
+      }
     });
   }
   function paintMarkers() {

@@ -1670,17 +1670,17 @@ html.da-atelier .bonus-badge--ready { position: relative; color: var(--accent-te
 html.da-atelier .bonus-badge--ready .picto { width: 22px; height: 22px; }
 html.da-atelier .bonus-badge--ready::after { content: ""; position: absolute; top: -2px; right: -5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1.5px var(--panel); }
 
-/* Classement du round : notes à la main (leader qui s'envole, règle des 0 m),
-   posées sur la ligne juste après le nom, ou en petit dessous
-   (js/da-atelier.js) ; absentes sous 740 px. La colonne des jokers occupe
-   la marge de droite : pas de note dans la marge ici. */
+/* Classement du round : notes à la main (leader qui s'envole, règle des 0 m
+   sans ligne de coupe), en MANIC, entre le nom et le D+ (js/da-atelier.js :
+   22 px, puis 20 px, puis deux lignes, sinon rien) ; absentes sous 740 px. */
 html.da-atelier #rankingContainer .ranking-row { position: relative; }
 html.da-atelier .ranking-row > .da-row-note {
   display: none;
   position: absolute;
   top: 50%;
   left: 0;
-  font: 600 22px/1 var(--f-hand);
+  margin: 0;
+  font: 400 22px/1 "MANIC", var(--f-hand);
   color: var(--pen);
   white-space: nowrap;
   pointer-events: none;
@@ -1689,13 +1689,9 @@ html.da-atelier .ranking-row > .da-row-note {
 @media (min-width: 740px) {
   html.da-atelier .ranking-row > .da-row-note { display: block; }
 }
+html.da-atelier .ranking-row > .da-row-note--small { font-size: 20px; }
+html.da-atelier .ranking-row > .da-row-note--wrap { white-space: normal; line-height: 1.05; }
 html.da-atelier .ranking-row > .da-row-note.da-no-room { visibility: hidden; }
-/* pas la place après le nom : en petit, sous le nom */
-html.da-atelier .ranking-row > .da-row-note--under {
-  top: calc(50% + 19px);
-  font-size: 18px;
-  transform: translateY(-50%) rotate(-1.5deg);
-}
 
 /* Éliminés, dernier jour du round : ce que la jauge leur promet ce soir */
 html.da-atelier .da-note--elim-gauge { display: none; }
