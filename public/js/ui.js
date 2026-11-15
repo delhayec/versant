@@ -360,7 +360,7 @@ export function newShine(athleteId, roundActivities) {
   return fresh ? '<span class="da-shine" role="img" aria-label="Nouvelle sortie" title="Nouvelle sortie depuis ta dernière visite"></span>' : '';
 }
 
-export function renderAthleteActivitiesPanel(athleteId, roundActivities, specialRule = null) {
+export function renderAthleteActivitiesPanel(athleteId, roundActivities, specialRule = null, activityNotes = null) {
   const isRainRule = specialRule === 'pluie_qui_mouille';
   const activities = filterByParticipant(roundActivities || [], athleteId)
     .slice()
@@ -397,6 +397,7 @@ export function renderAthleteActivitiesPanel(athleteId, roundActivities, special
       </a>
       <span class="athlete-activity-elevation">${elevationHtml}</span>
       <span class="athlete-activity-date">${formatActivityDateTime(a)}</span>
+      ${activityNotes?.[a.id] ? `<span class="da-act-note da-only">${activityNotes[a.id]}</span>` : ''}
     </div>
   `;
   }).join('');
@@ -426,7 +427,7 @@ export function deltaBadge(dayStartRanks, id, rank, since = 'depuis minuit') {
 }
 
 export function renderRanking(container, data) {
- const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, currentRoundNumber, rescapeId, ephemeralEffects, roundActivities, specialRule, specialRuleDetails, isFinale, isNoBonus, dayStartRanks = null } = data;
+ const { ranking, seasonData, currentSeasonNumber, seasonStats, eliminationsCount, currentRoundNumber, rescapeId, ephemeralEffects, roundActivities, specialRule, specialRuleDetails, isFinale, isNoBonus, dayStartRanks = null, activityNotes = null } = data;
 
   if (seasonData?.seasonComplete) {
     container.innerHTML = `
@@ -600,7 +601,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
           </div>
           <div class="elevation-secondary hide-mobile">${formatElevation(seasonElev)}</div>
         </div>
-        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule)}
+        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule, activityNotes)}
       `;
     } else {
       // Mode standard
@@ -634,7 +635,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
             ${renderJokerBadges(entry.participant.id, data.currentRoundNumber)}
           </div>
         </div>
-        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule)}
+        ${renderAthleteActivitiesPanel(entry.participant.id, roundActivities, specialRule, activityNotes)}
       `;
     }
   });

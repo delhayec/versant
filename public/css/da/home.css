@@ -1479,6 +1479,9 @@ html.da-atelier .athlete-activity-name:hover { text-decoration: underline; text-
 html.da-atelier .athlete-activity-elevation { font: 700 14px/1 var(--f-mono); color: var(--ink); }
 html.da-atelier .athlete-activity-date { font: 500 11px/1 var(--f-mono); color: var(--sub); }
 html.da-atelier .athlete-activities-empty { position: relative; margin: 6px 0; font: 600 20px/1.2 var(--f-hand); color: var(--pen); }
+/* commentaire ponctuel au feutre, sous le nom de la sortie */
+html.da-atelier .da-act-note { order: 9; flex-basis: 100%; margin: -4px 0 0 62px; font: 600 18px/1 var(--f-hand); color: var(--accent-text); transform: rotate(-1.2deg); transform-origin: left center; }
+@media (max-width: 700px) { html.da-atelier .da-act-note { margin-left: 0; font-size: 17px; } }
 @media (max-width: 700px) {
   html.da-atelier .athlete-activities-panel { --tree: 14px; margin: 0 8px 8px 30px; }
   html.da-atelier .athlete-activity-row { gap: 4px 10px; }
@@ -1623,6 +1626,14 @@ html.da-atelier .da-ns { display: none; }
 .da-tag, .da-tag-line { display: none; }
 @media (max-width: 739px) {
   html.da-atelier #finalStandingsContainer { position: relative; overflow: visible; }
+}
+/* Classement du round et des éliminés : étiquette « nouveau leader d'un
+   achievement » (placeAchievementTags), à toutes les largeurs */
+html.da-atelier :is(#rankingContainer, #eliminatedChallengeContainer) { position: relative; overflow: visible; }
+html.da-atelier .da-tag__icons { display: inline-flex; gap: 2px; margin-right: 6px; vertical-align: -6px; }
+html.da-atelier .da-tag__icons .picto { width: 24px; height: 24px; }
+html.da-atelier .da-tag__text > span { display: block; }
+@media all {
   html.da-atelier .da-tag { display: block; position: absolute; z-index: 4; width: 240px; overflow: hidden; pointer-events: none; padding: 6px 0; margin-top: -6px; box-sizing: content-box; }
   html.da-atelier .da-tag__sheet { position: relative; height: 100%; display: flex; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent;
     transform: translateX(calc(100% - 11px)); transition: transform .42s cubic-bezier(0.25, 0.7, 0.2, 1); }

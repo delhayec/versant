@@ -927,7 +927,7 @@
   <link rel="stylesheet" href="css/da/tokens.css?v=20261114h">
   <link rel="stylesheet" href="css/da/base.css?v=20261114b">
   <link rel="stylesheet" href="css/da/components.css?v=20261114b">
-  <link rel="stylesheet" href="css/da/dashboard.css?v=20261119d">
+  <link rel="stylesheet" href="css/da/dashboard.css?v=20261115a">
 </head>
 <body>
   <!-- Navigation -->
@@ -1080,6 +1080,13 @@
       </div>
     </div>
 
+    <!-- Mes achievements : ceux où le joueur est sur le podium -->
+    <div class="dashboard-card" id="achievementsSection" style="display: none;">
+      <h2 class="card-title">Mes Achievements</h2>
+      <p>Les titres de l'année où tu es sur le podium</p>
+      <div class="dash-ach-grid" id="achievementsList"></div>
+    </div>
+
     <!-- Mes dernières activités -->
     <div class="dashboard-card">
       <h2 class="card-title">Mes Dernières Activités</h2>
@@ -1098,6 +1105,6 @@
 
   <script src="shared/team-formation.js?v=20260505c"></script>
   <script src="shared/edition-rules.js?v=20261028d"></script>
-  <script type="module" src="js/dashboard.js?v=20261119d"></script>
+  <script type="module" src="js/dashboard.js?v=20261115a"></script>
 </body>
 </html>

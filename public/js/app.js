@@ -38,7 +38,7 @@ import {
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
   renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge, newShine
-} from './ui.js?v=20261119a';
+} from './ui.js?v=20261115a';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 
@@ -90,6 +90,7 @@ import { picto, medal as medalPicto, animalIcon } from './pictos.js?v=20261119a'
 import { motifClass } from './motifs.js';
 import * as H from './da-hand.js?v=20261118a';
 import { roundSituationNote } from './da-notes.js?v=20261118e';
+import { cleanActivities, achievementLeaderChanges } from './achievements.js?v=20261115a';
 
 
 // ============================================
@@ -715,7 +716,8 @@ renderRanking(rankingContainer, {
         specialRuleDetails: currentRuleDetails,
         // Nouveaux champs pour l'affichage du bandeau finale / no_bonus
         isFinale: isFinaleRoundEffective(currentRoundNumber, seasonData?.active?.length ?? null),
-        isNoBonus: isNoBonusRound(currentRoundNumber)
+        isNoBonus: isNoBonusRound(currentRoundNumber),
+        activityNotes: buildActivityNotes(roundActivities, seasonDates, endDate)
       });
       } // fin else mode standard
     }
@@ -760,6 +762,9 @@ renderRanking(rankingContainer, {
     if (eliminatedContainer) {
       renderEliminatedChallenge(eliminatedContainer);
     }
+
+    // DA Atelier : étiquettes « nouveau leader d'un achievement » (24 h)
+    placeAchievementTags();
 
     // DA Atelier : annotations du bandeau (après les classements qu'elles relisent)
     renderRoundNotes(buildRoundNotes());
@@ -1320,7 +1325,7 @@ function renderEliminatedChallenge(container) {
       }
     }
 
-    html += `<div class="ranking-row">
+    html += `<div class="ranking-row" data-participant-id="${e.participant.id}">
       <div class="ranking-position">${e.position}</div>
       <div class="ranking-athlete">
         <div class="athlete-avatar ${motifClass(e.participant.id)}" style="background:linear-gradient(135deg,${getAthleteColor(e.participant.id)},${getAthleteColor(e.participant.id)}88)"><span class="da-initials">${getAthleteInitials(e.participant.id)}</span></div>
@@ -1527,31 +1532,35 @@ function renderFinalStandings(container) {
  * autre la range. Un trait MANIC vertical montre les lignes concernées.
  * Présentation seule : relit les notes déjà construites (buildStandingsNotes).
  */
-function placeStandingsTags(container, spans) {
+function placeStandingsTags(container, spans, opts = {}) {
+  const { rowSelector = '.standings-row', anyWidth = false, max = 2, label = 'Note du classement' } = opts;
   container.querySelectorAll('.da-tag, .da-tag-line').forEach(n => n.remove());
+  container._daTagDraw = null;
   if (!document.documentElement.classList.contains('da-atelier') || !spans?.length) return;
   const section = container.closest('section');
   const draw = () => {
     container.querySelectorAll('.da-tag, .da-tag-line').forEach(n => n.remove());
-    if (window.innerWidth >= 740) return;   // au-delà, la note va sur la ligne ou dans la marge
-    const rows = container.querySelectorAll('.standings-row');
+    if (!anyWidth && window.innerWidth >= 740) return;   // au-delà, la note va sur la ligne ou dans la marge
+    const rows = container.querySelectorAll(rowSelector);
+    // une note rattachée à un joueur (sp.id) ou à des rangs (sp.from..sp.to)
+    const rowOf = sp => container.querySelector(`${rowSelector}[data-participant-id="${sp.id}"]`);
     const cb = container.getBoundingClientRect();
     const sb = section ? section.getBoundingClientRect() : cb;
     const rel = el => { const r = el.getBoundingClientRect(); return { top: r.top - cb.top, bottom: r.bottom - cb.top, left: r.left - cb.left }; };
-    spans.slice(0, 2).forEach((sp, k) => {
-      const first = rows[sp.from - 1], last = rows[sp.to - 1];
-      if (!first || !last) return;
-      const a = rel(first), z = rel(last), single = sp.from === sp.to;
+    spans.slice(0, max).forEach((sp, k) => {
+      const first = sp.id != null ? rowOf(sp) : rows[sp.from - 1], last = sp.id != null ? first : rows[sp.to - 1];
+      if (!first || !last || !first.offsetParent) return;
+      const a = rel(first), z = rel(last), single = sp.id != null || sp.from === sp.to;
       // une seule ligne : l'étiquette déborde un peu dessus et dessous pour tenir deux lignes de texte
       const top = single ? a.top - 9 : a.top + 4, h = single ? z.bottom - a.top + 18 : z.bottom - a.top - 8;
       const tag = document.createElement('div');
       tag.className = 'da-tag' + (single ? ' da-tag--single' : '');
       tag.style.cssText = `top:${top}px;height:${h}px;right:${-(sb.right - cb.right + 5)}px`;
-      tag.innerHTML = `<div class="da-tag__sheet" role="button" tabindex="0" aria-expanded="false" aria-label="Note du classement">
+      tag.innerHTML = `<div class="da-tag__sheet" role="button" tabindex="0" aria-expanded="false" aria-label="${label}">
           <span class="da-tag__paper"></span><svg class="da-tag__frame" viewBox="0 0 240 ${Math.round(h)}" preserveAspectRatio="none" aria-hidden="true"></svg>
           <span class="da-tag__grip" aria-hidden="true"></span><span class="da-tag__text"><span>${sp.html}</span></span></div>`;
       // Cadre au trait : quatre traits qui débordent, jamais tout à fait droits
-      let seed = 97 + sp.from * 31 + k;
+      let seed = 97 + (sp.id != null ? Number(String(sp.id).replace(/\D/g, '').slice(-6)) || 7 : sp.from) * 31 + k;
       const rnd = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296 - 0.5);
       const W = 240, H = Math.round(h);
       const C = [[2 + rnd() * 3, 2 + rnd() * 3], [W - 2 + rnd() * 3, 2 + rnd() * 3], [W - 2 + rnd() * 3, H - 2 + rnd() * 3], [2 + rnd() * 3, H - 2 + rnd() * 3]];
@@ -1579,19 +1588,90 @@ function placeStandingsTags(container, spans) {
         }
       }
       // La première étiquette sort un peu puis rentre, une fois, à sa première apparition
-      if (k === 0 && !placeStandingsTags.peeked && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (k === 0 && !container.dataset.tagPeeked && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
         const io = new IntersectionObserver(es => {
           if (!es.some(e => e.isIntersecting)) return;
-          io.disconnect(); placeStandingsTags.peeked = true; tag.classList.add('is-peek');
+          io.disconnect(); container.dataset.tagPeeked = '1'; tag.classList.add('is-peek');
         }, { threshold: 0.8 });
         io.observe(tag);
       }
     });
   };
+  container._daTagDraw = draw;
   requestAnimationFrame(draw);
   if (!container.dataset.tagsResize) {
     container.dataset.tagsResize = '1';
-    let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => draw(), 200); });
+    let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => container._daTagDraw?.(), 200); });
+  }
+}
+
+/**
+ * DA : commentaires manuscrits sur les sorties du round (panneau déplié),
+ * à partir du 3e round de la saison : la plus grosse sortie de l'année, de
+ * la saison, ou la plus grosse de l'année pour son auteur. Présentation seule.
+ */
+function buildActivityNotes(roundActivities, seasonDates, endDate) {
+  const notes = {};
+  if (!document.documentElement.classList.contains('da-atelier') || !roundActivities?.length) return notes;
+  if (getRoundInSeason(getRoundDates(currentRoundNumber).start) < 3) return notes;
+  const year = cleanActivities(allActivities).filter(a => new Date(a.start_date) <= endDate);
+  const elev = a => a.total_elevation_gain || 0;
+  // la plus grosse d'une liste (à égalité, la plus ancienne)
+  const top = list => list.reduce((b, a) => !b || elev(a) > elev(b) || (elev(a) === elev(b) && new Date(a.start_date) < new Date(b.start_date)) ? a : b, null);
+  const yearTop = top(year);
+  const seasonTop = top(year.filter(a => new Date(a.start_date) >= new Date(seasonDates.start)));
+  const mine = new Map();
+  for (const a of year) {
+    const id = String(a.athlete_id);
+    if (!mine.has(id)) mine.set(id, []);
+    mine.get(id).push(a);
+  }
+  for (const a of roundActivities) {
+    if (!elev(a)) continue;
+    if (yearTop && a.id === yearTop.id) notes[a.id] = "plus grosse sortie de l'année";
+    else if (seasonTop && a.id === seasonTop.id) notes[a.id] = 'plus grosse sortie de la saison';
+    else {
+      const own = mine.get(String(a.athlete_id || a.athlete?.id)) || [];
+      if (own.length >= 10 && top(own)?.id === a.id) notes[a.id] = "sa plus grosse sortie de l'année";
+    }
+  }
+  return notes;
+}
+
+/**
+ * DA : quand une sortie des dernières 24 h fait changer le leader d'un
+ * achievement (ceux qui reposent sur les activités), une étiquette sur la
+ * ligne du joueur, dans le classement du round ou celui des éliminés.
+ * Présentation seule.
+ */
+function placeAchievementTags() {
+  const containers = ['rankingContainer', 'eliminatedChallengeContainer'].map(id => document.getElementById(id)).filter(Boolean);
+  if (!containers.length) return;
+  let changes = [];
+  if (document.documentElement.classList.contains('da-atelier')) {
+    try { changes = achievementLeaderChanges(cleanActivities(allActivities), getCurrentDate()); }
+    catch (e) { console.warn('Achievements : calcul impossible', e); }
+  }
+  const byAthlete = new Map();
+  for (const c of changes) {
+    if (!byAthlete.has(c.athleteId)) byAthlete.set(c.athleteId, []);
+    byAthlete.get(c.athleteId).push(c);
+  }
+  const and = list => list.length > 1 ? `${list.slice(0, -1).join(', ')} et ${list[list.length - 1]}` : list[0];
+  const spans = [...byAthlete].map(([id, list]) => {
+    const p = getParticipantById(id);
+    const who = (p?.name || '').split(' ')[0] || 'Un joueur';
+    const shown = list.slice(0, 2), more = list.length - shown.length;
+    const icons = shown.map(c => picto('succes-' + c.ach.id, c.ach.emoji, c.ach.name)).join('');
+    const keys = shown.map(c => `<span class="da-key">${c.ach.name}</span>`);
+    const names = more ? `${keys.join(', ')} et ${more} autre${more > 1 ? 's' : ''}` : and(keys);
+    const taken = list.some(c => c.previousId);
+    const verb = taken ? 'récupère' : (list.length > 1 ? 'gagne les achievements' : "gagne l'achievement");
+    return { id, html: `<span class="da-tag__icons">${icons}</span><span>${who} ${verb} ${names}</span>` };
+  });
+  for (const c of containers) {
+    const here = spans.filter(sp => c.querySelector(`.ranking-row[data-participant-id="${sp.id}"]`));
+    placeStandingsTags(c, here, { rowSelector: '.ranking-row', anyWidth: true, max: 3, label: "Nouveau leader d'un achievement" });
   }
 }
 
@@ -1640,6 +1720,17 @@ function buildStandingsNotes(standings) {
   if (climb && !notes[climb.e.rank]) {
     notes[climb.e.rank] = `${first(climb.e)} : +${climb.gained} places en ${H.circle('deux saisons', 'circle-06')}`;
     notes.spans.push({ from: climb.e.rank, to: climb.e.rank, html: `${first(climb.e)} : <span class="da-key">+${climb.gained} places</span> en deux saisons` });
+  }
+
+  // Nouveau leader : le 1er n'était pas en tête avant la saison en cours
+  const leader = standings[0];
+  const prevLeader = standings
+    .map(e => ({ e, old: e.totalPoints - (e.currentSeasonTotal || 0) }))
+    .sort((a, b) => b.old - a.old)[0];
+  if (leader?.currentSeasonTotal && prevLeader && prevLeader.e !== leader
+      && prevLeader.old > leader.totalPoints - leader.currentSeasonTotal && !notes[leader.rank]) {
+    notes[leader.rank] = `${first(leader)} ${H.circle('prend la tête', 'circle-06')}`;
+    notes.spans.push({ from: leader.rank, to: leader.rank, html: `${first(leader)} <span class="da-key">prend la tête</span> cette saison` });
   }
   return notes;
 }

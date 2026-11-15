@@ -324,3 +324,19 @@ html.da-atelier .target-card.selected { background: var(--panel) !important; out
 html.da-atelier .target-card.selected::after { content: ""; position: absolute; inset: -7px -6px; background: var(--accent-text); pointer-events: none;
   -webkit-mask: url("../../assets/manic/circle-05.svg") center / 100% 100% no-repeat; mask: url("../../assets/manic/circle-05.svg") center / 100% 100% no-repeat; }
 html.da-atelier .target-card.selected .target-card-name { color: var(--accent-text); }
+
+/* Mes achievements : les badges où le joueur est sur le podium */
+.dash-ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 16px; }
+.dash-ach { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; }
+.dash-ach .achievement-badge { flex: none; width: 44px; height: 44px; display: grid; place-items: center; font-size: 26px; }
+.dash-ach__name { font-weight: 700; }
+.dash-ach__desc { font-size: 12px; opacity: .7; margin: 2px 0 6px; }
+.dash-ach__rank { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.dash-ach__val { font-weight: 700; }
+.dash-ach__lead { font-size: 12px; opacity: .7; }
+html.da-atelier .dash-ach { border: 0; border-radius: 0; border-bottom: 1px dotted var(--sub); padding: 10px 2px 12px; }
+html.da-atelier .dash-ach__name { font: 800 14px/1.2 var(--f-sans); text-transform: uppercase; letter-spacing: .04em; color: var(--ink); }
+html.da-atelier .dash-ach__desc { font: 500 12px/1.3 var(--f-sans); color: var(--sub); opacity: 1; }
+html.da-atelier .dash-ach__val { font: 700 15px/1 var(--f-mono); color: var(--ink); }
+html.da-atelier .dash-ach__lead { font: 600 17px/1 var(--f-hand); color: var(--pen); opacity: 1; }
+html.da-atelier .dash-ach .da-medal .picto { width: 22px; height: 22px; }

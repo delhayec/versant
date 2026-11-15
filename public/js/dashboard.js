@@ -20,10 +20,11 @@ import {
   onDomReady,
   loadParticipants
 } from './config.js';
-import { picto } from './pictos.js?v=20261119a';
+import { picto, medal } from './pictos.js?v=20261119a';
+import { cleanActivities, computeAthleteStats, athletePodiums } from './achievements.js?v=20261115a';
 import { calculateYearlyStandings } from './standings-engine.js';
 import { motifClass } from './motifs.js';
-import { formatDate, formatElevation } from './ui.js?v=20261119a';
+import { formatDate, formatElevation } from './ui.js?v=20261115a';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
@@ -730,6 +731,34 @@ function renderActivities() {
       <div class="activity-elevation">+${Math.round(activity.total_elevation_gain || 0)}m</div>
     </div>
   `).join('');
+}
+
+// ============================================
+// AFFICHAGE - ACHIEVEMENTS (podiums du joueur)
+// ============================================
+async function renderAchievements() {
+  const section = document.getElementById('achievementsSection');
+  const list = document.getElementById('achievementsList');
+  if (!section || !list || !currentUser) return;
+  try {
+    const [frozen, athletes] = await Promise.all([loadFrozenResults(), loadAllAthletes()]);
+    const stats = computeAthleteStats(cleanActivities(allActivities), frozen);
+    const podiums = athletePodiums(stats, currentUser.id);
+    const firstName = id => String(athletes.find(a => String(a.id) === String(id))?.name || '').split(' ')[0];
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    list.innerHTML = podiums.length ? podiums.map(({ ach, rank, text, leaderId }) => `
+      <div class="dash-ach${rank === 1 ? ' is-first' : ''}">
+        <div class="achievement-badge ${ach.type}">${picto('succes-' + ach.id, ach.emoji, ach.name)}</div>
+        <div class="dash-ach__info">
+          <div class="dash-ach__name">${ach.name}</div>
+          <div class="dash-ach__desc">${ach.desc}</div>
+          <div class="dash-ach__rank">${medal(rank)}<span class="dash-ach__val">${text}</span>${rank > 1 && firstName(leaderId) ? `<span class="dash-ach__lead">derrière ${esc(firstName(leaderId))}</span>` : ''}</div>
+        </div>
+      </div>`).join('') : '<div class="no-data">Pas encore de podium : chaque sortie compte</div>';
+    section.style.display = '';
+  } catch (e) {
+    console.warn('Achievements : calcul impossible', e);
+  }
 }
 
 // ============================================
@@ -1487,6 +1516,7 @@ async function init() {
     renderJokers();
     renderBonus();
     renderActivities();
+    await renderAchievements();
     await renderLeague();
 
   } catch (error) {
