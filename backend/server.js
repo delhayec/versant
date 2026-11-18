@@ -1799,13 +1799,13 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
           if (updateExisting) {
             const existing = activities[existingIndex];
             const hasChanged =
-              existing.total_elevation_gain !== act.total_elevation_gain ||
+              stravaElevationOf(existing) !== act.total_elevation_gain ||
               existing.distance !== act.distance ||
               existing.moving_time !== act.moving_time ||
               existing.name !== act.name;
 
             if (hasChanged) {
-              console.log(`      MAJ: ${act.name} (D+ ${existing.total_elevation_gain}→${act.total_elevation_gain}m)`);
+              console.log(`      MAJ: ${act.name} (D+ ${stravaElevationOf(existing)}→${act.total_elevation_gain}m)`);
 
               // Préserver certains champs locaux (excluded, etc.)
               const localFields = {
@@ -1822,6 +1822,7 @@ async function syncLeague(leagueId, startDate, endDate, options = {}) {
                 athlete_id: athleteId,
                 athlete_name: athlete.name,
                 ...localFields,
+                ...elevationFixOf(existing, act.total_elevation_gain),
                 updated_at: new Date().toISOString(),
                 update_source: 'sync'
               };
@@ -2342,8 +2343,8 @@ async function processOneWebhook(event) {
 
       // Log les changements
       const changes = [];
-      if (existing.total_elevation_gain !== stravaActivity.total_elevation_gain) {
-        changes.push(`D+: ${existing.total_elevation_gain}→${stravaActivity.total_elevation_gain}m`);
+      if (stravaElevationOf(existing) !== stravaActivity.total_elevation_gain) {
+        changes.push(`D+: ${stravaElevationOf(existing)}→${stravaActivity.total_elevation_gain}m`);
       }
       if (existing.distance !== stravaActivity.distance) {
         changes.push(`Dist: ${(existing.distance/1000).toFixed(1)}→${(stravaActivity.distance/1000).toFixed(1)}km`);
@@ -2402,6 +2403,7 @@ async function processOneWebhook(event) {
         location_state: stravaActivity.location_state,
         location_country: stravaActivity.location_country,
         ...localFields,
+        ...elevationFixOf(existing, stravaActivity.total_elevation_gain),
         updated_at: new Date().toISOString(),
         update_source: 'webhook'
       };
@@ -2708,6 +2710,75 @@ app.post('/api/admin/activities/:leagueId/:activityId/exclude', async (req, res)
     });
   } catch (error) {
     console.error('Erreur exclusion activité:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// CORRECTION DU D+ D'UNE ACTIVITÉ
+// ============================================
+// Quand Strava compte 0 m (ou un D+ faux) sur une sortie, l'admin pose le bon
+// D+. Il remplace total_elevation_gain (ce que lisent le moteur et les pages),
+// le D+ de Strava est gardé dans strava_elevation_gain, et les synchros Strava
+// suivantes (webhook, synchro manuelle) réappliquent la correction.
+
+/** D+ venu de Strava, même quand une correction le remplace. */
+function stravaElevationOf(activity) {
+  return activity.elevation_override != null
+    ? activity.strava_elevation_gain
+    : activity.total_elevation_gain;
+}
+
+/** Champs à remettre sur une activité rafraîchie depuis Strava (rien sans correction). */
+function elevationFixOf(existing, stravaElevation) {
+  if (existing.elevation_override == null) return {};
+  return {
+    total_elevation_gain: existing.elevation_override,
+    strava_elevation_gain: stravaElevation,
+    elevation_override: existing.elevation_override,
+    elevation_override_at: existing.elevation_override_at
+  };
+}
+
+// Corps : { elevation: <mètres> } pour corriger, { elevation: null } pour revenir au D+ de Strava
+app.post('/api/admin/activities/:leagueId/:activityId/elevation', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+
+  const raw = req.body?.elevation;
+  const clear = raw === null || raw === undefined || raw === '';
+  const elevation = clear ? null : Number(raw);
+  if (!clear && !(Number.isFinite(elevation) && elevation >= 0 && elevation <= 20000)) {
+    return res.status(400).json({ error: 'D+ invalide (nombre de mètres entre 0 et 20 000)' });
+  }
+
+  try {
+    const { leagueId, activityId } = req.params;
+    const activities = await store.readActivities(leagueId);
+    const index = activities.findIndex(a => String(a.id) === String(activityId));
+    if (index < 0) return res.status(404).json({ error: 'Activité non trouvée' });
+
+    const activity = { ...activities[index] };
+    const stravaElevation = stravaElevationOf(activity);
+    if (clear) {
+      activity.total_elevation_gain = stravaElevation;
+      delete activity.strava_elevation_gain;
+      delete activity.elevation_override;
+      delete activity.elevation_override_at;
+    } else {
+      activity.total_elevation_gain = elevation;
+      activity.strava_elevation_gain = stravaElevation;
+      activity.elevation_override = elevation;
+      activity.elevation_override_at = new Date().toISOString();
+    }
+    activities[index] = activity;
+
+    await store.writeActivities(leagueId, activities);
+    console.log(`Activité ${activityId} : D+ ${clear ? `rendu à Strava (${stravaElevation} m)` : `corrigé à ${elevation} m (Strava : ${stravaElevation} m)`}`);
+    await scheduleRefreshForAthlete(activityOwnerId(activity), 'correction du D+');
+
+    res.json({ success: true, activity_id: activityId, activity });
+  } catch (error) {
+    console.error('Erreur correction D+:', error);
     res.status(500).json({ error: error.message });
   }
 });

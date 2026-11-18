@@ -65,6 +65,7 @@ const ADMIN_ROUTES = [
   ['get', '/admin/athletes', '/api/admin/athletes/{id}'],
   ['get', '/admin/activities/download', '/api/admin/activities/{id}/download'],
   ['post', '/admin/activities/:activityId/exclude', '/api/admin/activities/{id}/{activityId}/exclude'],
+  ['post', '/admin/activities/:activityId/elevation', '/api/admin/activities/{id}/{activityId}/elevation'],
   ['post', '/admin/freeze-round/:n', '/api/admin/freeze-round/{n}', true],
   ['post', '/admin/unfreeze-round/:n', '/api/admin/unfreeze-round/{n}', true],
   ['post', '/admin/auto-freeze', '/api/admin/auto-freeze', true],
