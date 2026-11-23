@@ -46,12 +46,12 @@ html.da-atelier .da-banner__scene > i {
   -webkit-mask: var(--da-banner-m) center / 100% 100% no-repeat;
   mask: var(--da-banner-m) center / 100% 100% no-repeat;
 }
-html.da-atelier .da-banner__aplat { --da-banner-m: url(../../assets/illustrations/banniere-haute-aplat.webp?v=20261123o); background: var(--panel); }
-html.da-atelier .da-banner__trait { --da-banner-m: url(../../assets/illustrations/banniere-haute-trait.webp?v=20261123o); background: var(--ink); }
+html.da-atelier .da-banner__aplat { --da-banner-m: url(../../assets/illustrations/banniere-haute-aplat.webp?v=20261123p); background: var(--panel); }
+html.da-atelier .da-banner__trait { --da-banner-m: url(../../assets/illustrations/banniere-haute-trait.webp?v=20261123p); background: var(--ink); }
 /* Encre des lettres à part : bleu marine en cyanotype (le blanc reste aux personnages et objets) */
-html.da-atelier .da-banner__lettres { --da-banner-m: url(../../assets/illustrations/banniere-haute-lettres.webp?v=20261123o); background: var(--da-lettres, var(--ink)); }
+html.da-atelier .da-banner__lettres { --da-banner-m: url(../../assets/illustrations/banniere-haute-lettres.webp?v=20261123p); background: var(--da-lettres, var(--ink)); }
 /* Contour extérieur des lettres (le trait qui touche le fond) : toujours à l'encre, donc blanc en cyanotype */
-html.da-atelier .da-banner__contour { --da-banner-m: url(../../assets/illustrations/banniere-haute-contour.webp?v=20261123o); background: var(--ink); }
+html.da-atelier .da-banner__contour { --da-banner-m: url(../../assets/illustrations/banniere-haute-contour.webp?v=20261123p); background: var(--ink); }
 @media (prefers-color-scheme: dark) { html.da-atelier:not([data-theme="light"]) .da-banner { --da-lettres: var(--shadow); } }
 html.da-atelier[data-theme="dark"] .da-banner { --da-lettres: var(--shadow); }
 html.da-atelier .da-banner__cote {
@@ -69,10 +69,10 @@ html.da-atelier .da-banner__texte a { color: var(--ink); font-weight: 600; white
   html.da-atelier .hero:has(.da-banner) { padding-top: 44px; }   /* l'OVNI dégage la règle A-F du cadre */
   /* Rotation de 6° : la pente du mot passe d'environ 25° à 19° (choix de Clément, nov. 2026) */
   html.da-atelier .da-banner__scene { aspect-ratio: 1901 / 1106; transform: rotate(6deg); }
-  html.da-atelier .da-banner__aplat { --da-banner-m: url(../../assets/illustrations/banniere-large-aplat.webp?v=20261123o); }
-  html.da-atelier .da-banner__trait { --da-banner-m: url(../../assets/illustrations/banniere-large-trait.webp?v=20261123o); }
-  html.da-atelier .da-banner__lettres { --da-banner-m: url(../../assets/illustrations/banniere-large-lettres.webp?v=20261123o); }
-  html.da-atelier .da-banner__contour { --da-banner-m: url(../../assets/illustrations/banniere-large-contour.webp?v=20261123o); }
+  html.da-atelier .da-banner__aplat { --da-banner-m: url(../../assets/illustrations/banniere-large-aplat.webp?v=20261123p); }
+  html.da-atelier .da-banner__trait { --da-banner-m: url(../../assets/illustrations/banniere-large-trait.webp?v=20261123p); }
+  html.da-atelier .da-banner__lettres { --da-banner-m: url(../../assets/illustrations/banniere-large-lettres.webp?v=20261123p); }
+  html.da-atelier .da-banner__contour { --da-banner-m: url(../../assets/illustrations/banniere-large-contour.webp?v=20261123p); }
   html.da-atelier .da-banner__cote--large { display: block; }
   html.da-atelier .da-banner__cote--haute { display: none; }
   html.da-atelier .da-banner__eyebrow { position: absolute; z-index: 1; left: 0; top: 6%; max-width: 30%; margin: 0; text-align: left; }
