@@ -985,13 +985,15 @@ function renderActivitiesList() {
             <td><a href="https://www.strava.com/activities/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" style="color: #22d3ee; text-decoration: none;">${escapeHtml(a.name || 'Sans nom')}</a>
               <span class="hint">${escapeHtml(a.sport_type || a.type || '')}</span></td>
             <td class="num">${((a.distance || 0) / 1000).toFixed(2)} km</td>
-            <td class="num">+${Math.round(a.total_elevation_gain || 0)} m</td>
+            <td class="num">+${Math.round(a.total_elevation_gain || 0)} m${a.elevation_override != null
+              ? `<span class="hint" style="display: block;">corrigé (Strava : ${Math.round(a.strava_elevation_gain || 0)} m)</span>` : ''}</td>
             <td class="center">${a.excluded ? '<span class="err">Exclue</span>' : '<span class="ok">Active</span>'}</td>
             <td class="center">
               <button class="btn btn-sm ${a.excluded ? 'btn-success' : 'btn-danger'}"
                 onclick="toggleActivityExclusion('${escapeHtml(a.id)}', ${!a.excluded})">
                 ${a.excluded ? 'Réintégrer' : 'Exclure'}
               </button>
+              <button class="btn btn-sm" onclick="correctActivityElevation('${escapeHtml(a.id)}')">D+</button>
             </td>
           </tr>`).join('')}
       </tbody>
@@ -1029,6 +1031,38 @@ async function toggleActivityExclusion(activityId, exclude) {
   }
 }
 
+/** Corrige le D+ d'une activité (Strava a compté 0 m, ou un D+ faux). Champ vide : retour au D+ de Strava. */
+async function correctActivityElevation(activityId) {
+  const a = allActivities.find(x => String(x.id) === String(activityId));
+  if (!a) return;
+  const corrected = a.elevation_override != null;
+  const stravaD = Math.round((corrected ? a.strava_elevation_gain : a.total_elevation_gain) || 0);
+  const answer = window.prompt(
+    `Corriger le D+ de « ${a.name || 'Activité'} » (${getAthleteName(a)}, ${formatDate(a.start_date)}).\n` +
+    `D+ de Strava : ${stravaD} m. Le D+ saisi le remplace partout, même après une synchro Strava.\n` +
+    (corrected ? 'Laisser vide pour revenir au D+ de Strava.\n' : '') +
+    'Un round déjà figé ne change pas : il faut le défiger puis le refiger.',
+    corrected ? String(a.elevation_override) : ''
+  );
+  if (answer === null) return;
+  const value = answer.trim();
+  if (value === '' && !corrected) return;
+  try {
+    const data = await adminJson(ed(`/admin/activities/${encodeURIComponent(activityId)}/elevation`), {
+      method: 'POST',
+      body: { elevation: value === '' ? null : Number(value) }
+    });
+    const index = allActivities.findIndex(x => String(x.id) === String(activityId));
+    if (index >= 0 && data.activity) allActivities[index] = data.activity;
+    renderActivitiesList();
+    addLog(`Activité ${activityId}: D+ ${value === '' ? 'rendu à Strava' : `corrigé à ${value} m`}`);
+  } catch (error) {
+    addLog(`Erreur: ${error.message}`);
+    alert('Erreur: ' + error.message);
+  }
+}
+
+window.correctActivityElevation = correctActivityElevation;
 window.toggleActivityExclusion = toggleActivityExclusion;
 document.getElementById('activitySearch').addEventListener('input', renderActivitiesList);
 document.getElementById('activityFilter').addEventListener('change', renderActivitiesList);
