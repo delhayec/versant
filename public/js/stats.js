@@ -43,7 +43,7 @@ import { isDA, cssVar } from './da-sketch.js?v=20261116a';
 import { picto, medal as medalPicto } from './pictos.js?v=20261119a';
 import {
   ACHIEVEMENTS, rankAchievement, computeAthleteStats, formatElevationCompact, mapSportName
-} from './achievements.js?v=20261115a';
+} from './achievements.js?v=20261123b';
 import {
   SPORT_STYLE, styleSocialDA, drawSportBand, drawRankingBars, drawCalendarDots,
   drawCompare, drawPoints, drawMoneyTime, drawRidgeline

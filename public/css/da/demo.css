@@ -87,7 +87,7 @@ html.da-atelier .tour-joker {
   opacity: 0.5;
 }
 html.da-atelier .tour-joker.is-active { opacity: 1; border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
-html.da-atelier .tour-joker-icon .picto { width: 56px; height: 56px; }
+html.da-atelier .tour-joker-icon .picto { width: 74px; height: 74px; }
 html.da-atelier .tour-joker-name { font: 900 17px/1.2 var(--f-sans); text-transform: uppercase; letter-spacing: 0.02em; }
 html.da-atelier .tour-joker-desc { color: var(--sub); }
 html.da-atelier .tour-dot { border-radius: 0; background: var(--rule); }

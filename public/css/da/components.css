@@ -343,9 +343,9 @@ html.da-atelier .da-note {
    ============================================ */
 html.da-atelier .picto {
   display: inline-block;
-  width: 1.25em;
-  height: 1.25em;
-  vertical-align: -0.25em;
+  width: 1.65em;   /* agrandis de 32 % (nov. 2026) : les dessins doivent se voir */
+  height: 1.65em;
+  vertical-align: -0.42em;
   background: currentColor;
   -webkit-mask: var(--pi) center / contain no-repeat;
   mask: var(--pi) center / contain no-repeat;
@@ -378,8 +378,8 @@ html.da-atelier .nav-link#logoutBtn { --pi: url("../../assets/pictos/deconnexion
 html.da-atelier .nav-link::before {
   content: "";
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   margin-right: 7px;
   background: currentColor;
   -webkit-mask: var(--pi, none) center / contain no-repeat;
@@ -416,15 +416,15 @@ html.da-atelier .picto--couronne { --pi: url("../../assets/pictos/couronne.svg")
 html.da-atelier :is(.wins-badge, .team-winner-badge)::before {
   content: "";
   display: inline-block;
-  width: 1.3em;
-  height: 1.3em;
+  width: 1.7em;
+  height: 1.7em;
   margin-right: 3px;
-  vertical-align: -0.35em;
+  vertical-align: -0.5em;
   background: currentColor;
   -webkit-mask: url("../../assets/pictos/couronne.svg") center / contain no-repeat;
   mask: url("../../assets/pictos/couronne.svg") center / contain no-repeat;
 }
-html.da-atelier .arsenal-card-title .picto { width: 20px; height: 20px; vertical-align: -5px; }
+html.da-atelier .arsenal-card-title .picto { width: 28px; height: 28px; vertical-align: -8px; }
 
 /* ============================================
    NAVIGATION COLLÉE EN HAUT (classe da-nav-stuck posée par js/da-atelier.js)
@@ -604,7 +604,7 @@ html.da-atelier .picto--animal-corbeau { --pi: url("../../assets/pictos/animaux/
 html.da-atelier .picto--animal-panda { --pi: url("../../assets/pictos/animaux/panda.png?v=20261112a"); }
 html.da-atelier .picto--animal-canard { --pi: url("../../assets/pictos/animaux/canard.png?v=20261119a"); }
 html.da-atelier .picto--animal-chenille { --pi: url("../../assets/pictos/animaux/chenille.png?v=20261112a"); }
-html.da-atelier [class*="picto--animal-"] { width: 1.75em; height: 1.75em; vertical-align: -0.5em; }
+html.da-atelier [class*="picto--animal-"] { width: 2.3em; height: 2.3em; vertical-align: -0.75em; }
 
 /* Nouveautés depuis la dernière visite : le Shine-01 de MANIC, tourné de 90°
    après le nom, en éventail au-dessus de l'icône de la sortie */
@@ -619,7 +619,7 @@ html.da-atelier .da-new-ico::after { content: ""; position: absolute; left: -7px
 html.da-atelier .da-medal { position: relative; display: inline-block; line-height: 1; vertical-align: middle; isolation: isolate; margin-right: 0.3em; --medal: var(--team-or); }
 html.da-atelier .da-medal[data-n="2"] { --medal: var(--medal-silver); }
 html.da-atelier .da-medal[data-n="3"] { --medal: var(--medal-bronze); }
-html.da-atelier .da-medal .picto { width: 1.7em; height: 1.7em; vertical-align: top; }
+html.da-atelier .da-medal .picto { width: 2.2em; height: 2.2em; vertical-align: top; }
 html.da-atelier:not(.pictos-v1) .da-medal::before {
   content: "";
   position: absolute;
@@ -657,7 +657,7 @@ html.da-atelier .achievement-badge {
 html.da-atelier .achievement-badge.legendary { --circle: var(--team-or); }
 html.da-atelier .achievement-badge.fun { --circle: var(--team-orange); }
 html.da-atelier .achievement-badge.da-circled::before { background: var(--circle); }
-html.da-atelier .achievement-badge .picto { width: 34px; height: 34px; }
+html.da-atelier .achievement-badge .picto { width: 46px; height: 46px; }
 
 /* Bulle d'info au toucher (js/da-atelier.js touchInfo) : le texte d'un
    title, qu'un téléphone n'affiche jamais */

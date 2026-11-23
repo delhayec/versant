@@ -168,25 +168,36 @@ export function computeAthleteStats(data, frozenResults = null) {
   });
 }
 
-const RICRAC_MIN_ROUNDS = 5; // en dessous, la moyenne n'a pas de sens
+// RicRac : survivre avec moins de RICRAC_METERS d'avance sur le premier éliminé.
+// Intouchable : survivre avec au moins INTOUCHABLE_LEAD (30 %) de D+ de plus que
+// le premier éliminé (au moins INTOUCHABLE_MIN_IF_ZERO m s'il a fini à 0).
+const RICRAC_METERS = 100;
+const INTOUCHABLE_LEAD = 1.3;
+const INTOUCHABLE_MIN_IF_ZERO = 100;
 const EMPTY_GAME_STATS = {
-  elim_margin_avg: null, elim_margin_rounds: 0, close_calls: 0,
+  close_calls: 0, closest_margin: null, safe_streak: 0,
   finals_played: 0, jokers_used: 0, times_targeted: 0
 };
 
 /**
- * Statistiques « de jeu » par athlète, lues dans les rounds figés :
- * - marge moyenne au-dessus de la zone d'élimination, sur les rounds survécus
- *   (rounds individuels avec éliminations, hors finale) : nombre de places
- *   au-dessus du premier éliminé
- * - nombre de rounds sauvés à une place près, finales jouées
- * - jokers utilisés, nombre de fois ciblé par un joker ou un bonus
+ * Statistiques « de jeu » par athlète, lues dans les rounds figés, dans l'ordre
+ * des rounds. Rounds pris en compte pour la survie : individuels, avec
+ * éliminations, hors finale. Marge = D+ du joueur - D+ du premier éliminé.
+ * - close_calls : rounds survécus avec une marge de 0 à RICRAC_METERS exclus,
+ *   closest_margin : la plus petite de ces marges (RicRac)
+ * - safe_streak : plus longue série de rounds survécus avec une avance
+ *   confortable (Intouchable) ; un round éliminé, sauvé par un bouclier sous
+ *   la barre, ou survécu de peu, coupe la série
+ * - finales jouées, jokers utilisés, nombre de fois ciblé
  */
 function computeGameStats(frozenResults) {
   const out = {};
-  const get = id => (out[String(id)] ||= { ...EMPTY_GAME_STATS, margin_sum: 0 });
+  const get = id => (out[String(id)] ||= { ...EMPTY_GAME_STATS, streak: 0 });
+  const rounds = Object.entries(frozenResults?.rounds || {})
+    .sort(([ka, ra], [kb, rb]) => (Number(ra?.roundNumber ?? ka) || 0) - (Number(rb?.roundNumber ?? kb) || 0))
+    .map(([, r]) => r);
 
-  for (const round of Object.values(frozenResults?.rounds || {})) {
+  for (const round of rounds) {
     if (!round?.frozen) continue;
     const ranking = round.ranking || [];
 
@@ -206,26 +217,28 @@ function computeGameStats(frozenResults) {
     if (isTeamRound || round.isFinalePrincipale || eliminations.length === 0) continue;
 
     const eliminatedIds = new Set(eliminations.map(e => String(e.id)));
-    const elimPositions = ranking.filter(e => eliminatedIds.has(String(e.id))).map(e => e.position);
-    if (elimPositions.length === 0) continue;
-    const firstElimPosition = Math.min(...elimPositions);
+    const eliminated = ranking.filter(e => eliminatedIds.has(String(e.id)));
+    if (eliminated.length === 0) continue;
+    // Premier éliminé : le mieux classé des éliminés ; son D+ fait la coupe
+    const firstElim = eliminated.reduce((a, e) => (e.position < a.position ? e : a));
+    const cut = Number(firstElim.elevation) || 0;
 
     for (const entry of ranking) {
-      // Les rounds où le joueur est éliminé ne comptent pas
-      if (eliminatedIds.has(String(entry.id))) continue;
       const g = get(entry.id);
-      // Un joueur sous la barre sauvé par un bouclier compte comme marge nulle
-      const margin = Math.max(0, firstElimPosition - entry.position);
-      g.margin_sum += margin;
-      g.elim_margin_rounds++;
-      if (margin === 1) g.close_calls++;
+      if (eliminatedIds.has(String(entry.id))) { g.streak = 0; continue; }
+      const margin = (Number(entry.elevation) || 0) - cut;
+      if (margin >= 0 && margin < RICRAC_METERS) {
+        g.close_calls++;
+        g.closest_margin = g.closest_margin == null ? margin : Math.min(g.closest_margin, margin);
+      }
+      const elev = Number(entry.elevation) || 0;
+      const safe = cut > 0 ? elev >= cut * INTOUCHABLE_LEAD : elev >= INTOUCHABLE_MIN_IF_ZERO;
+      g.streak = safe ? g.streak + 1 : 0;
+      g.safe_streak = Math.max(g.safe_streak, g.streak);
     }
   }
 
-  for (const g of Object.values(out)) {
-    g.elim_margin_avg = g.elim_margin_rounds >= RICRAC_MIN_ROUNDS ? g.margin_sum / g.elim_margin_rounds : null;
-    delete g.margin_sum;
-  }
+  for (const g of Object.values(out)) delete g.streak;
   return out;
 }
 
@@ -246,25 +259,19 @@ export const ACHIEVEMENTS = [
     getValue: s => s.total_elevation, format: v => `${formatElevationCompact(v)} m` },
   { id: 'biggestAct', activity: true, emoji: '⛰️', name: 'Sortie Légende', desc: 'La plus grosse sortie unique', type: 'legendary',
     getValue: s => s.best_elevation, format: v => `${formatElevationCompact(v)} m` },
-  { id: 'best24h', activity: true, emoji: '🔥', name: 'Journée de Feu', desc: 'Le plus gros D+ en 24h', type: 'legendary',
-    getValue: s => s.best_24h_elevation, format: v => `${formatElevationCompact(v)} m` },
   { id: 'bestRound', activity: true, emoji: '⚡', name: 'Round de Folie', desc: 'Le plus gros D+ sur un round (5j)', type: 'legendary',
     getValue: s => s.best_round_elevation, format: v => `${formatElevationCompact(v)} m` },
 
   // === SURVIE ET JEU (rounds figés) ===
-  { id: 'untouchable', emoji: '🧘', name: 'Intouchable', desc: 'La plus grande marge moyenne sur la zone d’élimination', type: 'normal',
-    getValue: s => s.elim_margin_avg ?? 0,
-    format: v => `${v.toFixed(2)} pl.`,
-    formatWinner: s => `${s.elim_margin_avg.toFixed(2)} pl. (${s.elim_margin_rounds} rounds)` },
-  { id: 'ricrac', emoji: '🦎', name: 'RicRac', desc: 'Survit au plus près de l’élimination (places au-dessus de la zone, en moyenne sur les rounds survécus)', type: 'fun',
-    lowerIsBetter: true,
-    getValue: s => s.elim_margin_avg,
-    format: v => `${v.toFixed(2)} pl.`,
-    formatWinner: s => `${s.elim_margin_avg.toFixed(2)} pl. (${s.elim_margin_rounds} rounds)` },
-  { id: 'jokers', emoji: '🃏', name: 'Joker Addict', desc: 'Le plus de jokers utilisés', type: 'fun',
-    getValue: s => s.jokers_used, format: v => `${v} joker${v > 1 ? 's' : ''}` },
-  { id: 'target', emoji: '🎯', name: 'Cible n°1', desc: 'Le plus ciblé par les jokers et bonus', type: 'fun',
-    getValue: s => s.times_targeted, format: v => `${v} fois` },
+  { id: 'untouchable', emoji: '🧘', name: 'Intouchable', desc: 'La plus longue série de rounds survécus avec au moins 30 % de D+ de plus que le premier éliminé', type: 'normal',
+    getValue: s => s.safe_streak,
+    format: v => `${v} round${v > 1 ? 's' : ''} de suite`,
+    formatWinner: s => `${s.safe_streak} round${s.safe_streak > 1 ? 's' : ''} de suite` },
+  { id: 'ricrac', emoji: '🦎', name: 'RicRac', desc: 'Le plus de rounds survécus avec moins de 100 m d’avance sur le premier éliminé', type: 'fun',
+    // à égalité de rounds, la plus petite marge passe devant (fraction < 1)
+    getValue: s => s.close_calls > 0 ? s.close_calls + (RICRAC_METERS - s.closest_margin) / (RICRAC_METERS + 1) : 0,
+    format: v => `${Math.floor(v)} round${Math.floor(v) > 1 ? 's' : ''}`,
+    formatWinner: s => `${s.close_calls} round${s.close_calls > 1 ? 's' : ''} à moins de 100 m (record : ${Math.round(s.closest_margin)} m)` },
 
   // === STYLE ===
   { id: 'efficient', activity: true, emoji: '⚡', name: 'Efficace', desc: 'Le plus de D+ par sortie', type: 'normal',
@@ -279,17 +286,9 @@ export const ACHIEVEMENTS = [
     formatWinner: s => `${s.elevation_per_activity} m/sortie (${s.activity_count} act.)` },
   { id: 'steep', activity: true, emoji: '🧗', name: 'Accro à la Pente', desc: 'Le plus de D+ par km', type: 'normal',
     getValue: s => parseFloat(s.elevation_per_distance), format: v => `${v} m/km` },
-  { id: 'flat', activity: true, emoji: '🪜', name: 'Plat Pays', desc: 'Activités à moins de 100 m de D+', type: 'fun',
-    getValue: s => s.activities_low_elevation, format: v => `${v} activités` },
   { id: 'worker', emoji: '💪', name: 'Le Travailleur', desc: 'Le plus de D+ pour 1 point', type: 'normal',
     getValue: s => s.total_points > 0 ? s.elevation_per_point : 0,
     format: v => `${formatElevationCompact(v)} m/pt` },
-
-  // === VOLUMES ===
-  { id: 'distance', activity: true, emoji: '🛣️', name: 'Forrest Gump', desc: 'La plus grande distance', type: 'normal',
-    getValue: s => s.total_distance, format: v => `${(v/1000).toFixed(0)} km` },
-  { id: 'marathoner', activity: true, emoji: '⏱️', name: 'Marathonien', desc: 'Plus longue activité', type: 'normal',
-    getValue: s => s.longest_activity_time, format: v => `${(v/3600).toFixed(1)} h` },
 
   // === HABITUDES ===
   { id: 'earlybird', activity: true, emoji: '🐓', name: 'Lève-tôt', desc: 'Activités 4h-7h', type: 'normal',
@@ -339,8 +338,10 @@ export function achievementLeaderChanges(acts, now = new Date(), windowMs = 24 *
   const out = [];
   for (const ach of ACHIEVEMENTS) {
     if (!ach.activity) continue;
-    const lead = rankAchievement(ach, statsNow)[0];
+    const [lead, second] = rankAchievement(ach, statsNow);
     if (!lead || !recentBy.has(String(lead.athlete_id))) continue;
+    // Égalité en tête : pas de nouveau leader (sinon l'ordre des données départagerait)
+    if (second && ach.getValue(second) === ach.getValue(lead)) continue;
     const prev = rankAchievement(ach, statsBefore)[0];
     if (prev && String(prev.athlete_id) === String(lead.athlete_id)) continue;
     out.push({ ach, athleteId: String(lead.athlete_id), previousId: prev ? String(prev.athlete_id) : null });

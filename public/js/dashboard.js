@@ -21,7 +21,7 @@ import {
   loadParticipants
 } from './config.js';
 import { picto, medal } from './pictos.js?v=20261119a';
-import { cleanActivities, computeAthleteStats, athletePodiums } from './achievements.js?v=20261115a';
+import { cleanActivities, computeAthleteStats, athletePodiums } from './achievements.js?v=20261123b';
 import { calculateYearlyStandings } from './standings-engine.js';
 import { motifClass } from './motifs.js';
 import { formatDate, formatElevation } from './ui.js?v=20261115b';

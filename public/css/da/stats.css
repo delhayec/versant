@@ -58,7 +58,7 @@ html.da-atelier .stat-icon { color: var(--sub); }
 html.da-atelier .stats-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
 html.da-atelier .stats-grid > .stat-card { grid-column: span 2; padding: 22px 22px 18px; }
 html.da-atelier .stat-icon[style*="--ico"] {
-  font-size: 0; width: 38px; height: 38px; margin-bottom: 12px; opacity: 1;
+  font-size: 0; width: 48px; height: 48px; margin-bottom: 12px; opacity: 1;
   background: var(--ink);
   -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat;
 }
@@ -70,7 +70,7 @@ html.da-atelier .stat-value-small { font: 600 21px/1.25 var(--f-hand); color: va
   html.da-atelier .stats-grid > .stat-card { padding: 16px 14px 14px; }
   html.da-atelier .stats-grid > .stat-card.stat-primary { grid-column: 1 / -1; }
   html.da-atelier .stats-grid > .stat-card.stat-highlight { grid-column: span 3; }
-  html.da-atelier .stat-icon[style*="--ico"] { width: 30px; height: 30px; margin-bottom: 8px; }
+  html.da-atelier .stat-icon[style*="--ico"] { width: 38px; height: 38px; margin-bottom: 8px; }
   html.da-atelier .stats-grid .stat-value { font-size: 1.6rem; }
   html.da-atelier .stats-grid .stat-primary .stat-value { font-size: 2.4rem; }
   html.da-atelier .stat-value-small { font-size: 18px; }

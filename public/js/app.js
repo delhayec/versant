@@ -90,7 +90,7 @@ import { picto, medal as medalPicto, animalIcon } from './pictos.js?v=20261119a'
 import { motifClass } from './motifs.js';
 import * as H from './da-hand.js?v=20261118a';
 import { roundSituationNote } from './da-notes.js?v=20261118e';
-import { cleanActivities, achievementLeaderChanges } from './achievements.js?v=20261115a';
+import { cleanActivities, achievementLeaderChanges } from './achievements.js?v=20261123b';
 
 
 // ============================================
@@ -1544,7 +1544,7 @@ function renderFinalStandings(container) {
  * Présentation seule : relit les notes déjà construites (buildStandingsNotes).
  */
 function placeStandingsTags(container, spans, opts = {}) {
-  const { rowSelector = '.standings-row', anyWidth = false, max = 2, label = 'Note du classement' } = opts;
+  const { rowSelector = '.standings-row', anyWidth = false, max = 2, label = 'Note du classement', className = '' } = opts;
   container.querySelectorAll('.da-tag, .da-tag-line').forEach(n => n.remove());
   container._daTagDraw = null;
   if (!document.documentElement.classList.contains('da-atelier') || !spans?.length) return;
@@ -1565,7 +1565,7 @@ function placeStandingsTags(container, spans, opts = {}) {
       // une seule ligne : l'étiquette déborde un peu dessus et dessous pour tenir deux lignes de texte
       const top = single ? a.top - 9 : a.top + 4, h = single ? z.bottom - a.top + 18 : z.bottom - a.top - 8;
       const tag = document.createElement('div');
-      tag.className = 'da-tag' + (single ? ' da-tag--single' : '');
+      tag.className = 'da-tag' + (single ? ' da-tag--single' : '') + (className ? ' ' + className : '');
       tag.style.cssText = `top:${top}px;height:${h}px;right:${-(sb.right - cb.right + 5)}px`;
       tag.innerHTML = `<div class="da-tag__sheet" role="button" tabindex="0" aria-expanded="false" aria-label="${label}">
           <span class="da-tag__paper"></span><svg class="da-tag__frame" viewBox="0 0 240 ${Math.round(h)}" preserveAspectRatio="none" aria-hidden="true"></svg>
@@ -1668,21 +1668,23 @@ function placeAchievementTags() {
     if (!byAthlete.has(c.athleteId)) byAthlete.set(c.athleteId, []);
     byAthlete.get(c.athleteId).push(c);
   }
-  const and = list => list.length > 1 ? `${list.slice(0, -1).join(', ')} et ${list[list.length - 1]}` : list[0];
   const spans = [...byAthlete].map(([id, list]) => {
     const p = getParticipantById(id);
     const who = (p?.name || '').split(' ')[0] || 'Un joueur';
-    const shown = list.slice(0, 2), more = list.length - shown.length;
-    const icons = shown.map(c => picto('succes-' + c.ach.id, c.ach.emoji, c.ach.name)).join('');
-    const keys = shown.map(c => `<span class="da-key">${c.ach.name}</span>`);
-    const names = more ? `${keys.join(', ')} et ${more} autre${more > 1 ? 's' : ''}` : and(keys);
-    const taken = list.some(c => c.previousId);
-    const verb = taken ? 'récupère' : (list.length > 1 ? 'gagne les achievements' : "gagne l'achievement");
-    return { id, html: `<span class="da-tag__icons">${icons}</span><span>${who} ${verb} ${names}</span>` };
+    // « Bruno chipe Roi du D+ à Alice », « Bruno décroche Lève-tôt » (personne ne l'avait),
+    // un seul nom (et son dessin), puis « et 3 autres » ; « à Alice » si tout vient d'elle
+    const taken = list.filter(c => c.previousId), fresh = list.filter(c => !c.previousId);
+    const main = taken[0] || fresh[0], more = list.length - 1;
+    const prevs = new Set(taken.map(c => c.previousId));
+    const from = taken.length && !fresh.length && prevs.size === 1
+      ? ` à ${(getParticipantById([...prevs][0])?.name || '').split(' ')[0]}` : '';
+    const tail = more ? ` et ${more} autre${more > 1 ? 's' : ''}` : '';
+    const icon = picto('succes-' + main.ach.id, main.ach.emoji, main.ach.name);
+    return { id, html: `<span class="da-tag__icons">${icon}</span><span>${who} ${taken.length ? 'chipe' : 'décroche'} <span class="da-key">${main.ach.name}</span>${tail}${from}</span>` };
   });
   for (const c of containers) {
     const here = spans.filter(sp => c.querySelector(`.ranking-row[data-participant-id="${sp.id}"]`));
-    placeStandingsTags(c, here, { rowSelector: '.ranking-row', anyWidth: true, max: 3, label: "Nouveau leader d'un achievement" });
+    placeStandingsTags(c, here, { rowSelector: '.ranking-row', anyWidth: true, max: 3, label: "Nouveau leader d'un achievement", className: 'da-tag--ach' });
   }
 }
 

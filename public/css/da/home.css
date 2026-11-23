@@ -21,6 +21,64 @@ html.da-atelier .hero-title { font-family: var(--f-sans); font-weight: 900; text
 html.da-atelier .hero-title .accent { color: var(--ink); -webkit-text-fill-color: currentColor; background: none; }
 html.da-atelier .hero-eyebrow { font: var(--lbl); letter-spacing: 0.14em; color: var(--accent-text); }
 
+/* --- Bannière dessinée (Anastasiia, nov. 2026) ---
+   Deux calques en masque : l'aplat prend --panel, le trait prend --ink.
+   Le titre texte reste lu par les lecteurs d'écran.
+   PC (900 px et plus) : le mot monte en diagonale, l'accroche se loge
+   dans le coin vide en haut à gauche, le texte dans celui en bas à droite.
+   Téléphone : VER / SANT empilés, accroche au-dessus, texte en dessous.
+   Scène large : le pied avant du grimpeur repose sur une tête de Moai
+   (générée par Clément, recalée sur le dessin et fondue dans les deux calques).
+   L'arc et sa flèche (calque 4 du PSD v4, calque 5 du v2) sont retirés des deux versions.
+   Cote : tirets tracés un par un (légère courbe, épaisseur variable), en orange. */
+html.da-atelier .hero:has(.da-banner) { min-height: 0; padding: 12px var(--container-padding) 0; }
+html.da-atelier .hero:has(.da-banner) .hero-content { width: 100%; }
+html.da-atelier .hero:has(.da-banner) .hero-content > .hero-eyebrow { display: none; }
+html.da-atelier .hero:has(.da-banner) .hero-title {
+  position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+html.da-atelier .da-banner { position: relative; width: min(100%, 960px); margin: 0 auto; }
+html.da-atelier .da-banner__eyebrow { display: block; margin: 0 0 8px; text-align: center; }
+html.da-atelier .da-banner__scene { position: relative; aspect-ratio: 900 / 731; }
+html.da-atelier .da-banner__scene > i {
+  position: absolute; inset: 0;
+  -webkit-mask: var(--da-banner-m) center / 100% 100% no-repeat;
+  mask: var(--da-banner-m) center / 100% 100% no-repeat;
+}
+html.da-atelier .da-banner__aplat { --da-banner-m: url(../../assets/illustrations/banniere-haute-aplat.webp?v=20261123m); background: var(--panel); }
+html.da-atelier .da-banner__trait { --da-banner-m: url(../../assets/illustrations/banniere-haute-trait.webp?v=20261123m); background: var(--ink); }
+/* Encre des lettres à part : bleu marine en cyanotype (le blanc reste aux personnages et objets) */
+html.da-atelier .da-banner__lettres { --da-banner-m: url(../../assets/illustrations/banniere-haute-lettres.webp?v=20261123m); background: var(--da-lettres, var(--ink)); }
+/* Contour extérieur des lettres (le trait qui touche le fond) : toujours à l'encre, donc blanc en cyanotype */
+html.da-atelier .da-banner__contour { --da-banner-m: url(../../assets/illustrations/banniere-haute-contour.webp?v=20261123m); background: var(--ink); }
+@media (prefers-color-scheme: dark) { html.da-atelier:not([data-theme="light"]) .da-banner { --da-lettres: var(--shadow); } }
+html.da-atelier[data-theme="dark"] .da-banner { --da-lettres: var(--shadow); }
+html.da-atelier .da-banner__cote {
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none;
+  stroke: var(--accent); fill: none; stroke-linecap: round;
+}
+html.da-atelier .da-banner__cote path { vector-effect: non-scaling-stroke; }
+html.da-atelier .da-banner__cote--large { display: none; }
+html.da-atelier .da-banner__texte {
+  max-width: 34em; margin: 18px auto 0;
+  color: var(--sub); font: 400 16px/1.5 var(--f-sans); text-align: center;
+}
+html.da-atelier .da-banner__texte a { color: var(--ink); font-weight: 600; white-space: nowrap; }
+@media (min-width: 900px) {
+  html.da-atelier .hero:has(.da-banner) { padding-top: 44px; }   /* l'OVNI dégage la règle A-F du cadre */
+  /* Rotation de 6° : la pente du mot passe d'environ 25° à 19° (choix de Clément, nov. 2026) */
+  html.da-atelier .da-banner__scene { aspect-ratio: 1901 / 1106; transform: rotate(6deg); }
+  html.da-atelier .da-banner__aplat { --da-banner-m: url(../../assets/illustrations/banniere-large-aplat.webp?v=20261123m); }
+  html.da-atelier .da-banner__trait { --da-banner-m: url(../../assets/illustrations/banniere-large-trait.webp?v=20261123m); }
+  html.da-atelier .da-banner__lettres { --da-banner-m: url(../../assets/illustrations/banniere-large-lettres.webp?v=20261123m); }
+  html.da-atelier .da-banner__contour { --da-banner-m: url(../../assets/illustrations/banniere-large-contour.webp?v=20261123m); }
+  html.da-atelier .da-banner__cote--large { display: block; }
+  html.da-atelier .da-banner__cote--haute { display: none; }
+  html.da-atelier .da-banner__eyebrow { position: absolute; z-index: 1; left: 0; top: 6%; max-width: 30%; margin: 0; text-align: left; }
+  html.da-atelier .da-banner__texte { position: absolute; z-index: 1; right: 0; bottom: 2%; width: 34%; max-width: none; margin: 0; text-align: right; }
+}
+
 /* ============================================
    01 · LE ROUND (bandeau saison / round / compte à rebours)
    ============================================ */
@@ -309,6 +367,7 @@ html.da-atelier .athlete-name { color: var(--ink); font-weight: 600; }
 html.da-atelier .elevation-primary { color: var(--ink); font-family: var(--f-mono); }
 html.da-atelier .elevation-secondary { color: var(--sub); font-family: var(--f-mono); }
 html.da-atelier .bonus-tag {
+  gap: 5px;   /* en inline-flex l'espace après le picto disparaît */
   border-radius: 0;
   border: 1px solid currentColor;
   background: none;
@@ -929,7 +988,7 @@ html.da-atelier .history-ranking-row > .history-elevation {
 }
 /* Jokers posés (encre) et subis (rouge brique) à côté du nom */
 html.da-atelier .history-row-jokers { display: inline-flex; gap: 6px; }
-html.da-atelier .history-row-joker { display: inline-flex; width: 20px; height: 20px; font-size: 17px; line-height: 1; color: var(--ink); }
+html.da-atelier .history-row-joker { display: inline-flex; width: 27px; height: 27px; font-size: 23px; line-height: 1; color: var(--ink); }
 html.da-atelier .history-row-joker .picto { display: block; width: 100%; height: 100%; vertical-align: 0; }
 html.da-atelier .history-row-joker.is-target { color: var(--accent-text); }
 
@@ -1404,7 +1463,7 @@ html.da-atelier .da-delta {
   font: 600 22px/1 var(--f-hand);
   vertical-align: -2px;
 }
-html.da-atelier .da-delta .picto { width: 0.8em; height: 0.8em; }
+html.da-atelier .da-delta .picto { width: 1em; height: 1em; }
 html.da-atelier .da-delta--up { color: var(--up); }
 html.da-atelier .da-delta--down { color: var(--down); }
 /* Téléphone : la pastille va au bout de la case du nom, un peu plus petite */
@@ -1570,7 +1629,7 @@ html.da-atelier .da-act-note { order: 9; flex-basis: 100%; margin: -4px 0 0 62px
 /* Liste des sorties : le dessin du sport à la place du mot */
 /* l'icône prend toute la hauteur de la ligne (marges négatives = le padding de la ligne) */
 html.da-atelier .athlete-activity-sport { display: flex; align-items: center; align-self: stretch; }
-html.da-atelier .athlete-activity-sport .picto { display: block; width: 46px; height: 46px; margin: -7px 0; }
+html.da-atelier .athlete-activity-sport .picto { display: block; width: 58px; height: 58px; margin: -13px 0; }
 
 /* Téléphone : pas de télex, les sorties se lisent dans le classement (tap sur un joueur) */
 @media (max-width: 768px) {
@@ -1631,8 +1690,13 @@ html.da-atelier .da-ns { display: none; }
    achievement » (placeAchievementTags), à toutes les largeurs */
 html.da-atelier :is(#rankingContainer, #eliminatedChallengeContainer) { position: relative; overflow: visible; }
 html.da-atelier .da-tag__icons { display: inline-flex; gap: 2px; margin-right: 6px; vertical-align: -6px; }
-html.da-atelier .da-tag__icons .picto { width: 24px; height: 24px; }
+html.da-atelier .da-tag__icons .picto { width: 32px; height: 32px; }
 html.da-atelier .da-tag__text > span { display: block; }
+/* Leader d'un achievement : le dessin du succès en colonne à gauche, le texte à côté */
+html.da-atelier .da-tag.da-tag--ach { width: 280px; }
+html.da-atelier .da-tag--ach .da-tag__text > span { display: flex; align-items: center; gap: 8px; }
+html.da-atelier .da-tag--ach .da-tag__icons { flex: none; margin: 0; }
+html.da-atelier .da-tag--ach .da-tag__icons .picto { width: 38px; height: 38px; }
 @media all {
   html.da-atelier .da-tag { display: block; position: absolute; z-index: 4; width: 240px; overflow: hidden; pointer-events: none; padding: 6px 0; margin-top: -6px; box-sizing: content-box; }
   html.da-atelier .da-tag__sheet { position: relative; height: 100%; display: flex; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -1665,9 +1729,9 @@ html.da-atelier .da-tag__text > span { display: block; }
 /* Challenge des éliminés : bonus encore à jouer (visible de tous), cadeau
    orange avec un point ; bonus déjà joué : cadeau au crayon */
 html.da-atelier .bonus-badge { display: inline-flex; vertical-align: -3px; margin-left: 4px; color: var(--sub); }
-html.da-atelier .bonus-badge .picto { width: 18px; height: 18px; }
+html.da-atelier .bonus-badge .picto { width: 24px; height: 24px; }
 html.da-atelier .bonus-badge--ready { position: relative; color: var(--accent-text); }
-html.da-atelier .bonus-badge--ready .picto { width: 22px; height: 22px; }
+html.da-atelier .bonus-badge--ready .picto { width: 29px; height: 29px; }
 html.da-atelier .bonus-badge--ready::after { content: ""; position: absolute; top: -2px; right: -5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1.5px var(--panel); }
 
 /* Classement du round : notes à la main (leader qui s'envole, règle des 0 m

@@ -32,9 +32,9 @@
   <!-- DA Atelier (retirer la classe da-atelier de <html> pour revenir à l'ancienne DA) -->
   <link rel="stylesheet" href="css/da/tokens.css?v=20261114h">
   <link rel="stylesheet" href="css/da/base.css?v=20261114b">
-  <link rel="stylesheet" href="css/da/components.css?v=20261115a">
+  <link rel="stylesheet" href="css/da/components.css?v=20261123a">
   <link rel="stylesheet" href="css/da/pages.css?v=20261114d">
-  <link rel="stylesheet" href="css/da/stats.css?v=20261110a">
+  <link rel="stylesheet" href="css/da/stats.css?v=20261123a">
 </head>
 <body>
   <!-- Loading Screen -->
@@ -225,10 +225,23 @@
     </div>
   </section>
 
-  <!-- 04. Rythmes (ridgeline par sport) -->
-  <section class="ridgeline-section">
+  <!-- 04. Achievements -->
+  <section class="ranking-stats-section achievements-section" id="achievementsSection">
     <div class="section-header">
       <span class="section-number">04</span>
+      <h2 class="section-title">Achievements</h2>
+      <p class="section-desc">Les titres de l'année : un leader par badge, survole ou touche une carte pour voir le podium</p>
+    </div>
+
+    <div class="achievements-container">
+      <div class="achievements-grid" id="achievementsGrid"></div>
+    </div>
+  </section>
+
+  <!-- 05. Rythmes (ridgeline par sport) -->
+  <section class="ridgeline-section">
+    <div class="section-header">
+      <span class="section-number">05</span>
       <h2 class="section-title">Rythmes</h2>
       <p class="section-desc">Répartition horaire des activités par sport</p>
     </div>
@@ -238,29 +251,16 @@
     </div>
   </section>
 
-  <!-- 05. Rythmes par jour de round -->
+  <!-- 06. Rythmes par jour de round -->
   <section class="round-ridgeline-section">
     <div class="section-header">
-      <span class="section-number">05</span>
+      <span class="section-number">06</span>
       <h2 class="section-title">Rythmes par jour de round</h2>
       <p class="section-desc">À quel moment du round les gens bougent-ils ? Jour 1 → Jour 5</p>
     </div>
 
     <div class="ridgeline-container">
       <div id="roundRidgelineChart"></div>
-    </div>
-  </section>
-
-  <!-- 06. Achievements -->
-  <section class="ranking-stats-section achievements-section" id="achievementsSection">
-    <div class="section-header">
-      <span class="section-number">06</span>
-      <h2 class="section-title">Achievements</h2>
-      <p class="section-desc">Les titres de l'année : un leader par badge, survole ou touche une carte pour voir le podium</p>
-    </div>
-
-    <div class="achievements-container">
-      <div class="achievements-grid" id="achievementsGrid"></div>
     </div>
   </section>
 
@@ -422,6 +422,6 @@
   <script src="shared/team-formation.js?v=20260417"></script>
   <script src="shared/edition-rules.js?v=20261028d"></script>
   <script src="shared/nav-notif.js?v=20261115a"></script>
-  <script type="module" src="js/stats.js?v=20261115a"></script>
+  <script type="module" src="js/stats.js?v=20261123b"></script>
 </body>
 </html>

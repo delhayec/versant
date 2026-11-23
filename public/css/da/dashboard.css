@@ -74,7 +74,7 @@ html.da-atelier .dashboard-card > .card-title::before {
   color: var(--panel);
   font: 700 16px/1 var(--f-mono);
 }
-html.da-atelier .dashboard-card > .card-title .picto { width: 22px; height: 22px; }
+html.da-atelier .dashboard-card > .card-title .picto { width: 29px; height: 29px; }
 /* Textes d'introduction sous les titres */
 html.da-atelier .dashboard-card > p { color: var(--sub) !important; font-size: 14px; }
 
@@ -139,7 +139,7 @@ html.da-atelier .joker-card:is(.used, .disabled-nobonus, .disabled-team) {
 }
 html.da-atelier .joker-card:is(.used, .disabled-nobonus, .disabled-team) > :not(.joker-count) { opacity: 0.5; }
 html.da-atelier .joker-icon { font-size: 40px; line-height: 1; margin-bottom: 10px; color: var(--ink); }
-html.da-atelier .joker-icon .picto { width: 46px; height: 46px; }
+html.da-atelier .joker-icon .picto { width: 62px; height: 62px; }
 html.da-atelier .joker-name { font: 800 15px/1.2 var(--f-sans); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink); }
 html.da-atelier .joker-desc { color: var(--sub); font-size: 13px; }
 html.da-atelier .joker-count {
@@ -171,7 +171,7 @@ html.da-atelier .bonus-card::before { display: none; }
 html.da-atelier .bonus-card.available:hover { background: var(--accent-soft) !important; }
 html.da-atelier .bonus-card.used { border-style: dashed !important; }
 html.da-atelier :is(.bonus-card, .bonus-choice-option) .bonus-icon { font-size: 40px; line-height: 1; color: var(--ink); }
-html.da-atelier :is(.bonus-card, .bonus-choice-option) .bonus-icon .picto { width: 46px; height: 46px; }
+html.da-atelier :is(.bonus-card, .bonus-choice-option) .bonus-icon .picto { width: 62px; height: 62px; }
 html.da-atelier :is(.bonus-card, .bonus-choice-option) .bonus-name { font: 800 16px/1.2 var(--f-sans); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink); }
 html.da-atelier :is(.bonus-card, .bonus-choice-option) .bonus-desc { color: var(--sub); }
 html.da-atelier .bonus-category { display: none !important; }   /* pas d'annotation de catégorie */
@@ -229,7 +229,7 @@ html.da-atelier .modal-header {
   border-radius: 0;
 }
 html.da-atelier .modal-header-icon { font-size: 34px; line-height: 1; color: var(--ink); }
-html.da-atelier .modal-header-icon .picto { width: 42px; height: 42px; }
+html.da-atelier .modal-header-icon .picto { width: 56px; height: 56px; }
 html.da-atelier .modal-header-title { font: 800 18px/1.2 var(--f-sans); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink); }
 html.da-atelier .modal-header-subtitle { font: 600 20px/1.2 var(--f-hand); color: var(--pen); }
 html.da-atelier .modal-close-btn { background: var(--panel) !important; border: 1.5px solid var(--ink) !important; border-radius: 0 !important; color: var(--ink) !important; }
@@ -268,11 +268,11 @@ html.da-atelier .modal-confirm-btn {
 }
 html.da-atelier .modal-confirm-btn:hover:not(:disabled) { background: var(--accent-text) !important; }
 html.da-atelier .modal-confirm-btn:disabled { background: var(--panel-2) !important; color: var(--sub) !important; }
-html.da-atelier .modal-confirm-btn .picto { width: 20px; height: 20px; }
+html.da-atelier .modal-confirm-btn .picto { width: 26px; height: 26px; }
 /* Choix du bonus (meilleur des 2 éliminés) */
 html.da-atelier .bonus-choice-header { background: var(--panel-2) !important; border-bottom: 1.5px solid var(--ink); border-radius: 0; }
 html.da-atelier .bonus-choice-icon { color: var(--ink); animation: none; }
-html.da-atelier .bonus-choice-icon .picto { width: 44px; height: 44px; }
+html.da-atelier .bonus-choice-icon .picto { width: 60px; height: 60px; }
 html.da-atelier .bonus-choice-title { font: 800 18px/1.2 var(--f-sans); text-transform: uppercase; color: var(--ink); }
 html.da-atelier .bonus-choice-subtitle { font: 600 19px/1.2 var(--f-hand); color: var(--pen); }
 html.da-atelier .bonus-choice-option {
@@ -339,4 +339,4 @@ html.da-atelier .dash-ach__name { font: 800 14px/1.2 var(--f-sans); text-transfo
 html.da-atelier .dash-ach__desc { font: 500 12px/1.3 var(--f-sans); color: var(--sub); opacity: 1; }
 html.da-atelier .dash-ach__val { font: 700 15px/1 var(--f-mono); color: var(--ink); }
 html.da-atelier .dash-ach__lead { font: 600 17px/1 var(--f-hand); color: var(--pen); opacity: 1; }
-html.da-atelier .dash-ach .da-medal .picto { width: 22px; height: 22px; }
+html.da-atelier .dash-ach .da-medal .picto { width: 29px; height: 29px; }
