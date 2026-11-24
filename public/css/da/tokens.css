@@ -297,7 +297,7 @@ html.da-atelier[data-theme="dark"] {
 html.da-atelier {
   --f-sans: "Archivo", system-ui, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, monospace;
-  --f-hand: "MANIC", "Caveat", "Segoe Print", cursive;
+  --f-hand: "MANIC", "Caveat", "Noteworthy", "Bradley Hand", "Segoe Print", cursive;   /* polices web bloquées : écriture d'iOS plutôt que l'anglaise */
   --f-ticket: "VT323", var(--f-mono);
   /* Repères communs à toutes les pages */
   --lbl: 700 11px/1.4 var(--f-mono);

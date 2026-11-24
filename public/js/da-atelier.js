@@ -479,7 +479,11 @@
   Object.entries({"!":["6c"],"#":["179","17a","17b"],"$":["ef"],"%":["f4"],"&":["f1","f2","1a2"],"(":["181","183","185"],")":["182","184","186"],"*":["dc","172"],"/":["e8"],"0":["16c","16d","16e"],"1":["14f","159","163"],"2":["150","15a","164"],"3":["151","15b","165"],"4":["152","15c","166"],"5":["153","15d","167"],"6":["154","15e","168"],"7":["155","15f","169"],"8":["156","160","16a"],"9":["157","161","16b"],"<":["d8"],">":["d9"],"?":["7b","16f","170","171"],"@":["f5"],"A":["1a","1c","113"],"B":["88","8a","114"],"C":["115","116","117"],"D":["38","118","119"],"E":["11a","11b","11c"],"F":["59","5a","8d"],"G":["a6","11d","11e"],"H":["3c","3d","102"],"I":["30","8e","103"],"J":["43","5d","104"],"K":["90","91","105"],"L":["49","11f","120"],"M":["20","92","106"],"N":["1d","21","107"],"O":["6d","6e","108"],"P":["93","e7","109"],"Q":["94","97","10a"],"R":["40","95","10b"],"S":["10c","10d","10e"],"T":["3b","3e","57"],"U":["6a","6b","99"],"V":["9b","9c","10f"],"W":["9d","9e","ca"],"X":["47","c6","110"],"Y":["c8","c9","111"],"Z":["46","c7","112"],"[":["17d"],"\\":["e9"],"]":["17e"],"^":["da"],"a":["1bd","1d7","1f1"],"b":["1be","1d8","1f2"],"c":["1bf","1d9","1f3"],"d":["1c0","1da","1f4"],"e":["1c1","1db","1f5"],"f":["1c2","1dc","1f6"],"g":["1c3","1dd","1f7"],"h":["1c4","1de","1f8"],"i":["1c5","1df","1f9"],"j":["1c6","1e0","1fa"],"k":["1c7","1e1","1fb"],"l":["1c8","1e2","1fc"],"m":["1c9","1e3","1fd"],"n":["1ca","1e4","1fe"],"o":["1cb","1e5","1ff"],"p":["1cc","1e6","200"],"q":["1cd","1e7","201"],"r":["1ce","1e8","202"],"s":["1cf","1e9","203"],"t":["1d0","1ea","204"],"u":["1d1","1eb","205"],"v":["1d2","1ec","206"],"w":["1d3","1ed","207"],"x":["1d4","1ee","208"],"y":["1d5","1ef","209"],"z":["1d6","1f0","20a"],"{":["17f"],"|":["17c"],"}":["180"],"~":["178"],"¢":["174"],"£":["176"],"¥":["175"],"©":["f6"],"®":["f7"],"¼":["20c"],"½":["20e"],"¾":["210"],"€":["177"],"⅓":["20d"],"⅔":["20f"],"⅕":["20b"]}).forEach(([k, v]) => { HAND_ALTS[k] = v.map(h => String.fromCharCode(0xF000 + parseInt(h, 16))); });
   // Variante n (1 à 3) d'une lettre, pour les notes écrites lettre à lettre (js/da-hand.js)
   const HAND_ALTS_ALL = { ...HAND_ALTS };
-  window.daHandAlt = (c, n) => (HAND_ALTS_ALL[c] || [])[n - 1] || c;
+  // Les variantes sont des caractères privés de MANIC : si la police n'est pas
+  // chargée (polices web bloquées, ex. mode Isolement d'iOS), elles
+  // s'afficheraient en carrés vides. On ne les utilise qu'avec MANIC chargée.
+  const manicOk = () => document.fonts && [...document.fonts].some(f => f.family.replace(/["']/g, '') === 'MANIC' && f.status === 'loaded');
+  window.daHandAlt = (c, n) => (manicOk() ? (HAND_ALTS_ALL[c] || [])[n - 1] : null) || c;
   delete HAND_ALTS['4'];
   HAND_ALTS['4'] = [String.fromCharCode(0xF152)];   // four.alt1 seulement
   const HAND_BOOST = [
@@ -538,7 +542,13 @@
       return a && rnd() < rate ? a[Math.floor(rnd() * a.length)] : c;
     }).join('');
   }
+  let manicWait = false;
   function erraticHand() {
+    if (!manicOk()) {
+      // pas encore chargée : on réessaie une fois qu'elle l'est (jamais si elle est bloquée)
+      if (!manicWait && document.fonts) { manicWait = true; document.fonts.load('16px "MANIC"').then(f => { if (f.length && manicOk()) erraticHand(); }).catch(() => {}); }
+      return;
+    }
     const sel = handSelector();
     if (!sel) return;
     let list;

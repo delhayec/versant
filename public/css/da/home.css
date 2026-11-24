@@ -1608,7 +1608,7 @@ html.da-atelier .da-act-note { order: 9; flex-basis: 100%; margin: -4px 0 0 62px
   html.da-atelier .banner-countdown-block > .da-note--count { position: static; order: -1; flex: 0 0 100%; margin: 0 0 8px; font-size: 22px; transform: rotate(-2deg); }
   html.da-atelier .countdown-num { font-size: 36px; }
   html.da-atelier .da-round-notes { display: block; flex: 0 0 100%; margin-top: 8px; }
-  html.da-atelier .da-round-note { font-size: 20px; line-height: 1.25; margin: 0; transform: none !important; }
+  html.da-atelier .da-round-note { font-size: 27px; line-height: 1.2; margin: 0; transform: none !important; }
   html.da-atelier .da-round-note ~ .da-round-note { display: none; }
   html.da-atelier .banner-season-block,
   html.da-atelier .banner-round-block { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 6px 14px; }
@@ -1671,12 +1671,13 @@ html.da-atelier .da-ns { display: none; }
   html.da-atelier .banner-season-block,
   html.da-atelier .banner-round-block { padding-top: 3px; padding-bottom: 3px; }
   html.da-atelier .banner-season-block { padding-left: 12px; }
+  /* manuscrit agrandi d'un tiers sur téléphone (nov. 2026) : lisible d'un coup d'œil */
   html.da-atelier .banner-value,
-  html.da-atelier .banner-day b { font-size: 18px; }
+  html.da-atelier .banner-day b { font-size: 24px; }
   html.da-atelier .da-round-gauge { padding: 8px 12px 4px; }
-  html.da-atelier .da-round-gauge__marks { margin-top: 2px; }
-  html.da-atelier .da-round-notes--end:not(:empty) { padding: 0 12px 8px; }
-  html.da-atelier .da-round-notes--end .da-round-note { font-size: 18px; }
+  html.da-atelier .da-round-gauge__marks { margin-top: 4px; font-size: 22px; }
+  html.da-atelier .da-round-notes--end:not(:empty) { padding: 2px 12px 12px; }
+  html.da-atelier .da-round-notes--end .da-round-note { font-size: 25px; line-height: 1.2; }
 }
 
 /* Classement général, téléphone : notes en étiquettes griffonnées repliables

@@ -612,7 +612,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name}${newShine(entry.participant.id, roundActivities)} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent">Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">Zone danger</span>' : ''}
-              ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
+              ${entry.isProtected ? `<span class="athlete-status protected">${picto('bouclier', '🛡️')} Protégé</span>` : ''}
               ${entry.adjustmentLabel ? `<span class="athlete-status handicap-tag" title="${entry.adjustmentLabel}">${entry.adjustmentLabel}</span>` : ''}
             </div>
           </div>
@@ -646,7 +646,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name}${newShine(entry.participant.id, roundActivities)} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
               ${isRescape ? '<span class="athlete-status rescape" title="Rescapé du round précédent - Juste au-dessus de la zone d\'élimination">Rescapé</span>' : ''}
               ${entry.isInDangerZone ? '<span class="athlete-status danger">Zone danger</span>' : ''}
-              ${entry.isProtected ? '<span class="athlete-status protected">🛡️ Protégé</span>' : ''}
+              ${entry.isProtected ? `<span class="athlete-status protected">${picto('bouclier', '🛡️')} Protégé</span>` : ''}
               ${deltaBadge(dayStartRanks, entry.participant.id, i + 1)}
             </div>
           </div>
@@ -1035,11 +1035,11 @@ export function renderArsenal(container, data) {
       let hoverTitle = '';
       switch (joker.joker_id) {
         case 'voleur':
-          description = `🦹 ${joker.athlete_name} a volé ${joker.target_athlete_name || 'un joueur'} (-${fmtAmt} m D+)`;
+          description = `${picto('voleur', '🦹', 'Voleur')} ${joker.athlete_name} a volé ${joker.target_athlete_name || 'un joueur'} (-${fmtAmt} m D+)`;
           hoverTitle = amount > 0 ? `Meilleure activité volée : ${fmtAmt} m D+ retirés à ${joker.target_athlete_name} et ajoutés à ${joker.athlete_name}` : 'En attente de calcul...';
           break;
         case 'bouclier':
-          description = `🛡️ ${joker.athlete_name} a utilisé le bouclier (protection)`;
+          description = `${picto('bouclier', '🛡️', 'Bouclier')} ${joker.athlete_name} a utilisé le bouclier (protection)`;
           hoverTitle = `${joker.athlete_name} est protégé(e) contre l'élimination ce round`;
           break;
         case 'multiplicateur':
