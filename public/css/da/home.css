@@ -1810,7 +1810,7 @@ html.da-atelier .jokers-cell { gap: 4px; min-width: 0; }
 html.da-atelier .jokers-cell .joker-badge { gap: 2px; padding: 3px 5px; margin: 0; }
 @media (min-width: 900px) {
   html.da-atelier #rankingContainer :is(.ranking-header, .ranking-row):not(.ranking-header-handicap, .ranking-header-handicap ~ .ranking-row) {
-    grid-template-columns: 56px minmax(0, 1fr) 104px 104px max-content;
+    grid-template-columns: 56px minmax(0, 1fr) 104px 104px 208px;
   }
 }
 html.da-atelier :is(.active-joker-item, .history-jokers) .picto { width: 42px; height: 42px; margin: -9px 0; vertical-align: middle; }
