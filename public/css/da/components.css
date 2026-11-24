@@ -352,7 +352,7 @@ html.da-atelier .picto {
   flex: none;   /* dans une ligne flex, il garde sa taille */
 }
 html.da-atelier .picto__emoji { display: none; }
-html.da-atelier .picto--bouclier { --pi: url("../../assets/pictos/bouclier-trait.svg?v=20261124a"); }
+html.da-atelier .picto--bouclier { --pi: url("../../assets/pictos/comigo/bouclier-tour.png?v=20261124a"); }
 html.da-atelier .picto--multiplicateur { --pi: url("../../assets/pictos/multiplicateur.svg"); }
 html.da-atelier .picto--voleur { --pi: url("../../assets/pictos/voleur.svg"); }
 html.da-atelier .picto--embuscade { --pi: url("../../assets/pictos/embuscade.svg"); }
@@ -528,7 +528,7 @@ html.da-atelier .da-motif--15 { --motif: url("data:image/svg+xml,%3Csvg%20xmlns%
    navigation, le thème, la page Stats, brouillard, second souffle et
    kamikaze. ?pictos=v1 remet l'ancien set partout (comparaison).
    ============================================ */
-html.da-atelier:not(.pictos-v1) .picto--bouclier { --pi: url("../../assets/pictos/bouclier-trait.svg?v=20261124a"); }
+html.da-atelier:not(.pictos-v1) .picto--bouclier { --pi: url("../../assets/pictos/comigo/bouclier-tour.png?v=20261124a"); }
 html.da-atelier:not(.pictos-v1) .picto--multiplicateur { --pi: url("../../assets/pictos/comigo/multiplicateur.png"); }
 html.da-atelier:not(.pictos-v1) .picto--voleur { --pi: url("../../assets/pictos/comigo/voleur.png"); }
 html.da-atelier:not(.pictos-v1) .picto--sabotage { --pi: url("../../assets/pictos/comigo/sabotage.png"); }
