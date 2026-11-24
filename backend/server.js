@@ -368,16 +368,27 @@ async function initializeServer() {
 // ============================================
 // SESSIONS
 // ============================================
+// Une session par appareil, valable SESSION_DAYS jours et prolongée à l'usage :
+// dès qu'il lui reste moins de SESSION_RENEW_DAYS jours, elle repart pour
+// SESSION_DAYS (au plus une écriture par appareil et par mois environ).
+const SESSION_DAYS = 90;
+const SESSION_RENEW_DAYS = 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 async function createSession(athleteId) {
   const token = generateToken();
-  const sessions = await safeReadJSON(SESSIONS_FILE, []);
-  sessions.push({
-    token,
-    athlete_id: normalizeId(athleteId),
-    created_at: new Date().toISOString(),
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-  });
-  await safeWriteJSON(SESSIONS_FILE, sessions);
+  const now = Date.now();
+  // lecture et écriture sous le même verrou : deux connexions simultanées ne s'écrasent plus
+  await safeModifyJSON(SESSIONS_FILE, sessions => [
+    // au passage, on oublie les sessions expirées
+    ...(Array.isArray(sessions) ? sessions : []).filter(s => new Date(s.expires_at).getTime() > now),
+    {
+      token,
+      athlete_id: normalizeId(athleteId),
+      created_at: new Date(now).toISOString(),
+      expires_at: new Date(now + SESSION_DAYS * DAY_MS).toISOString()
+    }
+  ], []);
   return token;
 }
 
@@ -385,7 +396,16 @@ async function validateSession(token) {
   if (!token) return null;
   const sessions = await safeReadJSON(SESSIONS_FILE, []);
   const session = sessions.find(s => s.token === token);
-  if (!session || new Date(session.expires_at) < new Date()) return null;
+  const now = Date.now();
+  if (!session || new Date(session.expires_at).getTime() < now) return null;
+  if (new Date(session.expires_at).getTime() - now < SESSION_RENEW_DAYS * DAY_MS) {
+    try {
+      await safeModifyJSON(SESSIONS_FILE, list => (Array.isArray(list) ? list : []).map(s =>
+        s.token === token ? { ...s, expires_at: new Date(now + SESSION_DAYS * DAY_MS).toISOString() } : s), []);
+    } catch (e) {
+      console.warn('Prolongation de session impossible :', e.message);   // la session reste valide
+    }
+  }
   return session.athlete_id;
 }
 
@@ -981,8 +1001,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/logout', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (token) {
-    const sessions = await safeReadJSON(SESSIONS_FILE, []);
-    await safeWriteJSON(SESSIONS_FILE, sessions.filter(s => s.token !== token));
+    await safeModifyJSON(SESSIONS_FILE, sessions => (Array.isArray(sessions) ? sessions : []).filter(s => s.token !== token), []);
   }
   res.json({ success: true });
 });

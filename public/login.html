@@ -442,10 +442,12 @@
           if (response.ok) {
             // Déjà connecté, rediriger
             window.location.href = nextPage();
+          } else if (response.status === 401) {
+            // Session refusée par le serveur : on l'oublie
+            localStorage.removeItem('versant_token');
           }
         } catch (error) {
-          // Token invalide, rester sur la page de login
-          localStorage.removeItem('versant_token');
+          // Réseau coupé : on garde la session, la page de connexion reste affichée
         }
       }
     });

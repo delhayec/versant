@@ -183,9 +183,10 @@ async function loadCurrentUser() {
     return currentUser;
   } catch (error) {
     console.error('Erreur chargement utilisateur:', error);
-    localStorage.removeItem('versant_athlete_id');
-    localStorage.removeItem('versant_token');
-    window.location.href = 'login.html';
+    // Pas connecté : page de connexion. Réseau coupé ou serveur qui redémarre :
+    // on garde la session (seul un 401, dans authFetch, la ferme).
+    if (!getCurrentUserId()) { window.location.href = 'login.html'; return; }
+    showNotification('Impossible de charger ton profil pour le moment. Vérifie ta connexion puis recharge la page.', 'error');
   }
 }
 
