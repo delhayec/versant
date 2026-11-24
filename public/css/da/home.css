@@ -1802,6 +1802,14 @@ html.da-atelier :is(.bonus-tag, .athlete-status, .history-bonus-detail) .picto {
 html.da-atelier :is(.bonus-tag, .athlete-status):has(.picto) { display: inline-flex; align-items: center; padding-top: 1px; padding-bottom: 1px; }
 html.da-atelier :is(.bonus-tag, .athlete-status) .picto { margin: 0; }
 html.da-atelier .joker-badge .picto { width: 26px; height: 26px; }
+/* Quatre jokers tiennent dans la colonne sans déborder du tableau */
+html.da-atelier .jokers-cell { gap: 4px; min-width: 0; }
+html.da-atelier .jokers-cell .joker-badge { gap: 2px; padding: 3px 5px; margin: 0; }
+@media (min-width: 900px) {
+  html.da-atelier #rankingContainer :is(.ranking-header, .ranking-row):not(.ranking-header-handicap, .ranking-header-handicap ~ .ranking-row) {
+    grid-template-columns: 56px minmax(0, 1fr) 104px 104px max-content;
+  }
+}
 html.da-atelier :is(.active-joker-item, .history-jokers) .picto { width: 42px; height: 42px; margin: -9px 0; vertical-align: middle; }
 /* Jokers en jeu : plus de pavé orange de l'ancienne DA, le dessin et la phrase seuls */
 html.da-atelier .active-joker-item, html.da-atelier .active-joker-item:hover { background: none; border: 0; border-radius: 0; padding: 6px 0; }
