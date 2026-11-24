@@ -503,11 +503,13 @@ export function renderRanking(container, data) {
   const zeroAlert = zeros.length >= 2 && currentRoundNumber >= CHALLENGE_CONFIG.zeroElevationRuleFromRound
     && getDayInRound(new Date(), currentRoundNumber) >= 3
     ? `${zeros.length} à 0 m : ils sautent tous !` : '';
-  const cutNote = zeroAlert || (lastSafeElev === firstDangerElev ? 'à égalité !' : `ça se joue à ${formatElevation(lastSafeElev - firstDangerElev)} !`);
+  // Premier éliminé à 0 m : l'écart est le chiffre de la ligne de coupe, pas de note en double
+  const cutNote = zeroAlert || (lastSafeElev === firstDangerElev ? 'à égalité !'
+    : firstDangerElev === 0 ? '' : `ça se joue à ${formatElevation(lastSafeElev - firstDangerElev)} !`);
   const cutLineHtml = cutIndex > 0 ? `
         <div class="da-cut-line da-only" role="separator" aria-label="Ligne de coupe à ${formatElevation(lastSafeElev)}">
           <span class="da-cut-line__label">Ligne de coupe <span class="da-draw da-draw--under da-draw--thin" style="--draw:url(/assets/manic/line-02.svg)">${formatElevation(lastSafeElev)}</span></span>
-          <span class="da-note da-note--cut" aria-hidden="true">${cutNote}</span>
+          ${cutNote ? `<span class="da-note da-note--cut" aria-hidden="true">${cutNote}</span>` : ''}
         </div>` : '';
 
   // DA Atelier, R3 : le leader s'envole (500 m d'avance au moins, et 30 %
