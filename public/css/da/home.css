@@ -65,6 +65,10 @@ html.da-atelier .da-banner__texte {
   color: var(--sub); font: 400 16px/1.5 var(--f-sans); text-align: center;
 }
 html.da-atelier .da-banner__texte a { color: var(--ink); font-weight: 600; white-space: nowrap; }
+/* Téléphone : le texte disparaît mais sa place reste, pour laisser respirer l'accueil (nov. 2026) */
+@media (max-width: 899px) {
+  html.da-atelier .da-banner__texte { visibility: hidden; }
+}
 @media (min-width: 900px) {
   html.da-atelier .hero:has(.da-banner) { padding-top: 44px; }   /* l'OVNI dégage la règle A-F du cadre */
   /* Rotation de 6° : la pente du mot passe d'environ 25° à 19° (choix de Clément, nov. 2026) */
