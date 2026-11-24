@@ -565,9 +565,7 @@ let html = specialBanner + specialRuleHtml + headerHtml;
     // Vérifier si c'est le Rescapé (basé sur le round précédent figé)
     const isRescape = rescapeId && String(entry.participant.id) === String(rescapeId);
 
-    // Générer les indicateurs de bonus sur l'avatar (jokers + bonus éphémères)
     const ephemeral = ephemeralEffects?.[entry.participant.id];
-    const bonusIndicators = renderAvatarBonusIndicators(effects.bonuses, ephemeral);
 
     // Générer les pilules pour les effets de bonus éphémères
     const ephemeralPills = renderEphemeralBonusPills(ephemeral);
@@ -606,7 +604,6 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               <div class="athlete-avatar ${motifClass(entry.participant.id)}" style="background: ${getAthleteColor(entry.participant.id)}">
                 <span class="da-initials">${getAthleteInitials(entry.participant.id)}</span>
               </div>
-              ${bonusIndicators}
             </div>
             <div class="athlete-details">
               <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name}${newShine(entry.participant.id, roundActivities)} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
@@ -640,7 +637,6 @@ let html = specialBanner + specialRuleHtml + headerHtml;
               <div class="athlete-avatar ${motifClass(entry.participant.id)}" style="background: ${getAthleteColor(entry.participant.id)}">
                 <span class="da-initials">${getAthleteInitials(entry.participant.id)}</span>
               </div>
-              ${bonusIndicators}
             </div>
             <div class="athlete-details">
               <span class="athlete-name athlete-name-clickable" onclick="toggleAthleteActivities('${entry.participant.id}')">${entry.participant.name}${newShine(entry.participant.id, roundActivities)} <span class="athlete-name-toggle-icon" id="athlete-activities-icon-${entry.participant.id}">▾</span></span>
@@ -682,96 +678,6 @@ function toggleAthleteActivities(athleteId) {
 
 // Exposé globalement pour l'attribut onclick généré dans le HTML du classement
 window.toggleAthleteActivities = toggleAthleteActivities;
-
-// ============================================
-// RENDU DES INDICATEURS DE BONUS SUR AVATAR
-// ============================================
-
-function renderAvatarBonusIndicators(bonuses = {}, ephemeral = null) {
-  const indicators = [];
-
-  // Multiplicateur (×1.5)
-  if (bonuses.multiplier) {
-    indicators.push({ icon: '✨', picto: 'multiplicateur', class: 'multiplier', title: `Multiplicateur ${multiplierLabel()}` });
-  }
-
-  // Bouclier
-  if (bonuses.shield) {
-    indicators.push({ icon: '🛡️', picto: 'bouclier', class: 'shield', title: 'Bouclier actif' });
-  }
-
-  // Duel gagné
-  if (bonuses.duelWon) {
-    indicators.push({ icon: '⚔️', picto: 'duel', class: 'duel-won', title: 'Duel gagné' });
-  }
-
-  // Duel perdu
-  if (bonuses.duelLost) {
-    indicators.push({ icon: '⚔️', picto: 'duel', class: 'duel-lost', title: 'Duel perdu' });
-  }
-
-  // Saboté (victime)
-  if (bonuses.sabotaged) {
-    indicators.push({ icon: '💣', picto: 'sabotage', class: 'sabotaged', title: 'Saboté' });
-  }
-
-  // Sabotage appliqué (celui qui sabote)
-  if (bonuses.sabotageApplied) {
-    indicators.push({ icon: '💣', picto: 'sabotage', class: 'saboteur', title: 'Sabotage actif' });
-  }
-
-  // Voleur actif
-  if (bonuses.thief) {
-    indicators.push({ icon: '🦹', picto: 'voleur', class: 'thief', title: 'Vol actif' });
-  }
-
-  // Victime du vol
-  if (bonuses.stolen) {
-    indicators.push({ icon: '🦹', picto: 'voleur', class: 'stolen', title: 'Activité volée' });
-  }
-
-  // Kamikaze (celui qui l'active)
-  if (bonuses.kamikaze) {
-    indicators.push({ icon: '💣', picto: 'kamikaze', class: 'kamikaze', title: 'Kamikaze - perd 25% de son D+' });
-  }
-
-  // Victime de Kamikaze
-  if (bonuses.kamikazeTarget) {
-    indicators.push({ icon: '💥', picto: 'kamikaze', class: 'kamikaze-target', title: `Kamikaze par ${bonuses.kamikazeTarget.by}` });
-  }
-
-  // Maudit (victime de malédiction)
-  if (bonuses.cursed) {
-    indicators.push({ icon: '🪬', picto: 'malediction', class: 'cursed', title: `Maudit par ${bonuses.cursed.by}` });
-  }
-
-  // Bonus éphémères (basés sur les détails)
-  if (ephemeral?.details) {
-    for (const detail of ephemeral.details) {
-      if (detail.type === 'embuscade_victim') {
-        indicators.push({ icon: '🏹', picto: 'embuscade', class: 'ephemeral-victim', title: `Embuscade par ${detail.by}` });
-      } else if (detail.type === 'embuscade_gain') {
-        indicators.push({ icon: '🏹', picto: 'embuscade', class: 'ephemeral-gain', title: `A volé ${detail.from}` });
-      } else if (detail.type === 'ravitaillement') {
-        indicators.push({ icon: '🍖', picto: 'ravitaillement', class: 'ephemeral-gain', title: `Ravitaillement de ${detail.from}` });
-      } else if (detail.type === 'marquage') {
-        indicators.push({ icon: '🎯', picto: 'marquage', class: 'ephemeral-victim', title: `Marqué par ${detail.by}` });
-      } else if (detail.type === 'malediction_victim') {
-        indicators.push({ icon: '🪬', picto: 'malediction', class: 'ephemeral-victim', title: `Maudit par ${detail.by}` });
-      }
-    }
-  }
-
-  if (indicators.length === 0) return '';
-
-  return `
-    <div class="avatar-bonus-indicators">
-      ${indicators.map(ind => `
-        <span class="avatar-bonus-icon ${ind.class}" title="${ind.title}">${ind.picto ? picto(ind.picto, ind.icon) : ind.icon}</span>
-      `).join('')}
-    </div>
-  `;
-}
 
 /**
  * Génère les pilules pour les effets de bonus éphémères
