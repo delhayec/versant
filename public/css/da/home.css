@@ -454,6 +454,9 @@ html.da-atelier .athlete-status.danger { color: var(--accent-text); }
 html.da-atelier .athlete-status:is(.rescape, .protected) { color: var(--ink); }
 /* Protégé (bouclier joué) : le dessin et le mot, sans cadre */
 html.da-atelier .athlete-status.protected { border: 0; padding-left: 0; padding-right: 0; }
+/* Bouclier joué : le dessin juste après le nom */
+html.da-atelier .da-shield-mark { display: inline-flex; align-items: center; margin: -8px 0 -8px 4px; vertical-align: middle; color: var(--ink); }
+html.da-atelier .da-shield-mark .picto { width: 32px; height: 32px; vertical-align: middle; }
 
 /* Avatars : initiales à l'encre, sans les couleurs de chaque joueur */
 html.da-atelier :is(.athlete-avatar, .athlete-avatar-small) {
