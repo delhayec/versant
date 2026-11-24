@@ -157,7 +157,8 @@ html.da-atelier .banner-stats-block {
   gap: 18px;
   border-left: 1.5px solid var(--ink);
 }
-html.da-atelier .banner-stat { display: flex; align-items: baseline; gap: 6px; }
+/* « En course » / « Éliminés » écrit en haut, le chiffre centré dessous */
+html.da-atelier .banner-stat { display: flex; flex-direction: column-reverse; align-items: center; gap: 6px; text-align: center; }
 
 /* Temps restant, en grand */
 html.da-atelier .banner-countdown-block {
