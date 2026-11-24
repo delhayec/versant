@@ -1680,8 +1680,9 @@ html.da-atelier .da-ns { display: none; }
   html.da-atelier .banner-day b { font-size: 24px; }
   html.da-atelier .da-round-gauge { padding: 8px 12px 4px; }
   html.da-atelier .da-round-gauge__marks { margin-top: 4px; font-size: 22px; }
-  html.da-atelier .da-round-notes--end:not(:empty) { padding: 2px 12px 12px; }
-  html.da-atelier .da-round-notes--end .da-round-note { font-size: 25px; line-height: 1.2; }
+  /* message un peu plus bas, centré, avec de l'air dessous : le cartouche grandit d'autant */
+  html.da-atelier .da-round-notes--end:not(:empty) { padding: 16px 12px 22px; text-align: center; }
+  html.da-atelier .da-round-notes--end .da-round-note { font-size: 25px; line-height: 1.2; margin: 0 auto; }
 }
 
 /* Classement général, téléphone : notes en étiquettes griffonnées repliables
