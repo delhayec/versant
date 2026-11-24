@@ -1801,7 +1801,7 @@ html.da-atelier :is(.bonus-tag, .athlete-status, .history-bonus-detail) .picto {
 /* étiquettes encadrées : le cadre suit le dessin, il ne le coupe pas */
 html.da-atelier :is(.bonus-tag, .athlete-status):has(.picto) { display: inline-flex; align-items: center; padding-top: 1px; padding-bottom: 1px; }
 html.da-atelier :is(.bonus-tag, .athlete-status) .picto { margin: 0; }
-html.da-atelier .joker-badge .picto { width: 30px; height: 30px; }
+html.da-atelier .joker-badge .picto { width: 26px; height: 26px; }
 html.da-atelier :is(.active-joker-item, .history-jokers) .picto { width: 42px; height: 42px; margin: -9px 0; vertical-align: middle; }
 /* Jokers en jeu : plus de pavé orange de l'ancienne DA, le dessin et la phrase seuls */
 html.da-atelier .active-joker-item, html.da-atelier .active-joker-item:hover { background: none; border: 0; border-radius: 0; padding: 6px 0; }
