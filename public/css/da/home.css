@@ -640,7 +640,7 @@ html.da-atelier .wins-badge { color: var(--ink); border: 0; padding: 0; }
 html.da-atelier .elim-badge { color: var(--sub); }
 html.da-atelier .active-badge { color: var(--up); }
 
-@media (max-width: 768px) {
+@media (max-width: 899px) {   /* téléphone et tablette en portrait (comme la bannière) */
   html.da-atelier :is(.standings-header, .standings-row) { grid-template-columns: 48px minmax(0, 1fr) 76px; }
   html.da-atelier .standings-header > .hide-mobile,
   html.da-atelier .standings-row > .hide-mobile { display: none; }
@@ -1151,7 +1151,7 @@ html.da-atelier #eliminatedChallengeContainer .ranking-row > .ranking-round {
   font: 600 20px/1 var(--f-hand);
   color: var(--accent-text);
 }
-@media (max-width: 768px) {
+@media (max-width: 899px) {   /* téléphone et tablette en portrait (comme la bannière) */
   html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) {
     grid-template-columns: 28px minmax(0, 1fr) 40px 72px;
   }
@@ -1775,4 +1775,18 @@ html.da-atelier .da-note--elim-gauge { display: none; }
     text-align: right;
     transform: rotate(-1.5deg);
   }
+}
+
+/* ============================================
+   TABLETTE EN PORTRAIT (iPad, 769 à 899 px) : le classement du round prend
+   les colonnes du téléphone, comme la bannière et le cartouche. Reprend les
+   règles « téléphone » de style.css, écrites pour 768 px et moins.
+   ============================================ */
+@media (min-width: 769px) and (max-width: 899px) {
+  html.da-atelier :is(.hide-mobile, .hide-mobile-sm) { display: none !important; }
+  html.da-atelier :is(.ranking-header, .ranking-row) { grid-template-columns: 56px minmax(0, 1fr) 120px; }
+  html.da-atelier .ranking-header:not(.ranking-header-handicap) > :is(:nth-child(4), :nth-child(5)),
+  html.da-atelier .ranking-header:not(.ranking-header-handicap) ~ .ranking-row > :is(:nth-child(4), :nth-child(5)) { display: none; }
+  html.da-atelier :is(.ranking-header-handicap, .ranking-header-handicap ~ .ranking-row) { grid-template-columns: 48px minmax(0, 1fr) 90px 100px !important; }
+  html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) { grid-template-columns: 56px minmax(0, 1fr) 64px 100px; }
 }
