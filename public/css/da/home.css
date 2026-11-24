@@ -1791,3 +1791,20 @@ html.da-atelier .da-note--elim-gauge { display: none; }
   html.da-atelier :is(.ranking-header-handicap, .ranking-header-handicap ~ .ranking-row) { grid-template-columns: 48px minmax(0, 1fr) 90px 100px !important; }
   html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) { grid-template-columns: 56px minmax(0, 1fr) 64px 100px; }
 }
+
+/* Accueil : pictos des jokers et bonus en taille fixe, bien visibles
+   (nov. 2026 : à 2 em ils restaient à 23 px dans les petites étiquettes).
+   Marges négatives : l'étiquette ne grandit pas avec le dessin. */
+html.da-atelier :is(.bonus-tag, .athlete-status, .history-bonus-detail) .picto { width: 36px; height: 36px; margin: -10px 0; vertical-align: middle; }
+/* étiquettes encadrées : le cadre suit le dessin, il ne le coupe pas */
+html.da-atelier :is(.bonus-tag, .athlete-status):has(.picto) { display: inline-flex; align-items: center; padding-top: 1px; padding-bottom: 1px; }
+html.da-atelier :is(.bonus-tag, .athlete-status) .picto { margin: 0; }
+html.da-atelier .joker-badge .picto { width: 38px; height: 38px; }
+html.da-atelier :is(.active-joker-item, .history-jokers) .picto { width: 42px; height: 42px; margin: -9px 0; vertical-align: middle; }
+html.da-atelier .history-row-joker { width: 40px; height: 40px; }
+@media (max-width: 600px) {
+  html.da-atelier :is(.bonus-tag, .athlete-status, .history-bonus-detail) .picto { width: 32px; height: 32px; margin: -9px 0; }
+  html.da-atelier :is(.bonus-tag, .athlete-status) .picto { margin: 0; }
+  html.da-atelier :is(.active-joker-item, .history-jokers) .picto { width: 38px; height: 38px; }
+  html.da-atelier .history-row-joker { width: 36px; height: 36px; }
+}
