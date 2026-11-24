@@ -24,7 +24,7 @@ import { picto, medal } from './pictos.js?v=20261119a';
 import { cleanActivities, computeAthleteStats, athletePodiums } from './achievements.js?v=20261123b';
 import { calculateYearlyStandings } from './standings-engine.js';
 import { motifClass } from './motifs.js';
-import { formatDate, formatElevation } from './ui.js?v=20261124a';
+import { formatDate, formatElevation } from './ui.js?v=20261124b';
 
 const API_BASE = '/api';
 const LEAGUE_ID = CHALLENGE_CONFIG.leagueId;
@@ -75,7 +75,7 @@ function getRoundTypeLabel(roundNumber) {
   if (!config?.type || config.type === 'standard') return null;
   const labels = {
     finale: 'Finale',
-    bonus_round: '🎁 Round bonus',
+    bonus_round: 'Round bonus',
     no_eliminations: 'Sans élimination'
   };
   return labels[config.type] || null;
@@ -999,7 +999,7 @@ function showBonusChoiceModal() {
       'competitif': 'Compétitif',
       'defensif': `${picto('bouclier', '🛡️')} Défensif`,
       'pari': 'Pari',
-      'piege': '🪤 Piège',
+      'piege': `${picto('trap', '🪤')} Piège`,
       'boost': 'Boost'
     };
     const categoryLabel = categoryMap[bonus.category] || '';
@@ -1046,7 +1046,7 @@ async function selectBonus(bonusId) {
     renderBonus();
 
     const bonus = BONUS_TYPES[bonusId];
-    showNotification(`${bonus.icon} ${bonus.name} choisi !`, 'success');
+    showNotification(`${bonus.name} choisi !`, 'success');
 
   } catch (error) {
     if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
@@ -1214,7 +1214,7 @@ async function useBonus(bonusId, targetId = null) {
     renderBonus();
 
     const bonus = BONUS_TYPES[bonusId];
-    showNotification(`${bonus.icon} ${bonus.name} activé !`, 'success');
+    showNotification(`${bonus.name} activé !`, 'success');
 
   } catch (error) {
     if (error.message !== 'Session expirée' && error.message !== 'Non authentifié') {
@@ -1350,8 +1350,8 @@ if (canActivateNow) {
       renderJokers();
 
       const message = activateNow
-        ? `${joker.icon} ${joker.name} activé pour ce round !`
-        : `${joker.icon} ${joker.name} programmé pour le ${roundLabel(selectedRound).replace('Round', 'round')} !`;
+        ? `${joker.name} activé pour ce round !`
+        : `${joker.name} programmé pour le ${roundLabel(selectedRound).replace('Round', 'round')} !`;
       showNotification(message, 'success');
       modal.remove();
     } catch (error) {

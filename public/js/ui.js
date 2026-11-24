@@ -269,7 +269,7 @@ export function renderActiveJokersSection(container, data) {
 
   container.style.display = 'block';
 
-  let html = '<h3 class="section-title">🃏 Jokers en jeu ce round</h3><div class="jokers-grid">';
+  let html = `<h3 class="section-title">${picto('jokers', '🃏')} Jokers en jeu ce round</h3><div class="jokers-grid">`;
 
   activeJokers.forEach(joker => {
     const jokerType = JOKER_TYPES[joker.jokerId];
@@ -279,7 +279,7 @@ export function renderActiveJokersSection(container, data) {
     let statusClass = 'active';
 
     if (joker.jokerId === 'voleur') {
-      statusHtml = `<div class="joker-effect">🦹 ${joker.participantName} vole la meilleure activité de ${joker.targetName}</div>`;
+      statusHtml = `<div class="joker-effect">${picto('voleur', '🦹', 'Voleur')} ${joker.participantName} vole la meilleure activité de ${joker.targetName}</div>`;
     } else if (joker.jokerId === 'multiplicateur') {
       statusHtml = `<div class="joker-effect">${multiplierLabel()} sur tout le D+ de ${joker.participantName}</div>`;
     } else if (joker.jokerId === 'sabotage') {
@@ -866,20 +866,20 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}, ephemeralBonus
     tags.push(`<span class="bonus-tag duel-lost">${picto('duel', '⚔️', 'Duel')} -${formatElevation(bonuses.duelLost.amount, false)} m</span>`);
   }
   if (bonuses.sabotaged) {
-    tags.push(`<span class="bonus-tag sabotage">💣 -${formatElevation(bonuses.sabotaged.amount, false)} m</span>`);
+    tags.push(`<span class="bonus-tag sabotage">${picto('sabotage', '💣', 'Sabotage')} -${formatElevation(bonuses.sabotaged.amount, false)} m</span>`);
   }
   if (bonuses.sabotageApplied) {
-    tags.push(`<span class="bonus-tag sabotage-done">💣 → ${bonuses.sabotageApplied.to}</span>`);
+    tags.push(`<span class="bonus-tag sabotage-done">${picto('sabotage', '💣', 'Sabotage')} → ${bonuses.sabotageApplied.to}</span>`);
   }
   if (bonuses.thief) {
-    tags.push(`<span class="bonus-tag thief">🦹 +${formatElevation(bonuses.thief.amount, false)} m volés</span>`);
+    tags.push(`<span class="bonus-tag thief">${picto('voleur', '🦹', 'Voleur')} +${formatElevation(bonuses.thief.amount, false)} m volés</span>`);
   }
   if (bonuses.stolen) {
-    tags.push(`<span class="bonus-tag stolen">🦹 -${formatElevation(bonuses.stolen.amount, false)} m volés</span>`);
+    tags.push(`<span class="bonus-tag stolen">${picto('voleur', '🦹', 'Voleur')} -${formatElevation(bonuses.stolen.amount, false)} m volés</span>`);
   }
   // Kamikaze (perte personnelle)
   if (bonuses.kamikaze) {
-    tags.push(`<span class="bonus-tag kamikaze">💣 -${formatElevation(bonuses.kamikaze.amount, false)} m (kamikaze)</span>`);
+    tags.push(`<span class="bonus-tag kamikaze">${picto('kamikaze', '💣', 'Kamikaze')} -${formatElevation(bonuses.kamikaze.amount, false)} m (kamikaze)</span>`);
   }
   // Victime de Kamikaze
   if (bonuses.kamikazeTarget) {
@@ -887,19 +887,19 @@ function renderElevationWithBonuses(totalElevation, bonuses = {}, ephemeralBonus
   }
   // Maudit (victime de malédiction)
   if (bonuses.cursed) {
-    tags.push(`<span class="bonus-tag cursed">🪬 -${formatElevation(bonuses.cursed.amount, false)} m</span>`);
+    tags.push(`<span class="bonus-tag cursed">${picto('malediction', '🪬', 'Malédiction')} -${formatElevation(bonuses.cursed.amount, false)} m</span>`);
   }
 
   // Bonus éphémères
   if (ephemeralBonus) {
     if (ephemeralBonus.embuscadeStolen) {
-      tags.push(`<span class="bonus-tag ephemeral-stolen">🏹 -${formatElevation(ephemeralBonus.embuscadeStolen, false)} m volés</span>`);
+      tags.push(`<span class="bonus-tag ephemeral-stolen">${picto('embuscade', '🏹', 'Embuscade')} -${formatElevation(ephemeralBonus.embuscadeStolen, false)} m volés</span>`);
     }
     if (ephemeralBonus.embuscadeGained) {
-      tags.push(`<span class="bonus-tag ephemeral-gained">🏹 +${formatElevation(ephemeralBonus.embuscadeGained, false)} m volés</span>`);
+      tags.push(`<span class="bonus-tag ephemeral-gained">${picto('embuscade', '🏹', 'Embuscade')} +${formatElevation(ephemeralBonus.embuscadeGained, false)} m volés</span>`);
     }
     if (ephemeralBonus.ravitaillement) {
-      tags.push(`<span class="bonus-tag ephemeral-bonus">🍖 +${formatElevation(ephemeralBonus.ravitaillement, false)} m</span>`);
+      tags.push(`<span class="bonus-tag ephemeral-bonus">${picto('ravitaillement', '🍖', 'Ravitaillement')} +${formatElevation(ephemeralBonus.ravitaillement, false)} m</span>`);
     }
     if (ephemeralBonus.marquage) {
       tags.push(`<span class="bonus-tag ephemeral-mark">${picto('marquage', '🎯', 'Marquage')} -${formatElevation(ephemeralBonus.marquage, false)} m (-20%)</span>`);
@@ -1178,9 +1178,9 @@ function getBonusEffectDescription(bonus) {
     case 'second_souffle':
       return `En fin de saison, la plus petite activité sera doublée`;
     case 'kamikaze':
-      return `💣 -25% D+ pour toi ET -25% D+ pour ${target || 'la cible'} à la fin du round`;
+      return `${picto('kamikaze', '💣', 'Kamikaze')} -25% D+ pour toi ET -25% D+ pour ${target || 'la cible'} à la fin du round`;
     case 'malediction':
-      return `🪬 Maudit ${target || 'la cible'} : -10% de son D+ volé à chaque fin de round`;
+      return `${picto('malediction', '🪬', 'Malédiction')} Maudit ${target || 'la cible'} : -10% de son D+ volé à chaque fin de round`;
     default:
       return '';
   }

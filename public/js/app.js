@@ -38,7 +38,7 @@ import {
   showContextMenu, hideContextMenu, showTargetSelectionModal,
   renderElevationGauge, renderElevationGaugeHistory,
   renderAthleteActivitiesPanel, renderRoundNotes, deltaBadge, newShine
-} from './ui.js?v=20261124a';
+} from './ui.js?v=20261124b';
 
 import { getCurrentDate, setSimulatedDate } from './demo.js';
 
@@ -2075,7 +2075,7 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
       const targetLoss = Math.round(targetRoundElev * 0.25);
       const targetName = target?.name || 'la cible';
 
-      return `💣 -${formatElevation(athleteLoss, false)} m pour toi, -${formatElevation(targetLoss, false)} m pour ${targetName}`;
+      return `-${formatElevation(athleteLoss, false)} m pour toi, -${formatElevation(targetLoss, false)} m pour ${targetName}`;
     }
 
     case 'malediction': {
@@ -2091,9 +2091,9 @@ function calculateBonusHoverInfo(bonus, athlete, target, roundNumber) {
       const totalStolen = bonus.effect_result?.total_stolen || 0;
 
       if (totalStolen > 0) {
-        return `🪬 ${formatElevation(stolenThisRound, false)} m volés ce round à ${targetName} (total: ${formatElevation(totalStolen, false)} m)`;
+        return `${formatElevation(stolenThisRound, false)} m volés ce round à ${targetName} (total: ${formatElevation(totalStolen, false)} m)`;
       }
-      return `🪬 ${formatElevation(stolenThisRound, false)} m seront volés à ${targetName} ce round`;
+      return `${formatElevation(stolenThisRound, false)} m seront volés à ${targetName} ce round`;
     }
 
     default:

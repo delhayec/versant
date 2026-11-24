@@ -17,7 +17,7 @@
 import { getRoundDates, getParticipantById, getSeasonType, getSeasonNumber } from './config.js';
 import { filterByPeriod, calculateRanking } from './standings-engine.js';
 import { applyJokerEffects, getActiveJokersForRound, getBonusesUsedInRound } from './jokers.js';
-import { formatElevation } from './ui.js?v=20261124a';
+import { formatElevation } from './ui.js?v=20261124b';
 import { picto, animalIcon } from './pictos.js?v=20261119a';
 import * as H from './da-hand.js?v=20261118a';
 
