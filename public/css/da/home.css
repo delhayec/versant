@@ -1139,8 +1139,12 @@ html.da-atelier :is(.team-elim-round-badge, .history-elim-round) { text-transfor
    Téléphone : rang, joueur, round d'élimination (R1, R2…), D+ cumulé au bord
    droit ; ni cadre « depuis élim. » ni points. */
 html.da-atelier #eliminatedChallengeContainer :is(.ranking-header, .ranking-row) {
-  grid-template-columns: 60px minmax(0, 1fr) 110px 140px;
+  grid-template-columns: 60px minmax(0, 1fr) 110px 170px;   /* D+ large : l'étiquette des bonus tient dessous */
 }
+/* Le nom ne se coupe jamais ; « depuis élim. » passe dessous s'il manque de place */
+html.da-atelier #eliminatedChallengeContainer .athlete-info { flex-wrap: wrap; row-gap: 4px; }
+html.da-atelier #eliminatedChallengeContainer .athlete-name { white-space: nowrap; }
+html.da-atelier #eliminatedChallengeContainer .elevation-bonuses .picto { width: 26px; height: 26px; }
 html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(4), .ranking-row > .ranking-round) { display: none; }
 html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(5), .ranking-row > .ranking-points) { order: 3; justify-self: end; text-align: right; }
 html.da-atelier #eliminatedChallengeContainer :is(.ranking-header > :nth-child(3), .ranking-row > .ranking-elevation) {
@@ -1167,6 +1171,15 @@ html.da-atelier #eliminatedChallengeContainer .ranking-row > .ranking-round {
   /* R1, R2 en chasse fixe ; le nom et la pastille ±places sur une seule ligne (même hauteur que le principal) */
   html.da-atelier #eliminatedChallengeContainer .ranking-row > .ranking-round { font: 700 14px/1 var(--f-mono); color: var(--accent-text); }
   html.da-atelier #eliminatedChallengeContainer .athlete-info { flex-direction: row; align-items: center; gap: 6px; }
+  /* le nom et son coffre sur la même ligne, centrés */
+  html.da-atelier #eliminatedChallengeContainer .athlete-name { display: inline-flex; align-items: center; }
+}
+@media (max-width: 600px) {
+  /* Motif du joueur : la même bande pleine hauteur que le classement principal
+     (l'ancienne feuille imposait un carré de 22 px collé en haut) */
+  html.da-atelier #eliminatedChallengeContainer .ranking-athlete > .athlete-avatar { width: 12px; min-width: 12px; height: auto; align-self: stretch; }
+  /* Pas la place pour les mentions de D+ gagné ou perdu par les bonus */
+  html.da-atelier :is(#rankingContainer, #eliminatedChallengeContainer) .ranking-row .elevation-bonuses { display: none; }
 }
 
 /* ============================================
@@ -1740,10 +1753,11 @@ html.da-atelier .da-tag--ach .da-tag__icons .picto { width: 47px; height: 47px; 
 
 /* Challenge des éliminés : bonus encore à jouer (visible de tous), cadeau
    orange avec un point ; bonus déjà joué : cadeau au crayon */
-html.da-atelier .bonus-badge { display: inline-flex; vertical-align: -3px; margin-left: 4px; color: var(--sub); }
-html.da-atelier .bonus-badge .picto { width: 30px; height: 30px; }
+/* Coffre : minuscule une fois le bonus reçu, un peu plus grand (orange) quand il est à jouer */
+html.da-atelier .bonus-badge { display: inline-flex; align-items: center; vertical-align: middle; margin-left: 4px; color: var(--sub); }
+html.da-atelier .bonus-badge .picto { width: 16px; height: 16px; vertical-align: 0; }
 html.da-atelier .bonus-badge--ready { position: relative; color: var(--accent-text); }
-html.da-atelier .bonus-badge--ready .picto { width: 36px; height: 36px; }
+html.da-atelier .bonus-badge--ready .picto { width: 24px; height: 24px; }
 html.da-atelier .bonus-badge--ready::after { content: ""; position: absolute; top: -2px; right: -5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1.5px var(--panel); }
 
 /* Classement du round : notes à la main (leader qui s'envole, règle des 0 m
